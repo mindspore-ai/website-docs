@@ -1,0 +1,443 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>实现模型故障注入评估模型容错性 &mdash; MindSpore master 文档</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script src="_static/translations.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+    <link rel="next" title="mindarmour" href="mindarmour.html" />
+    <link rel="prev" title="实现图像数据概念漂移检测应用" href="concept_drift_images.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">安装部署</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour_install.html">安装MindArmour</a></li>
+</ul>
+<p class="caption"><span class="caption-text">AI安全</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="improve_model_security_nad.html">使用NAD算法提升模型安全性</a></li>
+<li class="toctree-l1"><a class="reference internal" href="test_model_security_fuzzing.html">使用fuzz testing模块测试模型安全性</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation_of_CNNCTC.html">对OCR模型CNN-CTC的鲁棒性评测</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_encrypt_protection.html">模型加密保护</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dynamic_obfuscation_protection.html">模型动态混淆</a></li>
+</ul>
+<p class="caption"><span class="caption-text">AI隐私</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="protect_user_privacy_with_differential_privacy.html">应用差分隐私机制保护用户隐私</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protect_user_privacy_with_suppress_privacy.html">应用抑制隐私机制保护用户隐私</a></li>
+<li class="toctree-l1"><a class="reference internal" href="test_model_security_membership_inference.html">使用成员推理测试模型安全性</a></li>
+</ul>
+<p class="caption"><span class="caption-text">AI可靠性</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="concept_drift_time_series.html">实现时序数据概念漂移检测应用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concept_drift_images.html">实现图像数据概念漂移检测应用</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">实现模型故障注入评估模型容错性</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#准备环节">准备环节</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#下载数据集">下载数据集</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#下载模型参数文件">下载模型参数文件</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#导入python库模块">导入Python库&amp;模块</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#构建数据集和模型">构建数据集和模型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#设置参数及初始化故障注入模块">设置参数及初始化故障注入模块</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#评估模型的容错性">评估模型的容错性</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#查看结果">查看结果</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">API参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.html">mindarmour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.adv_robustness.attacks.html">mindarmour.adv_robustness.attacks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.adv_robustness.defenses.html">mindarmour.adv_robustness.defenses</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.adv_robustness.detectors.html">mindarmour.adv_robustness.detectors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.adv_robustness.evaluations.html">mindarmour.adv_robustness.evaluations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.fuzz_testing.html">mindarmour.fuzz_testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.natural_robustness.transform.image.html">mindarmour.natural_robustness.transform.image</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.privacy.diff_privacy.html">mindarmour.privacy.diff_privacy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.privacy.evaluation.html">mindarmour.privacy.evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.privacy.sup_privacy.html">mindarmour.privacy.sup_privacy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.reliability.html">mindarmour.reliability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindarmour.utils.html">mindarmour.utils</a></li>
+</ul>
+<p class="caption"><span class="caption-text">参考文档</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="design.html">安全可信总体设计</a></li>
+<li class="toctree-l1"><a class="reference internal" href="differential_privacy_design.html">差分隐私设计</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fuzzer_design.html">AI模型安全测试设计</a></li>
+<li class="toctree-l1"><a class="reference internal" href="security_and_privacy.html">MindArmour模块介绍</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+</ul>
+<p class="caption"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="RELEASE.html">Release Notes</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>实现模型故障注入评估模型容错性</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/fault_injection.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="实现模型故障注入评估模型容错性">
+<h1>实现模型故障注入评估模型容错性<a class="headerlink" href="#实现模型故障注入评估模型容错性" title="永久链接至标题">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/master/docs/mindarmour/docs/source_zh_cn/fault_injection.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source.png"></a></p>
+<div class="section" id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题">¶</a></h2>
+<p>在过去十几年，人工智能的应用越来越广。其中也包括safety critical和security critical的领域中，
+例如自动驾驶、智能安防、智慧医疗等等。在这些领域中发生故障可能会导致严重的生命财产损失，
+因此确保AI模型性能的可靠性和使用过程中的可靠性是至关重要的。</p>
+<p>为了保障AI模型在各种故障模式下的可靠性和可用性，对其组件进行严格的测试验证非常重要。
+本模块可模拟各类故障场景，实现对模型可靠性的度量评估。</p>
+<p>本例会实现一个简单的模型故障注入及容错性评估的功能，整体流程如下：</p>
+<ol class="simple">
+<li><p>下载公开数据集和模型参数文件。</p></li>
+<li><p>构建数据集和模型。</p></li>
+<li><p>调用故障注入模块。</p></li>
+<li><p>查看结果。</p></li>
+</ol>
+<blockquote>
+<div><p>你可以在这里找到完整可运行的样例代码：<a class="reference external" href="https://gitee.com/mindspore/mindarmour/blob/master/examples/reliability/model_fault_injection.py">https://gitee.com/mindspore/mindarmour/blob/master/examples/reliability/model_fault_injection.py</a> 。</p>
+</div></blockquote>
+</div>
+<div class="section" id="准备环节">
+<h2>准备环节<a class="headerlink" href="#准备环节" title="永久链接至标题">¶</a></h2>
+<p>确保已经正确安装了MindSpore。如果没有，可以通过 <a class="reference external" href="https://www.mindspore.cn/install">MindSpore安装页面</a> 进行安装。</p>
+<div class="section" id="下载数据集">
+<h3>下载数据集<a class="headerlink" href="#下载数据集" title="永久链接至标题">¶</a></h3>
+<p>MNIST手写数据集包含60,000个样本的训练集和10,000个样本的测试集。</p>
+<blockquote>
+<div><p>数据集下载页面：<a class="reference external" href="http://yann.lecun.com/exdb/mnist/">http://yann.lecun.com/exdb/mnist/</a>。</p>
+</div></blockquote>
+<p>将数据集下载并解压到本地路径下，目录结构如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>- data_path
+    - train
+        - train-images-idx3-ubyte
+        - train-labels-idx1-ubyte
+    - test
+        - t10k-images-idx3-ubyte
+        - t10k-labels-idx1-ubyte
+</pre></div>
+</div>
+</div>
+<div class="section" id="下载模型参数文件">
+<h3>下载模型参数文件<a class="headerlink" href="#下载模型参数文件" title="永久链接至标题">¶</a></h3>
+<p>下载对应模型的参数文件，或者自己训练。</p>
+<blockquote>
+<div><p>参数文件下载页面：<a class="reference external" href="https://www.mindspore.cn/resources/hub/">https://www.mindspore.cn/resources/hub/</a>。</p>
+</div></blockquote>
+</div>
+<div class="section" id="导入python库模块">
+<h3>导入Python库&amp;模块<a class="headerlink" href="#导入python库模块" title="永久链接至标题">¶</a></h3>
+<p>在使用前，需要导入需要的Python库。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="kn">from</span> <span class="nn">mindspore.train</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span> <span class="nn">mindarmour.reliability</span> <span class="kn">import</span> <span class="n">FaultInjector</span>
+<span class="kn">from</span> <span class="nn">examples.common.networks.lenet5.lenet5_net</span> <span class="kn">import</span> <span class="n">LeNet5</span>
+<span class="kn">from</span> <span class="nn">examples.common.dataset.data_processing</span> <span class="kn">import</span> <span class="n">generate_mnist_dataset</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="构建数据集和模型">
+<h2>构建数据集和模型<a class="headerlink" href="#构建数据集和模型" title="永久链接至标题">¶</a></h2>
+<p>以MNIST数据集和LeNet5模型为例。</p>
+<p>构建MNIST数据集：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">DATA_FILE</span> <span class="o">=</span> <span class="s1">&#39;PATH_TO_MNIST/&#39;</span>
+<span class="n">ds_eval</span> <span class="o">=</span> <span class="n">generate_mnist_dataset</span><span class="p">(</span><span class="n">DATA_FILE</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">)</span>
+<span class="n">test_images</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">test_labels</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">ds_eval</span><span class="o">.</span><span class="n">create_tuple_iterator</span><span class="p">(</span><span class="n">output_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">test_images</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
+    <span class="n">test_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+<span class="n">ds_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">test_images</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">ds_label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">test_labels</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>构建LeNet5网络：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ckpt_path</span> <span class="o">=</span> <span class="s1">&#39;PATH_TO_CHECKPOINT/&#39;</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">LeNet5</span><span class="p">()</span>
+<span class="n">param_dict</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">ckpt_path</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="设置参数及初始化故障注入模块">
+<h2>设置参数及初始化故障注入模块<a class="headerlink" href="#设置参数及初始化故障注入模块" title="永久链接至标题">¶</a></h2>
+<p>设置故障注入参数，示例代码如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fi_type</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;bitflips_designated&#39;</span><span class="p">,</span> <span class="s1">&#39;precision_loss&#39;</span><span class="p">]</span>
+<span class="n">fi_mode</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;single_layer&#39;</span><span class="p">,</span> <span class="s1">&#39;all_layer&#39;</span><span class="p">]</span>
+<span class="n">fi_size</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>初始化故障注入模块：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fi</span> <span class="o">=</span> <span class="n">FaultInjector</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">fi_type</span><span class="o">=</span><span class="n">fi_type</span><span class="p">,</span> <span class="n">fi_mode</span><span class="o">=</span><span class="n">fi_mode</span><span class="p">,</span> <span class="n">fi_size</span><span class="o">=</span><span class="n">fi_size</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>参数含义：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">model(Model)</span></code>：需要评估的模型。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fi_type(list)</span></code>: 注入的故障类型，目前支持8种故障类型，分别为<code class="docutils literal notranslate"><span class="pre">bitflips_random</span></code>、 <code class="docutils literal notranslate"><span class="pre">bitflips_designated</span></code>、 <code class="docutils literal notranslate"><span class="pre">random</span></code>、 <code class="docutils literal notranslate"><span class="pre">zeros</span></code>、 <code class="docutils literal notranslate"><span class="pre">NaN</span></code>、 <code class="docutils literal notranslate"><span class="pre">INF</span></code>、 <code class="docutils literal notranslate"><span class="pre">anti_activation</span></code>和<code class="docutils literal notranslate"><span class="pre">precision_loss</span></code>。</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">bitflips_random</span></code>: 随机反转一位比特位。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bitflips_designated</span></code>: 反转关键比特位，关键比特位指对数值影响最大的比特位。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">random</span></code>: 数值随机，随机范围是[-1, 1]。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zeros</span></code>: 数值置零，用零替换原始数值。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">NaN</span></code>: 数值非数，用NaN替换原始数值。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">INF</span></code>: 数值无穷，用INF替换原始数值。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">anti_activation</span></code>: 反激活，反转原始数值符号。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">precision_loss</span></code>: 原始数值保留一位小数。</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fi_mode(list)</span></code>：故障注入的模式，有两种可选模式，分别是<code class="docutils literal notranslate"><span class="pre">single_layer</span></code> 随机一层注入故障或者<code class="docutils literal notranslate"><span class="pre">all_layer</span></code>每层都注入故障。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fi_size(list)</span></code>：每次注入故障的具体数量，对于<code class="docutils literal notranslate"><span class="pre">zeros</span></code>, <code class="docutils literal notranslate"><span class="pre">anti_activation</span></code> 和 <code class="docutils literal notranslate"><span class="pre">precision_loss</span></code> 类型故障则代表为张量元素总量的百分比。</p></li>
+</ul>
+</div>
+<div class="section" id="评估模型的容错性">
+<h2>评估模型的容错性<a class="headerlink" href="#评估模型的容错性" title="永久链接至标题">¶</a></h2>
+<p>完成模块初始化后，调用故障注入方法<code class="docutils literal notranslate"><span class="pre">kick_off</span></code>评估模型：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">fi</span><span class="o">.</span><span class="n">kick_off</span><span class="p">(</span><span class="n">ds_data</span><span class="p">,</span> <span class="n">ds_label</span><span class="p">,</span> <span class="n">iter_times</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ds_data(numpy.ndarray)</span></code>：测试数据，将在此数据集上评估模型对于注入故障的容错性。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ds_label(numpy.ndarray)</span></code>：数据标签，与测试数据对应。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iter_times(int)</span></code>：每种故障参数评估次数，决定数据批大小。</p></li>
+</ul>
+<p>调用方法<code class="docutils literal notranslate"><span class="pre">metrics</span></code>统计结果：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result_summary</span> <span class="o">=</span> <span class="n">fi</span><span class="o">.</span><span class="n">metrics</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>返回值：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">results(list)</span></code>：每种故障参数下模型的评估结果。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">result_summary(list)</span></code>：按故障模式分别统计评估结果的最大值，最小值和均值。</p></li>
+</ul>
+</div>
+<div class="section" id="查看结果">
+<h2>查看结果<a class="headerlink" href="#查看结果" title="永久链接至标题">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">result_summary</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>结果如下所示：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>{&#39;original_acc&#39;: 0.9797676282051282}
+{&#39;type&#39;: &#39;bitflips_designated&#39;, &#39;mode&#39;: &#39;single_layer&#39;, &#39;size&#39;: 1, &#39;acc&#39;: 0.7028245192307693, &#39;SDC&#39;: 0.2769431089743589}
+{&#39;type&#39;: &#39;bitflips_designated&#39;, &#39;mode&#39;: &#39;single_layer&#39;, &#39;size&#39;: 2, &#39;acc&#39;: 0.5052083333333334, &#39;SDC&#39;: 0.4745592948717948}
+{&#39;type&#39;: &#39;bitflips_designated&#39;, &#39;mode&#39;: &#39;all_layer&#39;, &#39;size&#39;: 1, &#39;acc&#39;: 0.2077323717948718, &#39;SDC&#39;: 0.7720352564102564}
+{&#39;type&#39;: &#39;bitflips_designated&#39;, &#39;mode&#39;: &#39;all_layer&#39;, &#39;size&#39;: 2, &#39;acc&#39;: 0.15745192307692307, &#39;SDC&#39;: 0.8223157051282051}
+{&#39;type&#39;: &#39;precision_loss&#39;, &#39;mode&#39;: &#39;single_layer&#39;, &#39;size&#39;: 1, &#39;acc&#39;: 0.9795673076923077, &#39;SDC&#39;: 0.00020032051282048435}
+{&#39;type&#39;: &#39;precision_loss&#39;, &#39;mode&#39;: &#39;single_layer&#39;, &#39;size&#39;: 2, &#39;acc&#39;: 0.9797676282051282, &#39;SDC&#39;: 0.0}
+{&#39;type&#39;: &#39;precision_loss&#39;, &#39;mode&#39;: &#39;all_layer&#39;, &#39;size&#39;: 1, &#39;acc&#39;: 0.9794671474358975, &#39;SDC&#39;: 0.00030048076923072653}
+{&#39;type&#39;: &#39;precision_loss&#39;, &#39;mode&#39;: &#39;all_layer&#39;, &#39;size&#39;: 2, &#39;acc&#39;: 0.9795673076923077, &#39;SDC&#39;: 0.00020032051282048435}
+single_layer_acc_mean:0.791842 single_layer_acc_max:0.979768 single_layer_acc_min:0.505208
+single_layer_SDC_mean:0.187926 single_layer_SDC_max:0.474559 single_layer_SDC_min:0.000000
+all_layer_acc_mean:0.581055 all_layer_acc_max:0.979567 all_layer_acc_min:0.157452
+all_layer_SDC_mean:0.398713 all_layer_SDC_max:0.822316 all_layer_SDC_min:0.000200
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">original_acc</span></code>: 模型原始准确率。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SDC(Silent</span> <span class="pre">Data</span> <span class="pre">Corruption)</span></code>: 代表性能下降值，为原始准确率减去当前故障准确率。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">single_layer_acc_mean/max/min</span></code>: 单层故障模式下， 准确率的均值/最大值/最小值。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">single_layer_SDC_mean/max/min</span></code>: 单层故障模式下， SDC的均值/最大值/最小值。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">all_layer_acc_mean/max/min</span></code>: 每层故障模式下， 准确率的均值/最大值/最小值。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">all_layer_SDC_mean/max/min</span></code>: 每层故障模式下， SDC的均值/最大值/最小值。</p></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="mindarmour.html" class="btn btn-neutral float-right" title="mindarmour" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="concept_drift_images.html" class="btn btn-neutral float-left" title="实现图像数据概念漂移检测应用" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; 版权所有 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>
