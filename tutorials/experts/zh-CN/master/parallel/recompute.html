@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>重计算 &mdash; MindSpore master documentation</title>
+  <title>重计算 &mdash; MindSpore master 文档</title>
   
 
   
@@ -50,8 +50,8 @@
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="分布式图切分" href="distributed_graph_partition.html" />
     <link rel="prev" title="Host&amp;Device异构" href="host_device_training.html" /> 
 </head>
@@ -236,15 +236,15 @@
            <div itemprop="articleBody">
             
   <div class="section" id="重计算">
-<h1>重计算<a class="headerlink" href="#重计算" title="Permalink to this headline">¶</a></h1>
+<h1>重计算<a class="headerlink" href="#重计算" title="永久链接至标题">¶</a></h1>
 <p><a href="https://gitee.com/mindspore/docs/blob/master/tutorials/experts/source_zh_cn/parallel/recompute.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source.png"></a></p>
 <div class="section" id="概述">
-<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline">¶</a></h2>
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题">¶</a></h2>
 <p>MindSpore采用反向模式的自动微分，根据正向图计算流程来自动推导出反向图，正向图和反向图一起构成了完整的计算图。在计算某些反向算子时，需要用到一些正向算子的计算结果，导致这些正向算子的计算结果需要驻留在内存中，直到依赖它们的反向算子计算完，这些正向算子的计算结果占用的内存才会被复用。这一现象推高了训练的内存峰值，在大规模网络模型中尤为显著。</p>
 <p>为了解决这个问题，MindSpore提供了重计算的功能，可以不保存正向算子的计算结果，让这些内存可以被复用，然后在计算反向算子时，如果需要正向的结果，再重新计算正向算子。此教程以模型ResNet-50为例，讲解MindSpore如何配置重计算功能去训练模型。</p>
 </div>
 <div class="section" id="基本原理">
-<h2>基本原理<a class="headerlink" href="#基本原理" title="Permalink to this headline">¶</a></h2>
+<h2>基本原理<a class="headerlink" href="#基本原理" title="永久链接至标题">¶</a></h2>
 <p>MindSpore根据正向图计算流程来自动推导出反向图，正向图和反向图一起构成了完整的计算图。在计算某些反向算子时，可能需要用到某些正向算子的计算结果，导致这些正向算子的计算结果，需要驻留在内存中直到这些反向算子计算完，它们所占的内存才会被其他算子复用。而这些正向算子的计算结果，长时间驻留在内存中，会推高计算的内存占用峰值，在大规模网络模型中尤为显著。</p>
 <p>为了降低内存峰值，重计算技术可以不保存正向激活层的计算结果，让该内存可以被复用，然后在计算反向部分时，重新计算出正向激活层的结果。MindSpore提供了重计算的能力。</p>
 <p>重计算功能具体实现为根据用户指定的需要做重计算的正向算子，复制出一份相同的算子，输出到反向算子上，并删除原正向算子与反向算子间的连边关系。另外，我们需要保证复制出来的算子，在计算相应的反向部分时才开始被计算，所以需要插入控制依赖去保证算子执行顺序。如下图所示：</p>
@@ -256,16 +256,16 @@
 <p><em>图：开启重计算功能前后的GPT-3内存使用比较</em></p>
 </div>
 <div class="section" id="操作实践">
-<h2>操作实践<a class="headerlink" href="#操作实践" title="Permalink to this headline">¶</a></h2>
+<h2>操作实践<a class="headerlink" href="#操作实践" title="永久链接至标题">¶</a></h2>
 <div class="section" id="样例代码说明">
-<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="Permalink to this headline">¶</a></h3>
+<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="永久链接至标题">¶</a></h3>
 <ol class="simple">
 <li><p>准备模型代码。ResNet-50模型的代码可参见：<a class="reference external" href="https://gitee.com/mindspore/models/tree/master/official/cv/ResNet">https://gitee.com/mindspore/models/tree/master/official/cv/ResNet</a>，其中，<code class="docutils literal notranslate"><span class="pre">train.py</span></code>为训练的主函数所在，<code class="docutils literal notranslate"><span class="pre">src/</span></code>目录中包含ResNet-50模型的定义和配置信息等，<code class="docutils literal notranslate"><span class="pre">script/</span></code>目录中包含一些训练和推理脚本。</p></li>
 <li><p>准备数据集。本样例采用<code class="docutils literal notranslate"><span class="pre">CIFAR-10</span></code>数据集，数据集的下载和加载方式可参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/train_ascend.html#%E4%B8%8B%E8%BD%BD%E6%95%B0%E6%8D%AE%E9%9B%86">https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/train_ascend.html#%E4%B8%8B%E8%BD%BD%E6%95%B0%E6%8D%AE%E9%9B%86</a>。</p></li>
 </ol>
 </div>
 <div class="section" id="配置重计算">
-<h3>配置重计算<a class="headerlink" href="#配置重计算" title="Permalink to this headline">¶</a></h3>
+<h3>配置重计算<a class="headerlink" href="#配置重计算" title="永久链接至标题">¶</a></h3>
 <p>我们可以通过调用两种接口去配置重计算，以<code class="docutils literal notranslate"><span class="pre">src/resnet.py</span></code>为例：</p>
 <ol>
 <li><p>调用<code class="docutils literal notranslate"><span class="pre">Primitive</span></code>的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/api_python/ops/mindspore.ops.Primitive.html#mindspore.ops.Primitive.recompute">recompute接口</a>，调用该接口之后，在计算反向部分时，该算子会被重新计算。</p>
@@ -345,7 +345,7 @@
 </ol>
 </div>
 <div class="section" id="训练模型">
-<h3>训练模型<a class="headerlink" href="#训练模型" title="Permalink to this headline">¶</a></h3>
+<h3>训练模型<a class="headerlink" href="#训练模型" title="永久链接至标题">¶</a></h3>
 <p>以GPU环境为例，使用训练脚本<code class="docutils literal notranslate"><span class="pre">scripts/run_standalone_train_gpu.sh</span></code>。执行命令：<code class="docutils literal notranslate"><span class="pre">bash</span> <span class="pre">scripts/run_standalone_train_gpu.sh</span> <span class="pre">$数据集路径</span> <span class="pre">config/resnet50_cifar10_config.yaml</span></code>。
 通过在<code class="docutils literal notranslate"><span class="pre">src/train.py</span></code>中设置context：<code class="docutils literal notranslate"><span class="pre">save_graph=True</span></code>，可以打印出计算图结构进行对比。</p>
 <p>设置重计算前：</p>
@@ -396,7 +396,7 @@
 
   <div role="contentinfo">
     <p>
-        &#169; Copyright 2022, MindSpore.
+        &#169; 版权所有 2022, MindSpore.
 
     </p>
   </div>
