@@ -1194,15 +1194,23 @@
     <span class="k">return</span> <span class="n">output_wrt_input_all</span>
 
 
-<span class="k">def</span> <span class="nf">_jacfwd_postprocess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">inputs_shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_jac_postprocess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">,</span> <span class="n">mode</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;reformat jacobian.&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;forward&#39;</span><span class="p">:</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">_jacfwd_trans_item</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">_jacrev_trans_item</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="n">shape</span><span class="p">,)</span>
+
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
         <span class="n">jacobian</span> <span class="o">=</span> <span class="p">()</span>
         <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">x</span><span class="p">:</span>
-            <span class="n">jacobian</span> <span class="o">+=</span> <span class="n">_jacfwd_trans_item</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">inputs_shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">)</span>
+            <span class="n">jacobian</span> <span class="o">+=</span> <span class="n">func</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
         <span class="n">res</span> <span class="o">=</span> <span class="n">jacobian</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">res</span> <span class="o">=</span> <span class="n">_jacfwd_trans_item</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">inputs_shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">input_num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">grad_position</span><span class="p">)</span>
@@ -1220,6 +1228,11 @@
     <span class="k">return</span> <span class="n">jac</span>
 
 
+<span class="k">def</span> <span class="nf">_jacfwd_postprocess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">inputs_shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;reformat forward-computed Jacobian.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_jac_postprocess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">inputs_shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">,</span> <span class="s1">&#39;forward&#39;</span><span class="p">)</span>
+
+
 <span class="k">def</span> <span class="nf">_jacfwd_construct_v</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    For input (x1, x2), x1.shape = (a, b), x2.shape = (c, d), this method generates corresponding v (v1, v2),</span>
@@ -1232,10 +1245,9 @@
     <span class="n">items_num</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">cum_num</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,)</span>
     <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
-        <span class="n">item_num</span> <span class="o">=</span> <span class="n">size</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-        <span class="n">num</span> <span class="o">+=</span> <span class="n">item_num</span>
+        <span class="n">num</span> <span class="o">+=</span> <span class="n">size</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
         <span class="n">inputs_shape</span> <span class="o">+=</span> <span class="p">((</span><span class="n">item</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">num</span><span class="p">),)</span>
-        <span class="n">items_num</span> <span class="o">+=</span> <span class="p">(</span><span class="n">item_num</span><span class="p">,)</span>
+        <span class="n">items_num</span> <span class="o">+=</span> <span class="p">(</span><span class="n">size</span><span class="p">(</span><span class="n">item</span><span class="p">),)</span>
         <span class="n">cum_num</span> <span class="o">+=</span> <span class="p">(</span><span class="n">num</span><span class="p">,)</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">element</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
         <span class="n">item_size</span> <span class="o">=</span> <span class="n">items_num</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
@@ -1384,29 +1396,8 @@
 
 
 <span class="k">def</span> <span class="nf">_jacrev_postprocess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">outputs_shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;reformat jacobian.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-        <span class="n">jacobian</span> <span class="o">=</span> <span class="p">()</span>
-        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">x</span><span class="p">:</span>
-            <span class="n">jacobian</span> <span class="o">+=</span> <span class="n">_jacrev_trans_item</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">outputs_shape</span><span class="p">)</span>
-        <span class="n">res</span> <span class="o">=</span> <span class="n">jacobian</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">res</span> <span class="o">=</span> <span class="n">_jacrev_trans_item</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">outputs_shape</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">input_num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">grad_position</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">%</span> <span class="n">input_num</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The numbers of inputs and outputs do not match.&quot;</span><span class="p">)</span>
-    <span class="n">output_num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">//</span> <span class="n">input_num</span>
-    <span class="k">if</span> <span class="n">input_num</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">output_num</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">res</span>
-    <span class="n">jac</span> <span class="o">=</span> <span class="p">()</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">output_num</span><span class="p">):</span>
-        <span class="n">input_grad</span> <span class="o">=</span> <span class="p">()</span>
-        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">input_num</span><span class="p">):</span>
-            <span class="n">input_grad</span> <span class="o">+=</span> <span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="n">j</span> <span class="o">*</span> <span class="n">output_num</span> <span class="o">+</span> <span class="n">i</span><span class="p">],)</span>
-        <span class="n">jac</span> <span class="o">+=</span> <span class="p">(</span><span class="n">input_grad</span><span class="p">,)</span>
-    <span class="k">return</span> <span class="n">jac</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;reformat reverse-computed jacobian.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_jac_postprocess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">outputs_shape</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">,</span> <span class="s1">&#39;reverse&#39;</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_jacrev_construct_v</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -1430,7 +1421,7 @@
         <span class="n">outputs_shape</span> <span class="o">+=</span> <span class="p">((</span><span class="n">item</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">num</span><span class="p">),)</span>
         <span class="n">items_num</span> <span class="o">+=</span> <span class="p">(</span><span class="n">item_num</span><span class="p">,)</span>
         <span class="n">cum_num</span> <span class="o">+=</span> <span class="p">(</span><span class="n">num</span><span class="p">,)</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">element</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
         <span class="n">primal</span> <span class="o">=</span> <span class="n">broadcast_to</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="p">(</span><span class="n">num</span><span class="p">,)</span> <span class="o">+</span> <span class="n">element</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="n">primals</span> <span class="o">+=</span> <span class="p">(</span><span class="n">primal</span><span class="p">,)</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">element</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outputs</span><span class="p">):</span>
