@@ -225,7 +225,29 @@
 <p>In general, the default parameter initialization provided by MindSpore can meet the initialization requirements of the common neural network layer. When encountering a parameter initialization method that needs to be customized, you can inherit the <code class="docutils literal notranslate"><span class="pre">Initializer</span></code> custom parameter initialization method. Take <code class="docutils literal notranslate"><span class="pre">XavierNormal</span></code> as an example:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">Initializer</span><span class="p">,</span> <span class="n">_calculate_fan_in_and_fan_out</span><span class="p">,</span> <span class="n">_assignment</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">Initializer</span>
+
+
+<span class="k">def</span> <span class="nf">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="n">arr</span><span class="p">):</span>
+    <span class="c1"># calculate fan_in and fan_out. fan_in is the number of input units in `arr` , and fan_out is the number of output units in `arr`.</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">arr</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">dimensions</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dimensions</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&#39;fan_in&#39; and &#39;fan_out&#39; can not be computed for arr with fewer than&quot;</span>
+                         <span class="s2">&quot; 2 dimensions, but got dimensions </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dimensions</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">dimensions</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># Linear</span>
+        <span class="n">fan_in</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">fan_out</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">num_input_fmaps</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">num_output_fmaps</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">receptive_field_size</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">):</span>
+            <span class="n">receptive_field_size</span> <span class="o">*=</span> <span class="n">shape</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">fan_in</span> <span class="o">=</span> <span class="n">num_input_fmaps</span> <span class="o">*</span> <span class="n">receptive_field_size</span>
+        <span class="n">fan_out</span> <span class="o">=</span> <span class="n">num_output_fmaps</span> <span class="o">*</span> <span class="n">receptive_field_size</span>
+    <span class="k">return</span> <span class="n">fan_in</span><span class="p">,</span> <span class="n">fan_out</span>
+
 
 <span class="k">class</span> <span class="nc">XavierNormal</span><span class="p">(</span><span class="n">Initializer</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
@@ -234,12 +256,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">gain</span> <span class="o">=</span> <span class="n">gain</span>
 
     <span class="k">def</span> <span class="nf">_initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">):</span> <span class="c1"># arr is a Tensor to be initialized</span>
-        <span class="n">fan_in</span><span class="p">,</span> <span class="n">fan_out</span> <span class="o">=</span> <span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="n">arr</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="c1"># Compute fan_in, fan_out</span>
+        <span class="n">fan_in</span><span class="p">,</span> <span class="n">fan_out</span> <span class="o">=</span> <span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span> <span class="c1"># Compute fan_in, fan_out</span>
 
         <span class="n">std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gain</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">fan_in</span> <span class="o">+</span> <span class="n">fan_out</span><span class="p">))</span> <span class="c1"># Calculate std value</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">std</span><span class="p">,</span> <span class="n">arr</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="c1"># Construct the initialized array with numpy</span>
 
-        <span class="n">_assignment</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span> <span class="c1"># Assign the initialized ndarray to arr</span>
+        <span class="n">arr</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:]</span> <span class="c1"># Assign the initialized ndarray to arr</span>
 </pre></div>
 </div>
 <p>After that, we can call it like the built-in initialization method:</p>
