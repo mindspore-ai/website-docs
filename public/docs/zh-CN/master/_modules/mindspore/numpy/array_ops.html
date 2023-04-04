@@ -1485,6 +1485,19 @@
     <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">reps</span><span class="p">)</span></div>
 
 
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_can_broadcast_to</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">target_shape</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Determines if shape can be broadcast to target_shape.&quot;&quot;&quot;</span>
+    <span class="n">ndim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">ndim_target</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_shape</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="n">ndim_target</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">target_shape</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+
 <div class="viewcode-block" id="broadcast_to"><a class="viewcode-back" href="../../../api_python/numpy/mindspore.numpy.broadcast_to.html#mindspore.numpy.broadcast_to">[文档]</a><span class="k">def</span> <span class="nf">broadcast_to</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">shape</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Broadcasts an array to a new shape.</span>
@@ -1511,6 +1524,12 @@
 <span class="sd">        [1 2 3]</span>
 <span class="sd">        [1 2 3]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_check</span><span class="p">(</span><span class="n">shape_a</span><span class="p">,</span> <span class="n">shape</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_can_broadcast_to</span><span class="p">(</span><span class="n">shape_a</span><span class="p">,</span> <span class="n">shape</span><span class="p">):</span>
+            <span class="n">_raise_value_error</span><span class="p">(</span><span class="s1">&#39;cannot broadcast with &#39;</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">shape_a</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+    <span class="n">_check</span><span class="p">(</span><span class="n">shape_a</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">_broadcast_to_shape</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span></div>
 
 
@@ -1656,29 +1675,29 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Splits a tensor based on ``np.split`` or ``np.array_split``.&quot;&quot;&quot;</span>
     <span class="n">_check_input_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
     <span class="n">_</span> <span class="o">=</span> <span class="n">_check_axis_type</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-    <span class="n">axis</span> <span class="o">=</span> <span class="n">_canonicalize_axis</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+    <span class="n">axis_new</span> <span class="o">=</span> <span class="n">_canonicalize_axis</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
     <span class="n">res</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">arr_shape</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
-    <span class="n">length_along_dim</span> <span class="o">=</span> <span class="n">arr_shape</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span>
+    <span class="n">length_along_dim</span> <span class="o">=</span> <span class="n">arr_shape</span><span class="p">[</span><span class="n">axis_new</span><span class="p">]</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">indices_or_sections</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">indices_or_sections</span> <span class="o">&gt;</span> <span class="n">length_along_dim</span><span class="p">:</span>
             <span class="n">_raise_value_error</span><span class="p">(</span><span class="s2">&quot;empty tensor encountered.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">opname</span> <span class="o">==</span> <span class="s2">&quot;split&quot;</span> <span class="ow">or</span> <span class="n">length_along_dim</span> <span class="o">%</span> <span class="n">indices_or_sections</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">res</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">indices_or_sections</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="n">axis_new</span><span class="p">,</span> <span class="n">indices_or_sections</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">num_long_tensor</span> <span class="o">=</span> <span class="n">length_along_dim</span> <span class="o">%</span> <span class="n">indices_or_sections</span>
             <span class="n">num_short_tensor</span> <span class="o">=</span> <span class="n">indices_or_sections</span> <span class="o">-</span> <span class="n">num_long_tensor</span>
             <span class="n">length1</span> <span class="o">=</span> <span class="n">num_long_tensor</span> <span class="o">*</span> <span class="p">(</span><span class="n">length_along_dim</span> <span class="o">//</span> <span class="n">indices_or_sections</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
             <span class="n">length2</span> <span class="o">=</span> <span class="n">length_along_dim</span> <span class="o">-</span> <span class="n">length1</span>
             <span class="n">start1</span> <span class="o">=</span> <span class="n">_list_comprehensions</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">rank</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-            <span class="n">size1</span> <span class="o">=</span> <span class="n">_tuple_setitem</span><span class="p">(</span><span class="n">arr_shape</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">length1</span><span class="p">)</span>
-            <span class="n">start2</span> <span class="o">=</span> <span class="n">_tuple_setitem</span><span class="p">(</span><span class="n">start1</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">length1</span><span class="p">)</span>
-            <span class="n">size2</span> <span class="o">=</span> <span class="n">_tuple_setitem</span><span class="p">(</span><span class="n">arr_shape</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">length2</span><span class="p">)</span>
-            <span class="n">res</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">num_long_tensor</span><span class="p">)(</span><span class="n">F</span><span class="o">.</span><span class="n">tensor_slice</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">start1</span><span class="p">,</span> <span class="n">size1</span><span class="p">))</span> <span class="o">+</span> \
-                <span class="n">P</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">num_short_tensor</span><span class="p">)(</span><span class="n">F</span><span class="o">.</span><span class="n">tensor_slice</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">start2</span><span class="p">,</span> <span class="n">size2</span><span class="p">))</span>
+            <span class="n">size1</span> <span class="o">=</span> <span class="n">_tuple_setitem</span><span class="p">(</span><span class="n">arr_shape</span><span class="p">,</span> <span class="n">axis_new</span><span class="p">,</span> <span class="n">length1</span><span class="p">)</span>
+            <span class="n">start2</span> <span class="o">=</span> <span class="n">_tuple_setitem</span><span class="p">(</span><span class="n">start1</span><span class="p">,</span> <span class="n">axis_new</span><span class="p">,</span> <span class="n">length1</span><span class="p">)</span>
+            <span class="n">size2</span> <span class="o">=</span> <span class="n">_tuple_setitem</span><span class="p">(</span><span class="n">arr_shape</span><span class="p">,</span> <span class="n">axis_new</span><span class="p">,</span> <span class="n">length2</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="n">axis_new</span><span class="p">,</span> <span class="n">num_long_tensor</span><span class="p">)(</span><span class="n">F</span><span class="o">.</span><span class="n">tensor_slice</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">start1</span><span class="p">,</span> <span class="n">size1</span><span class="p">))</span> <span class="o">+</span> \
+                <span class="n">P</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="n">axis_new</span><span class="p">,</span> <span class="n">num_short_tensor</span><span class="p">)(</span><span class="n">F</span><span class="o">.</span><span class="n">tensor_slice</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">start2</span><span class="p">,</span> <span class="n">size2</span><span class="p">))</span>
 
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">indices_or_sections</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">and</span> <span class="n">_check_element_int</span><span class="p">(</span><span class="n">indices_or_sections</span><span class="p">):</span>
-        <span class="n">res</span> <span class="o">=</span> <span class="n">_split_sub_tensors</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">indices_or_sections</span><span class="p">,</span> <span class="n">axis</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">_split_sub_tensors</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">indices_or_sections</span><span class="p">,</span> <span class="n">axis_new</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">_raise_type_error</span><span class="p">(</span><span class="s2">&quot;Argument `indices_or_sections` in `mindspore.numpy.split`</span><span class="se">\</span>
 <span class="s2">            should be integer, tuple(int) or list(int), but got&quot;</span><span class="p">,</span> <span class="n">indices_or_sections</span><span class="p">)</span>

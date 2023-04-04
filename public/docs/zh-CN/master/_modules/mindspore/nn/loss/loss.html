@@ -266,11 +266,10 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops.operations.nn_ops</span> <span class="kn">import</span> <span class="n">MultilabelMarginLoss</span> <span class="k">as</span> <span class="n">MultilabelMarginLossOp</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
-<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">constexpr</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">constexpr</span><span class="p">,</span> <span class="n">_primexpr</span>
 <span class="kn">from</span> <span class="nn">mindspore.nn.cell</span> <span class="kn">import</span> <span class="n">Cell</span>
 <span class="kn">from</span> <span class="nn">mindspore.nn.layer.activation</span> <span class="kn">import</span> <span class="n">get_activation</span>
-<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">Validator</span> <span class="k">as</span> <span class="n">validator</span>
-<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">Rel</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
 
 
@@ -1046,6 +1045,7 @@
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;logits&#39;</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+        <span class="n">_check_shape</span><span class="p">(</span><span class="n">logits</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">label</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">logits</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">uint8</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="si">}</span><span class="s2">&#39;, the dtype of &#39;logits&#39; can not be uint8.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">label</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">uint8</span><span class="p">:</span>
@@ -1058,6 +1058,33 @@
         <span class="n">dice_loss</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">single_dice_coeff</span>
 
         <span class="k">return</span> <span class="n">dice_loss</span></div>
+
+
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_shape</span><span class="p">(</span><span class="n">logits_shape</span><span class="p">,</span> <span class="n">label_shape</span><span class="p">,</span> <span class="n">prim_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Internal function, used to check whether the shape of logits and labels meets the requirements.&quot;&quot;&quot;</span>
+    <span class="n">validator</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="s1">&#39;logits_shape&#39;</span><span class="p">,</span> <span class="n">logits_shape</span><span class="p">,</span> <span class="s1">&#39;label_shape&#39;</span><span class="p">,</span> <span class="n">label_shape</span><span class="p">,</span> <span class="n">prim_name</span><span class="o">=</span><span class="n">prim_name</span><span class="p">)</span>
+
+
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_ndim_multi</span><span class="p">(</span><span class="n">logits_dim</span><span class="p">,</span> <span class="n">label_dim</span><span class="p">,</span> <span class="n">prim_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Internal function, used to check whether the dimension of logits and label meets the requirements.&quot;&quot;&quot;</span>
+    <span class="n">msg_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;For </span><span class="se">\&#39;</span><span class="si">{</span><span class="n">prim_name</span><span class="si">}</span><span class="se">\&#39;</span><span class="s1">, the&#39;</span> <span class="k">if</span> <span class="n">prim_name</span> <span class="k">else</span> <span class="s2">&quot;The&quot;</span>
+    <span class="k">if</span> <span class="n">logits_dim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> &#39;logits&#39; dimension must be greater than 1, but got </span><span class="si">{</span><span class="n">logits_dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">label_dim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> &#39;labels&#39; dimension must be greater than 1, but got </span><span class="si">{</span><span class="n">label_dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_weights</span><span class="p">(</span><span class="n">weight_shape</span><span class="p">,</span> <span class="n">label_shape</span><span class="p">,</span> <span class="n">prim_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Internal function, used to check whether the reduced shape meets the requirements.&quot;&quot;&quot;</span>
+    <span class="n">msg_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;For </span><span class="se">\&#39;</span><span class="si">{</span><span class="n">prim_name</span><span class="si">}</span><span class="se">\&#39;</span><span class="s1">, the&#39;</span> <span class="k">if</span> <span class="n">prim_name</span> <span class="k">else</span> <span class="s2">&quot;The&quot;</span>
+    <span class="k">if</span> <span class="n">weight_shape</span> <span class="o">!=</span> <span class="n">label_shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> weight_shape[0] must be equal to label_shape[1], &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;but got weight_shape[0]: </span><span class="si">{</span><span class="n">weight_shape</span><span class="si">}</span><span class="s2"> and label_shape[1]: </span><span class="si">{</span><span class="n">label_shape</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
 
 
 <div class="viewcode-block" id="MultiClassDiceLoss"><a class="viewcode-back" href="../../../../api_python/nn/mindspore.nn.MultiClassDiceLoss.html#mindspore.nn.MultiClassDiceLoss">[文档]</a><span class="k">class</span> <span class="nc">MultiClassDiceLoss</span><span class="p">(</span><span class="n">LossBase</span><span class="p">):</span>
@@ -1130,6 +1157,8 @@
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;logits&#39;</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+        <span class="n">_check_shape</span><span class="p">(</span><span class="n">logits</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">label</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+        <span class="n">_check_ndim_multi</span><span class="p">(</span><span class="n">logits</span><span class="o">.</span><span class="n">ndim</span><span class="p">,</span> <span class="n">label</span><span class="o">.</span><span class="n">ndim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">total_loss</span> <span class="o">=</span> <span class="mi">0</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1139,6 +1168,7 @@
             <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ignore_indiex</span><span class="p">:</span>
                 <span class="n">dice_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">binarydiceloss</span><span class="p">(</span><span class="n">logits</span><span class="p">[:,</span> <span class="n">i</span><span class="p">],</span> <span class="n">label</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">_check_weights</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
                     <span class="n">dice_loss</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
                 <span class="n">total_loss</span> <span class="o">+=</span> <span class="n">dice_loss</span>
 
@@ -1640,22 +1670,23 @@
 <span class="sd">    where :math:`x \in \left\{0, \; \cdots , \; \text{x.size}(0) - 1\right\}`</span>
 <span class="sd">    and :math:`i \neq y`.</span>
 
-<span class="sd">    Optionally, you can give non-equal weighting on the classes by passing</span>
-<span class="sd">    a 1D input `weight` tensor w into the constructor.</span>
-
 <span class="sd">    Args:</span>
-<span class="sd">        p (int): Optional. The norm degree for pairwise distance. Should be 1 or 2. Default: 1.</span>
-<span class="sd">        margin (float): Optional. A parameter to change pairwise distance. Default: 1.0.</span>
-<span class="sd">        reduction (str): Apply specific reduction method to the output: &#39;none&#39;, &#39;mean&#39;, &#39;sum&#39;. Default: &quot;mean&quot;.</span>
+<span class="sd">        p (int, optional): The norm degree for pairwise distance. Should be 1 or 2. Default: 1.</span>
+<span class="sd">        margin (float, optional): A parameter to change pairwise distance. Default: 1.0.</span>
+<span class="sd">        reduction (str, optional): Apply specific reduction method to the output: &#39;none&#39;, &#39;mean&#39;, &#39;sum&#39;.</span>
+<span class="sd">            Default: &#39;mean&#39;.</span>
+
+<span class="sd">            - &#39;none&#39;: no reduction will be applied.</span>
+<span class="sd">            - &#39;mean&#39;: the sum of the output will be divided by the number of elements in the output.</span>
+<span class="sd">            - &#39;sum&#39;: the output will be summed.</span>
+
 <span class="sd">        weight (Tensor, optional): The rescaling weight to each class with shape :math:`(C,)`. Data type only</span>
-<span class="sd">            support float32, float16 or float64. Default: None.</span>
+<span class="sd">            support float32, float16 or float64. Default: None, all classes are weighted equally.</span>
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **x** (Tensor) - Input x, with shape :math:`(N, C)`. Data type only support float32, float16 or float64.</span>
 <span class="sd">        - **target** (Tensor) - Ground truth labels, with shape :math:`(N,)`. Data type only support int64. The</span>
 <span class="sd">          value of target should be non-negative, less than C.</span>
-<span class="sd">        - **weight** (Tensor, optional) - The rescaling weight to each class with shape :math:`(C,)`. Data type only</span>
-<span class="sd">          support float32, float16 or float64. Default: None.</span>
 
 <span class="sd">    Outputs:</span>
 <span class="sd">        Tensor, When `reduction` is &#39;none&#39;, the shape is :math:`(N,)`.</span>
@@ -1735,7 +1766,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        weight (Tensor, optional): A rescaling weight applied to the loss of each batch element.</span>
-<span class="sd">            And it must have the same shape and data type as `inputs`. Default: None</span>
+<span class="sd">            And it must have the same shape and data type as `inputs`. Default: None.</span>
 <span class="sd">        reduction (str): Specifies the reduction to be applied to the output.</span>
 <span class="sd">            Its value must be one of &#39;none&#39;, &#39;mean&#39;, &#39;sum&#39;. Default: &#39;mean&#39;.</span>
 
@@ -1786,6 +1817,12 @@
             <span class="n">weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span>
         <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">binary_cross_entropy</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">weight</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">loss</span></div>
+
+
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_reduced_shape_valid</span><span class="p">(</span><span class="n">ori_shape</span><span class="p">,</span> <span class="n">reduced_shape</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">,</span> <span class="n">arg_name1</span><span class="p">,</span> <span class="n">arg_name2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Internal function, used to check whether the reduced shape meets the requirements.&quot;&quot;&quot;</span>
+    <span class="n">validator</span><span class="o">.</span><span class="n">check_reduce_shape</span><span class="p">(</span><span class="n">ori_shape</span><span class="p">,</span> <span class="n">reduced_shape</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">,</span> <span class="n">arg_name1</span><span class="p">,</span> <span class="n">arg_name2</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="CosineEmbeddingLoss"><a class="viewcode-back" href="../../../../api_python/nn/mindspore.nn.CosineEmbeddingLoss.html#mindspore.nn.CosineEmbeddingLoss">[文档]</a><span class="k">class</span> <span class="nc">CosineEmbeddingLoss</span><span class="p">(</span><span class="n">LossBase</span><span class="p">):</span>
@@ -1840,13 +1877,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">reduce_sum</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">ReduceSum</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">maximum</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Maximum</span><span class="p">()</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s2">&quot;margin&quot;</span><span class="p">,</span> <span class="n">margin</span><span class="p">,</span> <span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">margin</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">check_float_range</span><span class="p">(</span><span class="n">margin</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">Rel</span><span class="o">.</span><span class="n">INC_BOTH</span><span class="p">,</span> <span class="s2">&quot;margin&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">margin</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">check_float_range</span><span class="p">(</span><span class="n">margin</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">INC_BOTH</span><span class="p">,</span> <span class="s2">&quot;margin&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logits_x1</span><span class="p">,</span> <span class="n">logits_x2</span><span class="p">,</span> <span class="n">labels</span><span class="p">):</span>
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;logits_x1&#39;</span><span class="p">,</span> <span class="n">logits_x1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;logits_x2&#39;</span><span class="p">,</span> <span class="n">logits_x2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">inner</span><span class="o">.</span><span class="n">same_type_shape_</span><span class="p">(</span><span class="n">logits_x1</span><span class="p">,</span> <span class="n">logits_x2</span><span class="p">)</span>
+        <span class="n">_check_reduced_shape_valid</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">logits_x1</span><span class="p">),</span> <span class="n">F</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">labels</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,),</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">,</span> <span class="s2">&quot;logits_x1&quot;</span><span class="p">,</span> <span class="s2">&quot;labels&quot;</span><span class="p">)</span>
         <span class="c1"># if labels &gt; 0, 1-cosine(logits_x1, logits_x2)</span>
         <span class="c1"># else, max(0, cosine(logits_x1, logits_x2)-margin)</span>
         <span class="n">prod_sum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduce_sum</span><span class="p">(</span><span class="n">logits_x1</span> <span class="o">*</span> <span class="n">logits_x2</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span>
@@ -2024,6 +2062,34 @@
         <span class="k">return</span> <span class="n">loss</span></div>
 
 
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_ndim</span><span class="p">(</span><span class="n">logits_nidm</span><span class="p">,</span> <span class="n">labels_ndim</span><span class="p">,</span> <span class="n">prime_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Internal function, used to check whether the dimension of logits and labels meets the requirements.&#39;&#39;&#39;</span>
+    <span class="n">msg_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;For </span><span class="se">\&#39;</span><span class="si">{</span><span class="n">prime_name</span><span class="si">}</span><span class="se">\&#39;</span><span class="s1">, the&#39;</span> <span class="k">if</span> <span class="n">prime_name</span> <span class="k">else</span> <span class="s2">&quot;The&quot;</span>
+    <span class="k">if</span> <span class="n">logits_nidm</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">logits_nidm</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> dimensions of &#39;logits&#39; must be in [2, 4], but got &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;dimension of &#39;logits&#39; </span><span class="si">{</span><span class="n">logits_nidm</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">labels_ndim</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">labels_ndim</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> dimensions of &#39;labels&#39; must be in [2, 4], but got &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;dimension of &#39;labels&#39; </span><span class="si">{</span><span class="n">labels_ndim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">logits_nidm</span> <span class="o">!=</span> <span class="n">labels_ndim</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> dimensions of &#39;logits&#39; and &#39;labels&#39; must be equal, but got &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;dimension of &#39;logits&#39; </span><span class="si">{</span><span class="n">logits_nidm</span><span class="si">}</span><span class="s2"> and dimension of &#39;labels&#39; </span><span class="si">{</span><span class="n">labels_ndim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_channel_and_shape</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">prime_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Internal function, used to check whether the channels or shape of logits and labels meets the requirements.&#39;&#39;&#39;</span>
+    <span class="n">msg_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;For </span><span class="se">\&#39;</span><span class="si">{</span><span class="n">prime_name</span><span class="si">}</span><span class="se">\&#39;</span><span class="s1">, the&#39;</span> <span class="k">if</span> <span class="n">prime_name</span> <span class="k">else</span> <span class="s2">&quot;The&quot;</span>
+    <span class="k">if</span> <span class="n">logits</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> &#39;logits&#39;.shape[1] cannot be one, but got </span><span class="si">{</span><span class="n">logits</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">labels</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">labels</span> <span class="o">==</span> <span class="n">logits</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> &#39;labels&#39;.shape[1] must be one or equal to &#39;logits&#39;.shape[1]: </span><span class="si">{</span><span class="n">logits</span><span class="si">}</span><span class="s2">, &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;but got </span><span class="si">{</span><span class="n">labels</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
 <span class="nd">@constexpr</span>
 <span class="k">def</span> <span class="nf">_check_input_dtype</span><span class="p">(</span><span class="n">labels_dtype</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Internal function, used to check whether the data type of labels meets the requirements.&quot;&quot;&quot;</span>
@@ -2107,6 +2173,8 @@
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;logits&#39;</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">_check_is_tensor</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">labelss</span> <span class="o">=</span> <span class="n">labels</span>
+        <span class="n">_check_ndim</span><span class="p">(</span><span class="n">logits</span><span class="o">.</span><span class="n">ndim</span><span class="p">,</span> <span class="n">labelss</span><span class="o">.</span><span class="n">ndim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+        <span class="n">_check_channel_and_shape</span><span class="p">(</span><span class="n">logits</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">labelss</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">_check_input_dtype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">labelss</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">logits</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
@@ -2548,7 +2616,7 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">reduction</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;ignore_index&#39;</span><span class="p">,</span> <span class="n">ignore_index</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;label_smoothing&#39;</span><span class="p">,</span> <span class="n">label_smoothing</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_float_range</span><span class="p">(</span><span class="n">label_smoothing</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">Rel</span><span class="o">.</span><span class="n">INC_BOTH</span><span class="p">,</span> <span class="s1">&#39;label_smoothing&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_float_range</span><span class="p">(</span><span class="n">label_smoothing</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">INC_BOTH</span><span class="p">,</span> <span class="s1">&#39;label_smoothing&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s2">&quot;weight&quot;</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
@@ -2761,10 +2829,11 @@
 <span class="sd">    their shapes must allow correct broadcasting.</span>
 
 <span class="sd">    Keyword Args:</span>
-<span class="sd">        full (bool): Whether include the constant term in the loss calculation. When :math:`full=True`,</span>
+<span class="sd">        full (bool, optional): Whether include the constant term in the loss calculation. When :math:`full=True`,</span>
 <span class="sd">            the constant term `const.` will be :math:`0.5 * log(2\pi)`. Default: False.</span>
-<span class="sd">        eps (float): Used to improve the stability of log function. Default: 1e-6.</span>
-<span class="sd">        reduction (str): Apply specific reduction method to the output: &#39;none&#39;, &#39;mean&#39;, or &#39;sum&#39;. Default: &#39;mean&#39;.</span>
+<span class="sd">        eps (float, optional): Used to improve the stability of log function. Default: 1e-6.</span>
+<span class="sd">        reduction (str, optional): Apply specific reduction method to the output: &#39;none&#39;, &#39;mean&#39;, or &#39;sum&#39;.</span>
+<span class="sd">            Default: &#39;mean&#39;.</span>
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **logits** (Tensor) - Tensor of shape :math:`(N, *)` or :math:`(*)` where :math:`*` means any number of</span>
@@ -2813,7 +2882,7 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">GaussianNLLLoss</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_float_range</span><span class="p">(</span><span class="n">eps</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="n">Rel</span><span class="o">.</span><span class="n">INC_NEITHER</span><span class="p">,</span> <span class="s2">&quot;eps&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_float_range</span><span class="p">(</span><span class="n">eps</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="n">validator</span><span class="o">.</span><span class="n">INC_NEITHER</span><span class="p">,</span> <span class="s2">&quot;eps&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">full</span><span class="p">,</span> <span class="p">[</span><span class="nb">bool</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_string</span><span class="p">(</span><span class="n">reduction</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;sum&#39;</span><span class="p">],</span> <span class="s1">&#39;reduction&#39;</span><span class="p">,</span> <span class="s1">&#39;gaussian_nll_loss&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">full</span> <span class="o">=</span> <span class="n">full</span>

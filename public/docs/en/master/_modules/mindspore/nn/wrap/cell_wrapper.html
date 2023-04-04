@@ -252,10 +252,11 @@
 <span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_get_device_num</span><span class="p">,</span> <span class="n">_get_gradients_mean</span><span class="p">,</span>\
     <span class="n">_get_parallel_mode</span><span class="p">,</span> <span class="n">_get_enable_parallel_optimizer</span><span class="p">,</span> <span class="n">_is_pynative_parallel</span>
 <span class="kn">from</span> <span class="nn">mindspore.context</span> <span class="kn">import</span> <span class="n">ParallelMode</span>
-<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">Validator</span> <span class="k">as</span> <span class="n">validator</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ops</span><span class="p">,</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">ParameterTuple</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">_primexpr</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">composite</span> <span class="k">as</span> <span class="n">C</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
@@ -695,6 +696,14 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backbone</span><span class="p">(</span><span class="o">*</span><span class="n">output</span><span class="p">)</span>
 
 
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_shape_value_on_axis_divided_by_target_value</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">micro_size</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">%</span> <span class="n">micro_size</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For micro batch initialization, the 0th dimension shape of input(</span><span class="si">{</span><span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">) must be &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;divided by micro size(</span><span class="si">{</span><span class="n">micro_size</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
 <span class="k">class</span> <span class="nc">_MicroBatch</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    transform mini-batch to micro-batch in pipeline parallel.</span>
@@ -713,6 +722,7 @@
         <span class="n">micro_inputs</span> <span class="o">=</span> <span class="p">()</span>
         <span class="k">for</span> <span class="n">each_input</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
             <span class="n">input_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">each_input</span><span class="p">)</span>
+            <span class="n">_check_shape_value_on_axis_divided_by_target_value</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span><span class="p">)</span>
             <span class="n">micro_batch_begin</span> <span class="o">=</span> <span class="n">i</span> <span class="o">*</span> <span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span>
             <span class="n">micro_batch_end</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span>
             <span class="n">strided_slice_begin</span> <span class="o">=</span> <span class="p">(</span><span class="n">micro_batch_begin</span><span class="p">,)</span>

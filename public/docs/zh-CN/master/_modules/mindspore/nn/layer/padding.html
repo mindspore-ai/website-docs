@@ -263,12 +263,27 @@
            <span class="s1">&#39;ZeroPad2d&#39;</span><span class="p">,</span> <span class="s1">&#39;ReplicationPad1d&#39;</span><span class="p">,</span> <span class="s1">&#39;ReplicationPad2d&#39;</span><span class="p">,</span> <span class="s1">&#39;ReplicationPad3d&#39;</span><span class="p">]</span>
 
 
-<span class="nd">@constexpr</span>
+<span class="k">def</span> <span class="nf">_check_dim</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">target1</span><span class="p">,</span> <span class="n">target2</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;check dim&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_check_func</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">dim</span> <span class="o">==</span> <span class="n">target1</span> <span class="ow">or</span> <span class="n">dim</span> <span class="o">==</span> <span class="n">target2</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="n">cls_name</span><span class="si">}</span><span class="s2">&#39;, the in_shape must have </span><span class="si">{</span><span class="n">target1</span><span class="si">}</span><span class="s2"> or </span><span class="si">{</span><span class="n">target2</span><span class="si">}</span><span class="s2"> dims, but got </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">_check_func</span><span class="p">()</span>
+
+
+<span class="nd">@_primexpr</span>
 <span class="k">def</span> <span class="nf">_check_padding_dimension</span><span class="p">(</span><span class="n">dimension</span><span class="p">,</span> <span class="n">padding</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Validate the input padding and add placeholders if needed.</span>
 <span class="sd">    Note: the input &#39;padding&#39; in this function is already converted to list of lists to match MirrorPad</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_check_padding</span><span class="p">(</span><span class="n">dimension</span><span class="p">,</span> <span class="n">padding</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">dimension</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For padding with length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="si">}</span><span class="s2">, the dimension of the tensor should &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;be at least </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">)</span><span class="si">}</span><span class="s2">, but got </span><span class="si">{</span><span class="n">dimension</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">_check_padding</span><span class="p">(</span><span class="n">dimension</span><span class="p">,</span> <span class="n">padding</span><span class="p">)</span>
     <span class="c1"># add place holders</span>
     <span class="k">if</span> <span class="n">dimension</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">):</span>
         <span class="n">padding</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dimension</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">))]</span> <span class="o">+</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">padding</span><span class="p">]</span>
@@ -291,16 +306,53 @@
 
 
 <span class="nd">@_primexpr</span>
-<span class="k">def</span> <span class="nf">_check</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">padding</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_check</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Check relationship between input shape and padding to make sure after negative dimension padding the out is</span>
 <span class="sd">    positive.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_check_len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">padding</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;For &#39;</span><span class="si">{}</span><span class="s2">&#39;, the dimension of input must more than or equal to len(padding)/2, &quot;</span> \
+                <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_check_item</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dim_name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">item</span> <span class="o">&lt;</span> <span class="o">-</span><span class="n">input_shape</span><span class="p">[</span><span class="n">index</span><span class="p">]:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;For &#39;</span><span class="si">{}</span><span class="s2">&#39;, the shape of input after padding must be positive, the input shape is </span><span class="si">{}</span><span class="s2">, &quot;</span> \
+                  <span class="s2">&quot;value of parameter &#39;padding&#39; applied to the </span><span class="si">{}</span><span class="s2"> dimension of input must &quot;</span> \
+                  <span class="s2">&quot;no less than -</span><span class="si">{}</span><span class="s2">, but got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">dim_name</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">item</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_check_item_two</span><span class="p">(</span><span class="n">item0</span><span class="p">,</span> <span class="n">item1</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dim_name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">input_shape</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">+</span> <span class="n">item0</span> <span class="o">+</span> <span class="n">item1</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;For &#39;</span><span class="si">{}</span><span class="s2">&#39;, the shape of input after padding must be positive, the input shape is </span><span class="si">{}</span><span class="s2">, &quot;</span> \
+                  <span class="s2">&quot;but the </span><span class="si">{}</span><span class="s2"> dimension of input shape </span><span class="si">{}</span><span class="s2"> plus padding </span><span class="si">{}</span><span class="s2"> and </span><span class="si">{}</span><span class="s2"> resulted in a non-positive output &quot;</span> \
+                  <span class="s2">&quot;shape.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">dim_name</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">item0</span><span class="p">,</span> <span class="n">item1</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">_check_len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">padding</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">padding</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">int</span><span class="p">):</span>
             <span class="n">padding</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="n">padding</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">padding</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">padding</span><span class="p">))]</span> <span class="o">+</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">padding</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">padding</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">dim_name</span> <span class="o">=</span> <span class="s1">&#39;1st&#39;</span>
+        <span class="k">elif</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">dim_name</span> <span class="o">=</span> <span class="s1">&#39;2nd&#39;</span>
+        <span class="k">elif</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">dim_name</span> <span class="o">=</span> <span class="s1">&#39;3rd&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dim_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;th&#39;</span>
+
+        <span class="n">_check_item</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dim_name</span><span class="p">)</span>
+        <span class="n">_check_item</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dim_name</span><span class="p">)</span>
+        <span class="n">_check_item_two</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dim_name</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">padding</span>
 
 
@@ -404,7 +456,7 @@
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct the pad net.&quot;&quot;&quot;</span>
         <span class="n">input_shape</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
-        <span class="n">padding</span> <span class="o">=</span> <span class="n">_check</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">)</span>
+        <span class="n">padding</span> <span class="o">=</span> <span class="n">_check</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">)</span>
         <span class="n">new_padding</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="n">_get_new_padding</span><span class="p">(</span><span class="n">padding</span><span class="p">)</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">OnesLike</span><span class="p">()(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">output</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(</span><span class="n">new_padding</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
@@ -877,11 +929,17 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">padv3</span> <span class="o">=</span> <span class="n">nn_ops</span><span class="o">.</span><span class="n">PadV3</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;edge&quot;</span><span class="p">)</span>
 
     <span class="nd">@staticmethod</span>
+    <span class="nd">@_primexpr</span>
+    <span class="k">def</span> <span class="nf">_check_input_dim</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="nd">@staticmethod</span>
     <span class="nd">@constexpr</span>
     <span class="k">def</span> <span class="nf">_need_expend_dim</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_input_dim</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="n">need_expend_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_need_expend_dim</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">need_expend_dims</span><span class="p">:</span>
             <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -944,6 +1002,11 @@
             <span class="n">padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">)</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ReplicationPad1d</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">padding</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ReplicationPad1d&quot;</span><span class="p">)</span>
 
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@_primexpr</span>
+    <span class="k">def</span> <span class="nf">_check_input_dim</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">_check_dim</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_need_expend_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="n">input_shape</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
@@ -1011,6 +1074,11 @@
             <span class="n">padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">)</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ReplicationPad2d</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">padding</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ReplicationPad2d&quot;</span><span class="p">)</span>
 
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@_primexpr</span>
+    <span class="k">def</span> <span class="nf">_check_input_dim</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">_check_dim</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_need_expend_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="n">input_shape</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
@@ -1079,6 +1147,11 @@
             <span class="n">padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">padding</span><span class="p">)</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ReplicationPad3d</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">padding</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ReplicationPad3d&quot;</span><span class="p">)</span>
 
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@_primexpr</span>
+    <span class="k">def</span> <span class="nf">_check_input_dim</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">_check_dim</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_need_expend_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="n">input_shape</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>

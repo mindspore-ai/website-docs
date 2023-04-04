@@ -253,13 +253,34 @@
 <span class="sd">&quot;&quot;&quot;Time Distributed.&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
 
-<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">constexpr</span><span class="p">,</span> <span class="n">Primitive</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">constexpr</span><span class="p">,</span> <span class="n">Primitive</span><span class="p">,</span> <span class="n">_primexpr</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">Reshape</span><span class="p">,</span> <span class="n">Transpose</span><span class="p">,</span> <span class="n">Stack</span><span class="p">,</span> <span class="n">Unstack</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">Tensor</span>
-<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">Validator</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">Validator</span>
 <span class="kn">from</span> <span class="nn">mindspore.nn.cell</span> <span class="kn">import</span> <span class="n">Cell</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;TimeDistributed&#39;</span><span class="p">]</span>
+
+
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_reshape_pos</span><span class="p">(</span><span class="n">reshape_pos</span><span class="p">,</span> <span class="n">inputs_shape</span><span class="p">,</span> <span class="n">outputs_shape</span><span class="p">,</span> <span class="n">prim_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">msg_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="n">prim_name</span><span class="si">}</span><span class="s2">&#39;, the&quot;</span> <span class="k">if</span> <span class="n">prim_name</span> <span class="k">else</span> <span class="s2">&quot;The&quot;</span>
+    <span class="k">if</span> <span class="n">reshape_pos</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">outputs_shape</span><span class="p">)</span> <span class="ow">or</span> <span class="n">inputs_shape</span><span class="p">[</span><span class="n">reshape_pos</span><span class="p">]</span> <span class="o">!=</span> <span class="n">outputs_shape</span><span class="p">[</span><span class="n">reshape_pos</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> &#39;reshape_with_axis&#39; is invalid in the input and output. &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;The &#39;reshape_pos&#39; must be less than the length of &#39;outputs_shape&#39;, and the &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;&#39;inputs_shape[reshape_pos]&#39; must be equal to &#39;outputs_shape[reshape_pos]&#39;, but got &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;&#39;reshape_pos&#39;: </span><span class="si">{</span><span class="n">reshape_pos</span><span class="si">}</span><span class="s2">, &#39;inputs_shape&#39;: </span><span class="si">{</span><span class="n">inputs_shape</span><span class="si">}</span><span class="s2">, &#39;outputs_shape&#39;: &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">outputs_shape</span><span class="si">}</span><span class="s2">. You may try pass parameters without &#39;reshape_with_axis&#39;.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_expand_dims_axis</span><span class="p">(</span><span class="n">time_axis</span><span class="p">,</span> <span class="n">ndim</span><span class="p">,</span> <span class="n">prim_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">msg_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="n">prim_name</span><span class="si">}</span><span class="s2">&#39;, the&quot;</span> <span class="k">if</span> <span class="n">prim_name</span> <span class="k">else</span> <span class="s2">&quot;The&quot;</span>
+    <span class="k">if</span> <span class="n">time_axis</span> <span class="o">&gt;</span> <span class="n">ndim</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> value of &#39;time_axis&#39; must be in range of [</span><span class="si">{</span><span class="o">-</span><span class="n">ndim</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">ndim</span><span class="si">}</span><span class="s2">], &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;but got </span><span class="si">{</span><span class="n">time_axis</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
 
 
 <span class="nd">@constexpr</span>
@@ -274,6 +295,14 @@
     <span class="n">msg_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="n">prim_name</span><span class="si">}</span><span class="s2">&#39;, the&quot;</span> <span class="k">if</span> <span class="n">prim_name</span> <span class="k">else</span> <span class="s2">&quot;The&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">flag</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> inputs and outputs must be a Tensor.&quot;</span><span class="p">)</span>
+
+
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_inputs_dim</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">prim_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">msg_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="n">prim_name</span><span class="si">}</span><span class="s2">&#39;, the&quot;</span> <span class="k">if</span> <span class="n">prim_name</span> <span class="k">else</span> <span class="s2">&quot;The&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg_prefix</span><span class="si">}</span><span class="s2"> inputs shape must be at least 3D, but got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
 
 
 <div class="viewcode-block" id="TimeDistributed"><a class="viewcode-back" href="../../../../api_python/nn/mindspore.nn.TimeDistributed.html#mindspore.nn.TimeDistributed">[文档]</a><span class="k">class</span> <span class="nc">TimeDistributed</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
@@ -331,6 +360,7 @@
 
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
         <span class="n">_check_data</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+        <span class="n">_check_inputs_dim</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">time_axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_axis</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reshape_with_axis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">reshape_with_axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reshape_with_axis</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
@@ -345,6 +375,7 @@
             <span class="n">inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">inputs_shape_new</span><span class="p">[:</span> <span class="n">reshape_pos</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)</span> <span class="o">+</span> <span class="n">inputs_shape_new</span><span class="p">[</span><span class="n">reshape_pos</span> <span class="o">+</span> <span class="mi">2</span><span class="p">:])</span>
             <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
             <span class="n">_check_data</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+            <span class="n">_check_reshape_pos</span><span class="p">(</span><span class="n">reshape_pos</span><span class="p">,</span> <span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">outputs</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
             <span class="n">outputs_shape_new</span> <span class="o">=</span> <span class="n">outputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="n">reshape_pos</span><span class="p">]</span> <span class="o">+</span> <span class="n">inputs_shape_new</span><span class="p">[</span><span class="n">reshape_pos</span><span class="p">:</span> <span class="n">reshape_pos</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">reshape_pos</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">outputs</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
                 <span class="n">outputs_shape_new</span> <span class="o">+=</span> <span class="n">outputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">reshape_pos</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]</span>
@@ -357,6 +388,7 @@
         <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
             <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
             <span class="n">_check_data</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
+            <span class="n">_check_expand_dims_axis</span><span class="p">(</span><span class="n">time_axis</span><span class="p">,</span> <span class="n">outputs</span><span class="o">.</span><span class="n">ndim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
             <span class="n">y</span> <span class="o">+=</span> <span class="p">(</span><span class="n">outputs</span><span class="p">,)</span>
         <span class="n">y</span> <span class="o">=</span> <span class="n">Stack</span><span class="p">(</span><span class="n">time_axis</span><span class="p">)(</span><span class="n">y</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">y</span></div>

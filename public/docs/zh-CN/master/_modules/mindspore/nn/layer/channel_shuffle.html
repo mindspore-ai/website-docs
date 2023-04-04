@@ -253,6 +253,7 @@
 <span class="sd">&quot;&quot;&quot;channel shuffle&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
 <span class="kn">from</span> <span class="nn">mindspore.nn.cell</span> <span class="kn">import</span> <span class="n">Cell</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">_primexpr</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ChannelShuffle&#39;</span><span class="p">]</span>
 
@@ -319,9 +320,23 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">reshape</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Reshape</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">transpose</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Transpose</span><span class="p">()</span>
 
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@_primexpr</span>
+    <span class="k">def</span> <span class="nf">_check_input_dim</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">groups</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;check input dim&quot;&quot;&quot;</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dim</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For </span><span class="si">{</span><span class="n">cls_name</span><span class="si">}</span><span class="s2">, the in_shape must have more than 2 dims, but got </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">channels</span> <span class="o">%</span> <span class="n">groups</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For </span><span class="si">{</span><span class="n">cls_name</span><span class="si">}</span><span class="s2">, number of channels must be divisible by groups, &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;but got </span><span class="si">{</span><span class="n">channels</span><span class="si">}</span><span class="s2"> channels and </span><span class="si">{</span><span class="n">groups</span><span class="si">}</span><span class="s2"> groups.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="n">x_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">n</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">x_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_input_dim</span><span class="p">(</span><span class="n">x_shape</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">groups</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">groups</span><span class="p">,</span> <span class="n">c</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">groups</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">x_shape</span><span class="p">)</span></div>

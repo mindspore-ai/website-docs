@@ -256,6 +256,7 @@
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
 
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span><span class="p">,</span> <span class="n">context</span>
@@ -287,6 +288,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.op_intermediate_parser</span> <span class="kn">import</span> <span class="n">OPIntermediateParser</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.msadvisor_analyzer</span> <span class="kn">import</span> <span class="n">Msadvisor</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.profiler_info</span> <span class="kn">import</span> <span class="n">ProfilerInfo</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_pynative_executor</span>
 
 <span class="n">INIT_OP_NAME</span> <span class="o">=</span> <span class="s1">&#39;Default/InitDataSetQueue&#39;</span>
 
@@ -309,7 +311,8 @@
               <span class="s1">&#39;parallel_strategy&#39;</span><span class="p">,</span> <span class="s1">&#39;profile_communication&#39;</span><span class="p">,</span> <span class="s1">&#39;aicore_metrics&#39;</span><span class="p">,</span> <span class="s1">&#39;l2_cache&#39;</span><span class="p">,</span> <span class="s1">&#39;op_time&#39;</span><span class="p">,</span> <span class="s1">&#39;ascend_job_id&#39;</span><span class="p">]</span>
 
 
-<span class="n">ALWAYS_VALID_PARAM</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start_profile&#39;</span><span class="p">,</span> <span class="s1">&#39;output_path&#39;</span><span class="p">,</span> <span class="s1">&#39;data_process&#39;</span><span class="p">,</span> <span class="s1">&#39;parallel_strategy&#39;</span><span class="p">,</span> <span class="s1">&#39;l2_cache&#39;</span><span class="p">,</span> <span class="s1">&#39;ascend_job_id&#39;</span><span class="p">]</span>
+<span class="n">ALWAYS_VALID_PARAM</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;start_profile&#39;</span><span class="p">,</span> <span class="s1">&#39;output_path&#39;</span><span class="p">,</span> <span class="s1">&#39;data_process&#39;</span><span class="p">,</span> <span class="s1">&#39;parallel_strategy&#39;</span><span class="p">,</span> <span class="s1">&#39;l2_cache&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;ascend_job_id&#39;</span><span class="p">,</span> <span class="s1">&#39;op_time&#39;</span><span class="p">]</span>
 
 
 <span class="k">def</span> <span class="nf">_environment_check</span><span class="p">():</span>
@@ -486,7 +489,7 @@
         <span class="k">return</span> <span class="n">output_path</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_parse_host_start_log</span><span class="p">(</span><span class="n">input_file</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_parse_start_log</span><span class="p">(</span><span class="n">input_file</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Parse host start log file, get the start time of the job.</span>
 
@@ -497,12 +500,9 @@
 <span class="sd">            str, job start time.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="n">job_start_time</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">job_start_time</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">():</span>
-                <span class="k">if</span> <span class="s2">&quot;clock_realtime&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-                    <span class="c1"># 16 means the first digit of the timestamp, len(line)-3 means the last.</span>
-                    <span class="n">job_start_time</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">16</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="o">-</span> <span class="mi">3</span><span class="p">]</span>
+            <span class="n">job_start_time</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;collectionTimeBegin&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">job_start_time</span>
 
@@ -576,6 +576,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_msprof_enable</span><span class="p">:</span>
             <span class="k">return</span>
+
+        <span class="c1"># Stop data collection after all operators are executed.</span>
+        <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
         <span class="n">Profiler</span><span class="o">.</span><span class="n">_has_initialized</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_profiler_manager</span><span class="o">.</span><span class="n">dynamic_status</span><span class="p">()</span>
         <span class="n">_environment_check</span><span class="p">()</span>
@@ -636,7 +640,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_msprof_enable</span><span class="p">:</span>
             <span class="k">return</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">10000000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000000</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: start time: </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_started</span><span class="p">:</span>
@@ -700,6 +704,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_msprof_enable</span><span class="p">:</span>
             <span class="k">return</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_started</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_has_started</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">else</span><span class="p">:</span>
@@ -709,6 +714,10 @@
         <span class="c1"># No need to stop anything if parse profiling data offline</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_offline_parser</span><span class="p">():</span>
             <span class="k">return</span>
+
+        <span class="c1"># Stop data collection after all operators are executed.</span>
+        <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_process</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_md_profiler</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_md_profiler</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span>
@@ -1049,17 +1058,23 @@
 
     <span class="k">def</span> <span class="nf">_ascend_graph_msadvisor_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Call MSAdvisor function.&quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;MSAdvisor starts running.&quot;</span><span class="p">)</span>
+        <span class="n">msadvisor</span> <span class="o">=</span> <span class="n">Msadvisor</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">msadvisor</span> <span class="o">=</span> <span class="n">Msadvisor</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;MSAdvisor starts running.&quot;</span><span class="p">)</span>
             <span class="n">msadvisor</span><span class="o">.</span><span class="n">analyse</span><span class="p">()</span>
-        <span class="k">except</span> <span class="p">(</span><span class="n">ProfilerFileNotFoundException</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Pynative mode does not support MSAdvisor analyzer currently.&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;MSAdvisor running failed. </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">FileNotFoundError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;MSAdvisor: command not found,&quot;</span>
+                           <span class="s2">&quot;please check if installed ascend-toolkit and set environment path correctly. </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Cannot execute binary file: Exec format error. </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;MSAdvisor running failed, please check MSAdvisor running log.&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">ProfilerFileNotFoundException</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;MSAdvisor running failed. </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="k">pass</span>
+        <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Pynative mode does not support MSAdvisor analyzer currently.&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_ascend_graph_op_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1124,40 +1139,21 @@
             <span class="n">MinddataParser</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">store_id</span><span class="p">)</span>
 
         <span class="c1"># parse minddata pipeline operator and queue</span>
-        <span class="n">pipeline_parser</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">pipeline_parser</span> <span class="o">=</span> <span class="n">MinddataPipelineParser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">store_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span>
+            <span class="n">MinddataPipelineParser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">store_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
         <span class="k">except</span> <span class="n">ProfilerException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="k">pass</span>
-
-        <span class="k">if</span> <span class="n">pipeline_parser</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: analyzing the minddata pipeline operator and queue.&quot;</span><span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">pipeline_parser</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
-            <span class="k">except</span> <span class="n">ProfilerException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
-            <span class="k">finally</span><span class="p">:</span>
-                <span class="k">pass</span>
 
         <span class="c1"># Analyze minddata information</span>
-        <span class="n">md_analyzer</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: analyzing the minddata information.&quot;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">md_analyzer</span> <span class="o">=</span> <span class="n">MinddataProfilingAnalyzer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">store_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span>
+            <span class="n">MinddataProfilingAnalyzer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">store_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span><span class="o">.</span><span class="n">analyze</span><span class="p">()</span>
         <span class="k">except</span> <span class="n">ProfilerException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="k">pass</span>
-
-        <span class="k">if</span> <span class="n">md_analyzer</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: analyzing the minddata information.&quot;</span><span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">md_analyzer</span><span class="o">.</span><span class="n">analyze</span><span class="p">()</span>
-            <span class="k">except</span> <span class="n">ProfilerException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
-            <span class="k">finally</span><span class="p">:</span>
-                <span class="k">pass</span>
 
     <span class="k">def</span> <span class="nf">_ascend_graph_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Ascend graph mode analyse.&quot;&quot;&quot;</span>
@@ -1421,13 +1417,13 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">job_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">dir_name</span><span class="p">)</span>
 
-            <span class="n">host_start_file_path</span> <span class="o">=</span> <span class="n">get_file_path</span><span class="p">(</span><span class="n">job_dir</span><span class="p">,</span> <span class="s2">&quot;host_start.log&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">host_start_file_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">start_file_path</span> <span class="o">=</span> <span class="n">get_file_path</span><span class="p">(</span><span class="n">job_dir</span><span class="p">,</span> <span class="s2">&quot;start_info&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">start_file_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Find profiling job path </span><span class="si">%s</span><span class="s2">, but host_start.log not exist, &quot;</span>
                                <span class="s2">&quot;profiler will ignore this job dir.&quot;</span><span class="p">,</span> <span class="n">job_dir</span><span class="p">)</span>
                 <span class="k">continue</span>
 
-            <span class="n">training_device_id</span> <span class="o">=</span> <span class="n">host_start_file_path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">training_device_id</span> <span class="o">=</span> <span class="n">start_file_path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dev_id</span> <span class="o">!=</span> <span class="n">training_device_id</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Find profiling find job path </span><span class="si">%s</span><span class="s2">, but not current training device id. &quot;</span>
                              <span class="s2">&quot;Current training device id </span><span class="si">%s</span><span class="s2">, but job path device id: </span><span class="si">%s</span><span class="s2">, &quot;</span>
@@ -1437,7 +1433,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">job_dir</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">)):</span>
                 <span class="k">continue</span>
 
-            <span class="n">job_start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_host_start_log</span><span class="p">(</span><span class="n">host_start_file_path</span><span class="p">)</span>
+            <span class="n">job_start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_start_log</span><span class="p">(</span><span class="n">start_file_path</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">job_start_time</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Find profiling job path </span><span class="si">%s</span><span class="s2">, but fail to get job start info, &quot;</span>
                                <span class="s2">&quot;profiler will ignore this job dir.&quot;</span><span class="p">,</span> <span class="n">job_start_time</span><span class="p">)</span>
@@ -1595,7 +1591,7 @@
                 <span class="k">if</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">DeviceSupportParam</span><span class="o">.</span><span class="fm">__getattr__</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_device_target</span><span class="si">}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> is an invalid param which doesn&#39;t work.&quot;</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span>
                     <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_op_time</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">param</span><span class="p">)</span> <span class="ow">and</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ALWAYS_VALID_PARAM</span><span class="p">:</span>
+                <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_op_time</span> <span class="ow">and</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ALWAYS_VALID_PARAM</span><span class="p">:</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;When op_time is set to False, the parameter &#39;</span><span class="si">{</span><span class="n">param</span><span class="si">}</span><span class="s2">&#39; setting is invalid.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_op_time</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>

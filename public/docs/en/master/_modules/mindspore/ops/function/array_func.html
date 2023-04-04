@@ -285,8 +285,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops.operations.array_ops</span> <span class="kn">import</span> <span class="n">TensorScatterElements</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops._primitive_cache</span> <span class="kn">import</span> <span class="n">_get_cache_prim</span>
-<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">Validator</span> <span class="k">as</span> <span class="n">validator</span>
-<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">Rel</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Tensor</span> <span class="k">as</span> <span class="n">Tensor_</span>
 
 <span class="n">eye_</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Eye</span><span class="p">()</span>
@@ -1358,7 +1357,7 @@
 <span class="sd">        ValueError: If `start` &lt;= `end` when `step` &lt; 0.</span>
 
 <span class="sd">    Supported Platforms:</span>
-<span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
+<span class="sd">        ``GPU`` ``CPU``</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; start = Tensor(0, mstype.int32)</span>
@@ -1909,6 +1908,13 @@
                         <span class="sa">f</span><span class="s2">&quot;then the input[</span><span class="si">{</span><span class="n">tensor_name</span><span class="si">}</span><span class="s2">] must be a Tensor of float32.&quot;</span><span class="p">)</span>
 
 
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_select_shape_match</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">cond_shape</span><span class="p">,</span> <span class="n">tensor_name</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">input_shape</span> <span class="o">!=</span> <span class="n">cond_shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For functional operator[select], the cond shape must be same as </span><span class="si">{</span><span class="n">tensor_name</span><span class="si">}</span><span class="s2"> shape.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
 <span class="nd">@constexpr</span>
 <span class="k">def</span> <span class="nf">_check_select_type</span><span class="p">(</span><span class="n">is_cond_tensor</span><span class="p">,</span> <span class="n">is_x_scalar</span><span class="p">,</span> <span class="n">is_y_scalar</span><span class="p">,</span> <span class="n">is_x_tensor</span><span class="p">,</span> <span class="n">is_y_tensor</span><span class="p">):</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">is_cond_tensor</span><span class="p">:</span>
@@ -2024,6 +2030,7 @@
     <span class="n">input_x</span> <span class="o">=</span> <span class="n">x</span>
     <span class="n">input_y</span> <span class="o">=</span> <span class="n">y</span>
     <span class="k">if</span> <span class="n">is_x_scalar</span><span class="p">:</span>
+        <span class="n">_check_select_shape_match</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">cond</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">)</span>
         <span class="n">_check_select_type_match</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">)</span>
         <span class="n">input_x</span> <span class="o">=</span> <span class="n">zeros_like_</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="n">x</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
@@ -2032,6 +2039,7 @@
             <span class="n">input_x</span> <span class="o">=</span> <span class="n">cast_</span><span class="p">(</span><span class="n">input_x</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">is_y_scalar</span><span class="p">:</span>
+        <span class="n">_check_select_shape_match</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">cond</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span>
         <span class="n">_check_select_type_match</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span>
         <span class="n">input_y</span> <span class="o">=</span> <span class="n">zeros_like_</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="n">y</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
@@ -3252,7 +3260,6 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        input_x (Parameter): The target tensor, with data type of Parameter.</span>
-<span class="sd">            The shape is :math:`(N,*)`, where :math:`*` means any number of additional dimensions.</span>
 <span class="sd">        indices (Tensor): The index to do div operation whose data type must be mindspore.int32 or mindspore.int64.</span>
 <span class="sd">            The rank of indices must be at least 2 and `indices.shape[-1] &lt;= len(shape)`.</span>
 <span class="sd">        updates (Tensor): The tensor to do the div operation with `input_x`.</span>
@@ -4228,28 +4235,38 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        x (Tensor): The diagonal Tensor.</span>
-<span class="sd">        k (Union[int, Tensor], optional): A Tensor of type int32. Diagonal offsets. Positive value means superdiagonal,</span>
+<span class="sd">        k (Union[int, Tensor], optional): Diagonal offsets. A Tensor of type int32. Positive value means superdiagonal,</span>
 <span class="sd">            0 refers to the main diagonal, and negative value means subdiagonals. `k` can be a single integer</span>
 <span class="sd">            (for a single diagonal) or a pair of integers specifying the low and high ends of a matrix band.</span>
 <span class="sd">            k[0] must not be larger than k[1]. The value must be in the range of given or derivated `num_rows`</span>
 <span class="sd">            and `num_cols`, meaning value of k must be in (-num_rows, num_cols). Default: 0.</span>
-<span class="sd">        num_rows (Union[int, Tensor], optional): A Tensor of type int32 with only one value. The number of rows of the</span>
-<span class="sd">            output Tensor. If `num_rows` is -1, indicating that the innermost matrix of the output Tensor is a square</span>
+<span class="sd">        num_rows (Union[int, Tensor], optional): The number of rows of the output Tensor. A Tensor of type int32 with</span>
+<span class="sd">            only one value. If `num_rows` is -1, indicating that the innermost matrix of the output Tensor is a square</span>
 <span class="sd">            matrix, and the real number of rows will be derivated by other inputs. That is</span>
 <span class="sd">            :math:`num\_rows = x.shape[-1] - min(k[1], 0)`. Otherwise, the value must be equal or greater than</span>
 <span class="sd">            :math:`x.shape[-1] - min(k[1], 0)`. Default: -1.</span>
-<span class="sd">        num_cols (Union[int, Tensor], optional): A Tensor of type int32 with only one value.</span>
-<span class="sd">            The number of columns of</span>
-<span class="sd">            the output Tensor. If `num_cols` is -1, indicating that the innermost matrix of the output</span>
+<span class="sd">        num_cols (Union[int, Tensor], optional): The number of columns of</span>
+<span class="sd">            the output Tensor. A Tensor of type int32 with only one value.</span>
+<span class="sd">            If `num_cols` is -1, indicating that the innermost matrix of the output</span>
 <span class="sd">            Tensor is a square matrix, and the real number of columns will be derivated by other inputs.</span>
 <span class="sd">            That is :math:`num\_cols = x.shape[-1] + max(k[0], 0)`. Otherwise, the value must be equal or</span>
 <span class="sd">            greater than :math:`x.shape[-1] - min(k[1], 0)`.  Default: -1.</span>
-<span class="sd">        padding_value (Union[int, float, Tensor], optional): A Tensor with only one value. Have the same dtype as x.</span>
-<span class="sd">            The number to fill the area outside the specified diagonal band.  Default: 0.</span>
-<span class="sd">        align (str, optional): An optional string from: &quot;RIGHT_LEFT&quot;(default), &quot;LEFT_RIGHT&quot;, &quot;LEFT_LEFT&quot;,</span>
-<span class="sd">            &quot;RIGHT_RIGHT&quot;. Align is a string specifying how superdiagonals and subdiagonals should be aligned,</span>
-<span class="sd">            respectively. &quot;RIGHT_LEFT&quot; aligns superdiagonals to the right (left-pads the row) and subdiagonals</span>
-<span class="sd">            to the left (right-pads the row).</span>
+<span class="sd">        padding_value (Union[int, float, Tensor], optional): The number to fill the area outside the specified</span>
+<span class="sd">            diagonal band. A Tensor with only one value. Have the same dtype as x. Default: 0.</span>
+<span class="sd">        align (str, optional): specifies how superdiagonals and subdiagonals should be aligned.</span>
+<span class="sd">            Supported values:&quot;RIGHT_LEFT&quot;, &quot;LEFT_RIGHT&quot;, &quot;LEFT_LEFT&quot;, &quot;RIGHT_RIGHT&quot;.</span>
+<span class="sd">            Default: &quot;RIGHT_LEFT&quot;.</span>
+
+<span class="sd">            - When set to &quot;RIGHT_LEFT&quot;, the alignment of superdiagonals will be towards the right side</span>
+<span class="sd">              (padding the row on the left), while subdiagonals will be towards the left side</span>
+<span class="sd">              (padding the row on the right)</span>
+<span class="sd">            - When set to &quot;LEFT_RIGHT&quot;, the alignment of superdiagonals will be towards the left side</span>
+<span class="sd">              (padding the row on the right), while subdiagonals will be towards the right side</span>
+<span class="sd">              (padding the row on the left)</span>
+<span class="sd">            - When set to &quot;LEFT_LEFT&quot;, the alignment of  both superdiagonals and subdiagonals will be towards</span>
+<span class="sd">              the left side(padding the row on the right).</span>
+<span class="sd">            - When set to &quot;RIGHT_RIGHT&quot;, the alignment of both superdiagonals and subdiagonals will be towards</span>
+<span class="sd">              the right side(padding the row on the left).</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A Tensor. Has the same type as `x`.</span>
@@ -4420,7 +4437,7 @@
 <span class="sd">            0), x.shape[-1] + min(-k[0], 0))`.</span>
 
 <span class="sd">    Supported Platforms:</span>
-<span class="sd">        ``GPU`` ``CPU``</span>
+<span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; x = Tensor(np.array([[7, 7, 7, 7],</span>
@@ -4460,10 +4477,10 @@
 <span class="sd">    Keyword Args:</span>
 <span class="sd">        indexing (str, optional): Cartesian (&#39;xy&#39;, default) or</span>
 <span class="sd">            matrix (&#39;ij&#39;) indexing of output. Valid options: xy&#39; or &#39;ij&#39;. In the 2-D case with</span>
-<span class="sd">            inputs of length `M` and `N`, the outputs are of shape `(N, M)`</span>
-<span class="sd">            for &#39;xy&#39; indexing and `(M, N)` for &#39;ij&#39; indexing. In the 3-D</span>
+<span class="sd">            inputs of length `M` and `N`, the outputs are of shape :math:`(N, M)`</span>
+<span class="sd">            for &#39;xy&#39; indexing and :math:`(M, N)` for &#39;ij&#39; indexing. In the 3-D</span>
 <span class="sd">            case with inputs of length `M`, `N` and `P`, outputs are of shape</span>
-<span class="sd">            `(N, M, P)` for &#39;xy&#39; indexing and `(M, N, P)` for &#39;ij&#39; indexing.  Default: &#39;xy&#39;.</span>
+<span class="sd">            :math:`(N, M, P)` for &#39;xy&#39; indexing and :math:`(M, N, P)` for &#39;ij&#39; indexing. Default: &#39;xy&#39;.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Tensors, a Tuple of N N-D Tensor objects. The data type is the same with the Inputs.</span>
@@ -5723,7 +5740,6 @@
 <span class="sd">              - If :math:`input.shape(axis)` is not divisible by n, the first :math:`input.shape(axis) % n` sections</span>
 <span class="sd">                will have size :math:`x.size(axis) // n + 1` , and the rest will have</span>
 <span class="sd">                size :math:`input.shape(axis) // n` .</span>
-
 <span class="sd">            - If `indices_or_sections` is of type tuple(int) or list(int), the input tensor will be split at the</span>
 <span class="sd">              indices in the list or tuple. For example, given parameters :math:`indices\_or\_sections=[1, 4]`</span>
 <span class="sd">              and :math:`axis=0` , the input tensor will be split into sections :math:`input[:1]` ,</span>
@@ -5941,9 +5957,9 @@
 <span class="sd">        0.7 0</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">reduce_max</span><span class="p">(</span><span class="nb">input</span><span class="p">),</span> <span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">reduce_max</span><span class="p">(</span><span class="nb">input</span><span class="p">),</span> <span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">initial</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">initial</span><span class="p">,</span> <span class="n">numbers</span><span class="o">.</span><span class="n">Number</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;max&#39;, &#39;initial&#39; must be a scalar, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">initial</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
@@ -6044,9 +6060,9 @@
 <span class="sd">        0.0 0</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">reduce_min</span><span class="p">(</span><span class="nb">input</span><span class="p">),</span> <span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">reduce_min</span><span class="p">(</span><span class="nb">input</span><span class="p">),</span> <span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">initial</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">initial</span><span class="p">,</span> <span class="n">numbers</span><span class="o">.</span><span class="n">Number</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;min&#39;, &#39;initial&#39; must be a scalar, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">initial</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
@@ -6141,8 +6157,8 @@
 <span class="sd">         [ 8 9]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">validator</span><span class="o">.</span><span class="n">check_axis_in_range</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="nb">input</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
-    <span class="n">validator</span><span class="o">.</span><span class="n">check_int_range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">axis</span><span class="p">],</span> <span class="n">Rel</span><span class="o">.</span><span class="n">INC_LEFT</span><span class="p">)</span>
-    <span class="n">validator</span><span class="o">.</span><span class="n">check_int_range</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">-</span> <span class="n">start</span><span class="p">,</span> <span class="n">Rel</span><span class="o">.</span><span class="n">INC_BOTH</span><span class="p">)</span>
+    <span class="n">validator</span><span class="o">.</span><span class="n">check_int_range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">axis</span><span class="p">],</span> <span class="n">validator</span><span class="o">.</span><span class="n">INC_LEFT</span><span class="p">)</span>
+    <span class="n">validator</span><span class="o">.</span><span class="n">check_int_range</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">-</span> <span class="n">start</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">INC_BOTH</span><span class="p">)</span>
 
     <span class="n">begins</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">input</span><span class="o">.</span><span class="n">ndim</span>
     <span class="n">begins</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="n">start</span>
@@ -6346,7 +6362,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check the parameters of fold op.&quot;&quot;&quot;</span>
     <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">],</span> <span class="s1">&#39;fold&#39;</span><span class="p">)</span>
     <span class="n">param</span> <span class="o">=</span> <span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">else</span> <span class="n">param</span>
-    <span class="n">validator</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">param_name</span> <span class="o">+</span> <span class="s2">&quot; size&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">param</span><span class="p">),</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">Rel</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span> <span class="s1">&#39;fold&#39;</span><span class="p">)</span>
+    <span class="n">validator</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">param_name</span> <span class="o">+</span> <span class="s2">&quot; size&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">param</span><span class="p">),</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span> <span class="s1">&#39;fold&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">param_name</span> <span class="o">==</span> <span class="s2">&quot;padding&quot;</span><span class="p">:</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_non_negative_int_sequence</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="s1">&#39;fold&#39;</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -6407,7 +6423,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check the parameters of unfold op.&quot;&quot;&quot;</span>
     <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">],</span> <span class="s1">&#39;unfold&#39;</span><span class="p">)</span>
     <span class="n">param</span> <span class="o">=</span> <span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">else</span> <span class="n">param</span>
-    <span class="n">validator</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">param_name</span> <span class="o">+</span> <span class="s2">&quot; size&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">param</span><span class="p">),</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">param_size</span><span class="p">,</span> <span class="n">Rel</span><span class="o">.</span><span class="n">IN</span><span class="p">,</span> <span class="s1">&#39;unfold&#39;</span><span class="p">)</span>
+    <span class="n">validator</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">param_name</span> <span class="o">+</span> <span class="s2">&quot; size&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">param</span><span class="p">),</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">param_size</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">IN</span><span class="p">,</span> <span class="s1">&#39;unfold&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">param_name</span> <span class="o">==</span> <span class="s2">&quot;padding&quot;</span><span class="p">:</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_non_negative_int_sequence</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="s1">&#39;unfold&#39;</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -6584,9 +6600,9 @@
 <span class="sd">    where `y` is the returned tensor.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        input (Tensor): The m by n matrix equivalent to `x` in above.</span>
+<span class="sd">        input (Tensor): The :math:`(m \times n)` matrix equivalent to :math:`x` in above.</span>
 <span class="sd">            The input tensor whose data type is float16, float32 or float64.</span>
-<span class="sd">        A (Tensor): The m by k matrix equivalent to `a` in above.</span>
+<span class="sd">        A (Tensor): The :math:`(m \times k)` matrix equivalent to :math:`a` in above.</span>
 <span class="sd">            The input tensor whose data type is float16, float32 or float64.</span>
 
 <span class="sd">    Returns:</span>
@@ -6994,7 +7010,7 @@
 
 <span class="nd">@constexpr</span>
 <span class="k">def</span> <span class="nf">_check_axis_range</span><span class="p">(</span><span class="n">arg_value</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">,</span> <span class="n">op_name</span><span class="p">):</span>
-    <span class="n">arg_value</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">check_int_range</span><span class="p">(</span><span class="n">arg_value</span><span class="p">,</span> <span class="o">-</span><span class="n">limit</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">Rel</span><span class="o">.</span><span class="n">INC_LEFT</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">,</span> <span class="n">op_name</span><span class="p">)</span>
+    <span class="n">arg_value</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">check_int_range</span><span class="p">(</span><span class="n">arg_value</span><span class="p">,</span> <span class="o">-</span><span class="n">limit</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">INC_LEFT</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">,</span> <span class="n">op_name</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">arg_value</span>
 
 
