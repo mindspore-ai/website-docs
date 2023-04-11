@@ -16,16 +16,12 @@ rm -rf website-docs
 # shellcheck disable=SC2086
 git clone https://${GIT_USERNAME}:"${GIT_PASSWORD}"@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}"
 
+rm -rf /root/website-docs/public/install/${VERSION}
+mkdir -p /root/website-docs/public/install/${VERSION}
+cp -r /root/docs/install/* /root/website-docs/public/install/${VERSION}/
+if [ ${VERSION} == "master" ];then
+cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
 
-
-if [ ${RELEASE_TYPE} == "install" ];then
-  rm -rf /root/website-docs/public/install/${VERSION}
-  mkdir -p /root/website-docs/public/install/${VERSION}
-  cp -r /root/docs/install* /root/website-docs/public/install/${VERSION}/
-  if [ ${VERSION} == "master" ];then
-  cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
-  exit
-fi
 
 # shellcheck disable=SC2034
 BUILD_PATH=${VERSION}
@@ -104,8 +100,9 @@ function refreshDir() {
   cp -r /root/docs/tools/generate_html/${BUILD_PATH}/output"$path"/* /root/website-docs/public"$path"/
 }
 
-delete_old
-
+if [ ${DO_BUILD} == "true" ];then
+  delete_old
+fi
 
 # shellcheck disable=SC2164
 cd /root/website-docs
