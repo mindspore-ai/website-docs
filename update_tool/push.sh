@@ -12,6 +12,7 @@ git clone https://gitee.com/mindspore/docs.git -b "${VERSION}"
 
 echo "clone docs success, now start building"
 
+rm -rf website-docs
 # shellcheck disable=SC2086
 git clone https://${GIT_USERNAME}:"${GIT_PASSWORD}"@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}"
 
@@ -20,7 +21,7 @@ git clone https://${GIT_USERNAME}:"${GIT_PASSWORD}"@gitee.com/mindspore/website-
 if [ ${RELEASE_TYPE} == "install" ];then
   rm -rf /root/website-docs/public/install/${VERSION}
   mkdir -p /root/website-docs/public/install/${VERSION}
-  cp -r /root/docs/install/* /root/website-docs/public/install/${VERSION}/
+  cp -r /root/docs/install* /root/website-docs/public/install/${VERSION}/
   if [ ${VERSION} == "master" ];then
   cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
   exit
@@ -37,11 +38,6 @@ if [ ${VERSION} == "master" ];then
 else
   python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}"
 fi
-# shellcheck disable=SC2164
-cd /root
-
-rm -rf website-docs
-
 
 
 # shellcheck disable=SC2164
