@@ -1,0 +1,1509 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>使用SentimentNet实现情感分类 &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="使用BERT网络实现智能写诗" href="bert_poetry.html" />
+    <link rel="prev" title="使用字符级RNN生成名称" href="rnn_generation.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">入门教程</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction.html">基本介绍</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">初学入门</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tensor.html">张量</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataset.html">数据加载及处理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">建立神经网络</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../autograd.html">自动微分</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../optimization.html">优化模型参数</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../save_load_model.html">保存及加载模型</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../inference.html">推理</a></li>
+</ul>
+<p class="caption"><span class="caption-text">进阶教程</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../custom.html">自定义</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../image_and_video.html">图像处理</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../text.html">自然语言</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="rnn_classification.html">使用字符级RNN分类名称</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rnn_generation.html">使用字符级RNN生成名称</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">使用SentimentNet实现情感分类</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#整体流程">整体流程</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#准备环节">准备环节</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#下载数据集">下载数据集</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#确定评价标准">确定评价标准</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#确定网络">确定网络</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#配置运行信息和SentimentNet网络参数">配置运行信息和SentimentNet网络参数</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#数据处理">数据处理</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#预处理数据集">预处理数据集</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#定义网络">定义网络</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#训练并保存模型">训练并保存模型</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#模型验证">模型验证</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#训练结果评价">训练结果评价</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#总结">总结</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="bert_poetry.html">使用BERT网络实现智能写诗</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pynative_mode_and_graph_mode.html">动态图与静态图</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../distributed_training.html">分布式训练</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../inference_and_deploy.html">推理与部署</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../text.html">自然语言</a> &raquo;</li>
+        
+      <li>使用SentimentNet实现情感分类</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/intermediate/text/sentimentnet.ipynb.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="使用SentimentNet实现情感分类">
+<h1>使用SentimentNet实现情感分类<a class="headerlink" href="#使用SentimentNet实现情感分类" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/r1.3/tutorials/source_zh_cn/intermediate/text/sentimentnet.ipynb"><img alt="image0" src="https://gitee.com/mindspore/docs/raw/r1.3/resource/_static/logo_source.png" /></a> <a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/r1.3/tutorials/zh_cn/mindspore_sentimentnet.ipynb"><img alt="image1" src="https://gitee.com/mindspore/docs/raw/r1.3/resource/_static/logo_notebook.png" /></a> <a class="reference external" href="https://authoring-modelarts-cnnorth4.huaweicloud.com/console/lab?share-url-b64=aHR0cHM6Ly9taW5kc3BvcmUtd2Vic2l0ZS5vYnMuY24tbm9ydGgtNC5teWh1YXdlaWNsb3VkLmNvbS9ub3RlYm9vay9tYXN0ZXIvdHV0b3JpYWxzL3poX2NuL21pbmRzcG9yZV9zZW50aW1lbnRuZXQuaXB5bmI=&amp;imageid=65f636a0-56cf-49df-b941-7d2a07ba8c8c"><img alt="image2" src="https://gitee.com/mindspore/docs/raw/r1.3/resource/_static/logo_modelarts.png" /></a></p>
+<div class="section" id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline">¶</a></h2>
+<p>情感分类是自然语言处理中文本分类问题的子集，属于自然语言处理最基础的应用。它是对带有感情色彩的主观性文本进行分析和推理的过程，即分析说话人的态度，是倾向正面还是反面。</p>
+<p>通常情况下，我们会把情感类别分为正面、反面和中性三类。虽然“面无表情”的评论也有不少；不过，大部分时候会只采用正面和反面的案例进行训练，下面这个数据集就是很好的例子。</p>
+<p>传统的文本主题分类问题的典型参考数据集为<a class="reference external" href="http://qwone.com/~jason/20Newsgroups/">20 Newsgroups</a>，该数据集由20组新闻数据组成，包含约20000个新闻文档。 其主题列表中有些类别的数据比较相似，例如comp.sys.ibm.pc.hardware和comp.sys.mac.hardware都是和电脑系统硬件相关的题目，相似度比较高。而有些主题类别的数据相对来说就毫无关联，例如misc.forsale和soc.religion.christian。</p>
+<p>就网络本身而言，文本主题分类的网络结构和情感分类的网络结构大致相似。在掌握了情感分类网络如何构造之后，很容易可以构造一个类似的网络，稍作调参即可用于文本主题分类任务。</p>
+<p>但在业务上下文侧，文本主题分类是分析文本讨论的客观内容，而情感分类是要从文本中得到它是否支持某种观点的信息。比如，“《阿甘正传》真是好看极了，影片主题明确，节奏流畅。”这句话，在文本主题分类是要将其归为类别为“电影”主题，而情感分类则要挖掘出这一影评的态度是正面还是负面。</p>
+<p>相对于传统的文本主题分类，情感分类较为简单，实用性也较强。常见的购物网站、电影网站都可以采集到相对高质量的数据集，也很容易给业务领域带来收益。例如，可以结合领域上下文，自动分析特定类型客户对当前产品的意见，可以分主题分用户类型对情感进行分析，以作针对性的处理，甚至基于此进一步推荐产品，提高转化率，带来更高的商业收益。</p>
+<p>特殊领域中，某些非极性词也充分表达了用户的情感倾向，比如下载使用APP时，“卡死了”、“下载太慢了”就表达了用户的负面情感倾向；股票领域中，“看涨”、“牛市”表达的就是用户的正面情感倾向。所以，本质上，我们希望模型能够在垂直领域中，挖掘出一些特殊的表达，作为极性词给情感分类系统使用：</p>
+<p><span class="math notranslate nohighlight">\(垂直极性词 = 通用极性词 + 领域特有极性词\)</span></p>
+<p>按照处理文本的粒度不同，情感分析可分为词语级、短语级、句子级、段落级以及篇章级等几个研究层次。这里以“段落级”为例，输入为一个段落，输出为影评是正面还是负面的信息。</p>
+<p>接下来，以IMDB影评情感分类为例来体验MindSpore在自然语言处理上的应用。</p>
+<blockquote>
+<div><p>本篇基于MindSpore v1.3，GPU/CPU环境运行。</p>
+</div></blockquote>
+</div>
+<div class="section" id="整体流程">
+<h2>整体流程<a class="headerlink" href="#整体流程" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p>准备环节。</p></li>
+<li><p>加载数据集，进行数据处理。</p></li>
+<li><p>定义网络。</p></li>
+<li><p>定义优化器和损失函数。</p></li>
+<li><p>使用网络训练数据，生成模型。</p></li>
+<li><p>得到模型之后，使用验证数据集，查看模型精度情况。</p></li>
+</ol>
+</div>
+<div class="section" id="准备环节">
+<h2>准备环节<a class="headerlink" href="#准备环节" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="下载数据集">
+<h3>下载数据集<a class="headerlink" href="#下载数据集" title="Permalink to this headline">¶</a></h3>
+<p>本次体验采用IMDB影评数据集作为实验数据。</p>
+<ol class="arabic">
+<li><p>下载IMDB影评数据集。</p>
+<p>以下是负面影评（Negative）和正面影评（Positive）的案例。</p>
+</li>
+</ol>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 44%" />
+<col style="width: 56%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Review</p></th>
+<th class="head"><p>Label</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>“Quitting” may be as much about exiting a pre-ordained identity as about drug withdrawal. As a rural guy coming to Beijing, class and success must have struck this young artist face on as an appeal to separate from his
+roots and far surpass his peasant parents’ acting success. Troubles arise, however, when the new man is too new, when it demands too big a departure from family, history, nature, and personal identity. The ensuing
+splits, and confusion between the imaginary and the real and the dissonance between the ordinary and the heroic are the stuff of a gut check on the one hand or a complete escape from self on the other.</p></td>
+<td><p>Negative</p></td>
+</tr>
+<tr class="row-odd"><td><p>This movie is amazing because the fact that the real people portray themselves and their real life experience and do such a good job it’s like they’re almost living the past over again. Jia Hongsheng plays himself an
+actor who quit everything except music and drugs struggling with depression and searching for the meaning of life while being angry at everyone especially the people who care for him most.</p></td>
+<td><p>Positive</p></td>
+</tr>
+</tbody>
+</table>
+<p>  将下载好的数据集解压并放在当前工作目录下的``datasets``目录下，由于数据集文件较多，解压过程耗时大约15分钟。其中，参数<code class="docutils literal notranslate"><span class="pre">--checkpoint=1000</span> <span class="pre">--checkpoint-action=dot</span></code>表示每解压1000个文件将在底部追加打印一个黑点，如下所示。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">!</span>wget https://mindspore-website.obs.myhuaweicloud.com/notebook/datasets/aclImdb_v1.tar.gz -N --no-check-certificate
+<span class="o">!</span>mkdir -p datasets
+<span class="o">!</span><span class="k">if</span> <span class="o">[</span> ! -d <span class="s2">&quot;datasets/aclImdb&quot;</span> <span class="o">]</span><span class="p">;</span><span class="k">then</span> tar -C datasets --checkpoint<span class="o">=</span><span class="m">1000</span> --checkpoint-action<span class="o">=</span>dot -xzf aclImdb_v1.tar.gz<span class="p">;</span><span class="k">fi</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<ol class="arabic" start="2">
+<li><p>下载GloVe文件 下载并解压GloVe文件到当前工作目录下的<code class="docutils literal notranslate"><span class="pre">datasets</span></code>目录下，并在所有Glove文件开头处添加如下所示新的一行，意思是总共读取400000个单词，每个单词用300纬度的词向量表示。</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>400000 300
+</pre></div>
+</div>
+</li>
+</ol>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">!</span>wget -N https://mindspore-website.obs.myhuaweicloud.com/notebook/datasets/glove.6B.zip --no-check-certificate
+<span class="o">!</span>unzip -o glove.6B.zip -d datasets/glove
+<span class="o">!</span>sed -i <span class="s1">&#39;1i 400000 300&#39;</span> datasets/glove/*
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>在当前工作目录创建名为<code class="docutils literal notranslate"><span class="pre">preprocess</span></code>的空目录，该目录将用于存储在数据集预处理操作中IMDB数据集转换为MindRecord格式后的文件。此时当前工作目录结构如下所示。</p></li>
+</ol>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">!</span>mkdir -p preprocess ckpt
+<span class="o">!</span>tree -L <span class="m">3</span> .
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+.
+├── aclImdb_v1.tar.gz
+├── ckpt
+├── datasets
+│   ├── aclImdb
+│   │   ├── imdbEr.txt
+│   │   ├── imdb.vocab
+│   │   ├── README
+│   │   ├── test
+│   │   └── train
+│   └── glove
+│       ├── glove.6B.100d.txt
+│       ├── glove.6B.200d.txt
+│       ├── glove.6B.300d.txt
+│       └── glove.6B.50d.txt
+├── glove.6B.zip
+├── nlp_application.ipynb
+└── preprocess
+
+7 directories, 10 files
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="确定评价标准">
+<h3>确定评价标准<a class="headerlink" href="#确定评价标准" title="Permalink to this headline">¶</a></h3>
+<p>作为典型的分类问题，情感分类的评价标准可以比照普通的分类问题处理。常见的精度（Accuracy）、精准度（Precision）、召回率（Recall）和F_beta分数都可以作为参考。</p>
+<p><span class="math notranslate nohighlight">\(精度（Accuracy）= 分类正确的样本数目 / 总样本数目\)</span></p>
+<p><span class="math notranslate nohighlight">\(精准度（Precision）= 真阳性样本数目 / 所有预测类别为阳性的样本数目\)</span></p>
+<p><span class="math notranslate nohighlight">\(召回率（Recall）= 真阳性样本数目 / 所有真实类别为阳性的样本数目\)</span></p>
+<p><span class="math notranslate nohighlight">\(F1分数 = (2 * Precision * Recall) / (Precision + Recall)\)</span></p>
+<p>在IMDB这个数据集中，正负样本数差别不大，可以简单地用精度（accuracy）作为分类器的衡量标准。</p>
+</div>
+<div class="section" id="确定网络">
+<h3>确定网络<a class="headerlink" href="#确定网络" title="Permalink to this headline">¶</a></h3>
+<p>我们使用基于LSTM构建的SentimentNet网络进行自然语言处理。</p>
+<blockquote>
+<div><p>LSTM（Long short-term memory，长短期记忆）网络是一种时间循环神经网络，适合于处理和预测时间序列中间隔和延迟非常长的重要事件。 本次体验面向GPU或CPU硬件平台。</p>
+</div></blockquote>
+</div>
+<div class="section" id="配置运行信息和SentimentNet网络参数">
+<h3>配置运行信息和SentimentNet网络参数<a class="headerlink" href="#配置运行信息和SentimentNet网络参数" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic simple">
+<li><p>使用<code class="docutils literal notranslate"><span class="pre">parser</span></code>模块传入运行必要的信息。</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">preprocess</span></code>：是否预处理数据集，默认为否。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">aclimdb_path</span></code>：数据集存放路径。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">glove_path</span></code>：GloVe文件存放路径。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">preprocess_path</span></code>：预处理数据集的结果文件夹。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ckpt_path</span></code>：CheckPoint文件路径。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pre_trained</span></code>：预加载CheckPoint文件。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">device_target</span></code>：指定GPU或CPU环境。</p></li>
+</ul>
+</li>
+<li><p>进行训练前，需要配置必要的信息，包括环境信息、执行的模式、后端信息及硬件信息。</p></li>
+</ol>
+<p>运行以下一段代码中配置训练所需相关参数（详细的接口配置信息，请参见MindSpore官网<code class="docutils literal notranslate"><span class="pre">context.set_context</span></code>API接口说明）。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
+<span class="kn">from</span> <span class="nn">easydict</span> <span class="kn">import</span> <span class="n">EasyDict</span> <span class="k">as</span> <span class="n">edict</span>
+
+
+<span class="c1"># LSTM CONFIG</span>
+<span class="n">lstm_cfg</span> <span class="o">=</span> <span class="n">edict</span><span class="p">({</span>
+    <span class="s1">&#39;num_classes&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s1">&#39;learning_rate&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+    <span class="s1">&#39;momentum&#39;</span><span class="p">:</span> <span class="mf">0.9</span><span class="p">,</span>
+    <span class="s1">&#39;num_epochs&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s1">&#39;batch_size&#39;</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span>
+    <span class="s1">&#39;embed_size&#39;</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span>
+    <span class="s1">&#39;num_hiddens&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="s1">&#39;num_layers&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s1">&#39;bidirectional&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="s1">&#39;save_checkpoint_steps&#39;</span><span class="p">:</span> <span class="mi">390</span><span class="p">,</span>
+    <span class="s1">&#39;keep_checkpoint_max&#39;</span><span class="p">:</span> <span class="mi">10</span>
+<span class="p">})</span>
+
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">lstm_cfg</span>
+
+<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;MindSpore LSTM Example&#39;</span><span class="p">)</span>
+<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--preprocess&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;false&#39;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;true&#39;</span><span class="p">,</span> <span class="s1">&#39;false&#39;</span><span class="p">],</span>
+                    <span class="n">help</span><span class="o">=</span><span class="s1">&#39;whether to preprocess data.&#39;</span><span class="p">)</span>
+<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--aclimdb_path&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;./datasets/aclImdb&quot;</span><span class="p">,</span>
+                    <span class="n">help</span><span class="o">=</span><span class="s1">&#39;path where the dataset is stored.&#39;</span><span class="p">)</span>
+<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--glove_path&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;./datasets/glove&quot;</span><span class="p">,</span>
+                    <span class="n">help</span><span class="o">=</span><span class="s1">&#39;path where the GloVe is stored.&#39;</span><span class="p">)</span>
+<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--preprocess_path&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;./preprocess&quot;</span><span class="p">,</span>
+                    <span class="n">help</span><span class="o">=</span><span class="s1">&#39;path where the pre-process data is stored.&#39;</span><span class="p">)</span>
+<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--ckpt_path&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;./models/ckpt/nlp_application&quot;</span><span class="p">,</span>
+                    <span class="n">help</span><span class="o">=</span><span class="s1">&#39;the path to save the checkpoint file.&#39;</span><span class="p">)</span>
+<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--pre_trained&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">help</span><span class="o">=</span><span class="s1">&#39;the pretrained checkpoint file path.&#39;</span><span class="p">)</span>
+<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--device_target&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;GPU&quot;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GPU&#39;</span><span class="p">,</span> <span class="s1">&#39;CPU&#39;</span><span class="p">],</span>
+                    <span class="n">help</span><span class="o">=</span><span class="s1">&#39;the target device to run, support &quot;GPU&quot;, &quot;CPU&quot;. Default: &quot;GPU&quot;.&#39;</span><span class="p">)</span>
+<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">([</span><span class="s1">&#39;--device_target&#39;</span><span class="p">,</span> <span class="s1">&#39;GPU&#39;</span><span class="p">,</span> <span class="s1">&#39;--preprocess&#39;</span><span class="p">,</span> <span class="s1">&#39;true&#39;</span><span class="p">])</span>
+
+<span class="n">context</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span>
+        <span class="n">mode</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span>
+        <span class="n">save_graphs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">device_target</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">device_target</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Current context loaded:</span><span class="se">\n</span><span class="s2">    mode: </span><span class="si">{}</span><span class="se">\n</span><span class="s2">    device_target: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">),</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Current context loaded:
+    mode: 0
+    device_target: GPU
+</pre></div></div>
+</div>
+<p>安装<code class="docutils literal notranslate"><span class="pre">gensim</span></code>依赖包。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">!</span>pip install gensim
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Looking in indexes: http://repo.myhuaweicloud.com/repository/pypi/simple
+Requirement already satisfied: gensim in /home/ma-user/anaconda3/envs/MindSpore/lib/python3.7/site-packages (3.8.3)
+Requirement already satisfied: numpy&gt;=1.11.3 in /home/ma-user/anaconda3/envs/MindSpore/lib/python3.7/site-packages (from gensim) (1.17.5)
+Requirement already satisfied: six&gt;=1.5.0 in /home/ma-user/anaconda3/envs/MindSpore/lib/python3.7/site-packages (from gensim) (1.15.0)
+Requirement already satisfied: smart-open&gt;=1.8.1 in /home/ma-user/anaconda3/envs/MindSpore/lib/python3.7/site-packages (from gensim) (4.0.1)
+Requirement already satisfied: scipy&gt;=0.18.1 in /home/ma-user/anaconda3/envs/MindSpore/lib/python3.7/site-packages (from gensim) (1.3.3)
+</pre></div></div>
+</div>
+</div>
+</div>
+<div class="section" id="数据处理">
+<h2>数据处理<a class="headerlink" href="#数据处理" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="预处理数据集">
+<h3>预处理数据集<a class="headerlink" href="#预处理数据集" title="Permalink to this headline">¶</a></h3>
+<p>执行数据集预处理： - 定义<code class="docutils literal notranslate"><span class="pre">ImdbParser</span></code>类解析文本数据集，包括编码、分词、对齐、处理GloVe原始数据，使之能够适应网络结构。 - 定义<code class="docutils literal notranslate"><span class="pre">convert_to_mindrecord</span></code>函数将数据集格式转换为MindRecord格式，便于MindSpore读取。函数<code class="docutils literal notranslate"><span class="pre">_convert_to_mindrecord</span></code>中<code class="docutils literal notranslate"><span class="pre">weight.txt</span></code>为数据预处理后自动生成的weight参数信息文件。 - 调用<code class="docutils literal notranslate"><span class="pre">convert_to_mindrecord</span></code>函数执行数据集预处理。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">gensim</span>
+<span class="kn">from</span> <span class="nn">mindspore.mindrecord</span> <span class="kn">import</span> <span class="n">FileWriter</span>
+
+
+<span class="k">class</span> <span class="nc">ImdbParser</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    按照下面的流程解析原始数据集，获得features与labels：</span>
+<span class="sd">    sentence-&gt;tokenized-&gt;encoded-&gt;padding-&gt;features</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imdb_path</span><span class="p">,</span> <span class="n">glove_path</span><span class="p">,</span> <span class="n">embed_size</span><span class="o">=</span><span class="mi">300</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__segs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="s1">&#39;test&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__label_dic</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pos&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;neg&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__imdb_path</span> <span class="o">=</span> <span class="n">imdb_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__glove_dim</span> <span class="o">=</span> <span class="n">embed_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__glove_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">glove_path</span><span class="p">,</span> <span class="s1">&#39;glove.6B.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__glove_dim</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;d.txt&#39;</span><span class="p">)</span>
+
+        <span class="c1"># properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__imdb_datas</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__features</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__labels</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__vacab</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__word2idx</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__weight_np</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__wvmodel</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        解析imdb data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__wvmodel</span> <span class="o">=</span> <span class="n">gensim</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">KeyedVectors</span><span class="o">.</span><span class="n">load_word2vec_format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__glove_file</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">seg</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__segs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__parse_imdb_datas</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__parse_features_and_labels</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__gen_weight_np</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__parse_imdb_datas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        从原始文本中加载数据</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data_lists</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">label_name</span><span class="p">,</span> <span class="n">label_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__label_dic</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">sentence_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__imdb_path</span><span class="p">,</span> <span class="n">seg</span><span class="p">,</span> <span class="n">label_name</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">sentence_dir</span><span class="p">):</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sentence_dir</span><span class="p">,</span> <span class="n">file</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">sentence</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+                    <span class="n">data_lists</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">sentence</span><span class="p">,</span> <span class="n">label_id</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__imdb_datas</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_lists</span>
+
+    <span class="k">def</span> <span class="nf">__parse_features_and_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        解析features与labels</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sentence</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__imdb_datas</span><span class="p">[</span><span class="n">seg</span><span class="p">]:</span>
+            <span class="n">features</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sentence</span><span class="p">)</span>
+            <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">features</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__labels</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">labels</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__updata_features_to_tokenized</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__parse_vacab</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__encode_features</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__padding_features</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__updata_features_to_tokenized</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        切分原始语句</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tokenized_features</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sentence</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">]:</span>
+            <span class="n">tokenized_sentence</span> <span class="o">=</span> <span class="p">[</span><span class="n">word</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">sentence</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)]</span>
+            <span class="n">tokenized_features</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tokenized_sentence</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokenized_features</span>
+
+    <span class="k">def</span> <span class="nf">__parse_vacab</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        构建词汇表</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tokenized_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span>
+        <span class="n">vocab</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="n">tokenized_features</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__vacab</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">vocab</span>
+
+        <span class="c1"># word_to_idx: {&#39;hello&#39;: 1, &#39;world&#39;:111, ... &#39;&lt;unk&gt;&#39;: 0}</span>
+        <span class="n">word_to_idx</span> <span class="o">=</span> <span class="p">{</span><span class="n">word</span><span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">word</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">vocab</span><span class="p">)}</span>
+        <span class="n">word_to_idx</span><span class="p">[</span><span class="s1">&#39;&lt;unk&gt;&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__word2idx</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">word_to_idx</span>
+
+    <span class="k">def</span> <span class="nf">__encode_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; 词汇编码 &quot;&quot;&quot;</span>
+        <span class="n">word_to_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__word2idx</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">]</span>
+        <span class="n">encoded_features</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tokenized_sentence</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">]:</span>
+            <span class="n">encoded_sentence</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">tokenized_sentence</span><span class="p">:</span>
+                <span class="n">encoded_sentence</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">word_to_idx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+            <span class="n">encoded_features</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">encoded_sentence</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">encoded_features</span>
+
+    <span class="k">def</span> <span class="nf">__padding_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seg</span><span class="p">,</span> <span class="n">maxlen</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        将所有features填充到相同的长度</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">padded_features</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">maxlen</span><span class="p">:</span>
+                <span class="n">padded_feature</span> <span class="o">=</span> <span class="n">feature</span><span class="p">[:</span><span class="n">maxlen</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">padded_feature</span> <span class="o">=</span> <span class="n">feature</span>
+                <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">padded_feature</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">maxlen</span><span class="p">:</span>
+                    <span class="n">padded_feature</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pad</span><span class="p">)</span>
+            <span class="n">padded_features</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">padded_feature</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">padded_features</span>
+
+    <span class="k">def</span> <span class="nf">__gen_weight_np</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        使用gensim获取权重</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">weight_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__word2idx</span><span class="p">[</span><span class="n">seg</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">__glove_dim</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">word</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__word2idx</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">word</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wvmodel</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">word_vector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__wvmodel</span><span class="o">.</span><span class="n">get_vector</span><span class="p">(</span><span class="n">word</span><span class="p">)</span>
+            <span class="n">weight_np</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">word_vector</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__weight_np</span><span class="p">[</span><span class="n">seg</span><span class="p">]</span> <span class="o">=</span> <span class="n">weight_np</span>
+
+    <span class="k">def</span> <span class="nf">get_datas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        返回 features, labels, weight</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__features</span><span class="p">[</span><span class="n">seg</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__labels</span><span class="p">[</span><span class="n">seg</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__weight_np</span><span class="p">[</span><span class="n">seg</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">features</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">weight</span>
+
+
+
+<span class="k">def</span> <span class="nf">_convert_to_mindrecord</span><span class="p">(</span><span class="n">data_home</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">weight_np</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    将原始数据集转换为mindrecord格式</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">weight_np</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_home</span><span class="p">,</span> <span class="s1">&#39;weight.txt&#39;</span><span class="p">),</span> <span class="n">weight_np</span><span class="p">)</span>
+
+    <span class="c1"># 写入mindrecord</span>
+    <span class="n">schema_json</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">},</span>
+                   <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">},</span>
+                   <span class="s2">&quot;feature&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span> <span class="s2">&quot;shape&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]}}</span>
+
+    <span class="n">data_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_home</span><span class="p">,</span> <span class="s2">&quot;aclImdb_train.mindrecord&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">training</span><span class="p">:</span>
+        <span class="n">data_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_home</span><span class="p">,</span> <span class="s2">&quot;aclImdb_test.mindrecord&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_imdb_data</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">labels</span><span class="p">):</span>
+        <span class="n">data_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">feature</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">features</span><span class="p">)):</span>
+            <span class="n">data_json</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span>
+                         <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">),</span>
+                         <span class="s2">&quot;feature&quot;</span><span class="p">:</span> <span class="n">feature</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)}</span>
+            <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_json</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data_list</span>
+
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">FileWriter</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">shard_num</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">get_imdb_data</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">add_schema</span><span class="p">(</span><span class="n">schema_json</span><span class="p">,</span> <span class="s2">&quot;nlp_schema&quot;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">add_index</span><span class="p">([</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">])</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">write_raw_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">convert_to_mindrecord</span><span class="p">(</span><span class="n">embed_size</span><span class="p">,</span> <span class="n">aclimdb_path</span><span class="p">,</span> <span class="n">preprocess_path</span><span class="p">,</span> <span class="n">glove_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    将原始数据集转换为mindrecord格式</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">ImdbParser</span><span class="p">(</span><span class="n">aclimdb_path</span><span class="p">,</span> <span class="n">glove_path</span><span class="p">,</span> <span class="n">embed_size</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">preprocess_path</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;preprocess path </span><span class="si">{</span><span class="n">preprocess_path</span><span class="si">}</span><span class="s2"> is not exist&quot;</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">preprocess_path</span><span class="p">)</span>
+
+    <span class="n">train_features</span><span class="p">,</span> <span class="n">train_labels</span><span class="p">,</span> <span class="n">train_weight_np</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_datas</span><span class="p">(</span><span class="s1">&#39;train&#39;</span><span class="p">)</span>
+    <span class="n">_convert_to_mindrecord</span><span class="p">(</span><span class="n">preprocess_path</span><span class="p">,</span> <span class="n">train_features</span><span class="p">,</span> <span class="n">train_labels</span><span class="p">,</span> <span class="n">train_weight_np</span><span class="p">)</span>
+
+    <span class="n">test_features</span><span class="p">,</span> <span class="n">test_labels</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_datas</span><span class="p">(</span><span class="s1">&#39;test&#39;</span><span class="p">)</span>
+    <span class="n">_convert_to_mindrecord</span><span class="p">(</span><span class="n">preprocess_path</span><span class="p">,</span> <span class="n">test_features</span><span class="p">,</span> <span class="n">test_labels</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">preprocess</span> <span class="o">==</span> <span class="s2">&quot;true&quot;</span><span class="p">:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="s2">&quot;rm -f ./preprocess/aclImdb* weight*&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Starting Data Pre-processing ==============&quot;</span><span class="p">)</span>
+    <span class="n">convert_to_mindrecord</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">embed_size</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">aclimdb_path</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">preprocess_path</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">glove_path</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;======================= Successful =======================&quot;</span><span class="p">)</span>
+
+
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+============== Starting Data Pre-processing ==============
+======================= Successful =======================
+</pre></div></div>
+</div>
+<p>转换成功后会在<code class="docutils literal notranslate"><span class="pre">preprocess</span></code>目录下生成MindRecord文件，通常该操作在数据集不变的情况下，无需每次训练都执行，此时查看<code class="docutils literal notranslate"><span class="pre">preprocess</span></code>文件目录结构。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">!</span>tree preprocess
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+preprocess
+├── aclImdb_test.mindrecord0
+├── aclImdb_test.mindrecord0.db
+├── aclImdb_test.mindrecord1
+├── aclImdb_test.mindrecord1.db
+├── aclImdb_test.mindrecord2
+├── aclImdb_test.mindrecord2.db
+├── aclImdb_test.mindrecord3
+├── aclImdb_test.mindrecord3.db
+├── aclImdb_train.mindrecord0
+├── aclImdb_train.mindrecord0.db
+├── aclImdb_train.mindrecord1
+├── aclImdb_train.mindrecord1.db
+├── aclImdb_train.mindrecord2
+├── aclImdb_train.mindrecord2.db
+├── aclImdb_train.mindrecord3
+├── aclImdb_train.mindrecord3.db
+└── weight.txt
+
+0 directories, 17 files
+</pre></div></div>
+</div>
+<p>此时<code class="docutils literal notranslate"><span class="pre">preprocess</span></code>目录下的文件为： - 名称包含<code class="docutils literal notranslate"><span class="pre">aclImdb_train.mindrecord</span></code>的为转换后的MindRecord格式的训练数据集。 - 名称包含<code class="docutils literal notranslate"><span class="pre">aclImdb_test.mindrecord</span></code>的为转换后的MindRecord格式的测试数据集。 - <code class="docutils literal notranslate"><span class="pre">weight.txt</span></code>为预处理后自动生成的weight参数信息文件。</p>
+<p>创建训练集： - 定义创建数据集函数<code class="docutils literal notranslate"><span class="pre">lstm_create_dataset</span></code>，创建训练集<code class="docutils literal notranslate"><span class="pre">ds_train</span></code>。 - 通过<code class="docutils literal notranslate"><span class="pre">create_dict_iterator</span></code>方法创建字典迭代器，读取已创建的数据集<code class="docutils literal notranslate"><span class="pre">ds_train</span></code>中的数据。</p>
+<p>运行以下一段代码，创建数据集并读取第1个<code class="docutils literal notranslate"><span class="pre">batch</span></code>中的<code class="docutils literal notranslate"><span class="pre">label</span></code>数据列表，和第1个<code class="docutils literal notranslate"><span class="pre">batch</span></code>中第1个元素的<code class="docutils literal notranslate"><span class="pre">feature</span></code>数据。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+
+
+<span class="k">def</span> <span class="nf">lstm_create_dataset</span><span class="p">(</span><span class="n">data_home</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">repeat_num</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;创建数据集&quot;&quot;&quot;</span>
+    <span class="n">ds</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">data_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_home</span><span class="p">,</span> <span class="s2">&quot;aclImdb_train.mindrecord0&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">training</span><span class="p">:</span>
+        <span class="n">data_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_home</span><span class="p">,</span> <span class="s2">&quot;aclImdb_test.mindrecord0&quot;</span><span class="p">)</span>
+
+    <span class="n">data_set</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MindDataset</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">columns_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;feature&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+    <span class="c1"># 对数据集进行shuffle、batch与repeat操作</span>
+    <span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">buffer_size</span><span class="o">=</span><span class="n">data_set</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">())</span>
+    <span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">count</span><span class="o">=</span><span class="n">repeat_num</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">data_set</span>
+
+<span class="n">ds_train</span> <span class="o">=</span> <span class="n">lstm_create_dataset</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">preprocess_path</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+
+<span class="n">iterator</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">ds_train</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">())</span>
+<span class="n">first_batch_label</span> <span class="o">=</span> <span class="n">iterator</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+<span class="n">first_batch_first_feature</span> <span class="o">=</span> <span class="n">iterator</span><span class="p">[</span><span class="s2">&quot;feature&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The first batch contains label below:</span><span class="se">\n</span><span class="si">{</span><span class="n">first_batch_label</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The feature of the first item in the first batch is below vector:</span><span class="se">\n</span><span class="si">{</span><span class="n">first_batch_first_feature</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+The first batch contains label below:
+[0 0 1 1 1 0 0 0 0 0 0 1 0 0 1 0 1 1 0 0 0 0 1 1 1 0 1 1 1 0 0 1 0 0 1 0 1
+ 0 0 0 0 1 0 0 1 1 1 0 0 0 1 1 1 1 0 1 0 0 1 1 0 1 1 0]
+
+The feature of the first item in the first batch is below vector:
+[249996  54143 184172 203651 229589 221693 185989 118515  64846  54704
+  19712 140286  54143  10035 223633 182804 110279  20992 185989 118515
+  54143 229589 124426 189682 129826  98619 251411  16315 100038 112995
+ 237022 116461  30735 229874  38533  25750  44090  30219  30735 229874
+ 171780 118515  65081  44090  74354 128277  82354 118515 215392  61497
+ 212639    923 210633 105168 249996  54143 185745 184172 187822 185213
+ 223619 100038  65443  73067 129442  44090 118515 156542  82301 111804
+  66658 184172  42988  95885 185989  76874  13192 171920 229589 156542
+  45558   5290  52959  80287  91542  91662 114496 112876  42988 192087
+ 185507 186212  66658 233582 230976 143758 128277 215027 229589 154143
+ 246234 167821 184159  40065 100038 112995 238258 180552 118515  95633
+ 128277 118515  99327  98619 184172  24185  98619 184172  88217 128277
+ 159969 128277  98619  96460  44090 118515 130663    710 128277 247284
+ 118515  90362 185989 118515  90745 100038 112995 187822  42867 249652
+ 118515 123509 239643 184172 118515 212864 185989  98619 161660      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0
+      0      0      0      0      0      0      0      0      0      0]
+</pre></div></div>
+</div>
+</div>
+</div>
+<div class="section" id="定义网络">
+<h2>定义网络<a class="headerlink" href="#定义网络" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p>导入初始化网络所需模块。</p></li>
+<li><p>定义需要单层LSTM小算子堆叠的设备类型。</p></li>
+<li><p>定义<code class="docutils literal notranslate"><span class="pre">lstm_default_state</span></code>函数来初始化网络参数及网络状态。</p></li>
+<li><p>定义<code class="docutils literal notranslate"><span class="pre">stack_lstm_default_state</span></code>函数来初始化小算子堆叠需要的初始化网络参数及网络状态。</p></li>
+<li><p>针对CPU场景，自定义单层LSTM小算子堆叠，来实现多层LSTM大算子功能。</p></li>
+<li><p>使用<code class="docutils literal notranslate"><span class="pre">Cell</span></code>方法，定义网络结构（<code class="docutils literal notranslate"><span class="pre">SentimentNet</span></code>网络）。</p></li>
+<li><p>实例化<code class="docutils literal notranslate"><span class="pre">SentimentNet</span></code>，创建网络，最后输出网络中加载的参数。</p></li>
+</ol>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">nn</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">ParameterTuple</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+
+<span class="c1"># 当设备类型为CPU时采用堆叠类型的LSTM</span>
+<span class="n">STACK_LSTM_DEVICE</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CPU&quot;</span><span class="p">]</span>
+
+<span class="c1"># 将短期记忆(h)和长期记忆(c)初始化为0</span>
+<span class="k">def</span> <span class="nf">lstm_default_state</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">num_layers</span><span class="p">,</span> <span class="n">bidirectional</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;LSTM网络输入初始化&quot;&quot;&quot;</span>
+    <span class="n">num_directions</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">bidirectional</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_layers</span> <span class="o">*</span> <span class="n">num_directions</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_layers</span> <span class="o">*</span> <span class="n">num_directions</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">h</span><span class="p">,</span> <span class="n">c</span>
+
+<span class="k">def</span> <span class="nf">stack_lstm_default_state</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">num_layers</span><span class="p">,</span> <span class="n">bidirectional</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;STACK LSTM网络输入初始化&quot;&quot;&quot;</span>
+    <span class="n">num_directions</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">bidirectional</span> <span class="k">else</span> <span class="mi">1</span>
+
+    <span class="n">h_list</span> <span class="o">=</span> <span class="n">c_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">):</span>
+        <span class="n">h_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_directions</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)))</span>
+        <span class="n">c_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_directions</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)))</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">h_list</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">c_list</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">h</span><span class="p">,</span> <span class="n">c</span>
+
+
+<span class="k">class</span> <span class="nc">StackLSTM</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    实现堆叠LSTM</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">input_size</span><span class="p">,</span>
+                 <span class="n">hidden_size</span><span class="p">,</span>
+                 <span class="n">num_layers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">batch_first</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">bidirectional</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">StackLSTM</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_layers</span> <span class="o">=</span> <span class="n">num_layers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_first</span> <span class="o">=</span> <span class="n">batch_first</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transpose</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Transpose</span><span class="p">()</span>
+
+        <span class="n">num_directions</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">bidirectional</span> <span class="k">else</span> <span class="mi">1</span>
+
+        <span class="n">input_size_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">input_size</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">input_size_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hidden_size</span> <span class="o">*</span> <span class="n">num_directions</span><span class="p">)</span>
+
+        <span class="c1"># LSTMCell为单层RNN结构，通过堆叠LSTMCell可完成StackLSTM</span>
+        <span class="n">layers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">):</span>
+            <span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">LSTMCell</span><span class="p">(</span><span class="n">input_size</span><span class="o">=</span><span class="n">input_size_list</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                      <span class="n">hidden_size</span><span class="o">=</span><span class="n">hidden_size</span><span class="p">,</span>
+                                      <span class="n">has_bias</span><span class="o">=</span><span class="n">has_bias</span><span class="p">,</span>
+                                      <span class="n">batch_first</span><span class="o">=</span><span class="n">batch_first</span><span class="p">,</span>
+                                      <span class="n">bidirectional</span><span class="o">=</span><span class="n">bidirectional</span><span class="p">,</span>
+                                      <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">))</span>
+
+        <span class="c1"># 权重初始化</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">):</span>
+            <span class="n">weight_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">input_size_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">hidden_size</span><span class="p">)</span> <span class="o">*</span> <span class="n">num_directions</span> <span class="o">*</span> <span class="n">hidden_size</span> <span class="o">*</span> <span class="mi">4</span>
+            <span class="k">if</span> <span class="n">has_bias</span><span class="p">:</span>
+                <span class="n">bias_size</span> <span class="o">=</span> <span class="n">num_directions</span> <span class="o">*</span> <span class="n">hidden_size</span> <span class="o">*</span> <span class="mi">4</span>
+                <span class="n">weight_size</span> <span class="o">=</span> <span class="n">weight_size</span> <span class="o">+</span> <span class="n">bias_size</span>
+
+            <span class="n">stdv</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">)</span>
+            <span class="n">w_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">stdv</span><span class="p">,</span> <span class="n">stdv</span><span class="p">,</span> <span class="p">(</span><span class="n">weight_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+            <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">w_np</span><span class="p">),</span> <span class="n">w_np</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;weight&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lstms</span> <span class="o">=</span> <span class="n">layers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">ParameterTuple</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">weights</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">hx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;构建网络&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_first</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">h</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">hx</span>
+        <span class="n">hn</span> <span class="o">=</span> <span class="n">cn</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_layers</span><span class="p">):</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">hn</span><span class="p">,</span> <span class="n">cn</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lstms</span><span class="p">[</span><span class="n">i</span><span class="p">](</span><span class="n">x</span><span class="p">,</span> <span class="n">h</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_first</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">hn</span><span class="p">,</span> <span class="n">cn</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">SentimentNet</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;构建SentimentNet&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">vocab_size</span><span class="p">,</span>
+                 <span class="n">embed_size</span><span class="p">,</span>
+                 <span class="n">num_hiddens</span><span class="p">,</span>
+                 <span class="n">num_layers</span><span class="p">,</span>
+                 <span class="n">bidirectional</span><span class="p">,</span>
+                 <span class="n">num_classes</span><span class="p">,</span>
+                 <span class="n">weight</span><span class="p">,</span>
+                 <span class="n">batch_size</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SentimentNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="c1"># 对数据中的词汇进行降维</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">vocab_size</span><span class="p">,</span>
+                                      <span class="n">embed_size</span><span class="p">,</span>
+                                      <span class="n">embedding_table</span><span class="o">=</span><span class="n">weight</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span><span class="o">.</span><span class="n">embedding_table</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trans</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Transpose</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">perm</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># 判断是否需要堆叠LSTM</span>
+        <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">STACK_LSTM_DEVICE</span><span class="p">:</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">StackLSTM</span><span class="p">(</span><span class="n">input_size</span><span class="o">=</span><span class="n">embed_size</span><span class="p">,</span>
+                                     <span class="n">hidden_size</span><span class="o">=</span><span class="n">num_hiddens</span><span class="p">,</span>
+                                     <span class="n">num_layers</span><span class="o">=</span><span class="n">num_layers</span><span class="p">,</span>
+                                     <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                     <span class="n">bidirectional</span><span class="o">=</span><span class="n">bidirectional</span><span class="p">,</span>
+                                     <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="n">stack_lstm_default_state</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_hiddens</span><span class="p">,</span> <span class="n">num_layers</span><span class="p">,</span> <span class="n">bidirectional</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">LSTM</span><span class="p">(</span><span class="n">input_size</span><span class="o">=</span><span class="n">embed_size</span><span class="p">,</span>
+                                   <span class="n">hidden_size</span><span class="o">=</span><span class="n">num_hiddens</span><span class="p">,</span>
+                                   <span class="n">num_layers</span><span class="o">=</span><span class="n">num_layers</span><span class="p">,</span>
+                                   <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                   <span class="n">bidirectional</span><span class="o">=</span><span class="n">bidirectional</span><span class="p">,</span>
+                                   <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="n">lstm_default_state</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_hiddens</span><span class="p">,</span> <span class="n">num_layers</span><span class="p">,</span> <span class="n">bidirectional</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">concat</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Concat</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">bidirectional</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">num_hiddens</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">num_hiddens</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+        <span class="c1"># input：(64,500,300)</span>
+        <span class="n">embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">embeddings</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">output</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">embeddings</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">))</span>
+        <span class="c1"># states[i] size(64,200)  -&gt; encoding.size(64,400)</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="mi">499</span><span class="p">]))</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">outputs</span>
+
+<span class="n">embedding_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">preprocess_path</span><span class="p">,</span> <span class="s2">&quot;weight.txt&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">network</span> <span class="o">=</span> <span class="n">SentimentNet</span><span class="p">(</span><span class="n">vocab_size</span><span class="o">=</span><span class="n">embedding_table</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                       <span class="n">embed_size</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">embed_size</span><span class="p">,</span>
+                       <span class="n">num_hiddens</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">num_hiddens</span><span class="p">,</span>
+                       <span class="n">num_layers</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">num_layers</span><span class="p">,</span>
+                       <span class="n">bidirectional</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">bidirectional</span><span class="p">,</span>
+                       <span class="n">num_classes</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">num_classes</span><span class="p">,</span>
+                       <span class="n">weight</span><span class="o">=</span><span class="n">Tensor</span><span class="p">(</span><span class="n">embedding_table</span><span class="p">),</span>
+                       <span class="n">batch_size</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">parameters_dict</span><span class="p">(</span><span class="n">recurse</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+OrderedDict([(&#39;embedding.embedding_table&#39;, Parameter (name=embedding.embedding_table, value=Tensor(shape=[252193, 300], dtype=Float32, value=
+[[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00 ...  0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
+ [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00 ...  0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
+ [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00 ...  0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
+ ...
+ [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00 ...  0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
+ [-2.64310002e-01,  2.03539997e-01, -1.07670002e-01 ...  3.17510009e-01, -6.45749986e-01,  4.42129999e-01],
+ [-2.82150000e-01,  2.53950000e-01,  3.94300014e-01 ...  1.75999999e-01,  7.86110014e-02, -7.89420009e-02]]))), (&#39;encoder.weight&#39;, Parameter (name=encoder.weight, value=Tensor(shape=[563200, 1, 1], dtype=Float32, value=
+[[[-1.65955983e-02]],
+ [[ 4.40648980e-02]],
+ [[-9.99771282e-02]],
+ ...
+ [[-6.54547513e-02]],
+ [[ 1.46641862e-02]],
+ [[-2.03442890e-02]]]))), (&#39;decoder.weight&#39;, Parameter (name=decoder.weight, value=Tensor(shape=[2, 400], dtype=Float32, value=
+[[ 8.68825766e-04,  1.55616635e-02, -3.46743106e-03 ... -1.70452073e-02,  6.96127317e-05, -1.37791187e-02],
+ [ 5.52378222e-03, -2.03212705e-02,  1.68735497e-02 ...  1.62047185e-02,  5.66494651e-03, -1.49743268e-02]]))), (&#39;decoder.bias&#39;, Parameter (name=decoder.bias, value=Tensor(shape=[2], dtype=Float32, value= [ 0.00000000e+00,  0.00000000e+00])))])
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="训练并保存模型">
+<h2>训练并保存模型<a class="headerlink" href="#训练并保存模型" title="Permalink to this headline">¶</a></h2>
+<p>运行以下一段代码，创建优化器和损失函数模型，加载训练数据集（<code class="docutils literal notranslate"><span class="pre">ds_train</span></code>）并配置好<code class="docutils literal notranslate"><span class="pre">CheckPoint</span></code>生成信息，然后使用<code class="docutils literal notranslate"><span class="pre">model.train</span></code>接口，进行模型训练。根据输出可以看到loss值随着训练逐步降低，最后达到0.262左右。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span> <span class="nn">mindspore.train.callback</span> <span class="kn">import</span> <span class="n">CheckpointConfig</span><span class="p">,</span> <span class="n">ModelCheckpoint</span><span class="p">,</span> <span class="n">TimeMonitor</span><span class="p">,</span> <span class="n">LossMonitor</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Accuracy</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="s2">&quot;rm -f </span><span class="si">{0}</span><span class="s2">/*.ckpt </span><span class="si">{0}</span><span class="s2">/*.meta&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">ckpt_path</span><span class="p">))</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">)</span>
+<span class="n">opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">momentum</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">opt</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;acc&#39;</span><span class="p">:</span> <span class="n">Accuracy</span><span class="p">()})</span>
+<span class="n">loss_cb</span> <span class="o">=</span> <span class="n">LossMonitor</span><span class="p">(</span><span class="n">per_print_times</span><span class="o">=</span><span class="mi">78</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Starting Training ==============&quot;</span><span class="p">)</span>
+<span class="n">config_ck</span> <span class="o">=</span> <span class="n">CheckpointConfig</span><span class="p">(</span><span class="n">save_checkpoint_steps</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">save_checkpoint_steps</span><span class="p">,</span>
+                             <span class="n">keep_checkpoint_max</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">keep_checkpoint_max</span><span class="p">)</span>
+<span class="n">ckpoint_cb</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;lstm&quot;</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">ckpt_path</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config_ck</span><span class="p">)</span>
+<span class="n">time_cb</span> <span class="o">=</span> <span class="n">TimeMonitor</span><span class="p">(</span><span class="n">data_size</span><span class="o">=</span><span class="n">ds_train</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">())</span>
+<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">device_target</span> <span class="o">==</span> <span class="s2">&quot;CPU&quot;</span><span class="p">:</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">num_epochs</span><span class="p">,</span> <span class="n">ds_train</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">time_cb</span><span class="p">,</span> <span class="n">ckpoint_cb</span><span class="p">,</span> <span class="n">loss_cb</span><span class="p">],</span> <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">num_epochs</span><span class="p">,</span> <span class="n">ds_train</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">time_cb</span><span class="p">,</span> <span class="n">ckpoint_cb</span><span class="p">,</span> <span class="n">loss_cb</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Training Success ==============&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+============== Starting Training ==============
+epoch: 1 step: 78, loss is 0.2971678
+epoch: 1 step: 156, loss is 0.30519545
+epoch: 1 step: 234, loss is 0.2370582
+epoch: 1 step: 312, loss is 0.25823578
+epoch: 1 step: 390, loss is 0.2899053
+Epoch time: 27745.798, per step time: 71.143
+epoch: 2 step: 78, loss is 0.20885809
+epoch: 2 step: 156, loss is 0.2168142
+epoch: 2 step: 234, loss is 0.14624771
+epoch: 2 step: 312, loss is 0.2152691
+epoch: 2 step: 390, loss is 0.3756763
+Epoch time: 27407.312, per step time: 70.275
+epoch: 3 step: 78, loss is 0.116764486
+epoch: 3 step: 156, loss is 0.20790516
+epoch: 3 step: 234, loss is 0.2118046
+epoch: 3 step: 312, loss is 0.18587393
+epoch: 3 step: 390, loss is 0.25241128
+Epoch time: 27251.069, per step time: 69.875
+epoch: 4 step: 78, loss is 0.11729147
+epoch: 4 step: 156, loss is 0.16071466
+epoch: 4 step: 234, loss is 0.43869072
+epoch: 4 step: 312, loss is 0.37149796
+epoch: 4 step: 390, loss is 0.18670222
+Epoch time: 27441.597, per step time: 70.363
+epoch: 5 step: 78, loss is 0.08070815
+epoch: 5 step: 156, loss is 0.143559
+epoch: 5 step: 234, loss is 0.292204
+epoch: 5 step: 312, loss is 0.07726648
+epoch: 5 step: 390, loss is 0.15458854
+Epoch time: 27602.059, per step time: 70.775
+epoch: 6 step: 78, loss is 0.16412595
+epoch: 6 step: 156, loss is 0.1664415
+epoch: 6 step: 234, loss is 0.1091502
+epoch: 6 step: 312, loss is 0.112443276
+epoch: 6 step: 390, loss is 0.14458877
+Epoch time: 27568.301, per step time: 70.688
+epoch: 7 step: 78, loss is 0.110504806
+epoch: 7 step: 156, loss is 0.079935536
+epoch: 7 step: 234, loss is 0.29199448
+epoch: 7 step: 312, loss is 0.1512347
+epoch: 7 step: 390, loss is 0.3185295
+Epoch time: 27512.058, per step time: 70.544
+epoch: 8 step: 78, loss is 0.22663717
+epoch: 8 step: 156, loss is 0.21799277
+epoch: 8 step: 234, loss is 0.13152371
+epoch: 8 step: 312, loss is 0.168206
+epoch: 8 step: 390, loss is 0.1784227
+Epoch time: 27545.180, per step time: 70.629
+epoch: 9 step: 78, loss is 0.27715153
+epoch: 9 step: 156, loss is 0.085485235
+epoch: 9 step: 234, loss is 0.35549596
+epoch: 9 step: 312, loss is 0.1265975
+epoch: 9 step: 390, loss is 0.081303015
+Epoch time: 27582.971, per step time: 70.726
+epoch: 10 step: 78, loss is 0.19696395
+epoch: 10 step: 156, loss is 0.03179455
+epoch: 10 step: 234, loss is 0.11651886
+epoch: 10 step: 312, loss is 0.050257515
+epoch: 10 step: 390, loss is 0.025655827
+Epoch time: 27546.935, per step time: 70.633
+============== Training Success ==============
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="模型验证">
+<h2>模型验证<a class="headerlink" href="#模型验证" title="Permalink to this headline">¶</a></h2>
+<p>创建并加载验证数据集（<code class="docutils literal notranslate"><span class="pre">ds_eval</span></code>），加载由<strong>训练</strong>保存的CheckPoint文件，进行验证，查看模型质量，此步骤用时约30秒。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">load_param_into_net</span>
+<span class="n">args</span><span class="o">.</span><span class="n">ckpt_path_saved</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">ckpt_path</span><span class="si">}</span><span class="s1">/lstm-</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">num_epochs</span><span class="si">}</span><span class="s1">_390.ckpt&#39;</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Starting Testing ==============&quot;</span><span class="p">)</span>
+<span class="n">ds_eval</span> <span class="o">=</span> <span class="n">lstm_create_dataset</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">preprocess_path</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">ckpt_path_saved</span><span class="p">)</span>
+<span class="n">load_param_into_net</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">device_target</span> <span class="o">==</span> <span class="s2">&quot;CPU&quot;</span><span class="p">:</span>
+    <span class="n">acc</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">ds_eval</span><span class="p">,</span> <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">acc</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">ds_eval</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== </span><span class="si">{}</span><span class="s2"> ==============&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">acc</span><span class="p">))</span>
+
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+============== Starting Testing ==============
+============== {&#39;acc&#39;: 0.8476362179487179} ==============
+</pre></div></div>
+</div>
+<div class="section" id="训练结果评价">
+<h3>训练结果评价<a class="headerlink" href="#训练结果评价" title="Permalink to this headline">¶</a></h3>
+<p>根据以上一段代码的输出可以看到，在经历了10轮epoch之后，使用验证的数据集，对文本的情感分析正确率在85%左右，达到一个基本满意的结果。</p>
+</div>
+</div>
+<div class="section" id="总结">
+<h2>总结<a class="headerlink" href="#总结" title="Permalink to this headline">¶</a></h2>
+<p>以上便完成了MindSpore自然语言处理应用的体验，我们通过本次体验全面了解了如何使用MindSpore进行自然语言中处理情感分类问题，理解了如何通过定义和初始化基于LSTM的<code class="docutils literal notranslate"><span class="pre">SentimentNet</span></code>网络进行训练模型及验证正确率。</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="bert_poetry.html" class="btn btn-neutral float-right" title="使用BERT网络实现智能写诗" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="rnn_generation.html" class="btn btn-neutral float-left" title="使用字符级RNN生成名称" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2021, MindSpore
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

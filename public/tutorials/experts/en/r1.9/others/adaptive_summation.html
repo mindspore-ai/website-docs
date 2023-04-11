@@ -1,0 +1,505 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Adaptive Gradient Summation Algorithm &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Dimension Reduction Training Algorithm" href="dimention_reduce_training.html" />
+    <link rel="prev" title="Gradient Accumulation Algorithm" href="gradient_accumulation.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Data Processing</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/augment.html">Auto Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/eager.html">Lightweight Data Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/cache.html">Single-Node Data Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/optimize.html">Optimizing the Data Processing</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Graph Compilation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../network/control_flow.html">Process Control Statements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/op_overload.html">Compiling Performance Optimization for Static Graph Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/custom_cell_reverse.html">Customizing Reverse Propagation Function of Cell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/ms_class.html">Calling the Custom Class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/constexpr.html">Construct Constants In the Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/dependency_control.html">Dependency Control</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Model Training Optimization</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="mixed_precision.html">Enabling Mixed Precision</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gradient_accumulation.html">Gradient Accumulation Algorithm</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Adaptive Gradient Summation Algorithm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#preparation">Preparation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#configuring-the-distributed-environment-variables">Configuring the Distributed Environment Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#preparing-the-dataset">Preparing the Dataset</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#configuring-the-operating-mode">Configuring the Operating Mode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#loading-dataset-in-the-data-parallel-mode">Loading Dataset in the Data Parallel Mode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#defining-the-network">Defining the Network</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#defining-the-training-model">Defining the Training Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#training-the-model">Training the Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-script">Running Script</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dimention_reduce_training.html">Dimension Reduction Training Algorithm</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Custom Operator</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../operation/op_custom.html">Custom Operators (Custom-based)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Model Inference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../infer/inference.html">Inference Model Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/cpu_gpu_mindir.html">Inference on a GPU</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_910_mindir.html">Inference on the Ascend 910 AI processor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_310_mindir.html">Inference Using the MindIR Model on Ascend 310 AI Processors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_310_air.html">Inference on the Ascend 310 AI Processor</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Debugging and Tuning</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../debug/function_debug.html">Function Debug</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/performance_optimization.html">Performance Tuning</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://mindspore.cn/mindinsight/docs/en/r1.9/accuracy_problem_preliminary_location.html">Precision Optimization↗</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Distributed Parallel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/introduction.html">Distributed Parallel Training Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/distributed_case.html">Distributed Case</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/distributed_inference.html">Distributed Inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/save_load.html">Saving and Loading Models in Hybrid Parallel Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/multi_dimensional.html">Multi Dimensional</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/other_features.html">Other Features</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Environment Variables</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../env/env_var_list.html">Environment Variables</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Adaptive Gradient Summation Algorithm</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/others/adaptive_summation.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="adaptive-gradient-summation-algorithm">
+<h1>Adaptive Gradient Summation Algorithm<a class="headerlink" href="#adaptive-gradient-summation-algorithm" title="Permalink to this headline">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/r1.9/tutorials/experts/source_en/others/adaptive_summation.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.9/resource/_static/logo_source_en.png"></a></p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>This tutorial shows how to use the adaptive gradient summation algorithm <a class="reference external" href="https://arxiv.org/pdf/2006.02924.pdf">Scaling Distributed Training with Adaptive Summation</a> in distributed training to improve the critical batch size of network training and speed up network convergence.</p>
+<p>In traditional distributed training, after each compute node calculates the loss and gradient, the gradients of all nodes are averaged, and then the gradient is updated.</p>
+<p>Unlike gradient renewal in traditional distributed training, adaptive gradient summation takes the direction of the gradient into account. In the early stage of network training, the gradient update direction obtained by different batches is basically parallel, but as the training progresses, the gradient update direction tends to be orthogonal. Moreover, the difference in orthogonality of gradient updates at different layers of the network is also relatively large.</p>
+<p>Taking two training nodes as an example, the update principle of the gradient is as follows:
+$<span class="math notranslate nohighlight">\(
+\begin{aligned}
+w^{’} &amp;= w_0 - \alpha \cdot [(1 - \frac{g^T_2 \cdot g_1}{2 \cdot ||g_1||^2}) \cdot g_1 + (1 - \frac{g^T_2 \cdot g_1}{2 \cdot ||g_2||^2}) \cdot g_2] \\
+&amp;= w_0 - \alpha \cdot Adasum(g_1,g_2)
+\end{aligned}
+\)</span><span class="math notranslate nohighlight">\(
+where \)</span>g_1<span class="math notranslate nohighlight">\( is the gradient of training node 1, and \)</span>g_2<span class="math notranslate nohighlight">\( is the gradient of training node 2. When the training node expands to \)</span>n<span class="math notranslate nohighlight">\((\)</span>n = 2^x, x = 1,2,3 cdots<span class="math notranslate nohighlight">\(), the problem is decomposed recursively as follows:
+\)</span><span class="math notranslate nohighlight">\(
+Adasum(g_{|0,n|}) = Adasum(Adasum(g_{|0, n/2|}), Adasum(g_{|n/2, n|}))
+\)</span>$
+As can be seen from the above formulas, the paper is an update to the gradient. Considering that the optimizer’s operation on the gradient does not necessarily satisfy the linear conversion, the optimization is to do adasum operation on the network weight difference (delta weights) after the optimizeizer.</p>
+<p>This tutorial will show you how to implement adaptive gradient summation in Boost mode, taking the ttraining process of ResNet-50 on the ImageNet 2012 dataset on Ascend910 as an example. <code class="docutils literal notranslate"><span class="pre">mindspore.boost</span></code> integrates various algorithms for network training acceleration, and provides a configuration interface to start the acceleration algorithm.</p>
+<p>It should be noted that after experimental verification, in small distributed training (such as 2 nodes in this experiment), the effect of adasum experiment is not obvious, and the effect will be more obvious as the number of nodes increases. This tutorial is only to illustrate how to use adasum, so use the 2-node as an example.</p>
+</div>
+<div class="section" id="preparation">
+<h2>Preparation<a class="headerlink" href="#preparation" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>Download <a class="reference external" href="https://gitee.com/mindspore/docs/tree/r1.9/docs/sample_code/adasum">Adasum Sample Code</a>.</p>
+<p>The models library links referenced in the code: <a class="reference external" href="https://gitee.com/mindspore/models">models</a>.</p>
+</div></blockquote>
+<p>The directory structure is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─sample_code
+    ├─adasum
+    │      rank_table_16pcs.json
+    │      resnet.py
+    │      training.py
+    │      run_node1.sh
+    │      run_node2.sh
+</pre></div>
+</div>
+<p>where rank_table_16pcs.jsons are networking information files for a Doka environment, resnet.py and train.py are files that define the network structure, and run_node1.py and run_node2.py are running scripts.</p>
+<div class="section" id="configuring-the-distributed-environment-variables">
+<h3>Configuring the Distributed Environment Variables<a class="headerlink" href="#configuring-the-distributed-environment-variables" title="Permalink to this headline">¶</a></h3>
+<p>In this tutorial, the configuration information of the json file is as follows, taking 2 nodes and 16-card environment as an example:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;server_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;server_list&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;server_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10.155.111.140&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;device&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.1.27.6&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.2.27.6&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.3.27.6&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;3&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.4.27.6&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;3&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;4&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.1.27.7&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;4&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;5&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.2.27.7&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;5&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;6&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.3.27.7&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;6&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;7&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.4.27.7&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;7&quot;</span><span class="p">}],</span>
+<span class="w">      </span><span class="nt">&quot;host_nic_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;reserve&quot;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;server_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10.155.111.141&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;device&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.1.27.8&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;8&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.2.27.8&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;9&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.3.27.8&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;3&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.4.27.8&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;11&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;4&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.1.27.9&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;12&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;5&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.2.27.9&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;13&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;6&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.3.27.9&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;14&quot;</span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;7&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;192.4.27.9&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;15&quot;</span><span class="p">}],</span>
+<span class="w">      </span><span class="nt">&quot;host_nic_ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;reserve&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;completed&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>rank_table can be generated by using the <a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/utils/hccl_tools/hccl_tools.py">hccl_tools.py</a> below the models, and <a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/utils/hccl_tools/merge_hccl.py">merge_hccl. py</a> stitches multiple rank_table files. The script usage method can be seen <a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/utils/hccl_tools/README.md">README.md</a>.</p>
+</div>
+<div class="section" id="preparing-the-dataset">
+<h3>Preparing the Dataset<a class="headerlink" href="#preparing-the-dataset" title="Permalink to this headline">¶</a></h3>
+<p>Used dataset: <a class="reference external" href="http://www.image-net.org/">ImageNet 2012</a></p>
+<ul class="simple">
+<li><p>The size of the dataset: 1000 classes and 224*224 color images in totoal</p>
+<ul>
+<li><p>Training set: 1,281,167 images in total</p></li>
+<li><p>Test set: 50000 images in total</p></li>
+</ul>
+</li>
+<li><p>Data format: JPEG</p></li>
+<li><p>Download the dataset, and the directory structure is as follows:</p></li>
+</ul>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─dataset
+    ├─train                 # Training the dataset
+    └─validation_preprocess # Evaluating the dataset
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="configuring-the-operating-mode">
+<h2>Configuring the Operating Mode<a class="headerlink" href="#configuring-the-operating-mode" title="Permalink to this headline">¶</a></h2>
+<p>Specify the operating mode, running card number, parallel mode through the context interface provided by MindSpore, and initialize the HCCL communication through init.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;Ascend&quot;</span><span class="p">)</span>
+<span class="n">device_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;DEVICE_ID&#39;</span><span class="p">))</span>
+<span class="n">set_context</span><span class="p">(</span><span class="n">device_id</span><span class="o">=</span><span class="n">device_id</span><span class="p">)</span>
+<span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">device_num</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">parallel_mode</span><span class="o">=</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">DATA_PARALLEL</span><span class="p">,</span> <span class="n">gradients_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">init</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="loading-dataset-in-the-data-parallel-mode">
+<h2>Loading Dataset in the Data Parallel Mode<a class="headerlink" href="#loading-dataset-in-the-data-parallel-mode" title="Permalink to this headline">¶</a></h2>
+<p>During distributed training, data is imported in parallel with the data. Image loading interface ImageFolderDataset is used to load the ImageNet 2012 dataset by using MindSpore. The dataset is processed through the data augmentation interface provided by MindSpore, and this part of the code is imported by <a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/official/cv/resnet/src/dataset.py">dataset.py</a> in the <code class="docutils literal notranslate"><span class="pre">resnet</span></code> directory in the models.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define train dataset</span>
+<span class="n">train_data_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">)</span>
+<span class="n">ds_train</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="o">=</span><span class="n">train_data_path</span><span class="p">,</span> <span class="n">do_train</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">train_image_size</span><span class="o">=</span><span class="mi">224</span><span class="p">,</span>
+                          <span class="n">eval_image_size</span><span class="o">=</span><span class="mi">224</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;Ascend&quot;</span><span class="p">,</span> <span class="n">distribute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">step_size</span> <span class="o">=</span> <span class="n">ds_train</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="defining-the-network">
+<h2>Defining the Network<a class="headerlink" href="#defining-the-network" title="Permalink to this headline">¶</a></h2>
+<p>The build code for the ResNet-50 network is imported by <a class="reference external" href="https://gitee.com/mindspore/docs/blob/r1.9/docs/sample_code/adasum/resnet.py">resnet.py</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define net</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">resnet</span><span class="p">(</span><span class="n">num_classes</span><span class="o">=</span><span class="mi">1001</span><span class="p">)</span>
+<span class="n">init_weight</span><span class="p">(</span><span class="n">net</span><span class="o">=</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="defining-the-training-model">
+<h2>Defining the Training Model<a class="headerlink" href="#defining-the-training-model" title="Permalink to this headline">¶</a></h2>
+<p>When defining the network, we need to set the boost_level to “O2” to turn on the adasum algorithm.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define loss</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">CrossEntropySmooth</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">smooth_factor</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="mi">1001</span><span class="p">)</span>
+<span class="n">loss_scale</span> <span class="o">=</span> <span class="n">FixedLossScaleManager</span><span class="p">(</span><span class="mi">1024</span><span class="p">,</span> <span class="n">drop_overflow_update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># define optimizer</span>
+<span class="n">group_params</span> <span class="o">=</span> <span class="n">init_group_params</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+<span class="n">lr</span> <span class="o">=</span> <span class="n">get_lr</span><span class="p">(</span><span class="n">lr_init</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">lr_end</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">lr_max</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">warmup_epochs</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">total_epochs</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">steps_per_epoch</span><span class="o">=</span><span class="n">step_size</span><span class="p">,</span>
+            <span class="n">lr_decay_mode</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">)</span>
+<span class="n">lr</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">lr</span><span class="p">)</span>
+<span class="n">opt</span> <span class="o">=</span> <span class="n">Momentum</span><span class="p">(</span><span class="n">group_params</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="n">loss_scale</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+
+<span class="c1"># define model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale</span><span class="p">,</span> <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="n">boost_level</span><span class="o">=</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span>
+              <span class="n">keep_batchnorm_fp32</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1"># define eval_network</span>
+<span class="n">dist_eval_network</span> <span class="o">=</span> <span class="n">ClassifyCorrectCell</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It should be noted that the “O2” mode includes other acceleration algorithms, and if we only want to turn on adasum, we can do it by configuring boost_config_dict.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define boost config dictionary</span>
+<span class="n">boost_dict</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;boost&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="s2">&quot;manual&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;less_bn&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;grad_freeze&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;adasum&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s2">&quot;grad_accumulation&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;dim_reduce&quot;</span><span class="p">:</span> <span class="kc">False</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1"># define model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale</span><span class="p">,</span> <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="n">boost_level</span><span class="o">=</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span>
+              <span class="n">keep_batchnorm_fp32</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">boost_config_dict</span><span class="o">=</span><span class="n">boost_dict</span><span class="p">,</span> <span class="n">eval_network</span><span class="o">=</span><span class="n">dist_eval_network</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="training-the-model">
+<h2>Training the Model<a class="headerlink" href="#training-the-model" title="Permalink to this headline">¶</a></h2>
+<p>Before the training starts, define the callback function callback, and add the training time information output and the loss information output.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define callback</span>
+<span class="n">cb</span> <span class="o">=</span> <span class="p">[</span><span class="n">TimeMonitor</span><span class="p">(</span><span class="n">data_size</span><span class="o">=</span><span class="n">step_size</span><span class="p">),</span> <span class="n">LossMonitor</span><span class="p">()]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Starting Training ==============&quot;</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="mi">90</span><span class="p">,</span> <span class="n">ds_train</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="n">cb</span><span class="p">,</span> <span class="n">sink_size</span><span class="o">=</span><span class="n">step_size</span><span class="p">,</span> <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-script">
+<h2>Running Script<a class="headerlink" href="#running-script" title="Permalink to this headline">¶</a></h2>
+<p>2-host 16-card training model runs the script run_node1.sh on machine 1, and runs the script run_node2.sh on machine 2.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_node<span class="o">{</span>i<span class="o">}</span>.sh<span class="w"> </span>./imagenet
+</pre></div>
+</div>
+<p>The core configuration for running the script is as follows, which needs to be modified when running a machine amplification. RANK_TABLE_FILE is the card environment profile, RANK_SIZE is the total number of cards, DEVICE_NUM is the number of cards per machine, and SERVER_ID is the serial number of the current machine.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">RANK_TABLE_FILE</span><span class="o">=</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span>/rank_table_16pcs.json
+<span class="nb">export</span><span class="w"> </span><span class="nv">RANK_SIZE</span><span class="o">=</span><span class="m">16</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">DEVICE_NUM</span><span class="o">=</span><span class="m">8</span>
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">SERVER_ID</span><span class="o">=</span><span class="m">0</span>
+<span class="nv">rank_start</span><span class="o">=</span><span class="k">$((</span>DEVICE_NUM<span class="w"> </span><span class="o">*</span><span class="w"> </span>SERVER_ID<span class="k">))</span>
+</pre></div>
+</div>
+<p>The output is as follows, and you can see that the loss value gradually decreases with the training:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>============== Starting Training ==============
+epoch: 1 step: 312 loss is  5.5303826
+...
+epoch: 10 step: 312 loss is  3.3762435
+...
+...
+...
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="dimention_reduce_training.html" class="btn btn-neutral float-right" title="Dimension Reduction Training Algorithm" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="gradient_accumulation.html" class="btn btn-neutral float-left" title="Gradient Accumulation Algorithm" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

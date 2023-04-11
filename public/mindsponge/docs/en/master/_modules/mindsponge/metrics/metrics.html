@@ -175,7 +175,7 @@
            <div itemprop="articleBody">
             
   <h1>Source code for mindsponge.metrics.metrics</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright 2021-2022 @ Shenzhen Bay Laboratory &amp;</span>
+<span></span><span class="c1"># Copyright 2021-2023 @ Shenzhen Bay Laboratory &amp;</span>
 <span class="c1">#                       Peking University &amp;</span>
 <span class="c1">#                       Huawei Technologies Co., Ltd</span>
 <span class="c1">#</span>
@@ -200,6 +200,8 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Metrics for collective variables</span>
 <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore.common.dtype</span> <span class="k">as</span> <span class="nn">mstype</span>
 <span class="kn">import</span> <span class="nn">mindspore.communication.management</span> <span class="k">as</span> <span class="nn">D</span>
@@ -209,33 +211,228 @@
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
-<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Metric</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Metric</span> <span class="k">as</span> <span class="n">_Metric</span>
 
-<span class="kn">from</span> <span class="nn">..colvar</span> <span class="kn">import</span> <span class="n">Colvar</span>
+<span class="kn">from</span> <span class="nn">..colvar</span> <span class="kn">import</span> <span class="n">Colvar</span><span class="p">,</span> <span class="n">get_colvar</span>
+<span class="kn">from</span> <span class="nn">..function</span> <span class="kn">import</span> <span class="n">Units</span>
 
 
-<span class="k">class</span> <span class="nc">CV</span><span class="p">(</span><span class="n">Metric</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Metric to output collective variables&quot;&quot;&quot;</span>
+<span class="k">def</span> <span class="nf">get_metrics</span><span class="p">(</span><span class="n">metrics</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">set</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get metrics used in analysis.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        metrics (Union[dict, set]): Dict or set of Metric or Colvar to be evaluated by the model</span>
+<span class="sd">                                    during MD running or analysis.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dict, the key is metric name, the value is class instance of metric method.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If the type of argument &#39;metrics&#39; is not None, dict or set.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">metrics</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">metrics</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">metrics</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The key in &#39;metrics&#39; must be string and but got key: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="n">Colvar</span><span class="p">):</span>
+                <span class="n">metrics</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">MetricCV</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="n">Metric</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The value in &#39;metrics&#39; must be Metric or Colvar, but got: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">metrics</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="nb">set</span><span class="p">):</span>
+        <span class="n">out_metrics</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="n">Colvar</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;When &#39;metrics&#39; is set, the type of the value in &#39;metrics must be Colvar, &#39;&quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;but got: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">out_metrics</span><span class="p">[</span><span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">MetricCV</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out_metrics</span>
+
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;get_metrics&#39;, the argument &#39;metrics&#39; must be None, dict or set, &quot;</span>
+                    <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">metrics</span><span class="p">))</span>
+
+
+<span class="k">class</span> <span class="nc">Metric</span><span class="p">(</span><span class="n">_Metric</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Basic Metric Cell for MindSPONGE&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">coordinate</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+               <span class="n">pbc_box</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">energy</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">force</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">potentials</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">total_bias</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">biases</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            coordinate (Tensor):    Tensor of shape (B, A, D). Data type is float.</span>
+<span class="sd">                                    Position coordinate of atoms in system.</span>
+<span class="sd">            pbc_box (Tensor):       Tensor of shape (B, D). Data type is float.</span>
+<span class="sd">                                    Tensor of PBC box. Default: None</span>
+<span class="sd">            bias (Tensor):          Tensor of shape (B, 1). Data type is float.</span>
+<span class="sd">                                    Total bias energy.</span>
+<span class="sd">            energy (Tensor):        Tensor of shape (B, 1). Data type is float.</span>
+<span class="sd">                                    Total energy of the simulation system.</span>
+<span class="sd">            force (Tensor):         Tensor of shape (B, A, D). Data type is float.</span>
+<span class="sd">                                    Force on each atoms of the simulation system.</span>
+<span class="sd">            potentials (Tensor):    Tensor of shape (B, U). Data type is float.</span>
+<span class="sd">                                    All potential energies.</span>
+<span class="sd">            biases (Tensor):        Tensor of shape (B, V). Data type is float</span>
+<span class="sd">                                    All bias potential energies.</span>
+
+<span class="sd">        Symbols:</span>
+<span class="sd">            B:  Batchsize, i.e. number of walkers in simulation.</span>
+<span class="sd">            A:  Number of atoms of the simulation system.</span>
+<span class="sd">            D:  Dimension of the space of the simulation system. Usually is 3.</span>
+<span class="sd">            U:  Number of potential energies.</span>
+<span class="sd">            V:  Number of bias potential energies.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1">#pylint: disable=unused-argument</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<span class="k">class</span> <span class="nc">MetricCV</span><span class="p">(</span><span class="n">Metric</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Metric for collective variables (CVs)&quot;&quot;&quot;</span>
+
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">colvar</span><span class="p">:</span> <span class="n">Colvar</span><span class="p">,</span>
-                 <span class="n">indexes</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
                  <span class="p">):</span>
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_indexes</span> <span class="o">=</span> <span class="n">indexes</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span> <span class="o">=</span> <span class="n">colvar</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_cv_value</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span> <span class="o">=</span> <span class="n">get_colvar</span><span class="p">(</span><span class="n">colvar</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">shape</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ndim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span><span class="o">.</span><span class="n">ndim</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span><span class="o">.</span><span class="n">dtype</span>
+
+    <span class="k">def</span> <span class="nf">get_unit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">units</span><span class="p">:</span> <span class="n">Units</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;return unit of the collective variables&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span><span class="o">.</span><span class="n">get_unit</span><span class="p">(</span><span class="n">units</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_cv_value</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="mi">0</span>
 
-    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
-        <span class="n">coordinate</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_indexes</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-        <span class="n">pbc_box</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_indexes</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_cv_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span><span class="p">(</span><span class="n">coordinate</span><span class="p">,</span> <span class="n">pbc_box</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">coordinate</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+               <span class="n">pbc_box</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">energy</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">force</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">potentials</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">total_bias</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">biases</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            coordinate (Tensor):    Tensor of shape (B, A, D). Data type is float.</span>
+<span class="sd">                                    Position coordinate of atoms in system.</span>
+<span class="sd">            pbc_box (Tensor):       Tensor of shape (B, D). Data type is float.</span>
+<span class="sd">                                    Tensor of PBC box. Default: None</span>
+<span class="sd">            energy (Tensor):        Tensor of shape (B, 1). Data type is float.</span>
+<span class="sd">                                    Total potential energy of the simulation system. Default: None</span>
+<span class="sd">            force (Tensor):         Tensor of shape (B, A, D). Data type is float.</span>
+<span class="sd">                                    Force on each atoms of the simulation system. Default: None</span>
+<span class="sd">            potentials (Tensor):    Tensor of shape (B, U). Data type is float.</span>
+<span class="sd">                                    Original potential energies from force field. Default: None</span>
+<span class="sd">            total_bias (Tensor):    Tensor of shape (B, 1). Data type is float.</span>
+<span class="sd">                                    Total bias energy for reweighting. Default: None</span>
+<span class="sd">            biases (Tensor):        Tensor of shape (B, V). Data type is float</span>
+<span class="sd">                                    Original bias potential energies from bias functions. Default: None</span>
+
+<span class="sd">        Symbols:</span>
+<span class="sd">            B:  Batchsize, i.e. number of walkers in simulation.</span>
+<span class="sd">            A:  Number of atoms of the simulation system.</span>
+<span class="sd">            D:  Dimension of the space of the simulation system. Usually is 3.</span>
+<span class="sd">            U:  Number of potential energies.</span>
+<span class="sd">            V:  Number of bias potential energies.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1">#pylint: disable=unused-argument</span>
+
+        <span class="n">colvar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span><span class="p">(</span><span class="n">coordinate</span><span class="p">,</span> <span class="n">pbc_box</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_convert_data</span><span class="p">(</span><span class="n">colvar</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cv_value</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span>
+
+
+<span class="k">class</span> <span class="nc">Average</span><span class="p">(</span><span class="n">Metric</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Average of collective variables (CVs)&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">colvar</span><span class="p">:</span> <span class="n">Colvar</span><span class="p">,</span>
+                 <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span> <span class="o">=</span> <span class="n">get_colvar</span><span class="p">(</span><span class="n">colvar</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_average</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">coordinate</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+               <span class="n">pbc_box</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">energy</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">force</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">potentials</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">total_bias</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">biases</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            coordinate (Tensor):    Tensor of shape (B, A, D). Data type is float.</span>
+<span class="sd">                                    Position coordinate of atoms in system.</span>
+<span class="sd">            pbc_box (Tensor):       Tensor of shape (B, D). Data type is float.</span>
+<span class="sd">                                    Tensor of PBC box. Default: None</span>
+<span class="sd">            energy (Tensor):        Tensor of shape (B, 1). Data type is float.</span>
+<span class="sd">                                    Total potential energy of the simulation system. Default: None</span>
+<span class="sd">            force (Tensor):         Tensor of shape (B, A, D). Data type is float.</span>
+<span class="sd">                                    Force on each atoms of the simulation system. Default: None</span>
+<span class="sd">            potentials (Tensor):    Tensor of shape (B, U). Data type is float.</span>
+<span class="sd">                                    Original potential energies from force field. Default: None</span>
+<span class="sd">            total_bias (Tensor):    Tensor of shape (B, 1). Data type is float.</span>
+<span class="sd">                                    Total bias energy for reweighting. Default: None</span>
+<span class="sd">            biases (Tensor):        Tensor of shape (B, V). Data type is float</span>
+<span class="sd">                                    Original bias potential energies from bias functions. Default: None</span>
+
+<span class="sd">        Symbols:</span>
+<span class="sd">            B:  Batchsize, i.e. number of walkers in simulation.</span>
+<span class="sd">            A:  Number of atoms of the simulation system.</span>
+<span class="sd">            D:  Dimension of the space of the simulation system. Usually is 3.</span>
+<span class="sd">            U:  Number of potential energies.</span>
+<span class="sd">            V:  Number of bias potential energies.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1">#pylint: disable=unused-argument</span>
+
+        <span class="n">colvar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">colvar</span><span class="p">(</span><span class="n">coordinate</span><span class="p">,</span> <span class="n">pbc_box</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_average</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_convert_data</span><span class="p">(</span><span class="n">colvar</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_average</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span>
 
 
 <div class="viewcode-block" id="BalancedMSE"><a class="viewcode-back" href="../../../metrics/mindsponge.metrics.BalancedMSE.html#mindsponge.metrics.BalancedMSE">[docs]</a><span class="k">class</span> <span class="nc">BalancedMSE</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
@@ -479,7 +676,7 @@
 <span class="sd">    Args:</span>
 <span class="sd">        alpha (float):            The weight of cross entropy, default: 0.25.</span>
 <span class="sd">        gamma (float):          The hyperparameters, modulating loss from hard to easy, default: 2.0.</span>
-<span class="sd">        feed_in (bool):         Whether to covert prediction, default: &quot;False&quot;.</span>
+<span class="sd">        feed_in (bool):         Whether to convert prediction, default: &quot;False&quot;.</span>
 <span class="sd">        not_focal (bool):       Whether focal loss, default: &quot;False&quot;.</span>
 
 <span class="sd">    Inputs:</span>

@@ -1,0 +1,19 @@
+var searchData=
+[
+  ['lite_39',['lite',['../a00021.html',1,'mindspore']]],
+  ['mid_5fcpu_40',['MID_CPU',['../a00021.html#a5e8cead7e1bbb57b736f7ca9b0aed766a50aba096efc2dad802d0983812c9f6a9',1,'mindspore::lite']]],
+  ['mindspore_41',['mindspore',['../a00020.html',1,'']]],
+  ['model_42',['Model',['../a00043.html',1,'Model'],['../a00043.html#a02c5be8897be20f1384a14e062b608c2',1,'mindspore::lite::Model::Model()']]],
+  ['model_2eh_43',['model.h',['../a00011.html',1,'']]],
+  ['model_5fimpl_5f_44',['model_impl_',['../a00043.html#abfa419b6dbb1b790065cc7bf07104919',1,'mindspore::lite::Model']]],
+  ['modelbuilder_45',['ModelBuilder',['../a00047.html',1,'ModelBuilder'],['../a00047.html#acf56e44e48fa10c05d7f621270fee3ee',1,'mindspore::lite::ModelBuilder::ModelBuilder()']]],
+  ['ms_5fapi_46',['MS_API',['../a00011.html#a991fc05036bdc1b8fb16ea72a84abe89',1,'MS_API():&#160;model.h'],['../a00014.html#a991fc05036bdc1b8fb16ea72a84abe89',1,'MS_API():&#160;ms_tensor.h']]],
+  ['ms_5ftensor_2eh_47',['ms_tensor.h',['../a00014.html',1,'']]],
+  ['ms_5fversion_5fmajor_48',['MS_VERSION_MAJOR',['../a00017.html#a172e104965c160d08bbcf9bc988833dc',1,'version.h']]],
+  ['ms_5fversion_5fminor_49',['MS_VERSION_MINOR',['../a00017.html#a78b87964169bbb503600fd7e6104b53e',1,'version.h']]],
+  ['ms_5fversion_5frevision_50',['MS_VERSION_REVISION',['../a00017.html#a37aa0b1eeee5cfeff880c3f37ea6ad31',1,'version.h']]],
+  ['mstensor_51',['MSTensor',['../a00055.html',1,'MSTensor'],['../a00055.html#a5f2af300d220fe6947299f75835bf9d2',1,'mindspore::tensor::MSTensor::MSTensor()']]],
+  ['mutabledata_52',['MutableData',['../a00055.html#a909816ff307a7a1a5e9252216eff45a8',1,'mindspore::tensor::MSTensor']]],
+  ['session_53',['session',['../a00022.html',1,'mindspore']]],
+  ['tensor_54',['tensor',['../a00023.html',1,'mindspore']]]
+];

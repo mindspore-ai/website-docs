@@ -1,0 +1,607 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>集群性能调试（Ascend） &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="调试器" href="debugger.html" />
+    <link rel="prev" title="性能调试（GPU）" href="performance_profiling_gpu.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">安装部署</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mindinsight_install.html">安装MindInsight</a></li>
+</ul>
+<p class="caption"><span class="caption-text">使用指南</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="summary_record.html">收集Summary数据</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dashboard.html">查看训练看板</a></li>
+<li class="toctree-l1"><a class="reference internal" href="lineage_and_scalars_comparison.html">查看溯源和对比看板</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hyper_parameters_auto_tuning.html">使用mindoptimizer进行超参调优</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migrate_3rd_scripts_mindconverter.html">使用工具迁移模型定义脚本</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="performance_profiling.html">性能调试</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="performance_profiling_ascend.html">性能调试（Ascend）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance_profiling_gpu.html">性能调试（GPU）</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">集群性能调试（Ascend）</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">概述</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">操作流程</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">分布式训练</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">收集集群性能数据</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mindinsight">启动MindInsight</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">训练性能</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id6">集群迭代轨迹分析</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7">集群通信性能分析</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">资源利用</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id9">集群内存使用情况分析</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#flops">集群FLOPs热力图分析</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#id10">规格</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id11">注意事项</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="debugger.html">调试器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_explanation.html">解释模型</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindinsight_commands.html">MindInsight相关命令</a></li>
+</ul>
+<p class="caption"><span class="caption-text">参考文档</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="training_visual_design.html">训练可视总体设计</a></li>
+<li class="toctree-l1"><a class="reference internal" href="graph_visual_design.html">计算图可视设计</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tensor_visual_design.html">张量可视设计</a></li>
+<li class="toctree-l1"><a class="reference internal" href="profiler_design.html">性能调试设计</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="performance_profiling.html">性能调试</a> &raquo;</li>
+        
+      <li>集群性能调试（Ascend）</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/performance_profiling_ascend_of_cluster.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="ascend">
+<h1>集群性能调试（Ascend）<a class="headerlink" href="#ascend" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">Linux</span></code> <code class="docutils literal notranslate"><span class="pre">Ascend</span></code> <code class="docutils literal notranslate"><span class="pre">集群调优</span></code> <code class="docutils literal notranslate"><span class="pre">中级</span></code> <code class="docutils literal notranslate"><span class="pre">高级</span></code></p>
+<!-- TOC -->
+<ul class="simple">
+<li><p><a class="reference external" href="#%E9%9B%86%E7%BE%A4%E6%80%A7%E8%83%BD%E8%B0%83%E8%AF%95ascend">集群性能调试（Ascend）</a></p>
+<ul>
+<li><p><a class="reference external" href="#%E6%A6%82%E8%BF%B0">概述</a></p></li>
+<li><p><a class="reference external" href="#%E6%93%8D%E4%BD%9C%E6%B5%81%E7%A8%8B">操作流程</a></p></li>
+<li><p><a class="reference external" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E8%AE%AD%E7%BB%83">分布式训练</a></p></li>
+<li><p><a class="reference external" href="#%E6%94%B6%E9%9B%86%E9%9B%86%E7%BE%A4%E6%80%A7%E8%83%BD%E6%95%B0%E6%8D%AE">收集集群性能数据</a></p></li>
+<li><p><a class="reference external" href="#%E5%90%AF%E5%8A%A8mindinsight">启动MindInsight</a></p></li>
+<li><p><a class="reference external" href="#%E8%AE%AD%E7%BB%83%E6%80%A7%E8%83%BD">训练性能</a></p>
+<ul>
+<li><p><a class="reference external" href="#%E9%9B%86%E7%BE%A4%E8%BF%AD%E4%BB%A3%E8%BD%A8%E8%BF%B9%E6%80%A7%E8%83%BD%E6%95%B0%E6%8D%AE%E5%88%86%E6%9E%90">集群迭代轨迹性能数据分析</a></p></li>
+<li><p><a class="reference external" href="#%E9%9B%86%E7%BE%A4%E9%80%9A%E4%BF%A1%E6%80%A7%E8%83%BD%E6%95%B0%E6%8D%AE%E5%88%86%E6%9E%90">集群通信性能数据分析</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#%E8%B5%84%E6%BA%90%E5%88%A9%E7%94%A8">资源利用</a></p>
+<ul>
+<li><p><a class="reference external" href="#%E9%9B%86%E7%BE%A4%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8%E6%83%85%E5%86%B5%E5%88%86%E6%9E%90">集群内存使用情况分析</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#%E8%A7%84%E6%A0%BC">规格</a></p></li>
+<li><p><a class="reference external" href="#%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9">注意事项</a></p></li>
+</ul>
+</li>
+</ul>
+<!-- /TOC -->
+<p><a href="https://gitee.com/mindspore/docs/blob/r1.3/docs/mindinsight/docs/source_zh_cn/performance_profiling_ascend_of_cluster.md" target="_blank"><img src="https://gitee.com/mindspore/docs/raw/r1.3/resource/_static/logo_source.png"></a></p>
+<div class="section" id="id1">
+<h2>概述<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<p>本教程介绍如何在Ascend AI处理器上使用MindSpore Profiler进行集群训练性能调试。</p>
+</div>
+<div class="section" id="id2">
+<h2>操作流程<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>搭建分布式训练环境，准备分布式训练脚本，并在训练脚本中调用性能调试接口，接着运行训练脚本。</p></li>
+<li><p>收集集群训练性能数据。</p></li>
+<li><p>启动MindInsight，并通过启动参数指定summary-base-dir目录(summary-base-dir是Profiler所创建目录的父目录)，例如训练时Profiler创建的文件夹绝对路径为<code class="docutils literal notranslate"><span class="pre">/home/user/code/data</span></code>，则summary-base-dir设为<code class="docutils literal notranslate"><span class="pre">/home/user/code</span></code>。启动成功后，根据IP和端口访问可视化界面，默认访问地址为 <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8080</span></code>。</p></li>
+<li><p>在训练列表找到对应集群训练，点击性能分析，即可在页面中查看集群性能数据。</p></li>
+</ul>
+</div>
+<div class="section" id="id3">
+<h2>分布式训练<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<p>分布式训练请参考<a class="reference external" href="https://www.mindspore.cn/docs/programming_guide/zh-CN/r1.3/distributed_training_ascend.html">分布式训练教程</a>。</p>
+</div>
+<div class="section" id="id4">
+<h2>收集集群性能数据<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<p>多机多卡训练的时候，一次集群训练后，性能数据分布在各个主机上（host节点）。要进行集群性能分析，需要将所有主机上的性能数据收集到一台主机上进行分析。考虑到集群运行环境的复杂以及相关的权限问题、登录问题，比较合理的方式是让用户去收集集群性能数据。
+下面是一次分布式集群训练后，使用脚本收集性能数据的过程，用户可以参照此脚本进行集群性能数据收集。</p>
+<p>脚本程序说明：脚本程序首先创建了集群作业文件夹，然后利用SSHPass技术进行非交互式的远程拷贝（避免了手动认证，手动输入密码），将集群中各个host节点的数据拷贝到集群作业文件夹中。脚本程序同时生成了host ip地址的映射表以及将多卡环境的组网信息文件拷贝到集群作业文件中。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+
+<span class="nb">echo</span> <span class="s2">&quot;==============================================================================================================&quot;</span>
+<span class="nb">echo</span> <span class="s2">&quot;Please run the script as: &quot;</span>
+<span class="nb">echo</span> <span class="s2">&quot;bash collect_cluster_profiler_data.sh&quot;</span>
+<span class="nb">echo</span> <span class="s2">&quot;for example: bash collect_cluster_profiler_data.sh cluster_hccl_config_path cluster_account_config_path cluster_train_id host_train_id device_regex output&quot;</span>
+<span class="nb">echo</span> <span class="s2">&quot;==============================================================================================================&quot;</span>
+
+<span class="nv">SSH</span><span class="o">=</span><span class="s2">&quot;ssh -o StrictHostKeyChecking=no&quot;</span>
+<span class="nv">SCP</span><span class="o">=</span><span class="s2">&quot;scp -o StrictHostKeyChecking=no&quot;</span>
+
+<span class="c1"># Get the node list in the cluster.</span>
+get_cluster_list<span class="o">()</span>
+<span class="o">{</span>
+        <span class="nb">local</span> <span class="nv">cluster_config</span><span class="o">=</span><span class="nv">$1</span>
+        cat <span class="si">${</span><span class="nv">cluster_config</span><span class="si">}</span> <span class="p">|</span> python3 -c <span class="s1">&#39;import sys,json;[print(node) for node in json.load(sys.stdin)[&quot;cluster&quot;].keys()]&#39;</span>
+<span class="o">}</span>
+
+<span class="c1"># Get the account number of node.</span>
+get_node_user<span class="o">()</span>
+<span class="o">{</span>
+        <span class="nb">local</span> <span class="nv">cluster_config</span><span class="o">=</span><span class="nv">$1</span>
+        <span class="nb">local</span> <span class="nv">node</span><span class="o">=</span><span class="nv">$2</span>
+        cat <span class="si">${</span><span class="nv">cluster_config</span><span class="si">}</span> <span class="p">|</span> python3 -c <span class="s1">&#39;import sys,json;print(json.load(sys.stdin)[&quot;cluster&quot;][&#39;</span><span class="se">\&quot;</span><span class="si">${</span><span class="nv">node</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;][&quot;user&quot;])&#39;</span>
+<span class="o">}</span>
+
+<span class="c1"># Get the password of node.</span>
+get_node_passwd<span class="o">()</span>
+<span class="o">{</span>
+        <span class="nb">local</span> <span class="nv">cluster_config</span><span class="o">=</span><span class="nv">$1</span>
+        <span class="nb">local</span> <span class="nv">node</span><span class="o">=</span><span class="nv">$2</span>
+        cat <span class="si">${</span><span class="nv">cluster_config</span><span class="si">}</span> <span class="p">|</span> python3 -c <span class="s1">&#39;import sys,json;print(json.load(sys.stdin)[&quot;cluster&quot;][&#39;</span><span class="se">\&quot;</span><span class="si">${</span><span class="nv">node</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;][&quot;passwd&quot;])&#39;</span>
+<span class="o">}</span>
+
+<span class="c1"># Copy data from remote node to local node.</span>
+rscp_pass<span class="o">()</span>
+<span class="o">{</span>
+        <span class="nb">local</span> <span class="nv">node</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span>
+        <span class="nb">local</span> <span class="nv">user</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$2</span><span class="s2">&quot;</span>
+        <span class="nb">local</span> <span class="nv">passwd</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$3</span><span class="s2">&quot;</span>
+        <span class="nb">local</span> <span class="nv">src</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$4</span><span class="s2">&quot;</span>
+        <span class="nb">local</span> <span class="nv">target</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$5</span><span class="s2">&quot;</span>
+        sshpass -p <span class="s2">&quot;</span><span class="si">${</span><span class="nv">passwd</span><span class="si">}</span><span class="s2">&quot;</span> <span class="si">${</span><span class="nv">SCP</span><span class="si">}</span> -r <span class="s2">&quot;</span><span class="si">${</span><span class="nv">user</span><span class="si">}</span><span class="s2">&quot;</span>@<span class="s2">&quot;</span><span class="si">${</span><span class="nv">node</span><span class="si">}</span><span class="s2">&quot;</span>:<span class="s2">&quot;</span><span class="si">${</span><span class="nv">src</span><span class="si">}</span><span class="s2">&quot;</span> <span class="s2">&quot;</span><span class="si">${</span><span class="nv">target</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="o">}</span>
+
+<span class="nv">cluster_hccl_config_path</span><span class="o">=</span><span class="nv">$1</span>
+<span class="nv">cluster_account_config_path</span><span class="o">=</span><span class="nv">$2</span>
+<span class="nv">cluster_train_id</span><span class="o">=</span><span class="nv">$3</span>
+<span class="nv">host_train_id</span><span class="o">=</span><span class="nv">$4</span>
+<span class="nv">device_regex</span><span class="o">=</span><span class="nv">$5</span>
+<span class="nv">output</span><span class="o">=</span><span class="nv">$6</span>
+<span class="nv">host_ip_mapping_file</span><span class="o">=</span><span class="s1">&#39;host_ips_mapping.txt&#39;</span>
+<span class="nv">host_ip_mapping_id</span><span class="o">=</span><span class="m">1</span>
+<span class="nv">node_list</span><span class="o">=</span><span class="k">$(</span>get_cluster_list <span class="si">${</span><span class="nv">cluster_account_config_path</span><span class="si">}</span><span class="k">)</span>
+<span class="nb">echo</span> <span class="s2">&quot;-----begin----&quot;</span>
+
+<span class="k">if</span> <span class="o">[</span> ! -d <span class="s2">&quot;</span><span class="si">${</span><span class="nv">cluster_train_id</span><span class="si">}</span><span class="s2">&quot;</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+mkdir -p <span class="si">${</span><span class="nv">cluster_train_id</span><span class="si">}</span>
+<span class="k">fi</span>
+
+<span class="c1"># Copy the networking information file of multi card environment to the cluster directory.</span>
+cp <span class="nv">$cluster_hccl_config_path</span> <span class="nv">$cluster_train_id</span>
+
+
+<span class="k">for</span> node in <span class="si">${</span><span class="nv">node_list</span><span class="si">}</span>
+<span class="k">do</span>
+ <span class="nv">user</span><span class="o">=</span><span class="k">$(</span>get_node_user <span class="si">${</span><span class="nv">cluster_account_config_path</span><span class="si">}</span> <span class="si">${</span><span class="nv">node</span><span class="si">}</span><span class="k">)</span>
+ <span class="nv">passwd</span><span class="o">=</span><span class="k">$(</span>get_node_passwd <span class="si">${</span><span class="nv">cluster_account_config_path</span><span class="si">}</span> <span class="si">${</span><span class="nv">node</span><span class="si">}</span><span class="k">)</span>
+ <span class="nb">echo</span> <span class="s2">&quot;------------------</span><span class="si">${</span><span class="nv">user</span><span class="si">}</span><span class="s2">@</span><span class="si">${</span><span class="nv">node</span><span class="si">}</span><span class="s2">---------------------&quot;</span>
+ <span class="nv">target_dir</span><span class="o">=</span><span class="si">${</span><span class="nv">cluster_train_id</span><span class="si">}</span>/cluster_profiler/<span class="si">${</span><span class="nv">host_ip_mapping_id</span><span class="si">}</span>/profiler/
+ <span class="k">if</span> <span class="o">[</span> ! -d <span class="s2">&quot;</span><span class="si">${</span><span class="nv">target_dir</span><span class="si">}</span><span class="s2">&quot;</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+ mkdir -p <span class="si">${</span><span class="nv">target_dir</span><span class="si">}</span>
+ <span class="k">fi</span>
+
+ <span class="c1"># Eight card data</span>
+ <span class="k">for</span><span class="o">((</span><span class="nv">i</span><span class="o">=</span><span class="m">0</span><span class="p">;</span>i&lt;<span class="m">8</span><span class="p">;</span>i++<span class="o">))</span><span class="p">;</span>
+ <span class="k">do</span>
+   <span class="nv">src_dir</span><span class="o">=</span><span class="si">${</span><span class="nv">host_train_id</span><span class="si">}</span>/<span class="si">${</span><span class="nv">device_regex</span><span class="si">}${</span><span class="nv">i</span><span class="si">}</span>/<span class="si">${</span><span class="nv">output</span><span class="si">}</span>*/profiler*/*.*
+   <span class="k">if</span> <span class="o">[</span> !<span class="nv">$device_regex</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+   <span class="nv">src_dir</span><span class="o">=</span><span class="si">${</span><span class="nv">host_train_id</span><span class="si">}</span>/profiler*/*.*
+   <span class="k">fi</span>
+   <span class="k">$(</span>rscp_pass <span class="si">${</span><span class="nv">node</span><span class="si">}</span> <span class="si">${</span><span class="nv">user</span><span class="si">}</span> <span class="si">${</span><span class="nv">passwd</span><span class="si">}</span> <span class="s2">&quot;</span><span class="si">${</span><span class="nv">src_dir</span><span class="si">}</span><span class="s2">&quot;</span> <span class="si">${</span><span class="nv">target_dir</span><span class="si">}</span><span class="k">)</span>
+ <span class="k">done</span>
+
+ <span class="c1"># save the mapping information to the host_ips_mapping.txt.</span>
+ <span class="nb">echo</span> <span class="s2">&quot;</span><span class="nv">$node</span><span class="s2"> </span><span class="nv">$host_ip_mapping_id</span><span class="s2">&quot;</span>&gt;&gt;<span class="si">${</span><span class="nv">cluster_train_id</span><span class="si">}</span>/<span class="nv">$host_ip_mapping_file</span>
+
+ <span class="c1"># host_ip_mapping_id ++</span>
+ <span class="nv">host_ip_mapping_id</span><span class="o">=</span><span class="k">$((</span><span class="si">${</span><span class="nv">host_ip_mapping_id</span><span class="si">}</span><span class="o">+</span><span class="m">1</span><span class="k">))</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>脚本参数说明：</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">cluster_hccl_config_path</span></code> 为多卡环境的组网信息文件路径。内容格式如下：</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="nt">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;1.0&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;server_count&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;server_list&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+        <span class="nt">&quot;server_id&quot;</span><span class="p">:</span> <span class="s2">&quot;10.xxx.xxx.1&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;device&quot;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;192.1.27.6&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span><span class="p">},</span>
+            <span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;192.2.27.6&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">},</span>
+            <span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;192.3.27.6&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span> <span class="s2">&quot;2&quot;</span><span class="p">},</span>
+            <span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span> <span class="s2">&quot;3&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;192.4.27.6&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span> <span class="s2">&quot;3&quot;</span><span class="p">},</span>
+            <span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span> <span class="s2">&quot;4&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;192.1.27.7&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span> <span class="s2">&quot;4&quot;</span><span class="p">},</span>
+            <span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span> <span class="s2">&quot;5&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;192.2.27.7&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span> <span class="s2">&quot;5&quot;</span><span class="p">},</span>
+            <span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span> <span class="s2">&quot;6&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;192.3.27.7&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span> <span class="s2">&quot;6&quot;</span><span class="p">},</span>
+            <span class="p">{</span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span> <span class="s2">&quot;7&quot;</span><span class="p">,</span><span class="nt">&quot;device_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;192.4.27.7&quot;</span><span class="p">,</span><span class="nt">&quot;rank_id&quot;</span><span class="p">:</span> <span class="s2">&quot;7&quot;</span><span class="p">}],</span>
+         <span class="nt">&quot;host_nic_ip&quot;</span><span class="p">:</span> <span class="s2">&quot;reserve&quot;</span>
+        <span class="p">}</span>
+<span class="p">],</span>
+<span class="nt">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;completed&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cluster_account_config_path</span></code> 为各主机账号密码配置文件路径，内容格式如下：</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;rank_size&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+  <span class="nt">&quot;cluster&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="nt">&quot;10.xxx.xxx.1&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+                <span class="nt">&quot;passwd&quot;</span><span class="p">:</span> <span class="s2">&quot;xxx&quot;</span>
+                <span class="p">},</span>
+                <span class="nt">&quot;10.xxx.xxx.2&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+                <span class="nt">&quot;passwd&quot;</span><span class="p">:</span> <span class="s2">&quot;xxx&quot;</span>
+                <span class="p">}</span>
+              <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cluster_train_id</span></code>  为集群profiler性能数据保存的路径，比如<code class="docutils literal notranslate"><span class="pre">/home/summary/run1</span></code>、<code class="docutils literal notranslate"><span class="pre">/home/data/run2</span></code>  其中<code class="docutils literal notranslate"><span class="pre">run1</span></code>和<code class="docutils literal notranslate"><span class="pre">run2</span></code>分别保存两次集群训练的作业。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">host_train_id</span></code>  为集群训练时，各个主机节点保存profiler的性能数据的路径。比如：<code class="docutils literal notranslate"><span class="pre">/home/summary/</span></code>。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">device_regex</span></code>  为各个主机节点中不同卡保存profiler的性能数据的文件夹名称。比如：<code class="docutils literal notranslate"><span class="pre">/home/summary/device0</span></code>和<code class="docutils literal notranslate"><span class="pre">/home/summary/device1</span></code>分别是0号卡和1号卡对应的文件夹，此时device_regex为device。若不存在，此参数不设置。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">output</span></code> 为训练脚本中用户设置的保存profiler性能文件的相对路径，默认为<code class="docutils literal notranslate"><span class="pre">./data</span></code>。</p></li>
+</ul>
+<p>通过脚本收集到的集群性能文件夹目录结构为：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>|-- run
+    |-- hccl.json
+    |-- host_ips_mapping.txt
+    |-- cluster_profiler
+        |-- 1
+        |   |-- profiler
+        |       |-- step_trace_raw_0_detail_time.csv
+</pre></div>
+</div>
+<blockquote>
+<div><p>收集的集群性能作业需要符合该目录结构，否则无法用MindInsight进行可视化展示。必须包含组网信息文件（文件名可以任取）和host_ips_mapping.txt文件（文件名和后缀唯一）。</p>
+</div></blockquote>
+<p>集群性能文件夹结构说明：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">hccl.json</span></code> 为当前多卡环境的组网信息文件。记录了host_ip、device_id、rank_id之间的对应关系。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">host_ips_mapping.txt</span></code> 为host_ip映射文件。从安全角度出发，集群中的真实host_ip需要经过映射，避免在查询中，暴露真实的host_ip值，导致安全风险。此处会维护一个host_ip映射表，<code class="docutils literal notranslate"><span class="pre">host_ips_mapping.txt</span></code>中的内容一行代表一组映射，譬如： 10.xxx.xxx.1 1 表示10.xxx.xxx.1的映射值为1。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cluster_profiler</span></code> 为集群训练作业的标签，用于判断训练作业是否属于集群训练作业。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">1</span></code> 为单机多卡profiler数据，保存集群中某一个host_ip节点的profiler性能数据文件，<code class="docutils literal notranslate"><span class="pre">1</span></code>为该host_ip映射后的名称。一个cluster_profiler文件中包含了集群中所有的host节点的性能数据。</p></li>
+</ul>
+</div>
+<div class="section" id="mindinsight">
+<h2>启动MindInsight<a class="headerlink" href="#mindinsight" title="Permalink to this headline">¶</a></h2>
+<p>启动命令请参考<a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/zh-CN/r1.3/mindinsight_commands.html">MindInsight相关命令</a>。</p>
+</div>
+<div class="section" id="id5">
+<h2>训练性能<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
+<p>用户从训练列表中选择指定的训练，点击性能调试，可以查看该次训练的性能数据。集群训练性能包括集群迭代轨迹分析、集群通信性能分析。</p>
+<p><img alt="cluster_summary.png" src="_images/cluster_summary.png" /></p>
+<p>图1：集群训练性能总览</p>
+<p>图1为集群训练性能总揽，是对集群迭代轨迹组件、集群通信性能组件的总体呈现。各组件展示内容如下：</p>
+<ul class="simple">
+<li><p>集群迭代轨迹：展示集群中所有卡的迭代轨迹信息；总览页面展示了集群迭代轨迹性能。</p></li>
+<li><p>集群通信性能: 展示集群中所有卡的通信性能以及全网链路性能；总览页面展示了集群通信性能。</p></li>
+</ul>
+<div class="section" id="id6">
+<h3>集群迭代轨迹分析<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h3>
+<p>使用集群迭代轨迹分析组件，可以找出集群训练中的慢主机、慢卡。
+集群迭代轨迹分析组件展示所有卡的迭代信息，包括迭代间隙、前反向、迭代拖尾，均支持排序操作。其中迭代间隙反映了数据处理阶段的快慢，通过卡的迭代间隙时间可以反映出对应主机处理数据的快慢。卡的前反向时间反映了卡的计算能力。迭代拖尾反映了all_reduce耗时以及并行情况。</p>
+<p><img alt="cluster_iterative_trajectory.png" src="_images/cluster_iterative_trajectory.png" /></p>
+<p>图2：集群迭代轨迹</p>
+<p>图2展示了集群迭代轨迹分析页面，默认展示卡的性能平均值，支持查询特定step下的卡的迭代轨迹信息。通过点击单卡中的详情连接，也可以跳转到单卡的详细性能展示页面，查询详细的单卡性能数据。</p>
+<p><img alt="single_car_performance_overall.png" src="_images/single_car_performance_overall.png" /></p>
+<p>图3：单卡性能信息</p>
+<p>图3展示集群中单卡性能信息，单卡性能信息请参考<a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/zh-CN/r1.3/performance_profiling_ascend.html">单卡性能信息</a>。</p>
+</div>
+<div class="section" id="id7">
+<h3>集群通信性能分析<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h3>
+<p>集群通信性能组件从两个维度来展示集群通信性能信息，以卡为粒度展示和全网链路展示。</p>
+<p><img alt="cluster_communication_info.png" src="_images/cluster_communication_info.png" /></p>
+<p>图4：集群通信性能分析</p>
+<p>图4展示了集群通信性能分析页面，包含逻辑卡通信性能以及全网链路信息（所有逻辑卡链路信息）。</p>
+<p>逻辑卡通信性能TAB页主要用来展示逻辑卡的通信性能，包括通信时间、等待时间、逻辑卡链路信息。</p>
+<ul class="simple">
+<li><p>通信时间：表示通信算子的通信耗时。如果通信耗时过长，有可能是某条链路有问题，可以通过链路带宽定位到具体的链路。通信时间计算方式为统计SDMA链路（server内通信）和RDMA链路（server间通信）的通信算子总耗时。如果是SDMA链路，取<code class="docutils literal notranslate"><span class="pre">Reduce</span> <span class="pre">inline</span></code>和<code class="docutils literal notranslate"><span class="pre">Memcpy</span></code>算子总时间作为通信时间；如果是RDMA链路，取连续三个算子<code class="docutils literal notranslate"><span class="pre">RDMASendPayload</span></code>、<code class="docutils literal notranslate"><span class="pre">RDMASendNotify</span></code>、<code class="docutils literal notranslate"><span class="pre">Notify</span> <span class="pre">Wait</span></code>的总时间为通信时间。</p></li>
+<li><p>等待时间：也可称为同步时间。卡间进行通信前，首先会进行同步，确保通信的两张卡同步完成，再进行通信。等待时间计算方式为统计所有<code class="docutils literal notranslate"><span class="pre">Notify</span> <span class="pre">Wait</span></code>算子总耗时并减去RDMA链路通信时间中的<code class="docutils literal notranslate"><span class="pre">Notify</span> <span class="pre">Wait</span></code>算子耗时。</p></li>
+<li><p>逻辑卡链路信息：显示源卡为该卡或者目的卡为该卡的链路信息。链路信息包括通信时间、通信量、带宽（通信量除以通信时间）、链路类型。其中链路类型包含SDMA链路（server内通信链路）和RDMA链路（server间通信链路）。点击详情后，通过弹窗的方式展示。</p></li>
+</ul>
+<p><img alt="rank_id_link_info.png" src="_images/rank_id_link_info.png" /></p>
+<p>图5:逻辑卡链路信息</p>
+<p>全网链路信息TAB页面展示所有逻辑卡的链路信息，提供源卡、目的卡、链路类型的选择。</p>
+<p><img alt="rank_ids_link_info.png" src="_images/rank_ids_link_info.png" /></p>
+<p>图6：全网链路信息</p>
+<p>默认不收集通信性能数据，需要通过<code class="docutils literal notranslate"><span class="pre">profile_communication</span></code>参数打开通信性能数据开关，使用示例如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore.profiler</span> <span class="kn">import</span> <span class="n">Profiler</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">nn</span><span class="p">,</span> <span class="n">context</span>
+
+<span class="c1"># Init context env</span>
+<span class="n">context</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s1">&#39;Ascend&#39;</span><span class="p">,</span> <span class="n">device_id</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;DEVICE_ID&quot;</span><span class="p">]))</span>
+
+<span class="c1"># Init Profiler</span>
+<span class="c1"># Note that &#39;data&#39; directory is created in current path by default. To visualize the profiling data by MindInsight,</span>
+<span class="c1"># &#39;data&#39; directory should be placed under summary-base-dir.</span>
+<span class="n">profiler</span> <span class="o">=</span> <span class="n">Profiler</span><span class="p">(</span><span class="n">profile_communication</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Train Model</span>
+<span class="n">Model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+
+<span class="c1"># Profiler end</span>
+<span class="n">profiler</span><span class="o">.</span><span class="n">analyse</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>使用MindInsight可视化通信性能数据需要安装Ascend 910 AI处理器配套软件包提供的通信性能数据解析whl包，whl包随配套软件包发布，参考如下命令完成安装。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install /usr/local/Ascend/tools/hccl_parser-<span class="o">{</span>version<span class="o">}</span>-py3-none-any.whl
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="id8">
+<h2>资源利用<a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id9">
+<h3>集群内存使用情况分析<a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h3>
+<p>该页面展示了并行场景下，模型在<strong>Device侧</strong>的内存使用情况，是<strong>基于理论值的理想预估</strong>。页面内容包括：</p>
+<ul class="simple">
+<li><p>集群设备的分布情况，使用了哪些服务器的哪些设备。</p></li>
+<li><p>集群设备的内存峰值情况，即内存峰值与可用内存占比。</p></li>
+<li><p>点击某个设备，可以跳转至该设备的内存详情页面。</p></li>
+</ul>
+<p><img alt="cluster_memory.png" src="_images/cluster_memory.png" /></p>
+<p>图3：集群内存概览页面</p>
+<blockquote>
+<div><p>内存使用情况分析暂不支持异构训练场景。</p>
+</div></blockquote>
+</div>
+<div class="section" id="flops">
+<h3>集群FLOPs热力图分析<a class="headerlink" href="#flops" title="Permalink to this headline">¶</a></h3>
+<p>该页面展示了并行场景下，每个设备的FLOPs（浮点运算次）数据，热力图反映了设备之间FLOPs的相对大小。页面内容包括：</p>
+<ul class="simple">
+<li><p>集群设备的分布情况，使用了哪些服务器的哪些设备。</p></li>
+<li><p>集群设备之间FLOPs的相对大小，每个设备对应矩形块颜色代表当前设备FLOPs与所有设备中最大FLOPs的比值。</p></li>
+<li><p>点击某个设备，可以跳转至该设备的算子耗时详情页面，含有FLOPs的详细数据。</p></li>
+</ul>
+<p><img alt="cluster_flops.png" src="_images/cluster_flops.png" /></p>
+<p>图4：集群FLOPs概览页面</p>
+</div>
+</div>
+<div class="section" id="id10">
+<h2>规格<a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p>为了控制性能测试时生成数据的大小，大型网络建议性能调试的step数目限制在10以内。</p>
+<blockquote>
+<div><p>控制step数目可以通过控制训练数据集的大小来实现，如<code class="docutils literal notranslate"><span class="pre">mindspore.dataset.MindDataset</span></code>类中的<code class="docutils literal notranslate"><span class="pre">num_samples</span></code>参数可以控制数据集大小，详情参考：</p>
+<p><a class="reference external" href="https://www.mindspore.cn/docs/api/zh-CN/r1.3/api_python/dataset/mindspore.dataset.MindDataset.html">https://www.mindspore.cn/docs/api/zh-CN/r1.3/api_python/dataset/mindspore.dataset.MindDataset.html</a></p>
+</div></blockquote>
+</li>
+</ul>
+</div>
+<div class="section" id="id11">
+<h2>注意事项<a class="headerlink" href="#id11" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>PyNative模式下暂不支持性能调试。</p></li>
+<li><p>训练加推理过程暂不支持性能调试，目前支持单独训练或推理的性能调试。</p></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="debugger.html" class="btn btn-neutral float-right" title="调试器" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="performance_profiling_gpu.html" class="btn btn-neutral float-left" title="性能调试（GPU）" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2021, MindSpore
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+</body>
+</html>

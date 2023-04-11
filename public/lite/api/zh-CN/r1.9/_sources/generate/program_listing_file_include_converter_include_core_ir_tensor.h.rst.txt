@@ -1,0 +1,538 @@
+:gitee_url: https://gitee.com/mindspore/docs
+
+
+.. _program_listing_file_include_converter_include_core_ir_tensor.h:
+
+Program Listing for File tensor.h
+=================================
+
+|exhale_lsh| :ref:`Return to documentation for file <file_include_converter_include_core_ir_tensor.h>` (``include/converter/include/core/ir/tensor.h``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. code-block:: cpp
+
+   
+   
+   #ifndef MINDSPORE_CORE_IR_TENSOR_H_
+   #define MINDSPORE_CORE_IR_TENSOR_H_
+   
+   #include <memory>
+   #include <string>
+   #include <vector>
+   #include <numeric>
+   #include <mutex>
+   #include <condition_variable>
+   #include <utility>
+   
+   #include "ir/device_sync.h"
+   #include "ir/meta_tensor.h"
+   #include "utils/log_adapter.h"
+   #include "base/float16.h"
+   #include "base/user_data.h"
+   #include "utils/shape_utils.h"
+   #include "utils/ms_exception.h"
+   #include "ir/device_event.h"
+   #include "utils/os.h"
+   
+   // brief mindspore namespace.
+   //
+   // mindspore namespace is the top level namespace of MindSpore project.
+   // Other namespace should be a sub namespace of mindspore namespace in the ME project.
+   namespace mindspore {
+   // brief mindspore::tensor namespace
+   enum class TensorSyncStatus {
+     kNoNeedSync,
+     kNeedSyncHostToDevice,
+     kNeedSyncHostToDeviceImmediately,
+     kNeedSyncDeviceToHost,
+     kNeedSyncDeviceToHostImmediately
+   };
+   
+   enum class TensorCompressionType { kNoCompression = 0, kIndexing = 1, kSparse = 2, kFSE = 3, kBitPacking = 4, kFSEInt = 5 };
+   
+   // A sub namespace in ME to support tensor related definition.
+   namespace tensor {
+   // Tensor data interface.
+   class MS_CORE_API TensorData {
+    public:
+     virtual ~TensorData() = default;
+   
+     virtual ssize_t size() const = 0;
+   
+     virtual ssize_t itemsize() const = 0;
+   
+     virtual ssize_t nbytes() const = 0;
+   
+     virtual ssize_t ndim() const = 0;
+   
+     virtual void *data() = 0;
+   
+     virtual const void *const_data() const = 0;
+   
+     virtual bool is_sub_data() const = 0;
+   
+     virtual bool has_sub_data() const = 0;
+   
+     virtual bool is_from_numpy() const { return false; }
+   
+     virtual bool equals(const TensorData &other) const {
+       if (this == &other) {
+         return true;
+       }
+       // By default, compare data byte by byte.
+       auto this_data = static_cast<const uint8_t *>(const_data());
+       auto other_data = static_cast<const uint8_t *>(other.const_data());
+       if (this_data == nullptr || other_data == nullptr) {
+         // null means data not initialized, compare uninitialized data always return false.
+         return false;
+       }
+       return (this_data == other_data) || (ndim() == other.ndim() && nbytes() == other.nbytes() &&
+                                            std::equal(this_data, this_data + nbytes(), other_data));
+     }
+   
+     virtual std::string ToString(TypeId type, const ShapeVector &shape, bool use_comma) const = 0;
+   };
+   
+   using TensorDataPtr = std::shared_ptr<TensorData>;
+   
+   class WaitEvent : public ExceptionListener {
+    public:
+     ~WaitEvent() = default;
+   
+     void OnException() override { set_need_wait(false); }
+   
+     void Wait() const {
+       std::unique_lock<std::mutex> lock(mutex_);
+       if (!need_wait_) {
+         return;
+       }
+       MsException::Instance().SetExceptionListener(const_cast<WaitEvent *>(this));
+       cond_var_.wait(lock, [this] { return !need_wait_; });
+       MsException::Instance().SetExceptionListener(nullptr);
+       MsException::Instance().CheckException();
+     }
+   
+     void set_need_wait(bool need_wait) {
+       std::unique_lock<std::mutex> lock(mutex_);
+       need_wait_ = need_wait;
+       if (!need_wait_) {
+         cond_var_.notify_all();
+       }
+     }
+   
+     bool need_wait() const { return need_wait_; }
+   
+    private:
+     bool need_wait_{false};
+     mutable std::mutex mutex_;
+     mutable std::condition_variable cond_var_;
+   };
+   
+   class Tensor;
+   using TensorPtr = std::shared_ptr<Tensor>;
+   using TensorPtrList = std::vector<std::shared_ptr<Tensor>>;
+   
+   // Tensor entity class
+   class MS_CORE_API Tensor final : public MetaTensor {
+    public:
+     abstract::AbstractBasePtr ToAbstract() override;
+   
+     explicit Tensor(const Tensor &tensor);
+     Tensor(const Tensor &tensor, TypeId data_type);
+   
+     Tensor(TypeId data_type, const ShapeVector &shape, TensorDataPtr data);
+   
+     Tensor(TypeId data_type, const ShapeVector &shape);
+   
+     Tensor(TypeId data_type, const ShapeVector &shape, void *data, size_t data_len);
+   
+     Tensor(TypeId data_type, const ShapeVector &shape, void *data, TypeId src_data_type);
+   
+     explicit Tensor(const std::vector<int64_t> &input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(const std::vector<double> &input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(int64_t input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(int32_t input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(int16_t input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(int8_t input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(double input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(float input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(float16 input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(uint64_t input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(uint32_t input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(uint16_t input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(uint8_t input, const TypePtr &data_type = nullptr);
+   
+     explicit Tensor(bool input, const TypePtr &data_type = nullptr);
+   
+     Tensor(TypeId data_type, size_t data_size);
+   
+     Tensor(TypeId origin_data_type, const ShapeVector &shape, size_t compression_data_size,
+            TensorCompressionType compression_type);
+   
+     ~Tensor() override = default;
+   
+     MS_DECLARE_PARENT(Tensor, MetaTensor);
+   
+     bool operator==(const Tensor &tensor) const;
+   
+     bool ValueEqual(const Tensor &tensor) const;
+   
+     Tensor &AssignValue(const Tensor &tensor);
+   
+     bool operator==(const Value &other) const override {
+       if (other.isa<Tensor>()) {
+         auto &other_ = static_cast<const Tensor &>(other);
+         return *this == other_;
+       }
+       return false;
+     }
+   
+     int DataDim() const { return static_cast<int>(data().ndim()); }
+   
+     size_t DataSize() const { return data().size(); }
+   
+     int data_type_c() const { return static_cast<int>(data_type_); }
+   
+     ShapeVector shape_c(void) const { return shape(); }
+   
+     void *data_c() { return data().data(); }
+   
+     size_t Size() const { return static_cast<size_t>(data().nbytes()); }
+   
+     void *data_c() const { return data_->data(); }
+   
+     void data_sync(bool need_wait = true) const;
+   
+     void data_sync_directly(const DeviceSync *const device_sync, bool need_wait = true) const;
+   
+     TensorData &data() { return *data_; }
+   
+     const TensorDataPtr &data_ptr() const { return data_; }
+   
+     const TensorData &data() const { return *data_; }
+   
+     TypeId set_data_type(TypeId data_type) override;
+   
+     size_t set_shape(const ShapeVector &shape) override;
+   
+     std::string GetShapeAndDataTypeInfo() const;
+   
+     std::string ToStringInternal(size_t limit_size) const;
+   
+     std::string ToStringNoLimit() const;
+   
+     std::string ToString() const override;
+   
+     std::string ToStringRepr() const;
+   
+     void CheckShape(const ShapeVector &shape) const;
+   
+     bool is_init() const { return init_flag_; }
+   
+     void set_init_flag(bool flag) { init_flag_ = flag; }
+   
+     bool is_forward_output() const { return is_forward_output_; }
+   
+     void set_is_forward_output(bool is_forward_output) { is_forward_output_ = is_forward_output; }
+   
+     DeviceSyncPtr device_address() const { return device_sync_; }
+   
+     void set_device_address(const DeviceSyncPtr &device_sync, bool need_update_ref_count = true) {
+       device_sync_ = device_sync;
+       // To support the old and new runtime coexistence, the output of old runtime may be the input of new runtime, so the
+       // device address cannot be released through ref count and set max ref count in this scenario.
+       if (need_update_ref_count && (device_sync_ != nullptr)) {
+         device_sync_->set_original_ref_count(SIZE_MAX);
+         device_sync_->ResetRefCount();
+       }
+     }
+   
+     bool need_release_device_mem() const { return need_release_device_mem_; }
+   
+     void set_need_release_device_mem(bool release_device_mem) { need_release_device_mem_ = release_device_mem; }
+   
+     void set_padding_type(const std::string padding_type) { padding_type_ = padding_type; }
+   
+     std::string padding_type() const { return padding_type_; }
+   
+     std::string id() const { return id_; }
+   
+     TypePtr cast_dtype() { return cast_dtype_; }
+   
+     void set_cast_dtype(const TypePtr &dtype = nullptr) { cast_dtype_ = dtype; }
+   
+     bool cache_enable() const { return cache_enable_; }
+   
+     void set_cache_enable(bool cache_enable = true) { cache_enable_ = cache_enable; }
+   
+     std::shared_ptr<Tensor> hashmap_tensor_ptr() const { return hashmap_tensor_ptr_; }
+   
+     void set_hashmap_tensor_ptr(const std::shared_ptr<Tensor> &hashmap_tensor_ptr = nullptr) {
+       hashmap_tensor_ptr_ = hashmap_tensor_ptr;
+     }
+   
+     std::shared_ptr<Tensor> cache_tensor_ptr() const { return cache_tensor_ptr_; }
+   
+     void set_cache_tensor_ptr(const std::shared_ptr<Tensor> &cache_tensor_ptr = nullptr) {
+       cache_tensor_ptr_ = cache_tensor_ptr;
+     }
+   
+     const BaseShapePtr &base_shape_ptr() const { return base_shape_ptr_; }
+   
+     void set_base_shape(const BaseShapePtr &base_shape) { base_shape_ptr_ = base_shape; }
+   
+     void SetNeedWait(bool need_wait) {
+       need_wait_ = need_wait;
+       auto event = event_;
+       if (event != nullptr) {
+         event->set_need_wait(need_wait);
+       } else if (need_wait) {
+         event_ = std::make_shared<WaitEvent>();
+         event_->set_need_wait(need_wait);
+       }
+     }
+   
+     bool NeedWait() const { return need_wait_; }
+   
+     void Wait() const {
+       auto event = event_;
+       if (event != nullptr) {
+         event->Wait();
+       }
+       event_ = nullptr;
+     }
+   
+     void SetDeviceEvent(const std::shared_ptr<DeviceEvent> &device_event) { device_event_ = device_event; }
+   
+     void WaitDevice() {
+       if (device_event_ != nullptr) {
+         device_event_->WaitEvent();
+       }
+     }
+   
+     bool NeedWaitDevice() const {
+       if (device_event_ != nullptr) {
+         return device_event_->NeedWait();
+       }
+       return false;
+     }
+   
+     void set_sync_status(TensorSyncStatus sync_status) const { sync_status_ = sync_status; }
+   
+     TensorSyncStatus sync_status() const { return sync_status_; }
+   
+     bool NeedSyncDeviceToHostImmediately() const { return sync_status_ == kNeedSyncDeviceToHostImmediately; }
+   
+     bool NeedSyncDeviceToHost() const { return sync_status_ == kNeedSyncDeviceToHost; }
+   
+     bool NeedSyncHostToDevice() const { return sync_status_ == kNeedSyncHostToDevice; }
+   
+     bool NeedSyncHostToDeviceImmediately() const { return sync_status_ == kNeedSyncHostToDeviceImmediately; }
+   
+     bool IsGraphOutput() const { return graph_output_; }
+   
+     void SetIsGraphOutput() { graph_output_ = true; }
+   
+     bool IsUpdatedByDevice() const { return updated_by_device_; }
+   
+     void SetIsUpdateByDevice() { updated_by_device_ = true; }
+   
+     void set_lazy_callback(const std::function<void(void)> &lazy_callback) { lazy_callback_ = lazy_callback; }
+   
+     std::pair<void *, size_t> GetChunkOffset() const;
+   
+     template <typename T>
+     void set_user_data(const std::string &key, const std::shared_ptr<T> &value) {
+       user_data_.set<T>(key, value);
+     }
+   
+     template <typename T>
+     std::shared_ptr<T> user_data(const std::string &key) const {
+       return user_data_.get<T>(key);
+     }
+   
+     bool has_user_data(const std::string &key) const { return user_data_.has(key); }
+   
+     static TensorPtrList FlattenTensors(const TensorPtrList &tensors, size_t fusion_size = 0);
+   
+     static bool IsFlattened(const TensorPtrList &tensors);
+   
+     static TensorPtrList GetFlattenedTensors(const TensorPtrList &tensors);
+   
+     static size_t GetFusionSize(const TensorPtrList &flat_tensors);
+   
+     TensorCompressionType compression_type() const { return compression_type_; }
+   
+     void set_name(const std::string &tensor_name) { tensor_name_ = tensor_name; }
+   
+     const std::string &name() const { return tensor_name_; }
+   
+    private:
+     void ExecuteLazyTask() const;
+   
+     bool init_flag_{false};
+     bool is_forward_output_{false};
+     TensorDataPtr data_{nullptr};
+     std::string id_{""};
+     mutable std::shared_ptr<WaitEvent> event_{nullptr};
+     bool need_wait_{false};
+     mutable TensorSyncStatus sync_status_{kNeedSyncHostToDevice};
+     bool graph_output_{false};
+     bool updated_by_device_{false};
+     DeviceSyncPtr device_sync_{nullptr};
+     // Release device address of graph output tensor or not.
+     bool need_release_device_mem_{false};
+     bool cache_enable_{false};
+     // Tensor base shape which contain dynamic shape info.
+     BaseShapePtr base_shape_ptr_{nullptr};
+     std::shared_ptr<Tensor> cache_tensor_ptr_{nullptr};
+     std::shared_ptr<Tensor> hashmap_tensor_ptr_{nullptr};
+     std::string padding_type_{""};
+     TypePtr cast_dtype_{nullptr};
+     std::shared_ptr<DeviceEvent> device_event_{nullptr};
+     std::function<void(void)> lazy_callback_{nullptr};
+     UserData user_data_;
+     TensorCompressionType compression_type_{kNoCompression};
+   
+     std::string tensor_name_;
+   };
+   
+   // CSRTensor entity class
+   class MS_CORE_API CSRTensor : public MetaSparseTensor {
+    public:
+     abstract::AbstractBasePtr ToAbstract() override;
+   
+     CSRTensor(const TensorPtr indptr, const TensorPtr indices, const TensorPtr values, const ShapeVector &shape);
+   
+     ~CSRTensor() override = default;
+   
+     MS_DECLARE_PARENT(CSRTensor, MetaSparseTensor)
+   
+     
+     TensorPtr GetIndptr() { return indptr_; }
+   
+     TensorPtr GetIndices() { return indices_; }
+   
+     TensorPtr GetValues() { return values_; }
+   
+     bool operator==(const CSRTensor &csr_tensor) const { return &csr_tensor == this; }
+   
+     bool operator==(const Value &other) const override {
+       if (other.isa<CSRTensor>()) {
+         auto &other_ = static_cast<const CSRTensor &>(other);
+         return *this == other_;
+       }
+       return false;
+     }
+   
+     const size_t GetSizeAt(size_t index) const;
+   
+     TensorPtr GetTensorAt(size_t index) const;
+   
+     const size_t GetTensorLength() const { return kShapeIdx + shape().size(); }
+   
+     std::string ToString() const override;
+   
+     static constexpr size_t kIndptrIdx = 0;
+     static constexpr size_t kIndicesIdx = 1;
+     static constexpr size_t kValuesIdx = 2;
+     static constexpr size_t kShapeIdx = 3;
+   
+    private:
+     TensorPtr indptr_;
+     TensorPtr indices_;
+     TensorPtr values_;
+   };
+   using CSRTensorPtr = std::shared_ptr<CSRTensor>;
+   
+   // COOTensor entity class
+   class MS_CORE_API COOTensor : public MetaSparseTensor {
+    public:
+     abstract::AbstractBasePtr ToAbstract() override;
+   
+     COOTensor(const TensorPtr indices, const TensorPtr values, const ShapeVector &shape)
+         : MetaSparseTensor(values->data_type(), shape), indices_(indices), values_(values) {}
+   
+     ~COOTensor() override = default;
+   
+     MS_DECLARE_PARENT(COOTensor, MetaSparseTensor)
+   
+     
+     TensorPtr GetIndices() { return indices_; }
+   
+     TensorPtr GetValues() { return values_; }
+   
+     TensorPtr GetTensorAt(size_t index) const;
+   
+     const size_t GetTensorLength() const { return kShapeIdx + shape().size(); }
+   
+     bool operator==(const COOTensor &coo_tensor) const { return &coo_tensor == this; }
+   
+     bool operator==(const Value &other) const override {
+       if (other.isa<COOTensor>()) {
+         auto &other_ = static_cast<const COOTensor &>(other);
+         return *this == other_;
+       }
+       return false;
+     }
+   
+     std::string ToString() const override;
+   
+     static constexpr size_t kIndicesIdx = 0;
+     static constexpr size_t kValuesIdx = 1;
+     static constexpr size_t kShapeIdx = 2;
+   
+    private:
+     TensorPtr indices_;
+     TensorPtr values_;
+   };
+   using COOTensorPtr = std::shared_ptr<COOTensor>;
+   
+   // RowTensor entity class
+   class MS_CORE_API RowTensor : public MetaSparseTensor {
+    public:
+     abstract::AbstractBasePtr ToAbstract() override;
+   
+     RowTensor(const TensorPtr indices, const TensorPtr values, const ShapeVector &shape)
+         : MetaSparseTensor(values->data_type(), shape), indices_(indices), values_(values) {}
+   
+     ~RowTensor() override = default;
+   
+     TensorPtr GetIndices() { return indices_; }
+   
+     TensorPtr GetValues() { return values_; }
+   
+     bool operator==(const RowTensor &row_tensor) const { return &row_tensor == this; }
+   
+     bool operator==(const Value &other) const override {
+       if (other.isa<RowTensor>()) {
+         auto &other_ = static_cast<const RowTensor &>(other);
+         return *this == other_;
+       }
+       return false;
+     }
+   
+     std::string ToString() const override;
+   
+    private:
+     TensorPtr indices_;
+     TensorPtr values_;
+   };
+   using RowTensorPtr = std::shared_ptr<RowTensor>;
+   }  // namespace tensor
+   }  // namespace mindspore
+   
+   #endif  // MINDSPORE_CORE_IR_TENSOR_H_

@@ -1,0 +1,482 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Performance Profiling Design &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Tensor Visualization Design" href="tensor_visual_design.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Installation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mindinsight_install.html">MindInsight Installation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="summary_record.html">Collecting Summary Record</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dashboard.html">Viewing Dashboard</a></li>
+<li class="toctree-l1"><a class="reference internal" href="lineage_and_scalars_comparison.html">Viewing Lineage and Scalars Comparison</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hyper_parameters_auto_tuning.html">Use Mindoptimizer to Tune Hyperparameters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migrate_3rd_scripts_mindconverter.html">Migrating From Third Party Frameworks With Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="performance_profiling.html">Performance Profiling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="debugger.html">Debugger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_explanation.html">Explain Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindinsight_commands.html">MindInsight Commands</a></li>
+</ul>
+<p class="caption"><span class="caption-text">References</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="training_visual_design.html">Overall Design of Training Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="graph_visual_design.html">Computational Graph Visualization Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tensor_visual_design.html">Tensor Visualization Design</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Performance Profiling Design</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#background">Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#profiler-architecture-design">Profiler Architecture Design</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#context">Context</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-structure">Module Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#internal-module-interaction">Internal Module Interaction</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#sub-module-design">Sub-Module Design</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#profilerapi-and-controller">ProfilerAPI and Controller</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#design">Design</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#parser">Parser</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id1">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2">Design</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#analyser">Analyser</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id3">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4">Design</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#proposer">Proposer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id5">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6">Design</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Performance Profiling Design</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/profiler_design.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="performance-profiling-design">
+<h1>Performance Profiling Design<a class="headerlink" href="#performance-profiling-design" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">Ascend</span></code> <code class="docutils literal notranslate"><span class="pre">GPU</span></code> <code class="docutils literal notranslate"><span class="pre">Model</span> <span class="pre">Development</span></code> <code class="docutils literal notranslate"><span class="pre">Model</span> <span class="pre">Optimization</span></code> <code class="docutils literal notranslate"><span class="pre">Framework</span> <span class="pre">Development</span></code> <code class="docutils literal notranslate"><span class="pre">Intermediate</span></code> <code class="docutils literal notranslate"><span class="pre">Expert</span></code> <code class="docutils literal notranslate"><span class="pre">Contributor</span></code></p>
+<!-- TOC -->
+<ul class="simple">
+<li><p><a class="reference external" href="#performance-profiling-design">Performance Profiling Design</a></p>
+<ul>
+<li><p><a class="reference external" href="#background">Background</a></p></li>
+<li><p><a class="reference external" href="#profiler-architecture-design">Profiler Architecture Design</a></p>
+<ul>
+<li><p><a class="reference external" href="#context">Context</a></p></li>
+<li><p><a class="reference external" href="#module-structure">Module Structure</a></p></li>
+<li><p><a class="reference external" href="#internal-module-interaction">Internal Module Interaction</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#sub-module-design">Sub-Module Design</a></p>
+<ul>
+<li><p><a class="reference external" href="#profilerapi-and-controller">ProfilerAPI and Controller</a></p>
+<ul>
+<li><p><a class="reference external" href="#description">Description</a></p></li>
+<li><p><a class="reference external" href="#design">Design</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#parser">Parser</a></p>
+<ul>
+<li><p><a class="reference external" href="#description-1">Description</a></p></li>
+<li><p><a class="reference external" href="#design-1">Design</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#analyser">Analyser</a></p>
+<ul>
+<li><p><a class="reference external" href="#description-2">Description</a></p></li>
+<li><p><a class="reference external" href="#design-2">Design</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#proposer">Proposer</a></p>
+<ul>
+<li><p><a class="reference external" href="#description-3">Description</a></p></li>
+<li><p><a class="reference external" href="#design-3">Design</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<!-- /TOC -->
+<p><a href="https://gitee.com/mindspore/docs/blob/r1.3/docs/mindinsight/docs/source_en/profiler_design.md" target="_blank"><img src="https://gitee.com/mindspore/docs/raw/r1.3/resource/_static/logo_source.png"></a></p>
+<div class="section" id="background">
+<h2>Background<a class="headerlink" href="#background" title="Permalink to this headline">¶</a></h2>
+<p>To support model development and performance debugging in MindSpore, an easy-to-use profile tool is required to intuitively display the performance information of each dimension of a network model, provide users with easy-to-use and abundant profiling functions, and help users quickly locate network performance faults.</p>
+</div>
+<div class="section" id="profiler-architecture-design">
+<h2>Profiler Architecture Design<a class="headerlink" href="#profiler-architecture-design" title="Permalink to this headline">¶</a></h2>
+<p>The Profiler architecture design is introduced from the following three aspects: the overall context interaction relationship of Profiler; the internal structure of Profiler, including the module structure and module layers; the interactive calling relationship between modules.</p>
+<div class="section" id="context">
+<h3>Context<a class="headerlink" href="#context" title="Permalink to this headline">¶</a></h3>
+<p>Profiler is a part of the MindSpore debugging and optimization tool. The following figure shows the tool context.</p>
+<p><img alt="context_profiler.png" src="_images/context_profiler.png" /></p>
+<p>Figure 1 Context relationship</p>
+<p>As shown in the preceding figure, the interaction between the Profiler and other components is as follows:</p>
+<ol class="simple">
+<li><p>In the training script, MindSpore Profiler is called to send the command to the MindSpore ada(Ascend device) or CUPTI(GPU device) module for starting performance data collection. Finally, the ada or CUPTI generates original performance data.</p></li>
+<li><p>MindSpore Profiler parses the original data in the user script and generates the intermediate data results in the specified folder.</p></li>
+<li><p>MindInsight Profiler connects to the intermediate data and provides the visualized Profiler function for users.</p></li>
+</ol>
+</div>
+<div class="section" id="module-structure">
+<h3>Module Structure<a class="headerlink" href="#module-structure" title="Permalink to this headline">¶</a></h3>
+<p>Modules are classified into the following layers:</p>
+<p><img alt="module_profiler.png" src="_images/module_profiler.png" /></p>
+<p>Figure 2 Relationships between modules at different layers</p>
+<p>Module functions are as follows:</p>
+<ol class="simple">
+<li><p>ProfilerAPI is a calling entry provided by code, including the performance collection startup API and analysis API.</p></li>
+<li><p>Controller is a module at a layer lower than that of ProfilerAPI. It is called by the startup API of ProfilerAPI to start or stop the performance collection function. The original data is written to a fixed position by ada.</p></li>
+<li><p>Parser is a module for parsing original performance data which is collected on the device and cannot be directly understood by users. Parser parses, combines, and converts the data to generate intermediate results that can be understood by users and analyzed by upper layers.</p></li>
+<li><p>Analyser obtains the intermediate results parsed by the lower-layer Parser, encapsulates, filters, and sorts the intermediate results, and returns the various information to the upper-layer Profiler API and RESTful.</p></li>
+<li><p>RESTful is used to call the common API provided by the backend Analyser to obtain objective data and use RESTful to connect to the frontend.</p></li>
+</ol>
+</div>
+<div class="section" id="internal-module-interaction">
+<h3>Internal Module Interaction<a class="headerlink" href="#internal-module-interaction" title="Permalink to this headline">¶</a></h3>
+<p>Users can use API or RESTful to complete internal module interaction process. The following uses the API as an example:</p>
+<p><img alt="time_order_profiler.png" src="_images/time_order_profiler.png" /></p>
+<p>Figure 3 Module interaction</p>
+<p>The interaction process of each module is as follows:</p>
+<ol class="simple">
+<li><p>ProfilerAPI calls the control function of the lower-layer Controller to control the lower-layer collection module to collect performance information. Currently, the collection module (ada on Ascend or CUPTI on GPU) receives commands and independently collects performance information.</p></li>
+<li><p>After the training is complete, users call the analysis API of ProfilerAPI.</p></li>
+<li><p>Profiler API analysis API uses the Parser module to parse performance data, generates intermediate results, calls the Aalayser module to analyze the results, and returns various information to users.</p></li>
+</ol>
+</div>
+</div>
+<div class="section" id="sub-module-design">
+<h2>Sub-Module Design<a class="headerlink" href="#sub-module-design" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="profilerapi-and-controller">
+<h3>ProfilerAPI and Controller<a class="headerlink" href="#profilerapi-and-controller" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="description">
+<h4>Description<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h4>
+<p>ProfilerAPI provides an entry API in the training script for users to start performance collection and analyze performance data.
+ProfilerAPI delivers commands through Controller to control the startup of ada/CUPTI.</p>
+</div>
+<div class="section" id="design">
+<h4>Design<a class="headerlink" href="#design" title="Permalink to this headline">¶</a></h4>
+<p>ProfilerAPI belongs to the API layer of upper-layer application and is integrated by the training script. The function is divided into two parts:</p>
+<ul class="simple">
+<li><p>Before training, call the bottom-layer Controller API to deliver a command to start a profiling task.</p></li>
+<li><p>After training, call the bottom-layer Controller API to deliver commands to stop the profiling task, call the Analyser and Parser APIs to parse data files and generate result data such as operator performance statistics and training trace statistics.</p></li>
+</ul>
+<p>Controller provides an API for the upper layer, calls API of the lower-layer performance collection module, and delivers commands for starting and stopping performance collection.</p>
+<p>The generated original performance data includes:</p>
+<p>Ascend:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">hwts.log.data.45.dev.profiler_default_tag</span></code> file: stores operator execution information, including the start and end of a task and stream ID.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DATA_PREPROCESS.dev.AICPU</span></code> file: specifies AI CPU operator execution time at each stage.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Framework.host.task_desc_info</span></code> file: stores the mapping between operator IDs and operator names and the input and output information of each operator.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">training_trace.46.dev.profiler_default_tag</span></code> file: stores the start and end time of each step and time of step interval, forward and backward propagation, and step tail.</p></li>
+</ul>
+<p>GPU:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">step_trace_profiling_0.txt</span></code> file: stores the start and end operator of each step.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="parser">
+<h3>Parser<a class="headerlink" href="#parser" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id1">
+<h4>Description<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<p>Parser is a module for parsing original performance data which is collected on the device and cannot be directly understood by users. Parser parses, combines, and converts the data to generate intermediate results that can be understood by users and analyzed by upper layers.</p>
+</div>
+<div class="section" id="id2">
+<h4>Design<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<p><img alt="parser_module_profiler.png" src="_images/parser_module_profiler.png" /></p>
+<p>Figure 4 Parser module</p>
+<p>As shown in the preceding figure, there are HWTS Parser, AI CPU Parser, Framework Parser, and Training Trace Parser modules. Each module parses a type of original data to obtain the intermediate file that can be read by users.</p>
+<p>Ascend:</p>
+<ul class="simple">
+<li><p>HWTS Parser: parses the <code class="docutils literal notranslate"><span class="pre">hwts.log.data.45.dev.profiler_default_tag</span></code> file to obtain the task-based statistics of the device, such as the start and end of each task and stream ID, which are used to compute the operator execution time.</p></li>
+<li><p>AI CPU Parser: parses the <code class="docutils literal notranslate"><span class="pre">DATA_PREPROCESS.dev.AICPU</span></code> file to obtain the AI CPU operator execution time at each stage.</p></li>
+<li><p>Framework Parser: parses the <code class="docutils literal notranslate"><span class="pre">Framework.host.task_desc_info</span></code> file to obtain the mapping between AI Core operator and task, and key operator information.</p></li>
+<li><p>Training Trace Parser: parses the <code class="docutils literal notranslate"><span class="pre">training_trace.46.dev.profiler_default_tag</span></code> file to analyze the time at each training stage.</p></li>
+</ul>
+<p>GPU:</p>
+<ul class="simple">
+<li><p>Training Trace Parser: parses the <code class="docutils literal notranslate"><span class="pre">step_trace_profiling_0.txt</span></code> file to analyze the time at each training stage.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="analyser">
+<h3>Analyser<a class="headerlink" href="#analyser" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id3">
+<h4>Description<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>Analyzer is used to filter, sort, query, and page the intermediate results generated at the parsing stage.</p>
+</div>
+<div class="section" id="id4">
+<h4>Design<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
+<p>This module parses the intermediate files generated by Parser, provides a general API for upper-layer data analysis, and returns the analyzed data to the upper layer for display. Various intermediate files have certain common points which can be abstracted. Therefore, following figure shows the design of the Analyser class.</p>
+<p><img alt="analyser_class_profiler.png" src="_images/analyser_class_profiler.png" /></p>
+<p>Figure 5 Analyser class</p>
+<p>As shown in the preceding figure, multiple Analysers are implemented for different contents to be queried. Filter, sorting, and pagination conditions can be defined for each Analyser. Each Analyser knows which intermediate files are required to merge, filter, and sort data. Analyser is associated with Parser through the intermediate files generated by Parser, and no function is called. In this way, Analyser and Parser are decoupled.</p>
+<p>Currently, there are two types of analyzers for operator information:</p>
+<ul class="simple">
+<li><p>Filter the average information of operator types.</p></li>
+<li><p>Filter the detailed average information of each operator in two Analysers (AicoreTypeAnalyser and AicoreDetailAnalyser for Ascend, GpuOpTypeAnalyser and GpuOpInfoAnalyser for GPU).</p></li>
+</ul>
+<p>To hide the internal implementation of Analyser and facilitate calling, the simple factory mode is used to obtain the specified Analyser through AnalyserFactory.</p>
+</div>
+</div>
+<div class="section" id="proposer">
+<h3>Proposer<a class="headerlink" href="#proposer" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id5">
+<h4>Description<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h4>
+<p>Proposer is a Profiler performance optimization suggestion module. Proposer calls the Analyser module to obtain performance data, analyzes the performance data based on optimization rules, and displays optimization suggestions for users through the UI and API.</p>
+</div>
+<div class="section" id="id6">
+<h4>Design<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h4>
+<p>Modules are classified into the following layers:</p>
+<p><img alt="proposer_module_profiler.png" src="_images/proposer_module_profiler.png" /></p>
+<p>Figure 6 Proposer module</p>
+<p>As shown in the preceding figure:</p>
+<ul class="simple">
+<li><p>Proposer provides API for calling the API and RESTful to obtain optimization suggestions.</p></li>
+<li><p>Proposer calls the Analyser API to obtain performance data and obtain optimization suggestions based on optimization rules.</p></li>
+<li><p>Proposer calls Analyser factory to obtain the Analyser object.</p></li>
+</ul>
+<p>You can call the query API of the Analyser object to obtain information, including the top N operators that are sorted by time and the time information of each training trace stage.</p>
+<p>The following figure shows the module class design:</p>
+<p><img alt="proposer_class_profiler.png" src="_images/proposer_class_profiler.png" /></p>
+<p>Figure 7 Proposer class</p>
+<p>As shown in the preceding figure:</p>
+<ul class="simple">
+<li><p>Proposers of various types inherit the abstract class Proposer and implement the analyze methods.</p></li>
+<li><p>API and CLI call the ProposerFactory to obtain the Proposer and call the Proposer.analyze function to obtain the optimization suggestions of each type of Proposer.</p></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="tensor_visual_design.html" class="btn btn-neutral float-left" title="Tensor Visualization Design" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2021, MindSpore
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+</body>
+</html>

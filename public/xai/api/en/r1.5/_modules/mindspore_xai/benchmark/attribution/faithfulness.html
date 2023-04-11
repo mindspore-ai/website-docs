@@ -1,0 +1,667 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>mindspore_xai.benchmark.attribution.faithfulness &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/language_data.js"></script>
+        
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mindspore_xai.runner.html">mindspore_xai.runner</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mindspore_xai.explanation.html">mindspore_xai.explanation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mindspore_xai.benchmark.html">mindspore_xai.benchmark</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>mindspore_xai.benchmark.attribution.faithfulness</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for mindspore_xai.benchmark.attribution.faithfulness</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2020-2021 Huawei Technologies Co., Ltd</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1"># ============================================================================</span>
+<span class="sd">&quot;&quot;&quot;Faithfulness.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">decimal</span> <span class="kn">import</span> <span class="n">Decimal</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">nn</span>
+<span class="kn">from</span> <span class="nn">mindspore.train._utils</span> <span class="kn">import</span> <span class="n">check_value_type</span>
+
+<span class="kn">from</span> <span class="nn">mindspore_xai.common.utils</span> <span class="kn">import</span> <span class="n">calc_auc</span><span class="p">,</span> <span class="n">format_tensor_to_ndarray</span>
+<span class="kn">from</span> <span class="nn">mindspore_xai.explanation.attribution</span> <span class="kn">import</span> <span class="n">Attribution</span> <span class="k">as</span> <span class="n">_Attribution</span>
+<span class="kn">from</span> <span class="nn">mindspore_xai.explanation.attribution.perturbation.replacement</span> <span class="kn">import</span> <span class="n">Constant</span><span class="p">,</span> <span class="n">GaussianBlur</span>
+<span class="kn">from</span> <span class="nn">mindspore_xai.explanation.attribution.perturbation.ablation</span> <span class="kn">import</span> <span class="n">AblationWithSaliency</span>
+<span class="kn">from</span> <span class="nn">.metric</span> <span class="kn">import</span> <span class="n">LabelSensitiveMetric</span>
+
+<span class="n">_ArrayType</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+<span class="n">_ExplainerType</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">_Attribution</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span>
+<span class="n">_LabelType</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span>
+<span class="n">_module_type</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span>
+
+
+<span class="k">def</span> <span class="nf">_calc_feature_importance</span><span class="p">(</span><span class="n">saliency</span><span class="p">:</span> <span class="n">_ArrayType</span><span class="p">,</span> <span class="n">masks</span><span class="p">:</span> <span class="n">_ArrayType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_ArrayType</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Calculate feature important w.r.t given masks.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">saliency</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+        <span class="n">saliency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">saliency</span><span class="p">,</span> <span class="n">repeats</span><span class="o">=</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">num_perturbations</span> <span class="o">=</span> <span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">saliency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">saliency</span><span class="p">,</span> <span class="n">repeats</span><span class="o">=</span><span class="n">num_perturbations</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">saliency</span> <span class="o">=</span> <span class="n">saliency</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_perturbations</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">masks</span> <span class="o">=</span> <span class="n">masks</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_perturbations</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">feature_importance</span> <span class="o">=</span> <span class="n">saliency</span> <span class="o">*</span> <span class="n">masks</span>
+    <span class="n">feature_importance</span> <span class="o">=</span> <span class="n">feature_importance</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">masks</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">feature_importance</span>
+
+
+<span class="k">class</span> <span class="nc">_FaithfulnessHelper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Base class for faithfulness calculator.&quot;&quot;&quot;</span>
+    <span class="n">_support</span> <span class="o">=</span> <span class="p">[</span><span class="n">Constant</span><span class="p">,</span> <span class="n">GaussianBlur</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">perturb_percent</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">perturb_mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">perturb_method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">is_accumulate</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                 <span class="n">perturb_pixel_per_step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">num_perturbations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_reference</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">method</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_support</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">perturb_method</span> <span class="o">==</span> <span class="n">method</span><span class="o">.</span><span class="vm">__name__</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_get_reference</span> <span class="o">=</span> <span class="n">method</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;The param &quot;perturb_method&quot; should be one of </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_support</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ablation</span> <span class="o">=</span> <span class="n">AblationWithSaliency</span><span class="p">(</span><span class="n">perturb_mode</span><span class="o">=</span><span class="n">perturb_mode</span><span class="p">,</span>
+                                              <span class="n">perturb_percent</span><span class="o">=</span><span class="n">perturb_percent</span><span class="p">,</span>
+                                              <span class="n">perturb_pixel_per_step</span><span class="o">=</span><span class="n">perturb_pixel_per_step</span><span class="p">,</span>
+                                              <span class="n">num_perturbations</span><span class="o">=</span><span class="n">num_perturbations</span><span class="p">,</span>
+                                              <span class="n">is_accumulate</span><span class="o">=</span><span class="n">is_accumulate</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">calc_faithfulness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">saliency</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calc faithfulness.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<span class="k">class</span> <span class="nc">NaiveFaithfulness</span><span class="p">(</span><span class="n">_FaithfulnessHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculator for naive faithfulness.</span>
+
+<span class="sd">    Naive faithfulness, the metric replace several pixels on original image by</span>
+<span class="sd">    specific method for each perturbations. The metric predicts on the perturbed</span>
+<span class="sd">    images and record a series of probabilities. Then calculates the</span>
+<span class="sd">    correlation between prob distribution and averaged feature importance.</span>
+<span class="sd">    Higher correlation indicates better faithfulness.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        perturb_percent (float): percentage of pixels to perturb</span>
+<span class="sd">        perturb_method (str): specify the method to replace the pixel.</span>
+<span class="sd">            Current support: [&#39;Constant&#39;, &#39;GaussianBlur&#39;]</span>
+<span class="sd">        is_accumulate (bool): whether to accumulate the former perturbations to</span>
+<span class="sd">            the later perturbations.</span>
+<span class="sd">            Default: False.</span>
+<span class="sd">        perturb_pixel_per_step (Optional[int]): number of pixel to perturb</span>
+<span class="sd">            for each perturbation. If perturb_pixel_per_step is None, actual</span>
+<span class="sd">            perturb_pixel_per_step will be calculate by:</span>
+<span class="sd">                num_image_pixel * perturb_percent / num_perturb_steps.</span>
+<span class="sd">            Default: None</span>
+<span class="sd">        num_perturbations (Optional[int]): number of perturbations. If</span>
+<span class="sd">            num_perturbations if None, it will be calculated by:</span>
+<span class="sd">                num_image_pixel * perturb_percent / perturb_pixel_per_step.</span>
+<span class="sd">            Default: None</span>
+<span class="sd">        kwargs: specific perturb_method will require</span>
+<span class="sd">            different arguments. Below lists required args for each method.</span>
+
+<span class="sd">            &#39;Constant&#39;: base_value (int)</span>
+<span class="sd">            &#39;GaussianBlur&#39;: sigma (float): 0.7</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: Be raised for any argument value problem.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">perturb_percent</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">perturb_method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">is_accumulate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">perturb_pixel_per_step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">num_perturbations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">perturb_percent</span><span class="o">=</span><span class="n">perturb_percent</span><span class="p">,</span>
+                         <span class="n">perturb_mode</span><span class="o">=</span><span class="s1">&#39;Deletion&#39;</span><span class="p">,</span>
+                         <span class="n">perturb_method</span><span class="o">=</span><span class="n">perturb_method</span><span class="p">,</span>
+                         <span class="n">is_accumulate</span><span class="o">=</span><span class="n">is_accumulate</span><span class="p">,</span>
+                         <span class="n">perturb_pixel_per_step</span><span class="o">=</span><span class="n">perturb_pixel_per_step</span><span class="p">,</span>
+                         <span class="n">num_perturbations</span><span class="o">=</span><span class="n">num_perturbations</span><span class="p">,</span>
+                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">calc_faithfulness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                          <span class="n">inputs</span><span class="p">:</span> <span class="n">_ArrayType</span><span class="p">,</span>
+                          <span class="n">model</span><span class="p">:</span> <span class="n">_module_type</span><span class="p">,</span>
+                          <span class="n">targets</span><span class="p">:</span> <span class="n">_LabelType</span><span class="p">,</span>
+                          <span class="n">saliency</span><span class="p">:</span> <span class="n">_ArrayType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate naive faithfulness.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            inputs (_ArrayType): sample to calculate faithfulness score</span>
+<span class="sd">            model (_module_type): model to explanation</span>
+<span class="sd">            targets (_LabelType): label to explanation on.</span>
+<span class="sd">            saliency (_ArrayType): Saliency map of given inputs and targets from the</span>
+<span class="sd">                explainer.</span>
+
+<span class="sd">        Return:</span>
+<span class="sd">            - faithfulness (np.ndarray): faithfulness score</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">Decimal</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">saliency</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span> <span class="o">==</span> <span class="n">Decimal</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">saliency</span><span class="o">.</span><span class="n">min</span><span class="p">())):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;The saliency map is uniform everywhere. The correlation will be set to zero.&quot;</span><span class="p">)</span>
+            <span class="n">correlation</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">correlation</span><span class="p">],</span> <span class="nb">float</span><span class="p">)</span>
+
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">reference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_reference</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">masks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ablation</span><span class="o">.</span><span class="n">generate_mask</span><span class="p">(</span><span class="n">saliency</span><span class="p">,</span> <span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ablation</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">masks</span><span class="p">)</span>
+        <span class="n">feature_importance</span> <span class="o">=</span> <span class="n">_calc_feature_importance</span><span class="p">(</span><span class="n">saliency</span><span class="p">,</span> <span class="n">masks</span><span class="p">)</span>
+
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="n">perturbations</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">perturbations</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">perturbations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">perturbations</span><span class="p">)[:,</span> <span class="n">targets</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">feature_importance</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">Decimal</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span> <span class="o">==</span> <span class="n">Decimal</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">predictions</span><span class="o">.</span><span class="n">min</span><span class="p">())):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;The perturbations do not affect the predictions. The correlation will be set to zero.&quot;</span><span class="p">)</span>
+            <span class="n">correlation</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">correlation</span><span class="p">],</span> <span class="nb">float</span><span class="p">)</span>
+
+        <span class="n">faithfulness</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">feature_importance</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)</span>
+        <span class="n">faithfulness</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">faithfulness</span><span class="p">[:</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">:])</span>
+        <span class="k">return</span> <span class="n">faithfulness</span>
+
+
+<span class="k">class</span> <span class="nc">DeletionAUC</span><span class="p">(</span><span class="n">_FaithfulnessHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Calculator for deletion AUC.</span>
+
+<span class="sd">    For Deletion AUC, the metric accumulative replace pixels on origin</span>
+<span class="sd">    images through specific &#39;perturb_method&#39;, predict on the perturbed images</span>
+<span class="sd">    and record series of probabilities. The metric then calculates the AUC of</span>
+<span class="sd">    the probability variation curve during perturbations. Faithfulness is define</span>
+<span class="sd">    as (1 - deletion_AUC). Higher score indicates better faithfulness of</span>
+<span class="sd">    explanation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        perturb_percent (float): percentage of pixels to perturb</span>
+<span class="sd">        perturb_method (str): specify the method to replace the pixel.</span>
+<span class="sd">            Current support: [&#39;Constant&#39;, &#39;GaussianBlur&#39;]</span>
+<span class="sd">        perturb_pixel_per_step (Optional[int]): number of pixel to perturb</span>
+<span class="sd">            for each perturbation. If perturb_pixel_per_step is None, actual</span>
+<span class="sd">            perturb_pixel_per_step will be calculate by:</span>
+<span class="sd">                num_image_pixel * perturb_percent / num_perturb_steps.</span>
+<span class="sd">            Default: None</span>
+<span class="sd">        num_perturbations (Optional[int]): number of perturbations. If</span>
+<span class="sd">            num_perturbations if None, it will be calculated by:</span>
+<span class="sd">                num_image_pixel * perterb_percent / perturb_pixel_per_step.</span>
+<span class="sd">            Default: None</span>
+<span class="sd">        kwargs: specific perturb_method will require</span>
+<span class="sd">            different arguments. Below lists required args for each method.</span>
+
+<span class="sd">            &#39;Constant&#39;: base_value (int)</span>
+<span class="sd">            &#39;GaussianBlur&#39;: sigma (float): 0.7</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: Be raised for any argument value problem.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">perturb_percent</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">perturb_method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">perturb_pixel_per_step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">num_perturbations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">perturb_percent</span><span class="o">=</span><span class="n">perturb_percent</span><span class="p">,</span>
+                         <span class="n">perturb_mode</span><span class="o">=</span><span class="s1">&#39;Deletion&#39;</span><span class="p">,</span>
+                         <span class="n">perturb_method</span><span class="o">=</span><span class="n">perturb_method</span><span class="p">,</span>
+                         <span class="n">perturb_pixel_per_step</span><span class="o">=</span><span class="n">perturb_pixel_per_step</span><span class="p">,</span>
+                         <span class="n">num_perturbations</span><span class="o">=</span><span class="n">num_perturbations</span><span class="p">,</span>
+                         <span class="n">is_accumulate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">calc_faithfulness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                          <span class="n">inputs</span><span class="p">:</span> <span class="n">_ArrayType</span><span class="p">,</span>
+                          <span class="n">model</span><span class="p">:</span> <span class="n">_module_type</span><span class="p">,</span>
+                          <span class="n">targets</span><span class="p">:</span> <span class="n">_LabelType</span><span class="p">,</span>
+                          <span class="n">saliency</span><span class="p">:</span> <span class="n">_ArrayType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_ArrayType</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate faithfulness through deletion AUC.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            inputs (_ArrayType): sample to calculate faithfulness score</span>
+<span class="sd">            model (_module_type): model to explanation</span>
+<span class="sd">            targets (_LabelType): label to explanation on.</span>
+<span class="sd">            saliency (_ArrayType): Saliency map of given inputs and targets from the</span>
+<span class="sd">                explainer.</span>
+
+<span class="sd">        Return:</span>
+<span class="sd">            - faithfulness (float): faithfulness score</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_reference</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">masks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ablation</span><span class="o">.</span><span class="n">generate_mask</span><span class="p">(</span><span class="n">saliency</span><span class="p">,</span> <span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ablation</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">masks</span><span class="p">)</span>
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="n">perturbations</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">perturbations</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">perturbations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">perturbations</span><span class="p">)</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()[:,</span> <span class="n">targets</span><span class="p">]</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">input_tensor</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">original_output</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()[:,</span> <span class="n">targets</span><span class="p">]</span>
+
+        <span class="n">auc</span> <span class="o">=</span> <span class="n">calc_auc</span><span class="p">(</span><span class="n">original_output</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span> <span class="o">-</span> <span class="n">predictions</span><span class="o">.</span><span class="n">squeeze</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span> <span class="o">-</span> <span class="n">auc</span><span class="p">],</span> <span class="nb">float</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">InsertionAUC</span><span class="p">(</span><span class="n">_FaithfulnessHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Calculator for insertion AUC.</span>
+
+<span class="sd">    For Insertion AUC, the metric accumulative replace pixels of reference</span>
+<span class="sd">    image by pixels from origin image, like inserting pixel from origin image to</span>
+<span class="sd">    reference. The reference if generated through specific &#39;perturb_method&#39;.</span>
+<span class="sd">    The metric predicts on the perturbed images and records series of</span>
+<span class="sd">    probabilities. The metric then calculates the AUC of the probability</span>
+<span class="sd">    variation curve during perturbations. Faithfulness is define as (1 -</span>
+<span class="sd">    deletion_AUC). Higher score indicates better faithfulness of explanation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        perturb_percent (float): percentage of pixels to perturb</span>
+<span class="sd">        perturb_method (str): specify the method to replace the pixel.</span>
+<span class="sd">            Current support: [&#39;Constant&#39;, &#39;GaussianBlur&#39;]</span>
+<span class="sd">        perturb_pixel_per_step (Optional[int]): number of pixel to perturb</span>
+<span class="sd">            for each perturbation. If perturb_pixel_per_step is None, actual</span>
+<span class="sd">            perturb_pixel_per_step will be calculate by:</span>
+<span class="sd">                num_image_pixel * perturb_percent / num_perturb_steps.</span>
+<span class="sd">            Default: None</span>
+<span class="sd">        num_perturbations (Optional[int]): number of perturbations. If</span>
+<span class="sd">            num_perturbations if None, it will be calculated by:</span>
+<span class="sd">                num_image_pixel * perterb_percent / perturb_pixel_per_step.</span>
+<span class="sd">            Default: None</span>
+<span class="sd">        kwargs: specific perturb_method will require</span>
+<span class="sd">            different arguments. Below lists required args for each method.</span>
+
+<span class="sd">            &#39;Constant&#39;: base_value (int)</span>
+<span class="sd">            &#39;GaussianBlur&#39;: sigma (float): 0.7</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: Be raised for any argument value problem.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">perturb_percent</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">perturb_method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">perturb_pixel_per_step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">num_perturbations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">perturb_percent</span><span class="o">=</span><span class="n">perturb_percent</span><span class="p">,</span>
+                         <span class="n">perturb_mode</span><span class="o">=</span><span class="s1">&#39;Insertion&#39;</span><span class="p">,</span>
+                         <span class="n">perturb_method</span><span class="o">=</span><span class="n">perturb_method</span><span class="p">,</span>
+                         <span class="n">perturb_pixel_per_step</span><span class="o">=</span><span class="n">perturb_pixel_per_step</span><span class="p">,</span>
+                         <span class="n">num_perturbations</span><span class="o">=</span><span class="n">num_perturbations</span><span class="p">,</span>
+                         <span class="n">is_accumulate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">calc_faithfulness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                          <span class="n">inputs</span><span class="p">:</span> <span class="n">_ArrayType</span><span class="p">,</span>
+                          <span class="n">model</span><span class="p">:</span> <span class="n">_module_type</span><span class="p">,</span>
+                          <span class="n">targets</span><span class="p">:</span> <span class="n">_LabelType</span><span class="p">,</span>
+                          <span class="n">saliency</span><span class="p">:</span> <span class="n">_ArrayType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_ArrayType</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate faithfulness through insertion AUC.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            inputs (_ArrayType): sample to calculate faithfulness score</span>
+<span class="sd">            model (_module_type): model to explanation</span>
+<span class="sd">            targets (_LabelType): label to explanation on.</span>
+<span class="sd">            saliency (_ArrayType): Saliency map of given inputs and targets from the</span>
+<span class="sd">                explainer.</span>
+
+<span class="sd">        Return:</span>
+<span class="sd">            - faithfulness (float): faithfulness score</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_reference</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">masks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ablation</span><span class="o">.</span><span class="n">generate_mask</span><span class="p">(</span><span class="n">saliency</span><span class="p">,</span> <span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ablation</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">masks</span><span class="p">)</span>
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="n">perturbations</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">perturbations</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
+        <span class="n">perturbations</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">perturbations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">perturbations</span><span class="p">)</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()[:,</span> <span class="n">targets</span><span class="p">]</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">inputs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+
+        <span class="n">base_tensor</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">base_outputs</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">base_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()[:,</span> <span class="n">targets</span><span class="p">]</span>
+
+        <span class="n">auc</span> <span class="o">=</span> <span class="n">calc_auc</span><span class="p">(</span><span class="n">predictions</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span> <span class="o">-</span> <span class="n">base_outputs</span><span class="o">.</span><span class="n">squeeze</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">auc</span><span class="p">],</span> <span class="nb">float</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Faithfulness"><a class="viewcode-back" href="../../../../mindspore_xai.benchmark.html#mindspore_xai.benchmark.Faithfulness">[docs]</a><span class="k">class</span> <span class="nc">Faithfulness</span><span class="p">(</span><span class="n">LabelSensitiveMetric</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Provides evaluation on faithfulness on XAI explanations.</span>
+
+<span class="sd">    Three specific metrics to obtain quantified results are supported: &quot;NaiveFaithfulness&quot;, &quot;DeletionAUC&quot;, and</span>
+<span class="sd">    &quot;InsertionAUC&quot;.</span>
+
+<span class="sd">    For metric &quot;NaiveFaithfulness&quot;, a series of perturbed images are created by modifying pixels</span>
+<span class="sd">    on original image. Then the perturbed images will be fed to the model and a series of output probability drops can</span>
+<span class="sd">    be obtained. The faithfulness is then quantified as the correlation between the propability drops and the saliency</span>
+<span class="sd">    map values on the same pixels (we normalize the correlation further to make them in range of [0, 1]).</span>
+
+<span class="sd">    For metric &quot;DeletionAUC&quot;, a series of perturbed images are created by accumulatively modifying pixels of the</span>
+<span class="sd">    original image to a base value (e.g. a constant). The perturbation starts from pixels with high saliency values</span>
+<span class="sd">    to pixels with low saliency values. Feeding the perturbed images into the model in order, an output probability</span>
+<span class="sd">    drop curve can be obtained. &quot;DeletionAUC&quot; is then obtained as the area under this probability drop curve.</span>
+
+<span class="sd">    For metric &quot;InsertionAUC&quot;, a series of perturbed images are created by accumulatively inserting pixels of the</span>
+<span class="sd">    original image to a reference image (e.g. a black image). The insertion starts from pixels with high saliency</span>
+<span class="sd">    values to pixels with low saliency values. Feeding the perturbed images into the model in order, an output</span>
+<span class="sd">    probability increase curve can be obtained. &quot;InsertionAUC&quot; is then obtained as the area under this curve.</span>
+
+<span class="sd">    For all the three metrics, higher value indicates better faithfulness.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        num_labels (int): Number of labels.</span>
+<span class="sd">        activation_fn (Cell): The activation layer that transforms logits to prediction probabilities. For</span>
+<span class="sd">            single label classification tasks, `nn.Softmax` is usually applied. As for multi-label classification</span>
+<span class="sd">            tasks, `nn.Sigmoid` is usually be applied. Users can also pass their own customized `activation_fn` as long</span>
+<span class="sd">            as when combining this function with network, the final output is the probability of the input.</span>
+<span class="sd">        metric (str, optional): The specifi metric to quantify faithfulness.</span>
+<span class="sd">            Options: &quot;DeletionAUC&quot;, &quot;InsertionAUC&quot;, &quot;NaiveFaithfulness&quot;.</span>
+<span class="sd">            Default: &#39;NaiveFaithfulness&#39;.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: Be raised for any argument type problem.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend`` ``GPU``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_methods</span> <span class="o">=</span> <span class="p">[</span><span class="n">NaiveFaithfulness</span><span class="p">,</span> <span class="n">DeletionAUC</span><span class="p">,</span> <span class="n">InsertionAUC</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_labels</span><span class="p">,</span> <span class="n">activation_fn</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s2">&quot;NaiveFaithfulness&quot;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Faithfulness</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">num_labels</span><span class="p">)</span>
+
+        <span class="n">perturb_percent</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># ratio of pixels to be perturbed, future argument</span>
+        <span class="n">perturb_method</span> <span class="o">=</span> <span class="s2">&quot;Constant&quot;</span>  <span class="c1"># perturbation method, all the perturbed pixels will be set to constant</span>
+        <span class="n">base_value</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># the pixel value set for the perturbed pixels</span>
+
+        <span class="n">check_value_type</span><span class="p">(</span><span class="s2">&quot;activation_fn&quot;</span><span class="p">,</span> <span class="n">activation_fn</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_activation_fn</span> <span class="o">=</span> <span class="n">activation_fn</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_verify_metrics</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">method</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_methods</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">metric</span> <span class="o">==</span> <span class="n">method</span><span class="o">.</span><span class="vm">__name__</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_faithfulness_helper</span> <span class="o">=</span> <span class="n">method</span><span class="p">(</span>
+                    <span class="n">perturb_percent</span><span class="o">=</span><span class="n">perturb_percent</span><span class="p">,</span>
+                    <span class="n">perturb_method</span><span class="o">=</span><span class="n">perturb_method</span><span class="p">,</span>
+                    <span class="n">base_value</span><span class="o">=</span><span class="n">base_value</span>
+                <span class="p">)</span>
+
+<div class="viewcode-block" id="Faithfulness.evaluate"><a class="viewcode-back" href="../../../../mindspore_xai.benchmark.html#mindspore_xai.benchmark.Faithfulness.evaluate">[docs]</a>    <span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">explainer</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">saliency</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Evaluate faithfulness on a single data sample.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            Currently only single sample (:math:`N=1`) at each call is supported.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            explainer (Explanation): The explainer to be evaluated, see `mindspore_xai.explanation`.</span>
+<span class="sd">            inputs (Tensor): A data sample, a 4D tensor of shape :math:`(N, C, H, W)`.</span>
+<span class="sd">            targets (Tensor, int): The label of interest. It should be a 1D or 0D tensor, or an integer.</span>
+<span class="sd">                If `targets` is a 1D tensor, its length should be the same as `inputs`.</span>
+<span class="sd">            saliency (Tensor, optional): The saliency map to be evaluated, a 4D tensor of shape :math:`(N, 1, H, W)`.</span>
+<span class="sd">                If it is None, the parsed `explainer` will generate the saliency map with `inputs` and `targets` and</span>
+<span class="sd">                continue the evaluation. Default: None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            numpy.ndarray, 1D array of shape :math:`(N,)`, result of faithfulness evaluated on `explainer`.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">            &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore import context</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore import nn</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore_xai.benchmark import Faithfulness</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore_xai.explanation import Gradient</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; context.set_context(mode=context.PYNATIVE_MODE)</span>
+<span class="sd">            &gt;&gt;&gt; # init a `Faithfulness` object</span>
+<span class="sd">            &gt;&gt;&gt; num_labels = 10</span>
+<span class="sd">            &gt;&gt;&gt; metric = &quot;InsertionAUC&quot;</span>
+<span class="sd">            &gt;&gt;&gt; activation_fn = nn.Softmax()</span>
+<span class="sd">            &gt;&gt;&gt; faithfulness = Faithfulness(num_labels, activation_fn, metric)</span>
+<span class="sd">            &gt;&gt;&gt; # The detail of LeNet5 is shown in model_zoo.official.cv.lenet.src.lenet.py</span>
+<span class="sd">            &gt;&gt;&gt; net = LeNet5(10, num_channel=3)</span>
+<span class="sd">            &gt;&gt;&gt; gradient = Gradient(net)</span>
+<span class="sd">            &gt;&gt;&gt; inputs = ms.Tensor(np.random.rand(1, 3, 32, 32), ms.float32)</span>
+<span class="sd">            &gt;&gt;&gt; targets = 5</span>
+<span class="sd">            &gt;&gt;&gt; # usage 1: input the explainer and the data to be explained,</span>
+<span class="sd">            &gt;&gt;&gt; # faithfulness is a Faithfulness instance</span>
+<span class="sd">            &gt;&gt;&gt; res = faithfulness.evaluate(gradient, inputs, targets)</span>
+<span class="sd">            &gt;&gt;&gt; print(res.shape)</span>
+<span class="sd">            (1,)</span>
+<span class="sd">            &gt;&gt;&gt; # usage 2: input the generated saliency map</span>
+<span class="sd">            &gt;&gt;&gt; saliency = gradient(inputs, targets)</span>
+<span class="sd">            &gt;&gt;&gt; res = faithfulness.evaluate(gradient, inputs, targets, saliency)</span>
+<span class="sd">            &gt;&gt;&gt; print(res.shape)</span>
+<span class="sd">            (1,)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_evaluate_param</span><span class="p">(</span><span class="n">explainer</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">saliency</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">saliency</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">saliency</span> <span class="o">=</span> <span class="n">explainer</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+
+        <span class="n">inputs</span> <span class="o">=</span> <span class="n">format_tensor_to_ndarray</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">saliency</span> <span class="o">=</span> <span class="n">format_tensor_to_ndarray</span><span class="p">(</span><span class="n">saliency</span><span class="p">)</span>
+
+        <span class="n">full_network</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">([</span><span class="n">explainer</span><span class="o">.</span><span class="n">network</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_activation_fn</span><span class="p">])</span>
+        <span class="n">faithfulness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_faithfulness_helper</span><span class="o">.</span><span class="n">calc_faithfulness</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="n">inputs</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">full_network</span><span class="p">,</span>
+                                                                   <span class="n">targets</span><span class="o">=</span><span class="n">targets</span><span class="p">,</span> <span class="n">saliency</span><span class="o">=</span><span class="n">saliency</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">faithfulness</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span></div>
+
+    <span class="k">def</span> <span class="nf">_verify_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">supports</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_methods</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">metric</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">supports</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Metric should be one of </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">supports</span><span class="p">))</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

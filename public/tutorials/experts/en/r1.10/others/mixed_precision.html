@@ -1,0 +1,820 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Enabling Mixed Precision &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Gradient Accumulation Algorithm" href="gradient_accumulation.html" />
+    <link rel="prev" title="Dependency Control" href="../network/dependency_control.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Data Processing</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/augment.html">Auto Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/eager.html">Lightweight Data Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/cache.html">Single-Node Data Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/optimize.html">Optimizing the Data Processing</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Graph Compilation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../network/control_flow.html">Process Control Statements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/op_overload.html">Compiling Performance Optimization for Static Graph Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/custom_cell_reverse.html">Customizing Reverse Propagation Function of Cell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/ms_class.html">Calling the Custom Class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/constexpr.html">Construct Constants In the Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/dependency_control.html">Dependency Control</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Model Training Optimization</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Enabling Mixed Precision</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#floating-point-data-type">Floating-point Data Type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fp16-training-issues">FP16 Training Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mixed-precision-computing-process">Mixed-precision Computing Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mindspore-mixed-precision">MindSpore Mixed-precision</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#automatic-mixed-precision">Automatic Mixed-Precision</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#manual-mixed-precision">Manual Mixed-Precision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#loss-scale">Loss Scale</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#loss-scale-used-in-mindspore">Loss scale used in MindSpore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#fixedlossscalemanager">FixedLossScaleManager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#lossscale-and-optimizer">LossScale and Optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dynamiclossscalemanager">DynamicLossScaleManager</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="gradient_accumulation.html">Gradient Accumulation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adaptive_summation.html">Adaptive Gradient Summation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dimention_reduce_training.html">Dimension Reduction Training Algorithm</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Custom Operator</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../operation/op_custom.html">Custom Operators (Custom-based)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Model Inference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../infer/inference.html">Inference Model Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/cpu_gpu_mindir.html">Inference on a GPU</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_910_mindir.html">Inference on the Ascend 910 AI processor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_310_mindir.html">Inference Using the MindIR Model on Ascend 310 AI Processors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_310_air.html">Inference on the Ascend 310 AI Processor</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Debugging and Tuning</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../debug/function_debug.html">Function Debug</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/performance_optimization.html">Performance Tuning</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://mindspore.cn/mindinsight/docs/en/r1.10/accuracy_problem_preliminary_location.html">Precision Optimization↗</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Distributed Parallel</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/introduction.html">Distributed Parallel Training Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/distributed_case.html">Distributed Case</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/distributed_inference.html">Distributed Inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/save_load.html">Saving and Loading Models in Hybrid Parallel Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/multi_dimensional.html">Multi Dimensional</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/other_features.html">Other Features</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Environment Variables</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../env/env_var_list.html">Environment Variables</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Enabling Mixed Precision</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/others/mixed_precision.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="enabling-mixed-precision">
+<h1>Enabling Mixed Precision<a class="headerlink" href="#enabling-mixed-precision" title="Permalink to this headline">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/r1.10/tutorials/experts/source_en/others/mixed_precision.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.10/resource/_static/logo_source_en.png"></a></p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Generally, when a neural network model is trained, the default data type is FP32. In recent years, to accelerate training time, reduce memory occupied during network training, and store a trained model with same precision, more and more mixed-precision training methods are proposed in the industry. The mixed-precision training herein means that both single precision (FP32) and half precision (FP16) are used in a training process.</p>
+</div>
+<div class="section" id="floating-point-data-type">
+<h2>Floating-point Data Type<a class="headerlink" href="#floating-point-data-type" title="Permalink to this headline">¶</a></h2>
+<p>Floating-point data types include double-precision (FP64), single-precision (FP32), and half-precision (FP16). In a training process of a neural network model, an FP32 data type is generally used by default to indicate a network model weight and other parameters. The following is a brief introduction to floating-point data types.</p>
+<p>According to <a class="reference external" href="https://en.wikipedia.org/wiki/IEEE_754">IEEE 754</a>, floating-point data types are classified into double-precision (FP64), single-precision (FP32), and half-precision (FP16). Each type is represented by three different bits. FP64 indicates a data type that uses 8 bytes (64 bits in total) for encoding and storage. FP32 indicates a data type that uses 4 bytes (32 bits in total) and FP16 indicates a data type that uses 2 bytes (16 bits in total). As shown in the following figure:</p>
+<p><img alt="fp16_vs_FP32" src="../_images/fp16_vs_fp32.png" /></p>
+<p>As shown in the figure, the storage space of FP16 is half that of FP32, and the storage space of FP32 is half that of FP64. It consists of three parts:</p>
+<ul class="simple">
+<li><p>The highest bit indicates the sign bit.</p></li>
+<li><p>The middle bits indicate exponent bits.</p></li>
+<li><p>The low bits indicate fraction bits.</p></li>
+</ul>
+<p>FP16 is used as an example. The first sign bit sign indicates a positive or negative sign, and the next five bits indicate an exponent. All 0s and all 1s have special uses, so the binary range is 00001~11110. The last 10 bits indicate a fraction. Suppose <code class="docutils literal notranslate"><span class="pre">S</span></code> denotes the decimal value of sign bit, <code class="docutils literal notranslate"><span class="pre">E</span></code> denotes the decimal value of exponent, and <code class="docutils literal notranslate"><span class="pre">fraction</span></code> denotes the decimal value of fraction. The formula is as follows:</p>
+<div class="math notranslate nohighlight">
+\[x=(-1)^{S}\times2^{E-15}\times(1+\frac{fraction}{1024})\]</div>
+<p>Similarly, suppose <code class="docutils literal notranslate"><span class="pre">M</span></code> is score value, the true value of a formatted FP32 is as follows:</p>
+<div class="math notranslate nohighlight">
+\[x=(-1)^{S}\times2^{E-127}\times(1.M)\]</div>
+<p>The true value of a formatted FP64 is as follows:</p>
+<div class="math notranslate nohighlight">
+\[x=(-1)^{S}\times2^{E-1023}\times(1.M)\]</div>
+<p>The maximum value that can be represented by FP16 is 0 11110 1111111111, which is calculated as follows:</p>
+<div class="math notranslate nohighlight">
+\[(-1)^0\times2^{30-15}\times1.1111111111 = 1.1111111111(b)\times2^15 = 1.9990234375(d)\times2^15 = 65504\]</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">b</span></code> indicates binary value, and <code class="docutils literal notranslate"><span class="pre">d</span></code> indicates decimal value.</p>
+<p>The minimum value that can be represented by FP16 is 0 00001 0000000000, which is calculated as follows:</p>
+<div class="math notranslate nohighlight">
+\[ (-1)^{1}\times2^{1-15}=2^{-14}=6.104×10^{-5}=-65504\]</div>
+<p>Therefore, the maximum value range of FP16 is [-65504, 65504], and the precision range is <span class="math notranslate nohighlight">\(2^{-24}\)</span>. If the value is beyond this range, the value is set to 0.</p>
+</div>
+<div class="section" id="fp16-training-issues">
+<h2>FP16 Training Issues<a class="headerlink" href="#fp16-training-issues" title="Permalink to this headline">¶</a></h2>
+<p>Why do we need mixed-precision? Compared with FP32, FP16 has the following advantages:</p>
+<ul class="simple">
+<li><p>Reduced memory usage: The bit width of FP16 is half of that of FP32. Therefore, the memory occupied by parameters such as the weight is also half of the original memory. The saved memory can be used to store larger network models or train more data.</p></li>
+<li><p>Higher communication efficiency: For distributed training, especially the large-scale model training, the communication overhead restricts the overall performance. A smaller communication bit width means that the communication performance can be improved, the waiting time can be reduced, and the data flow can be accelerated.</p></li>
+<li><p>Higher computing efficiency: On special AI acceleration chips, such as Huawei Ascend 910 and 310 series, or GPUs of the NVIDIA VOLTA architecture, the computing performance of FP16 is faster than that of FP32.</p></li>
+</ul>
+<p>However, using FP16 also brings some problems, the most important of which are precision overflow and rounding error.</p>
+<ul class="simple">
+<li><p>Data overflow: Data overflow is easliy to understand. The valid data range of FP16 is <span class="math notranslate nohighlight">\([5.9\\times10^{-8}, 65504]\)</span>, and that of FP32 is <span class="math notranslate nohighlight">\([1.4\times10^{-45}, 1.7\times10^{38}]\)</span>. We can see that the valid range of FP16 is much narrower than that of FP32. When FP16 is used to replace FP32, overflow and underflow occur. In deep learning, a gradient (a first-order derivative) of a weight in a network model needs to be calculated. Therefore, the gradient is smaller than the weight value, and underflow often occurs.</p></li>
+<li><p>Rounding error: Rounding error instruction is when the backward gradient of a network model is small, FP32 is usually used. However, when it is converted to FP16, the interval is smaller than the minimum interval, causing data overflow. For example, 0.00006666666 can be properly represented in FP32, but it will be represented as 0.000067 in FP16. The number that does not meet the minimum interval requirement of FP16 will be forcibly rounded off.</p></li>
+</ul>
+</div>
+<div class="section" id="mixed-precision-computing-process">
+<h2>Mixed-precision Computing Process<a class="headerlink" href="#mixed-precision-computing-process" title="Permalink to this headline">¶</a></h2>
+<p>The following figure shows the typical computation process of mixed precision in MindSpore.</p>
+<p><img alt="mix precision" src="../_images/mix_precision_fp16.png" /></p>
+<ol class="simple">
+<li><p>Parameters are stored in FP32 format.</p></li>
+<li><p>During the forward computation, if an FP16 operator is involved, the operator input and parameters need to be cast from FP32 to FP16.</p></li>
+<li><p>The Loss layer is set to FP32.</p></li>
+<li><p>During backward computation, the value is multiplied by Loss Scale to avoid underflow due to a small gradient.</p></li>
+<li><p>The FP16 parameter is used for gradient computation, and the result is cast back to FP32.</p></li>
+<li><p>Then, the value is divided by Loss scale to restore the multiplied gradient.</p></li>
+<li><p>The optimizer checks whether the gradient overflows. If yes, the optimizer skips the update. If no, the optimizer uses FP32 to update the original parameters.</p></li>
+</ol>
+<p>This document describes the computation process by using examples of automatic and manual mixed precision.</p>
+</div>
+<div class="section" id="mindspore-mixed-precision">
+<h2>MindSpore Mixed-precision<a class="headerlink" href="#mindspore-mixed-precision" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="automatic-mixed-precision">
+<h3>Automatic Mixed-Precision<a class="headerlink" href="#automatic-mixed-precision" title="Permalink to this headline">¶</a></h3>
+<p>To use the automatic mixed-precision, you need to call the <code class="docutils literal notranslate"><span class="pre">Model</span></code> API to transfer the network to be trained and optimizer as the input. This API converts the network model operators into FP16 operators.</p>
+<blockquote>
+<div><p>Due to precision problems, the <code class="docutils literal notranslate"><span class="pre">BatchNorm</span></code> operator and operators involved in loss still use FP32.</p>
+</div></blockquote>
+<p>The specific implementation steps for using the <code class="docutils literal notranslate"><span class="pre">Model</span></code> interface are:</p>
+<ol class="simple">
+<li><p>Introduce the MindSpore model API <code class="docutils literal notranslate"><span class="pre">Model</span></code>.</p></li>
+<li><p>Define a network: This step is the same as that for defining a common network (no new configuration is required).</p></li>
+<li><p>Create a dataset: For this step, refer to <a class="reference external" href="https://www.mindspore.cn/tutorials/en/r1.10/advanced/dataset.html">Data Processing</a>.</p></li>
+<li><p>Use the <code class="docutils literal notranslate"><span class="pre">Model</span></code> API to encapsulate the network model, optimizer, and loss function, and set the <code class="docutils literal notranslate"><span class="pre">amp_level</span></code> parameter. For details, see <a class="reference external" href="https://www.mindspore.cn/docs/en/r1.10/api_python/mindspore/mindspore.Model.html#mindspore.Model">MindSpore API</a>. In this step, MindSpore automatically selects an appropriate operator to convert FP32 to FP16.</p></li>
+</ol>
+<p>The following is a basic code example. First, import the required libraries and declarations, and define the LeNet-5 network model.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Accuracy</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">Normal</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">dataset</span> <span class="k">as</span> <span class="n">ds</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;CPU&quot;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">LeNet5</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Lenet network</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        num_class (int): Number of classes. Default: 10.</span>
+<span class="sd">        num_channel (int): Number of channels. Default: 1.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tensor, output tensor</span>
+
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_class</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">num_channel</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LeNet5</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">num_channel</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">16</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">120</span><span class="p">,</span> <span class="mi">84</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">84</span><span class="p">,</span> <span class="n">num_class</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc1</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc2</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc3</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+</pre></div>
+</div>
+<p>Create a virtual random dataset for data input of the sample model.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># create dataset</span>
+<span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">img_size</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">num_classes</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">is_onehot</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="o">*</span><span class="n">img_size</span><span class="p">)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">)</span>
+        <span class="n">target_ret</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">target</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_onehot</span><span class="p">:</span>
+            <span class="n">target_onehot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">num_classes</span><span class="p">,))</span>
+            <span class="n">target_onehot</span><span class="p">[</span><span class="n">target</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">target_ret</span> <span class="o">=</span> <span class="n">target_onehot</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">img</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">target_ret</span>
+
+<span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">num_data</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">repeat_size</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">get_data</span><span class="p">(</span><span class="n">num_data</span><span class="p">)),</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">repeat_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">input_data</span>
+</pre></div>
+</div>
+<p>Set the <code class="docutils literal notranslate"><span class="pre">amp_level</span></code> parameter and use the <code class="docutils literal notranslate"><span class="pre">Model</span></code> API to encapsulate the network model, optimizer, and loss function.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ds_train</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">()</span>
+
+<span class="c1"># Initialize network</span>
+<span class="n">network</span> <span class="o">=</span> <span class="n">LeNet5</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># Define Loss and Optimizer</span>
+<span class="n">net_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+<span class="n">net_opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span><span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Accuracy&quot;</span><span class="p">:</span> <span class="n">Accuracy</span><span class="p">()},</span> <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O3&quot;</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+<span class="c1"># Run training</span>
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">epoch</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">train_dataset</span><span class="o">=</span><span class="n">ds_train</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="manual-mixed-precision">
+<h2>Manual Mixed-Precision<a class="headerlink" href="#manual-mixed-precision" title="Permalink to this headline">¶</a></h2>
+<p>MindSpore also supports manual mixed-precision. (Manual mixed-precision is not recommended unless you want to customize special networks and features.)</p>
+<p>Assume that only one dense layer on the network uses FP16 for computation and other layers use FP32.</p>
+<blockquote>
+<div><p>The mixed-precision is configured in the unit of Cell. The default type of a Cell is FP32.</p>
+</div></blockquote>
+<p>The following are the implementation steps of manual mixed-precision:</p>
+<ol class="simple">
+<li><p>Define the network: This step is similar with the Step 2 in the automatic mixed-precision.</p></li>
+<li><p>Configure the mixed-precision: Use <code class="docutils literal notranslate"><span class="pre">to_float(mstype.float16)</span></code> to set the operators involved in the Cell to FP16.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">TrainOneStepCell</span></code> to encapsulate the network model and optimizer.</p></li>
+</ol>
+<p>The following is a basic code example. First, import the required libraries and declarations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Accuracy</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">Normal</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">dataset</span> <span class="k">as</span> <span class="n">ds</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;GPU&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The network is defined in the same way regardless of whether FP32 or FP16 is used. The difference is that after the network is defined, the dense layer is declared to use FP16 for computing when the network model is initialized, that is, <code class="docutils literal notranslate"><span class="pre">net.dense.to_float(mstype.float16)</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">LeNet5</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Lenet network</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        num_class (int): Number of classes. Default: 10.</span>
+<span class="sd">        num_channel (int): Number of channels. Default: 1.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tensor, output tensor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_class</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">num_channel</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LeNet5</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">num_channel</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">16</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">120</span><span class="p">,</span> <span class="mi">84</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">84</span><span class="p">,</span> <span class="n">num_class</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cast</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Cast</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc1</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc2</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc3</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+
+
+<span class="c1"># create dataset</span>
+<span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">img_size</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">num_classes</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">is_onehot</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="o">*</span><span class="n">img_size</span><span class="p">)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">)</span>
+        <span class="n">target_ret</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">target</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_onehot</span><span class="p">:</span>
+            <span class="n">target_onehot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">num_classes</span><span class="p">,))</span>
+            <span class="n">target_onehot</span><span class="p">[</span><span class="n">target</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">target_ret</span> <span class="o">=</span> <span class="n">target_onehot</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">img</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">target_ret</span>
+
+<span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">num_data</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">repeat_size</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">get_data</span><span class="p">(</span><span class="n">num_data</span><span class="p">)),</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">repeat_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">input_data</span>
+
+
+<span class="n">ds_train</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">()</span>
+<span class="n">network</span> <span class="o">=</span> <span class="n">LeNet5</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">net_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+<span class="n">net_opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span><span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+<span class="n">network</span><span class="o">.</span><span class="n">conv1</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Accuracy&quot;</span><span class="p">:</span> <span class="n">Accuracy</span><span class="p">()},</span> <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O2&quot;</span><span class="p">)</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">epoch</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">train_dataset</span><span class="o">=</span><span class="n">ds_train</span><span class="p">)</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>Constraint: When mixed-precision is used, the backward network can be generated only by the automatic differential function. Otherwise, MindSpore may generate exception information indicating that the data format does not match.</p>
+</div></blockquote>
+</div>
+<div class="section" id="loss-scale">
+<h2>Loss Scale<a class="headerlink" href="#loss-scale" title="Permalink to this headline">¶</a></h2>
+<p>Loss Scale is mainly used in the process of mixed-precision training.</p>
+<p>In the process of mixed precision training, the FP16 type is used instead of the FP32 type for data storage, so as to achieve the effect of reducing memory and improving the computing speed. However, because the FP16 type is much smaller than the range represented by the FP32 type, data underflow occurs when parameters (such as gradients) become very small during training. The Loss Scale is proposed to solve the underflow of FP16 type data.</p>
+<p>The main idea is to enlarge the loss by a certain multiple when calculating the loss. Due to the existence of the chain rule, the gradient also expands accordingly, and then the corresponding multiple is reduced when the optimizer updates the weight, thus avoiding the situation of data underflow without affecting the calculation result.</p>
+<p>Two ways to scale are available in MindSpore, namely <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code> and <code class="docutils literal notranslate"><span class="pre">DynamicLossScaleManager</span></code>, which need to be used with the Model. When building models by using the Model, the mixed-precision strategy <code class="docutils literal notranslate"><span class="pre">amp_level</span></code> and the Loss Scale approach <code class="docutils literal notranslate"><span class="pre">loss_scale_manager</span></code> can be configured.</p>
+<p>First, let’s take a look at why mixing accuracy is needed. The advantages of using FP16 to train a neural network are:</p>
+<ul class="simple">
+<li><p><strong>Reduce memory occupation</strong>: The bit width of FP16 is half that of FP32, so the memory occupied by parameters such as weights is also half of the original, and the saved memory can be used to put a larger network model or use more data for training.</p></li>
+<li><p><strong>Accelerate communication efficiency</strong>: For distributed training, especially in the process of large model training, the overhead of communication restricts the overall performance of network model training, and the less bit width of communication means that communication performance can be improved. Waiting time is reduced, and data circulation can be accelerated.</p></li>
+<li><p><strong>Higher computing effciency</strong>: On special AI-accelerated chips such as Huawei’s Ascend 910 and 310 series, or GPUs of the Titan V and Tesla V100 of the NVIDIA VOLTA architecture, the performance of performing operations using FP16 is faster than that of the FP32.</p></li>
+</ul>
+<p>But using FP16 also brings some problems, the most important of which are precision overflow and rounding error, and Loss Scale is to solve the precision overflow and proposed.</p>
+<p>As shown in the figure, if only FP32 training is used, the model converges better, but if mixed-precision training is used, there will be a situation where the network model cannot converge. The reason is that the value of the gradient is too small, and using the FP16 representation will cause the problem of underflow under the data, resulting in the model not converging, as shown in the gray part of the figure. Loss Scale needs to be introduced.</p>
+<p><img alt="loss_scale1" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.10/tutorials/experts/source_zh_cn/others/images/loss_scale1.png" /></p>
+<p>The following is in the network model training stage, a layer of activation function gradient distribution, of which 68% of the network model activation parameter bit 0. Another 4% of the accuracy in the <span class="math notranslate nohighlight">\(2^{-32}, 2^{-20}\)</span> interval, directly use FP16 to represent the data inside, which truncates the underflow data. All gradient values will become 0.</p>
+<p><img alt="loss_scale2" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.10/tutorials/experts/source_zh_cn/others/images/loss_scale2.png" /></p>
+<p>In order to solve the problem of ladder overflowing over small data, the forward calculated Loss value is amplified, that is, the parameters of FP32 are multiplied by a factor coefficient, and the possible overflowing decimal data is moved forward and panned to the data range that FP16 can represent. According to the chain differentiation law, amplifying the Loss acts on each gradient of backpropagation, which is more efficient than amplifying on each gradient.</p>
+<p><img alt="loss_scale3" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.10/tutorials/experts/source_zh_cn/others/images/loss_scale3.png" /></p>
+<p>Loss amplification needs to be achieved in combination with mixing accuracy, and its main main ideas are:</p>
+<ul class="simple">
+<li><p><strong>Scale up stage</strong>: After the network model forward calculation, the resulting loss change value DLoss is increased by a factor of <span class="math notranslate nohighlight">\(2^K\)</span> before the repercussion propagation.</p></li>
+<li><p><strong>Scale down stage</strong>: After backpropagation, the weight gradient is reduced by <span class="math notranslate nohighlight">\(2^K\)</span>, and the FP32 value is restored for storage.</p></li>
+</ul>
+<p><strong>Dynamic Loss Scale</strong>: The loss scale mentioned above is to use a default value to scale the loss value, in order to make full use of the dynamic range of FP16, you can better mitigate the rounding error, and try to use a relatively large magnification. To summarize the dynamic loss scaling algorithm, it is to reduce the loss scale whenever the gradient overflows, and intermittently try to increase the loss scale, so as to achieve the use of the highest loss scale factor without causing overflow, and better restore accuracy.</p>
+<p>The dynamic loss scale algorithm is as follows:</p>
+<ol class="simple">
+<li><p>The algorithm of dynamic loss scaling starts with a relatively high scaling factor (such as <span class="math notranslate nohighlight">\(2^{24}\)</span>), then starts training and checks whether the number overflows in the iteration (Infs/Nans);</p></li>
+<li><p>If there is no gradient overflow, the scale factor is not adjusted and the iteration continues; if the gradient overflow is detected, the scale factor is halved and the gradient update is reconfirmed until the parameter does not appear in the overflow range;</p></li>
+<li><p>In the later stages of training, the loss has become stable and convergent, and the amplitude of the gradient update is often small, which can allow a higher loss scaling factor to prevent data underflow again.</p></li>
+<li><p>Therefore, the dynamic loss scaling algorithm attempts to increase the loss scaling by the F multiple every N (N=2000) iterations, and then performs step 2 to check for overflow.</p></li>
+</ol>
+</div>
+<div class="section" id="loss-scale-used-in-mindspore">
+<h2>Loss scale used in MindSpore<a class="headerlink" href="#loss-scale-used-in-mindspore" title="Permalink to this headline">¶</a></h2>
+<p>The following two APIs in MindSpore that use the loss scaling algorithm are described separately  <a class="reference external" href="https://www.mindspore.cn/docs/en/r1.10/api_python/amp/mindspore.amp.FixedLossScaleManager.html">FixedLossScaleManager</a> and <a class="reference external" href="https://www.mindspore.cn/docs/en/r1.10/api_python/amp/mindspore.amp.DynamicLossScaleManager.html">DynamicLossScaleManager</a>.</p>
+<div class="section" id="fixedlossscalemanager">
+<h3>FixedLossScaleManager<a class="headerlink" href="#fixedlossscalemanager" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code> does not change the size of the scale when scaling, and the value of the scale is controlled by the input parameter loss_scale, which can be specified by the user. The default value is taken if it is not specified.</p>
+<p>Another parameter of <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code> is <code class="docutils literal notranslate"><span class="pre">drop_overflow_update</span></code>, which controls whether parameters are updated in the event of an overflow.</p>
+<p>In general, the LossScale function does not need to be used with the optimizer, but when using <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code>, if <code class="docutils literal notranslate"><span class="pre">drop_overflow_update</span></code> is False, the optimizer needs to set the value of <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> and the value of <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> should be the same as that of <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code>.</p>
+<p>The detailed use of <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code> is as follows:</p>
+<ol>
+<li><p>Import the necessary libraries and declare execution using graph mode.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Accuracy</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">Normal</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">dataset</span> <span class="k">as</span> <span class="n">ds</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Define the LeNet5 network model, and any network model can use the Loss Scale mechanism.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">LeNet5</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Lenet network</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        num_class (int): Number of classes. Default: 10.</span>
+<span class="sd">        num_channel (int): Number of channels. Default: 1.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tensor, output tensor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_class</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">num_channel</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LeNet5</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">num_channel</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">16</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">120</span><span class="p">,</span> <span class="mi">84</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">84</span><span class="p">,</span> <span class="n">num_class</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">Normal</span><span class="p">(</span><span class="mf">0.02</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc1</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc2</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc3</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+</pre></div>
+</div>
+</li>
+<li><p>Define common interfaces in datasets and training processes.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># create dataset</span>
+<span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">img_size</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">num_classes</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">is_onehot</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="o">*</span><span class="n">img_size</span><span class="p">)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">)</span>
+        <span class="n">target_ret</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">target</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_onehot</span><span class="p">:</span>
+            <span class="n">target_onehot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">num_classes</span><span class="p">,))</span>
+            <span class="n">target_onehot</span><span class="p">[</span><span class="n">target</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">target_ret</span> <span class="o">=</span> <span class="n">target_onehot</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">img</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">target_ret</span>
+
+<span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">num_data</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">repeat_size</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">get_data</span><span class="p">(</span><span class="n">num_data</span><span class="p">)),</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">])</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">repeat_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">input_data</span>
+
+<span class="n">ds_train</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">()</span>
+
+<span class="c1"># Initialize network</span>
+<span class="n">network</span> <span class="o">=</span> <span class="n">LeNet5</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># Define Loss and Optimizer</span>
+<span class="n">net_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>The API interface that really uses Loss Scale acts on the optimizer and model.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define Loss Scale, optimizer and model</span>
+<span class="c1">#1) Drop the parameter update if there is an overflow</span>
+<span class="n">loss_scale_manager</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">FixedLossScaleManager</span><span class="p">()</span>
+<span class="n">net_opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Accuracy&quot;</span><span class="p">:</span> <span class="n">Accuracy</span><span class="p">()},</span> <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O0&quot;</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale_manager</span><span class="p">)</span>
+
+<span class="c1">#2) Execute parameter update even if overflow occurs</span>
+<span class="n">loss_scale</span> <span class="o">=</span> <span class="mf">1024.0</span>
+<span class="n">loss_scale_manager</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">FixedLossScaleManager</span><span class="p">(</span><span class="n">loss_scale</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+<span class="n">net_opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">loss_scale</span><span class="o">=</span><span class="n">loss_scale</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Accuracy&quot;</span><span class="p">:</span> <span class="n">Accuracy</span><span class="p">()},</span> <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O0&quot;</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale_manager</span><span class="p">)</span>
+
+<span class="c1"># Run training</span>
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">epoch</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">train_dataset</span><span class="o">=</span><span class="n">ds_train</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">LossMonitor</span><span class="p">()])</span>
+</pre></div>
+</div>
+<p>The running result is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 1 step: 32, loss is 2.3018966
+epoch: 2 step: 32, loss is 2.2965345
+epoch: 3 step: 32, loss is 2.3021417
+epoch: 4 step: 32, loss is 2.2995133
+epoch: 5 step: 32, loss is 2.3040886
+epoch: 6 step: 32, loss is 2.3131478
+epoch: 7 step: 32, loss is 2.2919555
+epoch: 8 step: 32, loss is 2.311748
+epoch: 9 step: 32, loss is 2.304955
+epoch: 10 step: 32, loss is 2.2682834
+</pre></div>
+</div>
+</li>
+</ol>
+</div>
+<div class="section" id="lossscale-and-optimizer">
+<h3>LossScale and Optimizer<a class="headerlink" href="#lossscale-and-optimizer" title="Permalink to this headline">¶</a></h3>
+<p>As mentioned earlier, the optimizer needs to be used together when using <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code> and <code class="docutils literal notranslate"><span class="pre">drop_overflow_update</span></code> is False.</p>
+<p>This is due to the fact that when configured in this way, the division between the gradient and the <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> coefficient is performed in the optimizer. The optimizer setting is the same <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> as <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code> and the training result is correct.</p>
+<blockquote>
+<div><p>Subsequent MindSpore will optimize the use of overflow detection in different scenarios, and gradually remove the <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> parameter in the optimizer, so that there is no need to configure the <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> parameter of the optimizer.</p>
+</div></blockquote>
+<p>It should be noted that some of the optimizers provided by MindSpore, such as <code class="docutils literal notranslate"><span class="pre">AdamWeightDecay</span></code>, do not provide the <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> parameter. If you use <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code> and the <code class="docutils literal notranslate"><span class="pre">drop_overflow_update</span></code> is configured as False, and the division between the gradient and the <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> is not performed in the optimizer, you need to customize the <code class="docutils literal notranslate"><span class="pre">TrainOneStepCell</span></code> and divide the gradient by <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> in it so that the final calculation is correct, as defined as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+
+<span class="n">grad_scale</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MultitypeFuncGraph</span><span class="p">(</span><span class="s2">&quot;grad_scale&quot;</span><span class="p">)</span>
+
+<span class="nd">@grad_scale</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;Tensor&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">gradient_scale</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">grad</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">grad</span> <span class="o">*</span> <span class="n">ops</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">ops</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">grad</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">CustomTrainOneStepCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">TrainOneStepCell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">sens</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CustomTrainOneStepCell</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">sens</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hyper_map</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">HyperMap</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_sense</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">sens</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">scale_grad</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gradients</span><span class="p">):</span>
+        <span class="n">gradients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hyper_map</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">grad_scale</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_sense</span><span class="p">),</span> <span class="n">gradients</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">gradients</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="p">(</span><span class="o">*</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">sens</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="n">loss</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">loss</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sens</span><span class="p">)</span>
+        <span class="c1"># calculate gradients, the sens will equal to the loss_scale</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">)(</span><span class="o">*</span><span class="n">inputs</span><span class="p">,</span> <span class="n">sens</span><span class="p">)</span>
+        <span class="c1"># gradients / loss_scale</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_grad</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+        <span class="c1"># reduce gradients in distributed scenarios</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad_reducer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>network: The network participating in the training, which contains the computational logic of the forward network and the loss function, input data and labels, and output loss function values.</p></li>
+<li><p>optimizer: The used optimizer.</p></li>
+<li><p>sens: Parameters are used to receive a user-specified <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> and the gradient value is magnified by a factor of <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> during training.</p></li>
+<li><p>scale_grad function: Used for division between the gradient and the <code class="docutils literal notranslate"><span class="pre">loss_scale</span></code> coefficient to restore the gradient.</p></li>
+<li><p>construct function: Referring to <code class="docutils literal notranslate"><span class="pre">nn.</span> <span class="pre">TrainOneStepCell</span></code>, defines the computational logic for <code class="docutils literal notranslate"><span class="pre">construct</span></code> and calls <code class="docutils literal notranslate"><span class="pre">scale_grad</span></code> after acquiring the gradient.</p></li>
+</ul>
+<p>After defining <code class="docutils literal notranslate"><span class="pre">TrainOneStepCell</span></code>, the training network needs to be manually built, which is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="n">network</span> <span class="o">=</span> <span class="n">LeNet5</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># Define Loss and Optimizer</span>
+<span class="n">net_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+<span class="n">net_opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">AdamWeightDecay</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+
+<span class="c1"># Define LossScaleManager</span>
+<span class="n">loss_scale</span> <span class="o">=</span> <span class="mf">1024.0</span>
+<span class="n">loss_scale_manager</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">FixedLossScaleManager</span><span class="p">(</span><span class="n">loss_scale</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Build train network</span>
+<span class="n">net_with_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">)</span>
+<span class="n">net_with_train</span> <span class="o">=</span> <span class="n">CustomTrainOneStepCell</span><span class="p">(</span><span class="n">net_with_loss</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">,</span> <span class="n">loss_scale</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>After building the training network, it can be run directly or via Model:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">epochs</span> <span class="o">=</span> <span class="mi">2</span>
+
+<span class="c1">#1) Execute net_with_train</span>
+<span class="n">ds_train</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ds_train</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">():</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">net_with_train</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">])</span>
+
+<span class="c1">#2) Define Model and run</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">net_with_train</span><span class="p">)</span>
+
+<span class="n">ds_train</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">()</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">epoch</span><span class="o">=</span><span class="n">epochs</span><span class="p">,</span> <span class="n">train_dataset</span><span class="o">=</span><span class="n">ds_train</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When training with <code class="docutils literal notranslate"><span class="pre">Model</span></code> in this scenario, the <code class="docutils literal notranslate"><span class="pre">loss_scale_manager</span></code> and <code class="docutils literal notranslate"><span class="pre">amp_level</span></code> do not need to be configured, as the <code class="docutils literal notranslate"><span class="pre">CustomTrainOneStepCell</span></code> already includes mixed-precision calculation logic.</p>
+</div>
+<div class="section" id="dynamiclossscalemanager">
+<h3>DynamicLossScaleManager<a class="headerlink" href="#dynamiclossscalemanager" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">DynamicLossScaleManager</span></code> can dynamically change the size of the scale during training, keeping the scale as large as possible without overflow.</p>
+<p><code class="docutils literal notranslate"><span class="pre">DynamicLossScaleManager</span></code> first sets scale to an initial value, which is controlled by the input init_loss_scale.</p>
+<p>During training, if no overflow occurs, after updating the parameters scale_window times, an attempt is made to expand the value of the scale, and if an overflow occurs, the parameter update is skipped and the value of the scale is reduced, and the scale_factor is to control the number of steps that are expanded or reduced. scale_window controls the maximum number of consecutive update steps when no overflow occurs.</p>
+<p>The detailed use is as follows and we only need to define LossScale in <code class="docutils literal notranslate"><span class="pre">FixedLossScaleManager</span></code> sample. The part code of the optimizer and model changes as the following code:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define Loss Scale, optimizer and model</span>
+<span class="n">scale_factor</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">scale_window</span> <span class="o">=</span> <span class="mi">3000</span>
+<span class="n">loss_scale_manager</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">DynamicLossScaleManager</span><span class="p">(</span><span class="n">scale_factor</span><span class="p">,</span> <span class="n">scale_window</span><span class="p">)</span>
+<span class="n">net_opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Accuracy&quot;</span><span class="p">:</span> <span class="n">Accuracy</span><span class="p">()},</span> <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O0&quot;</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale_manager</span><span class="p">)</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>The pictures are cited from <a class="reference external" href="https://developer.nvidia.com/automatic-mixed-precision">automatic-mixed-precision</a>.</p>
+</div></blockquote>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="gradient_accumulation.html" class="btn btn-neutral float-right" title="Gradient Accumulation Algorithm" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../network/dependency_control.html" class="btn btn-neutral float-left" title="Dependency Control" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

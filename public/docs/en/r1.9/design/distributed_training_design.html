@@ -1,0 +1,452 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Distributed Training Design &mdash; MindSpore master documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/bootstrap.min.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/training.css" type="text/css" />
+   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/js/training.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="MindSpore IR (MindIR)" href="mindir.html" />
+    <link rel="prev" title="Functional Differential Programming" href="auto_gradient.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Design</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="auto_gradient.html">Functional Differential Programming</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Distributed Training Design</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#background">Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#concepts">Concepts</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#collective-communication">Collective Communication</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#synchronization-mode">Synchronization Mode</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#data-parallelism">Data Parallelism</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#principle-of-data-parallelism">Principle of Data Parallelism</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-parallel-code">Data Parallel Code</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#automatic-parallelism">Automatic Parallelism</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#principle-of-automatic-parallelism">Principle of Automatic Parallelism</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#automatic-parallel-code">Automatic Parallel Code</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mindir.html">MindSpore IR (MindIR)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="thor.html">Second Order Optimizer</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/r1.9/training_visual_design.html">Design of Visualization↗</a></li>
+<li class="toctree-l1"><a class="reference internal" href="glossary.html">Glossary</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Specification</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../note/benchmark.html">Benchmarks</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/README.md#table-of-contents">Network List↗</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/operator_list.html">API List</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/syntax_list.html">Syntax Support</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.html">mindspore</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.amp.html">mindspore.amp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.communication.html">mindspore.communication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.dataset.audio.html">mindspore.dataset.audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.dataset.config.html">mindspore.dataset.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.dataset.text.html">mindspore.dataset.text</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.dataset.vision.html">mindspore.dataset.vision</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.nn.html">mindspore.nn</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.nn.transformer.html">mindspore.nn.transformer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.ops.html">mindspore.ops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.ops.function.html">mindspore.ops.function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.boost.html">mindspore.boost</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://www.mindspore.cn/lite/api/en/r1.9/api_cpp/mindspore.html">C++ API↗</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Mapping</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../note/api_mapping/pytorch_api_mapping.html">PyTorch and MindSpore API Mapping Table</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/api_mapping/tensorflow_api_mapping.html">TensorFlow and MindSpore API Mapping Table</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Migration Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/enveriment_preparation.html">Environment Preparation and Information Acquisition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/analysis_and_preparation.html">Model Analysis and Preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/model_development/model_development.html">Constructing MindSpore Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/debug_and_tune.html">Debugging and Tuning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/sample_code.html">Network Migration Debugging Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/faq.html">FAQs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/typical_api_comparision.html">Differences Between MindSpore and PyTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/use_third_party_op.html">Using Third-party Operator Libraries Based on Customized Interfaces</a></li>
+</ul>
+<p class="caption"><span class="caption-text">FAQ</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../faq/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/data_processing.html">Data Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/implement_problem.html">Implement Problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/network_compilation.html">Network Compilation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/operators_compile.html">Operators Compile</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/usage_migrate_3rd.html">Migration from a Third-party Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/performance_tuning.html">Performance Tuning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/precision_tuning.html">Precision Tuning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/distributed_configure.html">Distributed Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/inference.html">Inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/feature_advice.html">Feature Advice</a></li>
+</ul>
+<p class="caption"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../RELEASE.html">Release Notes</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Distributed Training Design</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/design/distributed_training_design.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="distributed-training-design">
+<h1>Distributed Training Design<a class="headerlink" href="#distributed-training-design" title="Permalink to this headline">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/r1.9/docs/mindspore/source_en/design/distributed_training_design.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.9/resource/_static/logo_source_en.png"></a></p>
+<div class="section" id="background">
+<h2>Background<a class="headerlink" href="#background" title="Permalink to this headline">¶</a></h2>
+<p>With the rapid development of deep learning, the number of datasets and parameters are growing exponentially to improve the accuracy and generalization capability of neural networks. Parallel distributed training has become a development trend to resolve the performance bottleneck of ultra-large scale networks. MindSpore supports the mainstream distributed training paradigm and develops an automatic hybrid parallel solution. The following describes the design principles of several parallel training modes and provides guidance for users to perform custom development.</p>
+</div>
+<div class="section" id="concepts">
+<h2>Concepts<a class="headerlink" href="#concepts" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="collective-communication">
+<h3>Collective Communication<a class="headerlink" href="#collective-communication" title="Permalink to this headline">¶</a></h3>
+<p>Collective communication is defined as communication that involves a group of processes. All processes in the group send and receive data after meeting certain conditions. MindSpore implements data transmission during parallel training through collective communication. On Ascend chips, MindSpore depends on the Huawei Collective Communication Library (<code class="docutils literal notranslate"><span class="pre">HCCL</span></code>) to implement the task. On GPU, MindSpore depends on the NVIDIA Collective Communication Library (<code class="docutils literal notranslate"><span class="pre">NCCL</span></code>) to implement the task.</p>
+</div>
+<div class="section" id="synchronization-mode">
+<h3>Synchronization Mode<a class="headerlink" href="#synchronization-mode" title="Permalink to this headline">¶</a></h3>
+<p>In synchronous mode, all devices strart training at the same time and update parameter values synchronously after the backward propagation algorithm is executed. Currently, MindSpore uses the synchronous training mode.</p>
+</div>
+</div>
+<div class="section" id="data-parallelism">
+<h2>Data Parallelism<a class="headerlink" href="#data-parallelism" title="Permalink to this headline">¶</a></h2>
+<p>This section describes how the data parallel mode <code class="docutils literal notranslate"><span class="pre">ParallelMode.DATA_PARALLEL</span></code> works in MindSpore.</p>
+<div class="section" id="principle-of-data-parallelism">
+<h3>Principle of Data Parallelism<a class="headerlink" href="#principle-of-data-parallelism" title="Permalink to this headline">¶</a></h3>
+<p><img alt="Data Parallel Description" src="../_images/data_parallel.png" /></p>
+<ol>
+<li><p>Environment dependencies</p>
+<p>Each time before parallel training starts, the <code class="docutils literal notranslate"><span class="pre">mindspore.communication.init</span></code> API is called to initialize communication resources and the global communication group <code class="docutils literal notranslate"><span class="pre">WORLD_COMM_GROUP</span></code> is automatically created.</p>
+</li>
+<li><p>Data distribution</p>
+<p>The key of data parallelism is to split datasets based on the sample dimension and deliver the split datasets to different devices. Each dataset loading API provided by the <code class="docutils literal notranslate"><span class="pre">mindspore.dataset</span></code> module has the <code class="docutils literal notranslate"><span class="pre">num_shards</span></code> and <code class="docutils literal notranslate"><span class="pre">shard_id</span></code> parameters. The parameters are used to split a dataset into multiple datasets, perform cyclic sampling, and collect data of the <code class="docutils literal notranslate"><span class="pre">batch</span></code> size to each device. When the data volume is insufficient, the sampling restarts from the beginning.</p>
+</li>
+<li><p>Network structure</p>
+<p>The scripting method of data parallel network is the same as that of standalone network. This is because, although models of each device are executed independently during the forward and backward propagation processes, the same network structure is maintained. To ensure the synchronous training between devices, the initial values of corresponding network parameters must be the same. You are advised to enable <code class="docutils literal notranslate"><span class="pre">parameter_broadcast</span></code> to broadcast the values of weights in <code class="docutils literal notranslate"><span class="pre">DATA_PARALLEL</span></code> and <code class="docutils literal notranslate"><span class="pre">HYBRID_PARALLEL</span></code> modes. And in <code class="docutils literal notranslate"><span class="pre">AUTO_PARALLEL</span></code> and <code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code> modes, the sharded dimensions of weights will be processed automatically by setting random seeds to ensure the initialization of weights are consistent on the devices which belongs to the same data parallel dimension.</p>
+</li>
+<li><p>Gradient aggregation</p>
+<p>Theoretically, the training effect of data parallel network should be the same as that of the standalone network. To ensure the consistency of the calculation logic, the <code class="docutils literal notranslate"><span class="pre">AllReduce</span></code> operator is inserted after gradient calculation to implement the gradient aggregation operation between devices. You can enable <code class="docutils literal notranslate"><span class="pre">mean</span></code> to average the sum of gradient values, or regard <code class="docutils literal notranslate"><span class="pre">mean</span></code> as a hyperparameter. Enabling <code class="docutils literal notranslate"><span class="pre">mean</span></code> is equivalent to reducing the learning rate by multiple times.</p>
+</li>
+<li><p>Parameter update</p>
+<p>Because the gradient aggregation operation is introduced, the models of each device perform parameter update with the same gradient value. Therefore, MindSpore implements a synchronous data parallel training mode. Theoretically, models trained by each device are the same. If the reduce operation on samples is involved on the network, the network output may be different. This is determined by the sharding attribute of data parallelism.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="data-parallel-code">
+<h3>Data Parallel Code<a class="headerlink" href="#data-parallel-code" title="Permalink to this headline">¶</a></h3>
+<ol class="simple">
+<li><p>Collective communication</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r1.9/mindspore/python/mindspore/communication/management.py">management.py</a>: This file covers the <code class="docutils literal notranslate"><span class="pre">helper</span></code> function APIs commonly used during the collective communication process, for example, the APIs for obtaining the number of clusters and device ID. When collective communication is executed on the Ascend chip, the framework loads the <code class="docutils literal notranslate"><span class="pre">libhccl.so</span></code> library file in the environment and uses it to call the communication APIs from the Python layer to the underlying layer.</p></li>
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r1.9/mindspore/python/mindspore/ops/operations/comm_ops.py">comm_ops.py</a>: MindSpore encapsulates supported collective communication operations as operators and stores the operators in this file. The operators include <code class="docutils literal notranslate"><span class="pre">AllReduce</span></code>, <code class="docutils literal notranslate"><span class="pre">AllGather</span></code>, <code class="docutils literal notranslate"><span class="pre">ReduceScatter</span></code>, and <code class="docutils literal notranslate"><span class="pre">Broadcast</span></code>. <code class="docutils literal notranslate"><span class="pre">PrimitiveWithInfer</span></code> defines the attributes required by the operators, as well as the <code class="docutils literal notranslate"><span class="pre">shape</span></code> and <code class="docutils literal notranslate"><span class="pre">dtype</span></code> inference methods from the input to the output during graph composition.</p></li>
+</ul>
+</li>
+<li><p>Gradient aggregation</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r1.9/mindspore/python/mindspore/nn/wrap/grad_reducer.py">grad_reducer.py</a>: This file implements the gradient aggregation process. After the input parameter <code class="docutils literal notranslate"><span class="pre">grads</span></code> is expanded by using <code class="docutils literal notranslate"><span class="pre">HyperMap</span></code>, the <code class="docutils literal notranslate"><span class="pre">AllReduce</span></code> operator is inserted. The global communication group is used. You can also perform custom development by referring to this section based on your network requirements. In MindSpore, standalone and distributed execution shares a set of network encapsulation APIs. In the <code class="docutils literal notranslate"><span class="pre">Cell</span></code>, <code class="docutils literal notranslate"><span class="pre">ParallelMode</span></code> is used to determine whether to perform gradient aggregation. For details about the network encapsulation APIs, see the <code class="docutils literal notranslate"><span class="pre">TrainOneStepCell</span></code> code implementation.</p></li>
+</ul>
+</li>
+</ol>
+</div>
+</div>
+<div class="section" id="automatic-parallelism">
+<h2>Automatic Parallelism<a class="headerlink" href="#automatic-parallelism" title="Permalink to this headline">¶</a></h2>
+<p>As a key feature of MindSpore, automatic parallelism is used to implement hybrid parallel training that combines automatic data parallelism and model parallelism. It aims to help users express the parallel algorithm logic using standalone scripts, reduce the difficulty of distributed training, improve the algorithm R&amp;D efficiency, and maintain the high performance of training. This section describes how the automatic parallel mode <code class="docutils literal notranslate"><span class="pre">ParallelMode.AUTO_PARALLEL</span></code> and semi-automatic parallel mode <code class="docutils literal notranslate"><span class="pre">ParallelMode.SEMI_AUTO_PARALLEL</span></code> work in MindSpore.</p>
+<div class="section" id="principle-of-automatic-parallelism">
+<h3>Principle of Automatic Parallelism<a class="headerlink" href="#principle-of-automatic-parallelism" title="Permalink to this headline">¶</a></h3>
+<p><img alt="Automatic Parallel Description" src="../_images/auto_parallel.png" /></p>
+<ol>
+<li><p>Distributed operator and tensor layout</p>
+<p>As shown in the preceding figure, the automatic parallel process traverses the standalone forward ANF graphs and performs shard modeling on tensors in the unit of distributed operator, indicating how the input and output tensors of an operator are distributed to each device of the cluster, that is, the tensor layout. Users do not need to know which device runs which slice of a model. The framework automatically schedules and allocates model slices.</p>
+<p>To obtain the tensor layout model, each operator has a shard strategy, which indicates the shard status of each input of the operator in the corresponding dimension. Generally, tensors can be sharded in any dimension as long as the value is a multiple of 2, and the even distribution principle is met. The following figure shows an example of the three-dimensional <code class="docutils literal notranslate"><span class="pre">BatchMatmul</span></code> operation. The parallel strategy consists of two tuples, indicating the sharding of <code class="docutils literal notranslate"><span class="pre">input</span></code> and <code class="docutils literal notranslate"><span class="pre">weight</span></code>, respectively. Elements in a tuple correspond to tensor dimensions one by one. <code class="docutils literal notranslate"><span class="pre">2^N</span></code> indicates the shard unit, and <code class="docutils literal notranslate"><span class="pre">1</span></code> indicates that the tuple is not sharded. If you want to express a parallel data shard strategy, that is, only data in the <code class="docutils literal notranslate"><span class="pre">batch</span></code> dimension of <code class="docutils literal notranslate"><span class="pre">input</span></code> is sharded, and data in other dimensions are not sharded, you can use <code class="docutils literal notranslate"><span class="pre">strategy=((2^N,</span> <span class="pre">1,</span> <span class="pre">1),(1,</span> <span class="pre">1,</span> <span class="pre">1))</span></code>. If you want to express a parallel model shard strategy, that is, only model in the non-<code class="docutils literal notranslate"><span class="pre">batch</span></code> dimension of <code class="docutils literal notranslate"><span class="pre">weight</span></code> is sharded, for example, only the <code class="docutils literal notranslate"><span class="pre">channel</span></code> dimension is sharded, you can use <code class="docutils literal notranslate"><span class="pre">strategy=((1,</span> <span class="pre">1,</span> <span class="pre">1),(1,</span> <span class="pre">1,</span> <span class="pre">2^N))</span></code>. If you want to express a hybrid parallel shard strategy, one of which is <code class="docutils literal notranslate"><span class="pre">strategy=((2^N,</span> <span class="pre">1,</span> <span class="pre">1),(1,</span> <span class="pre">1,</span> <span class="pre">2^N))</span></code>.</p>
+<p><img alt="Operator Sharding Definition" src="../_images/operator_split.png" /></p>
+<p>Based on the shard strategy of an operator, the framework automatically derives the distribution model of input tensors and output tensors of the operator. This distribution model consists of <code class="docutils literal notranslate"><span class="pre">device_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">tensor_shape</span></code>, and <code class="docutils literal notranslate"><span class="pre">tensor</span> <span class="pre">map</span></code>, which indicate the device matrix shape, tensor shape, and mapping between devices and tensor dimensions, respectively. Based on the tensor layout model, distributed operator determines whether to insert extra computation and communication operations in the graph to ensure that the operator computing logic is correct.</p>
+</li>
+<li><p>Tensor Redistribution</p>
+<p>When the output tensor model of an operator is inconsistent with the input tensor model of the next operator, computation and communication operations need to be introduced to implement the change between tensor layouts. The automatic parallel process introduces the tensor redistribution algorithm, which can be used to derive the communication conversion operations between random tensor layouts. The following three examples represent a parallel computing process of the formula <code class="docutils literal notranslate"><span class="pre">Z=(X×W)×V</span></code>, that is, a <code class="docutils literal notranslate"><span class="pre">MatMul</span></code> operation of two two-dimensional matrices, and show how to perform conversion between different parallel modes.</p>
+<p>In example 1, the output of the first data parallel matrix multiplication is sharded in the row rection, and the input of the second model parallel matrix multiplication requires full tensors. The framework automatically inserts the <code class="docutils literal notranslate"><span class="pre">AllGather</span></code> operator to implement redistribution.</p>
+<p><img alt="Tensor Redistribution" src="../_images/tensor_redistribution1.png" /></p>
+<p>In example 2, the output of parallel matrix multiplication of the first model is sharded in the column direction, and the input of parallel matrix multiplication of the second model is sharded in the row direction. The framework automatically inserts a communication operator equivalent to the <code class="docutils literal notranslate"><span class="pre">AlltoAll</span></code> operation in collective communication to implement redistribution.</p>
+<p><img alt="Tensor Redistribution" src="../_images/tensor_redistribution2.png" /></p>
+<p>In example 3, an output shard mode of the first hybrid parallel matrix multiplication is the same as an input shard mode of the second hybrid parallel matrix multiplication. Therefore, redistribution does not need to be introduced. In the second matrix multiplication operation, the related dimensions of the two inputs are sharded. Therefore, the <code class="docutils literal notranslate"><span class="pre">AllReduce</span></code> operator needs to be inserted to ensure the operation correctness.</p>
+<p><img alt="Tensor Redistribution" src="../_images/tensor_redistribution3.png" /></p>
+<p>In general, this distributed representation breaks the boundary between data parallelism and model parallelism, making it easy to implement hybrid parallelism. From the perspective of scripts, users only need to construct a standalone network to express the parallel algorithm logic. Framework automatically shards the entire graph.</p>
+</li>
+<li><p>Efficient parallel strategy search algorithm</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code> semi-automatic parallel mode indicates that you manually configure the parallel strategy for operators when you are familiar with the operator sharding representation. This mode is helpful for manual optimization, with certain commissioning difficulty. You need to master the parallel principle and obtain a high-performance parallel solution based on the network structure and cluster topology. <code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code> requires users to configure every operator with sharding strategy. To reduce the users’ burden in configuring sharding strategies, the automatic parallel mode supports Sharding Propagation, which propagates sharding strategies from configured ops to non-configured ops. To completely liberate users from manual configuration, <code class="docutils literal notranslate"><span class="pre">AUTO_PARALLEL</span></code> introduces the automatic search feature of the parallel strategy, which builds cost models based on the hardware platform, and calculates the computation cost, memory cost, and communication cost of a certain amount of data and specific operators based on different parallel strategies. Using the dynamic programming algorithm or recursive programming algorithm and taking the memory capacity of a single device as a constraint condition, a parallel strategy with optimal performance is efficiently searched out.</p>
+<p>Strategy search replaces manual model sharding and provides a high-performance sharding solution within a short period of time, greatly reducing the threshold for parallel training.</p>
+</li>
+<li><p>Convenient distributed automatic differentiation</p>
+<p>In addition to forward network communication, the traditional manual model sharding needs to consider backward parallel computing. MindSpore encapsulates communication operations into operators and automatically generates backward propagation of communication operators based on the original automatic differentiation operations of the framework. Therefore, even during distributed training, users only need to pay attention to the forward propagation of the network to implement actual automatic parallel training.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="automatic-parallel-code">
+<h3>Automatic Parallel Code<a class="headerlink" href="#automatic-parallel-code" title="Permalink to this headline">¶</a></h3>
+<ol class="simple">
+<li><p>Tensor layout model</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/r1.9/mindspore/ccsrc/frontend/parallel/tensor_layout">tensor_layout</a>: This directory contains the definitions and implementation of functions related to the tensor distribution model. <code class="docutils literal notranslate"><span class="pre">tensor_layout.h</span></code> declares the member variables <code class="docutils literal notranslate"><span class="pre">tensor_map_origin_</span></code>, <code class="docutils literal notranslate"><span class="pre">tensor_shape_</span></code>, and <code class="docutils literal notranslate"><span class="pre">device_arrangement_</span></code> required by a tensor distribution model. In <code class="docutils literal notranslate"><span class="pre">tensor_redistribution.h</span></code>, the related methods for implementing the <code class="docutils literal notranslate"><span class="pre">from_origin_</span></code> and <code class="docutils literal notranslate"><span class="pre">to_origin_</span></code> transformation between tensor distributions are declared. The deduced redistribution operation is stored in <code class="docutils literal notranslate"><span class="pre">operator_list_</span></code> and returned, in addition, the communication cost <code class="docutils literal notranslate"><span class="pre">comm_cost_</span></code>,, memory cost <code class="docutils literal notranslate"><span class="pre">memory_cost_</span></code>, and calculation cost <code class="docutils literal notranslate"><span class="pre">computation_cost_</span></code> required for redistribution are calculated.</p></li>
+</ul>
+</li>
+<li><p>Distributed operators</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/r1.9/mindspore/ccsrc/frontend/parallel/ops_info">ops_info</a>: This directory contains the implementation of distributed operators. In <code class="docutils literal notranslate"><span class="pre">operator_info.h</span></code>, the base class <code class="docutils literal notranslate"><span class="pre">OperatorInfo</span></code> of distributed operator implementation is defined. A distributed operator to be developed shall inherit the base class and explicitly implement related imaginary functions. The <code class="docutils literal notranslate"><span class="pre">InferTensorInfo</span></code>, <code class="docutils literal notranslate"><span class="pre">InferTensorMap</span></code>, and <code class="docutils literal notranslate"><span class="pre">InferDevMatrixShape</span></code> functions define the algorithms for deriving the input and output tensor distribution model of the operator. The <code class="docutils literal notranslate"><span class="pre">InferForwardCommunication</span></code> and <code class="docutils literal notranslate"><span class="pre">InferMirrorOps</span></code> functions define the extra calculation and communication operations to be inserted for operator sharding. The <code class="docutils literal notranslate"><span class="pre">CheckStrategy</span></code> and <code class="docutils literal notranslate"><span class="pre">GenerateStrategies</span></code> functions define the parallel strategy validation and generation for the operator. According to the parallel strategy <code class="docutils literal notranslate"><span class="pre">SetCostUnderStrategy</span></code>, the parallel cost <code class="docutils literal notranslate"><span class="pre">operator_cost_</span></code> of the distributed operator is generated.</p></li>
+</ul>
+</li>
+<li><p>Strategy search algorithm</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/r1.9/mindspore/ccsrc/frontend/parallel/auto_parallel">auto_parallel</a>: The shard strategy search algorithm is implemented in this directory. <code class="docutils literal notranslate"><span class="pre">graph_costmodel.h</span></code> defines the graph composition information. Each point indicates an operator <code class="docutils literal notranslate"><span class="pre">OperatorInfo</span></code>. The directed edge <code class="docutils literal notranslate"><span class="pre">edge_costmodel.h</span></code> indicates the input and output relationship of operators and the redistribution cost. <code class="docutils literal notranslate"><span class="pre">operator_costmodel.h</span></code> defines the cost model of each operator, including the calculation cost, communication cost, and memory cost. <code class="docutils literal notranslate"><span class="pre">dp_algorithm_costmodel.h</span></code> describes the main process of the dynamic planning algorithm, which consists of a series of graph operations. <code class="docutils literal notranslate"><span class="pre">costmodel.h</span></code> defines the data structures of cost and graph operations.</p></li>
+</ul>
+</li>
+<li><p>Device management</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r1.9/mindspore/ccsrc/frontend/parallel/device_manager.h">device_manager.h</a>: This file is used to create and manage cluster device communication groups. The device matrix model is defined by <code class="docutils literal notranslate"><span class="pre">device_matrix.h</span></code>, and the communication domain is managed by <code class="docutils literal notranslate"><span class="pre">group_manager.h</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Entire graph sharding</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r1.9/mindspore/ccsrc/frontend/parallel/step_auto_parallel.h">step_auto_parallel.h</a>, and <a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r1.9/mindspore/ccsrc/frontend/parallel/step_parallel.h">step_parallel.h</a>: The two files contain the core implementation of the automatic parallel process. <code class="docutils literal notranslate"><span class="pre">step_auto_parallel.h</span></code> calls the strategy search process and generates the <code class="docutils literal notranslate"><span class="pre">OperatorInfo</span></code> of the distributed operator. Then in <code class="docutils literal notranslate"><span class="pre">step_parallel.h</span></code>, processes such as operator sharding and tensor redistribution are processed to reconstruct the standalone computing graph in distributed mode.</p></li>
+</ul>
+</li>
+<li><p>Backward propagation of communication operators</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r1.9/mindspore/python/mindspore/ops/_grad/grad_comm_ops.py">grad_comm_ops.py</a>: This file defines the backward propagation of communication operators, such as <code class="docutils literal notranslate"><span class="pre">AllReduce</span></code> and <code class="docutils literal notranslate"><span class="pre">AllGather</span></code>.</p></li>
+</ul>
+</li>
+</ol>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="mindir.html" class="btn btn-neutral float-right" title="MindSpore IR (MindIR)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="auto_gradient.html" class="btn btn-neutral float-left" title="Functional Differential Programming" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

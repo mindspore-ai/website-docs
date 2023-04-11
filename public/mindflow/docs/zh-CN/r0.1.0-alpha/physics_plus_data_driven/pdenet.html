@@ -1,0 +1,545 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>PDE-Net求解微分方程反问题并实现长期预测 &mdash; MindSpore master 文档</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/translations.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="mindflow.cell" href="../mindflow.cell.html" />
+    <link rel="prev" title="二维黎曼问题" href="../cfd/riemann2d.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">安装部署</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow_install.html">安装MindFlow</a></li>
+</ul>
+<p class="caption"><span class="caption-text">物理驱动</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../physics_driven/burgers1D.html">一维Burgers问题</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics_driven/navier_stokes2D.html">二维圆柱绕流</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics_driven/poisson_ring.html">作用于圆环的二维Poisson问题</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../physics_driven/sympy_pde_definition.html">基于MindFlow定义符号化偏微分方程</a></li>
+</ul>
+<p class="caption"><span class="caption-text">数据驱动</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/dfyf.html">AI工业流体仿真模型——东方·御风</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/FNO1D.html">基于FNO求解一维Burgers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/FNO2D.html">基于FNO求解二维Navier-Stokes</a></li>
+</ul>
+<p class="caption"><span class="caption-text">可微分CFD求解器</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cfd/lax_tube.html">一维Lax激波管</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd/sod_tube.html">一维Sod激波管</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd/couette.html">二维库埃特流</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd/riemann2d.html">二维黎曼问题</a></li>
+</ul>
+<p class="caption"><span class="caption-text">数据机理融合</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">PDE-Net求解微分方程反问题并实现长期预测</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#问题描述">问题描述</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#控制方程">控制方程</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pde-net的模型结构">PDE-Net的模型结构</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#脚本说明">脚本说明</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#求解流程">求解流程</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#数据集生成及加载">数据集生成及加载</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#模型构建">模型构建</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#模型训练">模型训练</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#模型测试和可视化">模型测试和可视化</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#长时间预测">长时间预测</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">API参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.cell.html">mindflow.cell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.cfd.html">mindflow.cfd</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.common.html">mindflow.common</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.data.html">mindflow.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.geometry.html">mindflow.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.loss.html">mindflow.loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.operators.html">mindflow.operators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.pde.html">mindflow.pde</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.solver.html">mindflow.solver</a></li>
+</ul>
+<p class="caption"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../RELEASE.html">Release Notes</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>PDE-Net求解微分方程反问题并实现长期预测</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/physics_plus_data_driven/pdenet.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="pde-net求解微分方程反问题并实现长期预测">
+<h1>PDE-Net求解微分方程反问题并实现长期预测<a class="headerlink" href="#pde-net求解微分方程反问题并实现长期预测" title="永久链接至标题">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/r2.0.0-alpha/docs/mindflow/docs/source_zh_cn/physics_plus_data_driven/pdenet.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.0.0-alpha/resource/_static/logo_source.png"></a></p>
+<div class="section" id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题">¶</a></h2>
+<p>PDE-Net是Zichao Long等人提出的一种前馈深度网络用于从数据中学习偏微分方程，同时实现了准确预测复杂系统的动力学特性和揭示潜在的PDE模型。PDE-Net的基本思想是通过学习卷积核(滤波器)来逼近微分算子，并应用神经网络或其他机器学习方法来拟合未知的非线性响应。数值实验表明，即使在噪声环境中，该模型也可以识别被观测的动力学方程，并预测相对较长时间的动态行为。更多信息可参考<a class="reference external" href="https://arxiv.org/abs/1710.09668">原文</a>。</p>
+</div>
+<div class="section" id="问题描述">
+<h2>问题描述<a class="headerlink" href="#问题描述" title="永久链接至标题">¶</a></h2>
+<p>本案例求解可变参数的对流-扩散偏微分方程的反问题，并实现长期预测。</p>
+<div class="section" id="控制方程">
+<h3>控制方程<a class="headerlink" href="#控制方程" title="永久链接至标题">¶</a></h3>
+<p>在本研究中，对流扩散方程的形式为：</p>
+<div class="math notranslate nohighlight">
+\[
+u_t = a(x,y) u_x + b(x,y) u_y + c u_{xx} + d u_{yy}, \quad (x,y) \in[0,2 \pi] \times[0,2 \pi]
+\]</div>
+<div class="math notranslate nohighlight">
+\[
+u|_{t=0} = u_0(x,y)
+\]</div>
+<p>各项导数的系数分别为：</p>
+<div class="math notranslate nohighlight">
+\[
+a(x,y)=0.5(cos(y)+x(2\pi-x)sin(x))+0.6 \quad
+b(x,y)=2(cos(y)+sin(x))+0.8
+\]</div>
+<div class="math notranslate nohighlight">
+\[
+c=0.2 \quad
+d=0.3
+\]</div>
+</div>
+<div class="section" id="pde-net的模型结构">
+<h3>PDE-Net的模型结构<a class="headerlink" href="#pde-net的模型结构" title="永久链接至标题">¶</a></h3>
+<p>PDE-Net由多个<span class="math notranslate nohighlight">\(\delta T\)</span> Block串联构成，以实现长序列信息的预测，在每一个<span class="math notranslate nohighlight">\(\delta T\)</span> Block中，包含可训练参数的moment矩阵，该矩阵可根据映射关系转化为对应导数的卷积核，从而获取物理场的导数。将导数及其对应物理量经线性组合后，采用前向欧拉法，即可推导下一个时间步的信息。</p>
+<p><img alt="" src="../_images/pdenet-1.jpg" /></p>
+<p><img alt="" src="../_images/pdenet-2.jpg" /></p>
+</div>
+</div>
+<div class="section" id="脚本说明">
+<h2>脚本说明<a class="headerlink" href="#脚本说明" title="永久链接至标题">¶</a></h2>
+<p>在<code class="docutils literal notranslate"><span class="pre">config.py</span></code>里面可以设置训练的参数和采样参数。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">train_config</span> <span class="o">=</span> <span class="n">ed</span><span class="p">({</span>
+    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;pde_net&quot;</span><span class="p">,</span>                          <span class="c1"># 案例描述</span>
+    <span class="s2">&quot;log_path&quot;</span><span class="p">:</span> <span class="s2">&quot;./logs/result/&quot;</span><span class="p">,</span>               <span class="c1"># log文件位置</span>
+    <span class="s2">&quot;summary_dir&quot;</span><span class="p">:</span> <span class="s2">&quot;./summary_dir/summary&quot;</span><span class="p">,</span>     <span class="c1"># summary文件位置</span>
+    <span class="s2">&quot;eval_interval&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>                        <span class="c1"># 验证周期</span>
+    <span class="s2">&quot;lr_scheduler_gamma&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>                  <span class="c1"># 学习率调整系数</span>
+    <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span>                                <span class="c1"># 初始学习率</span>
+    <span class="s2">&quot;save_epoch_interval&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>                  <span class="c1"># ckpt保存周期</span>
+    <span class="s2">&quot;mesh_size&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>                            <span class="c1"># 网格大小</span>
+    <span class="s2">&quot;solver_mesh_scale&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>                     <span class="c1"># 求解器数据采样比</span>
+    <span class="s2">&quot;enable_noise&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>                       <span class="c1"># 在样本中是否增加噪声</span>
+    <span class="s2">&quot;start_noise_level&quot;</span><span class="p">:</span> <span class="mf">0.015</span><span class="p">,</span>                 <span class="c1"># 输入端噪声/信号比</span>
+    <span class="s2">&quot;end_noise_level&quot;</span><span class="p">:</span> <span class="mf">0.015</span><span class="p">,</span>                   <span class="c1"># 输出端噪声/信号比</span>
+    <span class="s2">&quot;variant_coe_magnitude&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>               <span class="c1"># 微分方程系数缩放比</span>
+    <span class="s2">&quot;init_freq&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>                             <span class="c1"># 初始条件中的频率</span>
+    <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>                           <span class="c1"># 单次训练样本数目</span>
+    <span class="s2">&quot;mindrecord&quot;</span><span class="p">:</span> <span class="s2">&quot;src/data.mindrecord&quot;</span><span class="p">,</span>        <span class="c1"># mindrecord保存位置</span>
+    <span class="s2">&quot;epochs&quot;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span>                              <span class="c1"># 单个step训练周期数</span>
+    <span class="s2">&quot;multi_step&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>                           <span class="c1"># step数目</span>
+    <span class="s2">&quot;learning_rate_reduce_times&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>            <span class="c1"># 学习率调整次数</span>
+    <span class="s2">&quot;dt&quot;</span><span class="p">:</span> <span class="mf">0.015</span><span class="p">,</span>                                <span class="c1"># 单个step预测的时间步长</span>
+    <span class="s2">&quot;kernel_size&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>                           <span class="c1"># 卷积核大小</span>
+    <span class="s2">&quot;max_order&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>                             <span class="c1"># 卷积核对应的最大微分阶数</span>
+    <span class="s2">&quot;channels&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>                              <span class="c1"># 数据深度</span>
+    <span class="s2">&quot;perodic_padding&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>                    <span class="c1"># 是否采用周期性边界条件</span>
+    <span class="s2">&quot;if_frozen&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>                         <span class="c1"># 是否冻结moment中的参数</span>
+    <span class="s2">&quot;enable_moment&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>                      <span class="c1"># 是否采用moment控制卷积</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="求解流程">
+<h2>求解流程<a class="headerlink" href="#求解流程" title="永久链接至标题">¶</a></h2>
+<p>PDE-Net求解偏微分方程反问题分为以下5个步骤：</p>
+<ol class="simple">
+<li><p>数据生成和加载。</p></li>
+<li><p>模型构建。</p></li>
+<li><p>模型训练。</p></li>
+<li><p>模型测试和可视化。</p></li>
+<li><p>长期预测。</p></li>
+</ol>
+<div class="section" id="数据集生成及加载">
+<h3>数据集生成及加载<a class="headerlink" href="#数据集生成及加载" title="永久链接至标题">¶</a></h3>
+<p>PDE-Net的初始物理场的分布是根据随机系数的傅里叶级数得到的，并根据谱方法求解对流-扩散方程，step表示<span class="math notranslate nohighlight">\(\delta T\)</span> Block的串联个数，在主程序中可以调用DataGenerator生成对应step的数据，并以mindrecord格式保存在data目录里。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">src.data_generator</span> <span class="kn">import</span> <span class="n">DataGenerator</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">DataGenerator</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">data_size</span><span class="o">=</span><span class="mi">2</span><span class="o">*</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;batch_size&quot;</span><span class="p">],</span> <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;data/train_step&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.mindrecord&quot;</span><span class="p">)</span>
+<span class="n">data</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">DataPrepare</span></code>用于生成模型训练所需要的数据集，根据使用场景的不同，在训练中可调用<code class="docutils literal notranslate"><span class="pre">train_data_prepare</span></code>分别生成训练集和测试集，在长期预测和结果可视化中可以调用<code class="docutils literal notranslate"><span class="pre">test_data_prepare</span></code>生成测试数据集。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+
+
+<span class="k">class</span> <span class="nc">DataPrepare</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Obtain dataset for train or test from mindrecord.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">data_file</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mesh_size</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;mesh_size&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;batch_size&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_file</span> <span class="o">=</span> <span class="n">data_file</span>
+
+    <span class="k">def</span> <span class="nf">test_data_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MindDataset</span><span class="p">(</span><span class="n">dataset_files</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data_file</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">columns_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;u0&quot;</span><span class="p">,</span> <span class="s2">&quot;u_step</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">step</span><span class="p">)])</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dataset</span>
+
+    <span class="k">def</span> <span class="nf">train_data_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MindDataset</span><span class="p">(</span><span class="n">dataset_files</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data_file</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">columns_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;u0&quot;</span><span class="p">,</span> <span class="s2">&quot;uT&quot;</span><span class="p">])</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">operations</span> <span class="o">=</span> <span class="p">[</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh_size</span><span class="p">),</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh_size</span><span class="p">))]</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="p">,</span> <span class="n">input_columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;u0&quot;</span><span class="p">,</span> <span class="s2">&quot;uT&quot;</span><span class="p">])</span>
+        <span class="n">dataset_train</span><span class="p">,</span> <span class="n">dataset_eval</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">split</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">dataset_train</span><span class="p">,</span> <span class="n">dataset_eval</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="模型构建">
+<h3>模型构建<a class="headerlink" href="#模型构建" title="永久链接至标题">¶</a></h3>
+<p>MindFlow提供了<code class="docutils literal notranslate"><span class="pre">PDENet</span></code>接口可以直接建立PDENet模型，需指定网格的宽度、高度、数据深度、边界条件、拟合的最高阶数等信息。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindflow.cell.neural_operators</span> <span class="kn">import</span> <span class="n">PDENet</span>
+
+<span class="k">def</span> <span class="nf">init_model</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">PDENet</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;mesh_size&quot;</span><span class="p">],</span>
+                  <span class="n">width</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;mesh_size&quot;</span><span class="p">],</span>
+                  <span class="n">channels</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;channels&quot;</span><span class="p">],</span>
+                  <span class="n">kernel_size</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;kernel_size&quot;</span><span class="p">],</span>
+                  <span class="n">max_order</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;max_order&quot;</span><span class="p">],</span>
+                  <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">,</span>
+                  <span class="n">dx</span><span class="o">=</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;mesh_size&quot;</span><span class="p">],</span>
+                  <span class="n">dy</span><span class="o">=</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;mesh_size&quot;</span><span class="p">],</span>
+                  <span class="n">dt</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;dt&quot;</span><span class="p">],</span>
+                  <span class="n">periodic</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;perodic_padding&quot;</span><span class="p">],</span>
+                  <span class="n">enable_moment</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;enable_moment&quot;</span><span class="p">],</span>
+                  <span class="n">if_fronzen</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;if_frozen&quot;</span><span class="p">],</span>
+                  <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="模型训练">
+<h3>模型训练<a class="headerlink" href="#模型训练" title="永久链接至标题">¶</a></h3>
+<p>由于每个<span class="math notranslate nohighlight">\(\delta T\)</span> Block的参数是共享的，因此模型根据<span class="math notranslate nohighlight">\(\delta T\)</span> Block的串联个数依次增加，逐一进行训练。其中，在step为1时，模型处于warm-up阶段，PDE-Net的moment为“frozen”状态，此时moment中的参数不参与训练。每新增一个<span class="math notranslate nohighlight">\(\delta T\)</span> Block，程序先进行数据生成和数据集的读取，初始化模型后，需载入前一个step训练的checkpoint，并定义优化器、模式、loss函数，并进行模型训练，在训练中模型会根据callback函数实时反映模型性能。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">train_single_step</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">lr</span><span class="p">):</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">DataPrepare</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">data_file</span><span class="o">=</span><span class="s2">&quot;data/train_step</span><span class="si">{}</span><span class="s2">.mindrecord&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">step</span><span class="p">))</span>
+    <span class="n">train_dataset</span><span class="p">,</span> <span class="n">eval_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">train_data_prepare</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;dataset size: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">train_dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()))</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">init_model</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span>
+
+    <span class="n">epoch</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;epochs&quot;</span><span class="p">]</span>
+    <span class="n">warm_up_epoch_scale</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">if_fronzen</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">epoch</span> <span class="o">=</span> <span class="n">warm_up_epoch_scale</span> <span class="o">*</span> <span class="n">epoch</span>
+    <span class="k">elif</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span>
+            <span class="s2">&quot;./summary_dir/summary/ckpt/step_</span><span class="si">{}</span><span class="s2">/pdenet-</span><span class="si">{}</span><span class="s2">_1.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">step</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">epoch</span> <span class="o">*</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="n">load_param_into_net</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Load pre-trained model successfully&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span>
+            <span class="s2">&quot;./summary_dir/summary/ckpt/step_</span><span class="si">{}</span><span class="s2">/pdenet-</span><span class="si">{}</span><span class="s2">_1.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">step</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">epoch</span><span class="p">))</span>
+        <span class="n">load_param_into_net</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Load pre-trained model successfully&quot;</span><span class="p">)</span>
+
+    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="n">Tensor</span><span class="p">(</span><span class="n">lr</span><span class="p">))</span>
+    <span class="n">loss_func</span> <span class="o">=</span> <span class="n">LpLoss</span><span class="p">(</span><span class="n">size_average</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">loss_scale</span> <span class="o">=</span> <span class="n">DynamicLossScaleManager</span><span class="p">()</span>
+    <span class="n">solver</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span>
+                   <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span>
+                   <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale</span><span class="p">,</span>
+                   <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_func</span>
+                   <span class="p">)</span>
+
+    <span class="n">pred_cb</span><span class="p">,</span> <span class="n">time_cb</span> <span class="o">=</span> <span class="n">_callback</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">eval_dataset</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+    <span class="n">ckpt_cb</span> <span class="o">=</span> <span class="n">_checkpoint</span><span class="p">(</span><span class="s2">&quot;./summary_dir/summary/ckpt/step_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">step</span><span class="p">),</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;save_epoch_interval&quot;</span><span class="p">])</span>
+
+    <span class="n">solver</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">,</span>
+                 <span class="n">train_dataset</span><span class="o">=</span><span class="n">train_dataset</span><span class="p">,</span>
+                 <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">LossMonitor</span><span class="p">(),</span> <span class="n">pred_cb</span><span class="p">,</span> <span class="n">time_cb</span><span class="p">,</span> <span class="n">ckpt_cb</span><span class="p">],</span>
+                 <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">True</span>
+                 <span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+    <span class="n">lr</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;lr&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;multi_step&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataGenerator</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">data_size</span><span class="o">=</span><span class="mi">2</span> <span class="o">*</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;batch_size&quot;</span><span class="p">],</span>
+                             <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;data/train_step</span><span class="si">{}</span><span class="s2">.mindrecord&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+        <span class="n">lr</span> <span class="o">=</span> <span class="n">_scheduler</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;multi_step&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;learning_rate_reduce_times&quot;</span><span class="p">]),</span> <span class="n">step</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+        <span class="n">train_single_step</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>模型训练过程如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">202.947</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">202.947</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">487</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.663754</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">159.724</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">159.724</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">488</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.651065</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">168.118</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">168.118</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">489</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.648911</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">151.441</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">151.441</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">490</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.648038</span><span class="p">)</span>
+<span class="o">================================</span><span class="n">Start</span> <span class="n">Evaluation</span><span class="o">================================</span>
+<span class="n">LpLoss_error</span><span class="p">:</span> <span class="mf">0.04020831733942032</span>
+<span class="o">=================================</span><span class="n">End</span> <span class="n">Evaluation</span><span class="o">=================================</span>
+<span class="n">predict</span> <span class="n">total</span> <span class="n">time</span><span class="p">:</span> <span class="mf">0.4999086856842041</span> <span class="n">s</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">658.657</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">658.657</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">491</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.640651</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">113.954</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">113.954</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">492</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.630344</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">166.617</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">166.617</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">493</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.606285</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">182.399</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">182.399</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">494</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.639116</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">133.293</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">133.293</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">495</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.631353</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">136.290</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">136.290</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">496</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.638366</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">219.318</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">219.318</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">497</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.639544</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">202.168</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">202.168</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">498</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.631913</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">151.460</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">151.460</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">499</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.640468</span><span class="p">)</span>
+<span class="n">Train</span> <span class="n">epoch</span> <span class="n">time</span><span class="p">:</span> <span class="mf">138.932</span> <span class="n">ms</span><span class="p">,</span> <span class="n">per</span> <span class="n">step</span> <span class="n">time</span><span class="p">:</span> <span class="mf">138.932</span> <span class="n">ms</span>
+<span class="n">epoch</span><span class="p">:</span> <span class="mi">500</span> <span class="n">step</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span> <span class="ow">is</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span> <span class="mf">0.640138</span><span class="p">)</span>
+<span class="o">================================</span><span class="n">Start</span> <span class="n">Evaluation</span><span class="o">================================</span>
+<span class="n">LpLoss_error</span><span class="p">:</span> <span class="mf">0.03963303565979004</span>
+<span class="o">=================================</span><span class="n">End</span> <span class="n">Evaluation</span><span class="o">=================================</span>
+<span class="n">predict</span> <span class="n">total</span> <span class="n">time</span><span class="p">:</span> <span class="mf">0.5544295310974121</span> <span class="n">s</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="模型测试和可视化">
+<h3>模型测试和可视化<a class="headerlink" href="#模型测试和可视化" title="永久链接至标题">¶</a></h3>
+<p>模型训练结束后即可运行visualization.py文件对模型训练的结果进行测试和可视化，流场预测结果和label对比如下：</p>
+<p><img alt="" src="../_images/result.jpg" /></p>
+<p>偏微分方程的系数回归结果如下：</p>
+<p><img alt="" src="../_images/coe_trained_step-1.png" /></p>
+<p>偏微分方程系数的数据标签如下：</p>
+<p><img alt="" src="../_images/coe_label_benchmark.png" /></p>
+</div>
+<div class="section" id="长时间预测">
+<h3>长时间预测<a class="headerlink" href="#长时间预测" title="永久链接至标题">¶</a></h3>
+<p>更进一步，可以将训练好的PDE-Net用于更长时间的预测，
+进行多组测试，将误差的25%和75%绘制为带状曲线，如图所示：</p>
+<p><img alt="" src="../_images/extrapolation.jpg" /></p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="../mindflow.cell.html" class="btn btn-neutral float-right" title="mindflow.cell" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../cfd/riemann2d.html" class="btn btn-neutral float-left" title="二维黎曼问题" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; 版权所有 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

@@ -1,0 +1,820 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ResNet-50 Second-Order Optimization Practice &mdash; MindSpore master documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/bootstrap.min.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/training.css" type="text/css" />
+   
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+        <script src="../../_static/js/training.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="High Performance Data Processing Engine" href="../data_engine.html" />
+    <link rel="prev" title="Second Order Optimizer" href="../thor.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Design</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">MindSpore Design Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../auto_gradient.html">Functional Differential Programming</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../distributed_training_design.html">Distributed Training Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dynamic_graph_and_static_graph.html">Combination of Dynamic and Static Graphs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../graph_fusion_engine.html">Graph-Kernel Fusion Acceleration Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindir.html">MindSpore IR (MindIR)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../all_scenarios.html">Full-scenarios Unification</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../thor.html">Second Order Optimizer</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">ResNet-50 Second-Order Optimization Practice</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#preparation">Preparation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#preparing-the-dataset">Preparing the Dataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuring-distributed-environment-variables">Configuring Distributed Environment Variables</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#loading-the-dataset">Loading the Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#defining-the-network">Defining the Network</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#defining-the-loss-function-and-optimizer-thor">Defining the Loss Function and Optimizer THOR</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#defining-the-loss-function">Defining the Loss Function</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#defining-the-optimizer">Defining the Optimizer</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#training-the-network">Training the Network</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#saving-the-configured-model">Saving the Configured Model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuring-the-network-training">Configuring the Network Training</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-the-script">Running the Script</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#model-inference">Model Inference</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#defining-the-inference-network">Defining the Inference Network</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#inference">Inference</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/r2.0.0-alpha/training_visual_design.html">Design of Visualization↗</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_engine.html">High Performance Data Processing Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../glossary.html">Glossary</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Specification</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../note/benchmark.html">Benchmarks</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://gitee.com/mindspore/models/blob/r2.0.0-alpha/README.md#table-of-contents">Network List↗</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../note/operator_list.html">API List</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../note/syntax_list.html">Syntax Support</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.html">mindspore</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.nn.html">mindspore.nn</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.ops.html">mindspore.ops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.ops.primitive.html">mindspore.ops.primitive</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.amp.html">mindspore.amp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.train.html">mindspore.train</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.communication.html">mindspore.communication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.nn.transformer.html">mindspore.nn.transformer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.boost.html">mindspore.boost</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://www.mindspore.cn/lite/api/en/r2.0.0-alpha/api_cpp/mindspore.html">C++ API↗</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Mapping</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../note/api_mapping/pytorch_api_mapping.html">PyTorch and MindSpore API Mapping Table</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../note/api_mapping/tensorflow_api_mapping.html">TensorFlow and MindSpore API Mapping Table</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Migration Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/overview.html">Overview of Migration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/enveriment_preparation.html">Environment Preparation and Information Acquisition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/analysis_and_preparation.html">Model Analysis and Preparation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/model_development/model_development.html">Constructing MindSpore Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/debug_and_tune.html">Debugging and Tuning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/sample_code.html">Network Migration Debugging Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/faq.html">FAQs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/typical_api_comparision.html">Differences Between MindSpore and PyTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/use_third_party_op.html">Using Third-party Operator Libraries Based on Customized Interfaces</a></li>
+</ul>
+<p class="caption"><span class="caption-text">FAQ</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/data_processing.html">Data Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/implement_problem.html">Implement Problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/network_compilation.html">Network Compilation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/operators_compile.html">Operators Compile</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/usage_migrate_3rd.html">Migration from a Third-party Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/performance_tuning.html">Performance Tuning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/precision_tuning.html">Precision Tuning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/distributed_configure.html">Distributed Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/inference.html">Inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq/feature_advice.html">Feature Advice</a></li>
+</ul>
+<p class="caption"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../RELEASE.html">Release Notes</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../thor.html">Second Order Optimizer</a> &raquo;</li>
+        
+      <li>ResNet-50 Second-Order Optimization Practice</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../_sources/design/thor/resnet50.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="resnet-50-second-order-optimization-practice">
+<h1>ResNet-50 Second-Order Optimization Practice<a class="headerlink" href="#resnet-50-second-order-optimization-practice" title="Permalink to this headline">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/r2.0.0-alpha/docs/mindspore/source_en/design/thor/resnet50.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.0.0-alpha/resource/_static/logo_source_en.png"></a>  </p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Common optimization algorithms are classified into the first-order and the second-order optimization algorithms. Typical first-order optimization algorithms, such as stochastic gradient descent (SGD), support a small amount of computation with high computation speed but a low convergence speed and require a large number of training steps. The second-order optimization algorithms use the second-order derivative of the objective function to accelerate convergence to the optimal value of a model, and require a small quantity of training steps. However, the second-order optimization algorithms have excessively high computation costs, an overall execution time of the second-order optimization algorithms is still slower than that of the first-order optimization algorithms. As a result, the second-order optimization algorithms are not widely used in deep neural network training. The main computation costs of the second-order optimization algorithms lie in the inverse operation of the second-order information matrices such as the Hessian matrix and the <a class="reference external" href="https://arxiv.org/pdf/1808.07172.pdf">Fisher information matrix (FIM)</a>. The time complexity is about <span class="math notranslate nohighlight">\(O(n^3)\)</span>.</p>
+<p>Based on the existing natural gradient algorithm, MindSpore development team uses optimized acceleration methods such as approximation and sharding for the FIM, greatly reducing the computation complexity of the inverse matrix and developing the available second-order optimizer THOR. With eight Ascend 910 AI processors, THOR can complete the training of ResNet-50 v1.5 network and ImageNet dataset within 72 minutes, which is nearly twice the speed of SGD+Momentum.</p>
+<p>This tutorial describes how to use the second-order optimizer THOR provided by MindSpore to train the ResNet-50 v1.5 network and ImageNet dataset on Ascend 910 and GPU.</p>
+<blockquote>
+<div><p>Download address of the complete code example: <a class="reference external" href="https://gitee.com/mindspore/models/tree/r2.0.0-alpha/official/cv/ResNet">Resnet</a></p>
+</div></blockquote>
+<p>Directory Structure of Code Examples</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>├── resnet
+    ├── README.md
+    ├── scripts
+        ├── run_distribute_train.sh         # launch distributed training for Ascend 910
+        ├── run_eval.sh                     # launch inference for Ascend 910
+        ├── run_distribute_train_gpu.sh     # launch distributed training for GPU
+        ├── run_eval_gpu.sh                 # launch inference for GPU
+    ├── src
+        ├── dataset.py                      # data preprocessing
+        ├── CrossEntropySmooth.py           # CrossEntropy loss function
+        ├── lr_generator.py                 # generate learning rate for every step
+        ├── resnet.py                       # ResNet50 backbone
+        ├── model_utils
+            ├── config.py                   # parameter configuration
+    ├── eval.py                             # infer script
+    ├── train.py                            # train script
+</pre></div>
+</div>
+<p>The overall execution process is as follows:</p>
+<ol class="simple">
+<li><p>Prepare the ImageNet dataset and process the required dataset.</p></li>
+<li><p>Define the ResNet-50 network.</p></li>
+<li><p>Define the loss function and the optimizer THOR.</p></li>
+<li><p>Load the dataset and perform training. After the training is complete, check the result and save the model file.</p></li>
+<li><p>Load the saved model for inference.</p></li>
+</ol>
+</div>
+<div class="section" id="preparation">
+<h2>Preparation<a class="headerlink" href="#preparation" title="Permalink to this headline">¶</a></h2>
+<p>Ensure that MindSpore has been correctly installed. If not, install it by referring to <a class="reference external" href="https://www.mindspore.cn/install/en">Install</a>.</p>
+<div class="section" id="preparing-the-dataset">
+<h3>Preparing the Dataset<a class="headerlink" href="#preparing-the-dataset" title="Permalink to this headline">¶</a></h3>
+<p>Download the complete ImageNet2012 dataset, decompress the dataset, and save it to the <code class="docutils literal notranslate"><span class="pre">ImageNet2012/ilsvrc</span></code> and <code class="docutils literal notranslate"><span class="pre">ImageNet2012/ilsvrc_eval</span></code> directories in the local workspace.</p>
+<p>The directory structure is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ImageNet2012
+    ├─ilsvrc
+    │      n03676483
+    │      n04067472
+    │      n01622779
+    │      ......
+    └─ilsvrc_eval
+    │      n03018349
+    │      n02504013
+    │      n07871810
+    │      ......
+</pre></div>
+</div>
+</div>
+<div class="section" id="configuring-distributed-environment-variables">
+<h3>Configuring Distributed Environment Variables<a class="headerlink" href="#configuring-distributed-environment-variables" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="ascend-910">
+<h4>Ascend 910<a class="headerlink" href="#ascend-910" title="Permalink to this headline">¶</a></h4>
+<p>For details about how to configure the distributed environment variables of Ascend 910 AI processors, see <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/r2.0.0-alpha/parallel/train_ascend.html#configuring-distributed-environment-variables">Parallel Distributed Training (Ascend)</a>.</p>
+</div>
+<div class="section" id="gpu">
+<h4>GPU<a class="headerlink" href="#gpu" title="Permalink to this headline">¶</a></h4>
+<p>For details about how to configure the distributed environment of GPUs, see <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/r2.0.0-alpha/parallel/train_gpu.html#configuring-distributed-environment">Parallel Distributed Training (GPU)</a>.</p>
+</div>
+</div>
+</div>
+<div class="section" id="loading-the-dataset">
+<h2>Loading the Dataset<a class="headerlink" href="#loading-the-dataset" title="Permalink to this headline">¶</a></h2>
+<p>During distributed training, load the dataset in parallel mode and process it through the data argumentation API provided by MindSpore. The <code class="docutils literal notranslate"><span class="pre">src/dataset.py</span></code> script in the source code is for loading and processing the dataset.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset.vision</span> <span class="k">as</span> <span class="nn">vision</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset.transforms</span> <span class="k">as</span> <span class="nn">transforms</span>
+<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span><span class="p">,</span> <span class="n">get_rank</span><span class="p">,</span> <span class="n">get_group_size</span>
+
+
+<span class="k">def</span> <span class="nf">create_dataset2</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">do_train</span><span class="p">,</span> <span class="n">repeat_num</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;Ascend&quot;</span><span class="p">,</span> <span class="n">distribute</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">enable_cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cache_session_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a training or evaluation ImageNet2012 dataset for ResNet50.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        dataset_path(string): the path of dataset.</span>
+<span class="sd">        do_train(bool): whether the dataset is used for training or evaluation.</span>
+<span class="sd">        repeat_num(int): the repeat times of dataset. Default: 1</span>
+<span class="sd">        batch_size(int): the batch size of dataset. Default: 32</span>
+<span class="sd">        target(str): the device target. Default: Ascend</span>
+<span class="sd">        distribute(bool): data for distribute or not. Default: False</span>
+<span class="sd">        enable_cache(bool): whether tensor caching service is used for evaluation. Default: False</span>
+<span class="sd">        cache_session_id(int): if enable_cache is set, cache session_id need to be provided. Default: None</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dataset</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">target</span> <span class="o">==</span> <span class="s2">&quot;Ascend&quot;</span><span class="p">:</span>
+        <span class="n">device_num</span><span class="p">,</span> <span class="n">rank_id</span> <span class="o">=</span> <span class="n">_get_rank_info</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">distribute</span><span class="p">:</span>
+            <span class="n">init</span><span class="p">()</span>
+            <span class="n">rank_id</span> <span class="o">=</span> <span class="n">get_rank</span><span class="p">()</span>
+            <span class="n">device_num</span> <span class="o">=</span> <span class="n">get_group_size</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">device_num</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">device_num</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">data_set</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ImageFolderDataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">data_set</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ImageFolderDataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                         <span class="n">num_shards</span><span class="o">=</span><span class="n">device_num</span><span class="p">,</span> <span class="n">shard_id</span><span class="o">=</span><span class="n">rank_id</span><span class="p">)</span>
+
+    <span class="n">image_size</span> <span class="o">=</span> <span class="mi">224</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.485</span> <span class="o">*</span> <span class="mi">255</span><span class="p">,</span> <span class="mf">0.456</span> <span class="o">*</span> <span class="mi">255</span><span class="p">,</span> <span class="mf">0.406</span> <span class="o">*</span> <span class="mi">255</span><span class="p">]</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.229</span> <span class="o">*</span> <span class="mi">255</span><span class="p">,</span> <span class="mf">0.224</span> <span class="o">*</span> <span class="mi">255</span><span class="p">,</span> <span class="mf">0.225</span> <span class="o">*</span> <span class="mi">255</span><span class="p">]</span>
+
+    <span class="c1"># define map operations</span>
+    <span class="k">if</span> <span class="n">do_train</span><span class="p">:</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">RandomCropDecodeResize</span><span class="p">(</span><span class="n">image_size</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="p">(</span><span class="mf">0.08</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">ratio</span><span class="o">=</span><span class="p">(</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">1.333</span><span class="p">)),</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">RandomHorizontalFlip</span><span class="p">(</span><span class="n">prob</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="n">mean</span><span class="p">,</span> <span class="n">std</span><span class="o">=</span><span class="n">std</span><span class="p">),</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">HWC2CHW</span><span class="p">()</span>
+        <span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">Decode</span><span class="p">(),</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">Resize</span><span class="p">(</span><span class="mi">256</span><span class="p">),</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">CenterCrop</span><span class="p">(</span><span class="n">image_size</span><span class="p">),</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="n">mean</span><span class="p">,</span> <span class="n">std</span><span class="o">=</span><span class="n">std</span><span class="p">),</span>
+            <span class="n">vision</span><span class="o">.</span><span class="n">HWC2CHW</span><span class="p">()</span>
+        <span class="p">]</span>
+
+    <span class="n">type_cast_op</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">TypeCast</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+    <span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="n">trans</span><span class="p">,</span> <span class="n">input_columns</span><span class="o">=</span><span class="s2">&quot;image&quot;</span><span class="p">,</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    <span class="c1"># only enable cache for eval</span>
+    <span class="k">if</span> <span class="n">do_train</span><span class="p">:</span>
+        <span class="n">enable_cache</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">enable_cache</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cache_session_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;A cache session_id must be provided to use cache.&quot;</span><span class="p">)</span>
+        <span class="n">eval_cache</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">DatasetCache</span><span class="p">(</span><span class="n">session_id</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">cache_session_id</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="n">type_cast_op</span><span class="p">,</span> <span class="n">input_columns</span><span class="o">=</span><span class="s2">&quot;label&quot;</span><span class="p">,</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+                                <span class="n">cache</span><span class="o">=</span><span class="n">eval_cache</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="n">type_cast_op</span><span class="p">,</span> <span class="n">input_columns</span><span class="o">=</span><span class="s2">&quot;label&quot;</span><span class="p">,</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+
+    <span class="c1"># apply batch operations</span>
+    <span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># apply dataset repeat operation</span>
+    <span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">repeat_num</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">data_set</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>MindSpore supports multiple data processing and augmentation operations. These operations are usually used in combination. For details, see <a class="reference external" href="https://www.mindspore.cn/tutorials/en/r2.0.0-alpha/advanced/dataset.html">Data Processing</a>.</p>
+</div></blockquote>
+</div>
+<div class="section" id="defining-the-network">
+<h2>Defining the Network<a class="headerlink" href="#defining-the-network" title="Permalink to this headline">¶</a></h2>
+<p>Use the ResNet-50 v1.5 network model as an example. Define the <a class="reference external" href="https://gitee.com/mindspore/models/blob/r2.0.0-alpha/official/cv/ResNet/src/resnet.py">ResNet-50 network</a>.</p>
+<p>After the network is built, call the defined ResNet-50 in the <code class="docutils literal notranslate"><span class="pre">__main__</span></code> function.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="kn">from</span> <span class="nn">src.resnet</span> <span class="kn">import</span> <span class="n">resnet50</span> <span class="k">as</span> <span class="n">resnet</span>
+<span class="o">...</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="c1"># define net</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">resnet</span><span class="p">(</span><span class="n">class_num</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">class_num</span><span class="p">)</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="defining-the-loss-function-and-optimizer-thor">
+<h2>Defining the Loss Function and Optimizer THOR<a class="headerlink" href="#defining-the-loss-function-and-optimizer-thor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="defining-the-loss-function">
+<h3>Defining the Loss Function<a class="headerlink" href="#defining-the-loss-function" title="Permalink to this headline">¶</a></h3>
+<p>Loss functions supported by MindSpore include <code class="docutils literal notranslate"><span class="pre">SoftmaxCrossEntropyWithLogits</span></code>, <code class="docutils literal notranslate"><span class="pre">L1Loss</span></code>, and <code class="docutils literal notranslate"><span class="pre">MSELoss</span></code>. The <code class="docutils literal notranslate"><span class="pre">SoftmaxCrossEntropyWithLogits</span></code> loss function is required by THOR.</p>
+<p>The implementation procedure of the loss function is in the <code class="docutils literal notranslate"><span class="pre">src/CrossEntropySmooth.py</span></code> script. A common trick in deep network model training, label smoothing, is used to improve the model tolerance to error label classification by smoothing real labels, thereby improving the model generalization capability.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">CrossEntropySmooth</span><span class="p">(</span><span class="n">LossBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;CrossEntropy&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="n">smooth_factor</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CrossEntropySmooth</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">onehot</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">OneHot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="n">sparse</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">on_value</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">smooth_factor</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">off_value</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">smooth_factor</span> <span class="o">/</span> <span class="p">(</span><span class="n">num_classes</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ce</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="n">reduction</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logit</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">onehot</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">ops</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">logit</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">off_value</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ce</span><span class="p">(</span><span class="n">logit</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+<p>Call the defined loss function in the <code class="docutils literal notranslate"><span class="pre">__main__</span></code> function.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="kn">from</span> <span class="nn">src.CrossEntropySmooth</span> <span class="kn">import</span> <span class="n">CrossEntropySmooth</span>
+<span class="o">...</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="c1"># define the loss function</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">use_label_smooth</span><span class="p">:</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">label_smooth_factor</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">CrossEntropySmooth</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span>
+                              <span class="n">smooth_factor</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">label_smooth_factor</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">class_num</span><span class="p">)</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="defining-the-optimizer">
+<h3>Defining the Optimizer<a class="headerlink" href="#defining-the-optimizer" title="Permalink to this headline">¶</a></h3>
+<p>The parameter update formula of THOR is as follows:</p>
+<div class="math notranslate nohighlight">
+\[ \theta^{t+1} = \theta^t + \alpha F^{-1}\nabla E\]</div>
+<p>The meanings of parameters in the formula are as follows:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\theta\)</span>: trainable parameters on the network.</p></li>
+<li><p><span class="math notranslate nohighlight">\(t\)</span>: number of training steps.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\alpha\)</span>: learning rate, which is the parameter update value per step.</p></li>
+<li><p><span class="math notranslate nohighlight">\(F^{-1}\)</span>: FIM obtained from the network computation.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\nabla E\)</span>: the first-order gradient value.</p></li>
+</ul>
+<p>As shown in the parameter update formula, THOR needs to additionally compute an FIM of each layer. The FIM can adaptively adjust the parameter update step and direction of each layer, accelerating convergence and reducing parameter optimization complexity.</p>
+<p>For more introduction of THOR optimizer, please see <a class="reference external" href="https://www.aaai.org/AAAI21Papers/AAAI-6611.ChenM.pdf">THOR paper</a>.</p>
+<p>When calling the second-order optimizer THOR provided by MindSpore, THOR will automatically call the conversion interface to convert the Conv2d and Dense layers in the original network model into corresponding <a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r2.0.0-alpha/mindspore/python/mindspore/nn/layer/thor_layer.py">Conv2dThor</a> and <a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r2.0.0-alpha/mindspore/python/mindspore/nn/layer/thor_layer.py">DenseThor</a>.
+And the FIM of each layer is computed and saved in Conv2dThor and DenseThor.</p>
+<blockquote>
+<div><p>Compared to the original network model, conversion network model has the same backbone and weights.</p>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">thor</span>
+<span class="o">...</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="c1"># learning rate setting and damping setting</span>
+    <span class="kn">from</span> <span class="nn">src.lr_generator</span> <span class="kn">import</span> <span class="n">get_thor_lr</span><span class="p">,</span> <span class="n">get_thor_damping</span>
+    <span class="n">lr</span> <span class="o">=</span> <span class="n">get_thor_lr</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">lr_init</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">lr_decay</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">lr_end_epoch</span><span class="p">,</span> <span class="n">step_size</span><span class="p">,</span> <span class="n">decay_epochs</span><span class="o">=</span><span class="mi">39</span><span class="p">)</span>
+    <span class="n">damping</span> <span class="o">=</span> <span class="n">get_thor_damping</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">damping_init</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">damping_decay</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="n">step_size</span><span class="p">)</span>
+    <span class="c1"># define the optimizer</span>
+    <span class="n">split_indices</span> <span class="o">=</span> <span class="p">[</span><span class="mi">26</span><span class="p">,</span> <span class="mi">53</span><span class="p">]</span>
+    <span class="n">opt</span> <span class="o">=</span> <span class="n">thor</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">lr</span><span class="p">),</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">damping</span><span class="p">),</span> <span class="n">config</span><span class="o">.</span><span class="n">momentum</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">weight_decay</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">loss_scale</span><span class="p">,</span>
+               <span class="n">config</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">split_indices</span><span class="o">=</span><span class="n">split_indices</span><span class="p">,</span> <span class="n">frequency</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">frequency</span><span class="p">)</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="training-the-network">
+<h2>Training the Network<a class="headerlink" href="#training-the-network" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="saving-the-configured-model">
+<h3>Saving the Configured Model<a class="headerlink" href="#saving-the-configured-model" title="Permalink to this headline">¶</a></h3>
+<p>MindSpore provides the callback mechanism to execute customized logic during training. The <code class="docutils literal notranslate"><span class="pre">ModelCheckpoint</span></code> function provided by the framework is used in this example.
+<code class="docutils literal notranslate"><span class="pre">ModelCheckpoint</span></code> can save the network model and parameters for subsequent fine-tuning.
+<code class="docutils literal notranslate"><span class="pre">TimeMonitor</span></code> and <code class="docutils literal notranslate"><span class="pre">LossMonitor</span></code> are callback functions provided by MindSpore. They can be used to monitor the single training step time and <code class="docutils literal notranslate"><span class="pre">loss</span></code> value changes during training, respectively.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="kn">from</span> <span class="nn">mindspore.train</span> <span class="kn">import</span> <span class="n">ModelCheckpoint</span><span class="p">,</span> <span class="n">CheckpointConfig</span><span class="p">,</span> <span class="n">TimeMonitor</span><span class="p">,</span> <span class="n">LossMonitor</span>
+<span class="o">...</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="c1"># define callbacks</span>
+    <span class="n">time_cb</span> <span class="o">=</span> <span class="n">TimeMonitor</span><span class="p">(</span><span class="n">data_size</span><span class="o">=</span><span class="n">step_size</span><span class="p">)</span>
+    <span class="n">loss_cb</span> <span class="o">=</span> <span class="n">LossMonitor</span><span class="p">()</span>
+    <span class="n">cb</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_cb</span><span class="p">,</span> <span class="n">loss_cb</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">:</span>
+        <span class="n">config_ck</span> <span class="o">=</span> <span class="n">CheckpointConfig</span><span class="p">(</span><span class="n">save_checkpoint_steps</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">save_checkpoint_epochs</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">,</span>
+                                     <span class="n">keep_checkpoint_max</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">keep_checkpoint_max</span><span class="p">)</span>
+        <span class="n">ckpt_cb</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;resnet&quot;</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">ckpt_save_dir</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config_ck</span><span class="p">)</span>
+        <span class="n">cb</span> <span class="o">+=</span> <span class="p">[</span><span class="n">ckpt_cb</span><span class="p">]</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="configuring-the-network-training">
+<h3>Configuring the Network Training<a class="headerlink" href="#configuring-the-network-training" title="Permalink to this headline">¶</a></h3>
+<p>Use the <code class="docutils literal notranslate"><span class="pre">model.train</span></code> API provided by MindSpore to easily train the network. THOR reduces the computation workload and improves the computation speed by reducing the frequency of updating the second-order matrix. Therefore, the <a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r2.0.0-alpha/mindspore/python/mindspore/train/train_thor/model_thor.py">ModelThor</a> class is redefined to inherit the Model class provided by MindSpore. The parameter of THOR for controlling the frequency of updating the second-order matrix can be obtained by the ModelThor class. You can adjust this parameter to optimize the overall performance.
+MindSpore provides a one-click conversion interface from Model class to ModelThor class.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="kn">from</span> <span class="nn">mindspore.train</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="o">...</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="n">loss_scale</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">FixedLossScaleManager</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">loss_scale</span><span class="p">,</span> <span class="n">drop_overflow_update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="n">metrics</span><span class="p">,</span>
+                  <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="n">keep_batchnorm_fp32</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">eval_network</span><span class="o">=</span><span class="n">dist_eval_network</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;Thor&quot;</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">ConvertModelUtils</span><span class="p">()</span><span class="o">.</span><span class="n">convert_to_thor_model</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">network</span><span class="o">=</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span>
+                                                          <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;acc&#39;</span><span class="p">},</span>
+                                                          <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="n">keep_batchnorm_fp32</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  
+    <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-the-script">
+<h3>Running the Script<a class="headerlink" href="#running-the-script" title="Permalink to this headline">¶</a></h3>
+<p>After the training script is defined, call the shell script in the <code class="docutils literal notranslate"><span class="pre">scripts</span></code> directory to start the distributed training process.</p>
+<div class="section" id="id1">
+<h4>Ascend 910<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<p>Currently, MindSpore distributed execution on Ascend uses the single-device single-process running mode. That is, one process runs on one device, and the number of total processes is the same as the number of devices that are being used. All processes are executed in the background. Create a directory named <code class="docutils literal notranslate"><span class="pre">train_parallel</span></code>+<code class="docutils literal notranslate"><span class="pre">device_id</span></code> for each process to store log information, operator compilation information, and training checkpoint files. The following takes the distributed training script for eight devices as an example to describe how to run the script.</p>
+<p>Run the script:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_distribute_train.sh<span class="w"> </span>&lt;RANK_TABLE_FILE&gt;<span class="w"> </span>&lt;DATASET_PATH&gt;<span class="w"> </span>&lt;CONFIG_PATH&gt;
+</pre></div>
+</div>
+<p>Variables <code class="docutils literal notranslate"><span class="pre">RANK_TABLE_FILE</span></code>, <code class="docutils literal notranslate"><span class="pre">DATASET_PATH</span></code> and <code class="docutils literal notranslate"><span class="pre">CONFIG_PATH</span></code> need to be transferred to the script. The meanings of variables are as follows:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">RANK_TABLE_FILE</span></code>: path for storing the networking information file (about the rank table file, you can refer to <a class="reference external" href="https://gitee.com/mindspore/models/tree/r2.0.0-alpha/utils/hccl_tools">HCCL_TOOL</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DATASET_PATH</span></code>: training dataset path</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CONFIG_PATH</span></code>: config file path</p></li>
+</ul>
+<p>For details about other environment variables, see configuration items in the installation guide.</p>
+<p>The following is an example of loss values output during training:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>...
+epoch: 1 step: 5004, loss is 4.4182425
+epoch: 2 step: 5004, loss is 3.740064
+epoch: 3 step: 5004, loss is 4.0546017
+epoch: 4 step: 5004, loss is 3.7598825
+epoch: 5 step: 5004, loss is 3.3744206
+...
+epoch: 40 step: 5004, loss is 1.6907625
+epoch: 41 step: 5004, loss is 1.8217756
+epoch: 42 step: 5004, loss is 1.6453942
+...
+</pre></div>
+</div>
+<p>After the training is complete, the checkpoint file generated by each device is stored in the training directory. The following is an example of the checkpoint file generated by <code class="docutils literal notranslate"><span class="pre">device_0</span></code>:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─train_parallel0
+    ├─ckpt_0
+        ├─resnet-1_5004.ckpt
+        ├─resnet-2_5004.ckpt
+        │      ......
+        ├─resnet-42_5004.ckpt
+        │      ......
+</pre></div>
+</div>
+<p>In the preceding information,
+<code class="docutils literal notranslate"><span class="pre">*.ckpt</span></code> indicates the saved model parameter file. The name of a checkpoint file is in the following format: <em>Network name</em>-<em>Number of epochs</em>_<em>Number of steps</em>.ckpt.</p>
+</div>
+<div class="section" id="id2">
+<h4>GPU<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<p>On the GPU hardware platform, MindSpore uses <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> of OpenMPI to perform distributed training. The process creates a directory named <code class="docutils literal notranslate"><span class="pre">train_parallel</span></code> to store log information and training checkpoint files. The following takes the distributed training script for eight devices as an example to describe how to run the script.
+Run the script:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_distribute_train_gpu.sh<span class="w"> </span>&lt;DATASET_PATH&gt;<span class="w"> </span>&lt;CONFIG_PATH&gt;
+</pre></div>
+</div>
+<p>Variables <code class="docutils literal notranslate"><span class="pre">DATASET_PATH</span></code> and <code class="docutils literal notranslate"><span class="pre">CONFIG_PATH</span></code> need to be transferred to the script. The meanings of variables are as follows:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DATASET_PATH</span></code>: training dataset path</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CONFIG_PATH</span></code>: config file path</p></li>
+</ul>
+<p>During GPU-based training, the <code class="docutils literal notranslate"><span class="pre">DEVICE_ID</span></code> environment variable is not required. Therefore, you do not need to call <code class="docutils literal notranslate"><span class="pre">int(os.getenv('DEVICE_ID'))</span></code> in the main training script to obtain the device ID or transfer <code class="docutils literal notranslate"><span class="pre">device_id</span></code> to <code class="docutils literal notranslate"><span class="pre">context</span></code>. You need to set <code class="docutils literal notranslate"><span class="pre">device_target</span></code> to <code class="docutils literal notranslate"><span class="pre">GPU</span></code> and call <code class="docutils literal notranslate"><span class="pre">init()</span></code> to enable the NCCL.</p>
+<p>The following is an example of loss values output during training:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>...
+epoch: 1 step: 5004, loss is 4.2546034
+epoch: 2 step: 5004, loss is 4.0819564
+epoch: 3 step: 5004, loss is 3.7005644
+epoch: 4 step: 5004, loss is 3.2668946
+epoch: 5 step: 5004, loss is 3.023509
+...
+epoch: 36 step: 5004, loss is 1.645802
+...
+</pre></div>
+</div>
+<p>The following is an example of model files saved after training:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─train_parallel
+    ├─ckpt_0
+        ├─resnet-1_5004.ckpt
+        ├─resnet-2_5004.ckpt
+        │      ......
+        ├─resnet-36_5004.ckpt
+        │      ......
+    ......
+    ├─ckpt_7
+        ├─resnet-1_5004.ckpt
+        ├─resnet-2_5004.ckpt
+        │      ......
+        ├─resnet-36_5004.ckpt
+        │      ......
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="model-inference">
+<h2>Model Inference<a class="headerlink" href="#model-inference" title="Permalink to this headline">¶</a></h2>
+<p>Use the checkpoint files saved during training to perform inference and validate the model generalization capability. Load the model file using the <code class="docutils literal notranslate"><span class="pre">load_checkpoint</span></code> API, call the <code class="docutils literal notranslate"><span class="pre">eval</span></code> API of the <code class="docutils literal notranslate"><span class="pre">Model</span></code> to predict the input image class, and compare the predicted class with the actual class of the input image to obtain the final prediction accuracy.</p>
+<div class="section" id="defining-the-inference-network">
+<h3>Defining the Inference Network<a class="headerlink" href="#defining-the-inference-network" title="Permalink to this headline">¶</a></h3>
+<ol class="simple">
+<li><p>Use the <code class="docutils literal notranslate"><span class="pre">load_checkpoint</span></code> API to load the model file.</p></li>
+<li><p>Use the <code class="docutils literal notranslate"><span class="pre">model.eval</span></code> API to read the test dataset for inference.</p></li>
+<li><p>Compute the prediction accuracy.</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="kn">from</span> <span class="nn">mindspore.train</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="o">...</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="c1"># define net</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">resnet</span><span class="p">(</span><span class="n">class_num</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">class_num</span><span class="p">)</span>
+
+    <span class="c1"># load checkpoint</span>
+    <span class="n">param_dict</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">args_opt</span><span class="o">.</span><span class="n">checkpoint_path</span><span class="p">)</span>
+    <span class="n">ms</span><span class="o">.</span><span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+    <span class="n">net</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># define loss</span>
+    <span class="k">if</span> <span class="n">args_opt</span><span class="o">.</span><span class="n">dataset</span> <span class="o">==</span> <span class="s2">&quot;imagenet2012&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">use_label_smooth</span><span class="p">:</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">label_smooth_factor</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">CrossEntropySmooth</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span>
+                                  <span class="n">smooth_factor</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">label_smooth_factor</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">class_num</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">)</span>
+
+    <span class="c1"># define model</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;top_1_accuracy&#39;</span><span class="p">,</span> <span class="s1">&#39;top_5_accuracy&#39;</span><span class="p">})</span>
+
+    <span class="c1"># eval model</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;result:&quot;</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="s2">&quot;ckpt=&quot;</span><span class="p">,</span> <span class="n">args_opt</span><span class="o">.</span><span class="n">checkpoint_path</span><span class="p">)</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="inference">
+<h3>Inference<a class="headerlink" href="#inference" title="Permalink to this headline">¶</a></h3>
+<p>After the inference network is defined, the shell script in the <code class="docutils literal notranslate"><span class="pre">scripts</span></code> directory is called for inference.</p>
+<div class="section" id="id3">
+<h4>Ascend 910<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>On the Ascend 910 hardware platform, run the following inference command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_eval.sh<span class="w"> </span>&lt;DATASET_PATH&gt;<span class="w"> </span>&lt;CHECKPOINT_PATH&gt;
+</pre></div>
+</div>
+<p>Variables <code class="docutils literal notranslate"><span class="pre">DATASET_PATH</span></code>, <code class="docutils literal notranslate"><span class="pre">CHECKPOINT_PATH</span></code> and <code class="docutils literal notranslate"><span class="pre">CONFIG_PATH</span></code> need to be transferred to the script. The meanings of variables are as follows:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DATASET_PATH</span></code>: inference dataset path</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHECKPOINT_PATH</span></code>: path for storing the checkpoint file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CONFIG_PATH</span></code>: config file path</p></li>
+</ul>
+<p>Currently, a single device (device 0 by default) is used for inference. The inference result is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>result: {&#39;top_5_accuracy&#39;: 0.9295574583866837, &#39;top_1_accuracy&#39;: 0.761443661971831} ckpt=train_parallel0/resnet-42_5004.ckpt
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">top_5_accuracy</span></code>: For an input image, if the labels whose prediction probability ranks top 5 match actual labels, the classification is correct.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">top_1_accuracy</span></code>: For an input image, if the label with the highest prediction probability is the same as the actual label, the classification is correct.</p></li>
+</ul>
+</div>
+<div class="section" id="id4">
+<h4>GPU<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
+<p>On the GPU hardware platform, run the following inference command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>bash<span class="w"> </span>run_eval_gpu.sh<span class="w"> </span>&lt;DATASET_PATH&gt;<span class="w"> </span>&lt;CHECKPOINT_PATH&gt;
+</pre></div>
+</div>
+<p>Variables <code class="docutils literal notranslate"><span class="pre">DATASET_PATH</span></code>, <code class="docutils literal notranslate"><span class="pre">CHECKPOINT_PATH</span></code> and <code class="docutils literal notranslate"><span class="pre">CONFIG_PATH</span></code> need to be transferred to the script. The meanings of variables are as follows:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DATASET_PATH</span></code>: inference dataset path</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CHECKPOINT_PATH</span></code>: path for storing the checkpoint file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CONFIG_PATH</span></code>: config file path</p></li>
+</ul>
+<p>The inference result is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>result: {&#39;top_5_accuracy&#39;: 0.9287972151088348, &#39;top_1_accuracy&#39;: 0.7597031049935979} ckpt=train_parallel/resnet-36_5004.ckpt
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="../data_engine.html" class="btn btn-neutral float-right" title="High Performance Data Processing Engine" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../thor.html" class="btn btn-neutral float-left" title="Second Order Optimizer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

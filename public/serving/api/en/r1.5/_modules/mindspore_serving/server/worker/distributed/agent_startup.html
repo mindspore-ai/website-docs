@@ -1,0 +1,773 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>mindspore_serving.server.worker.distributed.agent_startup &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+        <script src="../../../../../_static/jquery.js"></script>
+        <script src="../../../../../_static/underscore.js"></script>
+        <script src="../../../../../_static/doctools.js"></script>
+        <script src="../../../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../server.html">mindspore_serving.server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../client.html">mindspore_serving.client</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>mindspore_serving.server.worker.distributed.agent_startup</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for mindspore_serving.server.worker.distributed.agent_startup</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2021 Huawei Technologies Co., Ltd</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1"># ============================================================================</span>
+<span class="sd">&quot;&quot;&quot;Serving, distributed worker agent startup&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">signal</span>
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="kn">import</span> <span class="n">Process</span><span class="p">,</span> <span class="n">Pipe</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">psutil</span>
+
+<span class="kn">from</span> <span class="nn">mindspore_serving._mindspore_serving</span> <span class="kn">import</span> <span class="n">ExitSignalHandle_</span>
+<span class="kn">from</span> <span class="nn">mindspore_serving._mindspore_serving</span> <span class="kn">import</span> <span class="n">WorkerAgent_</span><span class="p">,</span> <span class="n">AgentStartUpConfig_</span>
+<span class="kn">from</span> <span class="nn">mindspore_serving._mindspore_serving</span> <span class="kn">import</span> <span class="n">DistributedServableConfig_</span><span class="p">,</span> <span class="n">OneRankConfig_</span>
+
+<span class="kn">from</span> <span class="nn">mindspore_serving</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">mindspore_serving.server.common</span> <span class="kn">import</span> <span class="n">check_type</span>
+<span class="kn">from</span> <span class="nn">mindspore_serving.server.worker.distributed</span> <span class="kn">import</span> <span class="n">worker_agent</span>
+
+
+<span class="k">def</span> <span class="nf">_get_local_ip</span><span class="p">(</span><span class="n">rank_list</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get the local ip from the rank table config&quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">socket</span>
+    <span class="n">ip_list</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rank_list</span><span class="p">:</span>
+        <span class="n">ip_list</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">ip</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_STREAM</span><span class="p">)</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SO_REUSEADDR</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ip</span> <span class="ow">in</span> <span class="n">ip_list</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">s</span><span class="o">.</span><span class="n">bind</span><span class="p">((</span><span class="n">ip</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Get local machine ip success, ip </span><span class="si">{</span><span class="n">ip</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">ip</span>
+            <span class="c1"># pylint: disable=bare-except</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">pass</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Get local machine ip failed, rank table ips: </span><span class="si">{</span><span class="n">ip_list</span><span class="si">}</span><span class="s2">, bind port </span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_check_local_ip</span><span class="p">(</span><span class="n">agent_ip</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Check the local ip&quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">socket</span>
+    <span class="k">with</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_STREAM</span><span class="p">)</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SO_REUSEADDR</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">s</span><span class="o">.</span><span class="n">bind</span><span class="p">((</span><span class="n">agent_ip</span><span class="p">,</span> <span class="n">port</span> <span class="o">+</span> <span class="n">i</span><span class="p">))</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Check local machine ip success, ip </span><span class="si">{</span><span class="n">agent_ip</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="c1"># pylint: disable=bare-except</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">pass</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span> <span class="nf">_check_model_files</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">files</span><span class="p">,</span> <span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Check the number of model files or group config files&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">num</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">num</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;please check the number of  model files and group config files, &quot;</span>
+                                           <span class="sa">f</span><span class="s2">&quot;model files: </span><span class="si">{</span><span class="n">model_files</span><span class="si">}</span><span class="s2">, group config files: </span><span class="si">{</span><span class="n">group_config_files</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">num</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;please check the number of  model files and group config files, &quot;</span>
+                                       <span class="sa">f</span><span class="s2">&quot;model files: </span><span class="si">{</span><span class="n">model_files</span><span class="si">}</span><span class="s2">, group config files: </span><span class="si">{</span><span class="n">group_config_files</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">num</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">num</span>
+
+
+<span class="k">def</span> <span class="nf">_check_model_num</span><span class="p">(</span><span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Check the number of model files or group config files&quot;&quot;&quot;</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="n">_check_model_files</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">model_files</span><span class="p">,</span> <span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">group_config_files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="n">_check_model_files</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">,</span> <span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;please check the number of  group config files, currently only support one at most&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_update_model_files_path</span><span class="p">(</span><span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Check and return model files or group config files&quot;&quot;&quot;</span>
+    <span class="n">script_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;input model files: </span><span class="si">{</span><span class="n">model_files</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;input group config files: </span><span class="si">{</span><span class="n">group_config_files</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">model_files_temp</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">model_files</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">inner_files</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">inner</span> <span class="ow">in</span> <span class="n">item</span><span class="p">:</span>
+                <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">script_dir</span><span class="p">,</span> <span class="n">inner</span><span class="p">))</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">R_OK</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot access model file &#39;</span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="n">inner_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+            <span class="n">model_files_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inner_files</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">script_dir</span><span class="p">,</span> <span class="n">item</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">R_OK</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot access model file &#39;</span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="n">model_files_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">group_config_files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">group_files_temp</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">group_config_files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">inner_files</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">inner</span> <span class="ow">in</span> <span class="n">item</span><span class="p">:</span>
+                    <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">script_dir</span><span class="p">,</span> <span class="n">inner</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">R_OK</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot access group config file &#39;</span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                    <span class="n">inner_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+                <span class="n">group_files_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inner_files</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">script_dir</span><span class="p">,</span> <span class="n">item</span><span class="p">))</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">R_OK</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot access group config file &#39;</span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="n">group_files_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">group_files_temp</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;absolute model files: </span><span class="si">{</span><span class="n">model_files_temp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;absolute group config files: </span><span class="si">{</span><span class="n">group_files_temp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model_files_temp</span><span class="p">,</span> <span class="n">group_files_temp</span>
+
+
+<span class="k">def</span> <span class="nf">_make_json_table_file</span><span class="p">(</span><span class="n">distributed_config</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Make rank table json file&quot;&quot;&quot;</span>
+    <span class="n">rank_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">distributed_config</span><span class="o">.</span><span class="n">rank_list</span><span class="p">)</span>
+    <span class="n">runtime_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+    <span class="n">time_stamp</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">_%H%M%S&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())))</span>
+    <span class="n">rank_table_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">runtime_dir</span><span class="p">,</span> <span class="s2">&quot;temp_rank_table&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">rank_table_dir</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">FileExistsError</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="n">rank_table_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">rank_table_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;hccl_rank_table_</span><span class="si">{</span><span class="n">time_stamp</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">rank_size</span><span class="si">}</span><span class="s2">p.json&quot;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">rank_table_file_name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+        <span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">distributed_config</span><span class="o">.</span><span class="n">rank_table_content</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rank_table_file_name</span>
+
+
+<span class="n">signal_success</span> <span class="o">=</span> <span class="s2">&quot;Success&quot;</span>
+<span class="n">signal_exit</span> <span class="o">=</span> <span class="s2">&quot;Exit&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">_recv_parent</span><span class="p">(</span><span class="n">parent_process</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">recv_pipe</span><span class="p">,</span> <span class="n">handle_stop_signal</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Receive message from Start up process.</span>
+<span class="sd">    Return False on Ctrl+C(and worker Stop message) Exit Signal, heartbeat failed, and signal_exit.</span>
+<span class="sd">    Return True on receiving signal_success.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="n">recv_pipe</span><span class="o">.</span><span class="n">poll</span><span class="p">(</span><span class="mf">0.1</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">handle_stop_signal</span> <span class="ow">and</span> <span class="n">ExitSignalHandle_</span><span class="o">.</span><span class="n">has_stopped</span><span class="p">():</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">: Exit on Ctrl+C or stop message from worker&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">parent_process</span><span class="o">.</span><span class="n">is_running</span><span class="p">():</span>  <span class="c1"># 3s</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">: Exit on failure of exit of parent process&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+            <span class="n">parent_signal</span> <span class="o">=</span> <span class="n">recv_pipe</span><span class="o">.</span><span class="n">recv</span><span class="p">()</span>
+            <span class="k">break</span>
+        <span class="k">if</span> <span class="n">parent_signal</span> <span class="o">==</span> <span class="n">signal_success</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">: Receive success&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">parent_signal</span> <span class="o">==</span> <span class="n">signal_exit</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">: Exit on receiving exit message&quot;</span><span class="p">)</span>
+    <span class="c1"># pylint: disable=broad-except</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">: Exit on exception: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span> <span class="nf">_agent_process</span><span class="p">(</span><span class="n">send_pipe</span><span class="p">,</span> <span class="n">recv_pipe</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">start_config</span><span class="p">,</span> <span class="n">dec_key</span><span class="p">,</span> <span class="n">dec_mode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Agent process&quot;&quot;&quot;</span>
+    <span class="n">parent_process</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getppid</span><span class="p">())</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># listening success or failed message from parent process</span>
+        <span class="n">worker_agent</span><span class="o">.</span><span class="n">start_worker_agent</span><span class="p">(</span><span class="n">start_config</span><span class="o">=</span><span class="n">start_config</span><span class="p">,</span> <span class="n">dec_key</span><span class="o">=</span><span class="n">dec_key</span><span class="p">,</span> <span class="n">dec_mode</span><span class="o">=</span><span class="n">dec_mode</span><span class="p">)</span>
+        <span class="n">send_pipe</span><span class="o">.</span><span class="n">send</span><span class="p">((</span><span class="n">index</span><span class="p">,</span> <span class="n">signal_success</span><span class="p">))</span>
+        <span class="n">success_msg</span> <span class="o">=</span> <span class="n">_recv_parent</span><span class="p">(</span><span class="n">parent_process</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">recv_pipe</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">success_msg</span><span class="p">:</span>
+            <span class="n">worker_agent</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+        <span class="n">send_pipe</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">recv_pipe</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">ExitSignalHandle_</span><span class="o">.</span><span class="n">has_stopped</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">parent_process</span><span class="o">.</span><span class="n">is_running</span><span class="p">():</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">, detect parent pid=</span><span class="si">{</span><span class="n">parent_process</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2"> has exited, child begin to exit&quot;</span><span class="p">)</span>
+                <span class="n">worker_agent</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+                <span class="k">return</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+    <span class="c1"># pylint: disable=broad-except</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">: Catch exception and notify exit of others&quot;</span><span class="p">)</span>
+        <span class="n">exception</span> <span class="o">=</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> exception happen: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">send_pipe</span><span class="o">.</span><span class="n">send</span><span class="p">((</span><span class="n">index</span><span class="p">,</span> <span class="n">exception</span><span class="p">))</span>
+        <span class="n">_recv_parent</span><span class="p">(</span><span class="n">parent_process</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">recv_pipe</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">: end send message to parent&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_send_pipe_msg</span><span class="p">(</span><span class="n">send_pipe</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Send pipe message&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">send_pipe</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="c1"># pylint: disable=broad-except</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Send pipe message exception happen: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_send_exit_signal_to_children</span><span class="p">(</span><span class="n">subprocess_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Send exit signal to all child processes, and terminate all child processes when they are still alive</span>
+<span class="sd">    in some seconds later&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">wait_exit</span><span class="p">(</span><span class="n">wait_seconds</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">wait_seconds</span><span class="p">):</span>
+            <span class="n">all_exit</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">for</span> <span class="n">process</span> <span class="ow">in</span> <span class="n">subprocess_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;There are still child processes that have not exited and </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2"> in &quot;</span>
+                                   <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">wait_seconds</span> <span class="o">-</span> <span class="n">i</span><span class="si">}</span><span class="s2"> seconds.&quot;</span><span class="p">)</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">all_exit</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="n">all_exit</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;All Child process exited&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="n">wait_exit</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;SIGINT will be sent&quot;</span><span class="p">):</span>
+        <span class="k">return</span>
+    <span class="c1"># Send signal SIGINT</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">process</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">subprocess_list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Send signal SIGINT to </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">child_process</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="p">)</span>
+                <span class="n">children_of_child</span> <span class="o">=</span> <span class="n">child_process</span><span class="o">.</span><span class="n">children</span><span class="p">(</span><span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">children_of_child</span><span class="p">:</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">pid</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">)</span>
+            <span class="c1"># pylint: disable=broad-except</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Get exception when send signal SIGINT to children of child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">, exception: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">wait_exit</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="s2">&quot;will be forcibly killed&quot;</span><span class="p">):</span>
+        <span class="k">return</span>
+
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">process</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">subprocess_list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Kill Child process </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">child_process</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="p">)</span>
+                <span class="n">children_of_child</span> <span class="o">=</span> <span class="n">child_process</span><span class="o">.</span><span class="n">children</span><span class="p">(</span><span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">children_of_child</span><span class="p">:</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">pid</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGKILL</span><span class="p">)</span>
+            <span class="c1"># pylint: disable=broad-except</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Get exception when send signal SIGKILL to children of child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">, exception: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGKILL</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_send_exit_msg_to_children</span><span class="p">(</span><span class="n">send_pipe_list</span><span class="p">,</span> <span class="n">subprocess_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Send exit msg to all child processes, and terminate all child processes when they are still alive</span>
+<span class="sd">    in some seconds later&quot;&quot;&quot;</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">send_pipe</span><span class="p">,</span> <span class="n">process</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">send_pipe_list</span><span class="p">,</span> <span class="n">subprocess_list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Send exit message to Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">_send_pipe_msg</span><span class="p">(</span><span class="n">send_pipe</span><span class="p">,</span> <span class="n">signal_exit</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;End send exit message to Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> is not alive&quot;</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">_send_exit_signal_to_children</span><span class="p">(</span><span class="n">subprocess_list</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_listening_agents_when_startup</span><span class="p">(</span><span class="n">p_recv_pipe</span><span class="p">,</span> <span class="n">send_pipe_list</span><span class="p">,</span> <span class="n">subprocess_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Listening child process&quot;&quot;&quot;</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">send_pipe_list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">p_recv_pipe</span><span class="o">.</span><span class="n">poll</span><span class="p">(</span><span class="mf">0.1</span><span class="p">):</span>
+                <span class="k">break</span>
+            <span class="k">if</span> <span class="n">ExitSignalHandle_</span><span class="o">.</span><span class="n">has_stopped</span><span class="p">():</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Fail to start agents because of Ctrl+C&quot;</span><span class="p">)</span>
+                <span class="n">_send_exit_msg_to_children</span><span class="p">(</span><span class="n">send_pipe_list</span><span class="p">,</span> <span class="n">subprocess_list</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Fail to start agents because of Ctrl+C&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">send_pipe</span><span class="p">,</span> <span class="n">process</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">send_pipe_list</span><span class="p">,</span> <span class="n">subprocess_list</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+                    <span class="k">continue</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Fail to start agents because of death of one agent&quot;</span><span class="p">)</span>
+                <span class="n">_send_exit_msg_to_children</span><span class="p">(</span><span class="n">send_pipe_list</span><span class="p">,</span> <span class="n">subprocess_list</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Fail to start agents because of death of one agent&quot;</span><span class="p">)</span>
+
+        <span class="n">index</span><span class="p">,</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">p_recv_pipe</span><span class="o">.</span><span class="n">recv</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Receive msg from Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Fail to start agents because of exception raise by one agent&quot;</span><span class="p">)</span>
+            <span class="n">_send_exit_msg_to_children</span><span class="p">(</span><span class="n">send_pipe_list</span><span class="p">,</span> <span class="n">subprocess_list</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">msg</span>
+
+    <span class="k">for</span> <span class="n">send_pipe</span> <span class="ow">in</span> <span class="n">send_pipe_list</span><span class="p">:</span>
+        <span class="n">_send_pipe_msg</span><span class="p">(</span><span class="n">send_pipe</span><span class="p">,</span> <span class="n">signal_success</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_listening_agents_after_startup</span><span class="p">(</span><span class="n">subprocess_list</span><span class="p">,</span> <span class="n">distributed_address</span><span class="p">,</span> <span class="n">agent_ip</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Listening agent status after success start up of agents&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">wait_child_exit</span><span class="p">():</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">ExitSignalHandle_</span><span class="o">.</span><span class="n">has_stopped</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">process</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">subprocess_list</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">process</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Child </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">, pid=</span><span class="si">{</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2"> has exited&quot;</span><span class="p">)</span>
+                    <span class="k">return</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">listening_thread_fun</span><span class="p">():</span>
+        <span class="n">wait_child_exit</span><span class="p">()</span>
+        <span class="n">WorkerAgent_</span><span class="o">.</span><span class="n">startup_notify_exit</span><span class="p">(</span><span class="n">distributed_address</span><span class="p">,</span> <span class="n">agent_ip</span><span class="p">)</span>
+        <span class="n">_send_exit_signal_to_children</span><span class="p">(</span><span class="n">subprocess_list</span><span class="p">)</span>
+
+    <span class="n">thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">listening_thread_fun</span><span class="p">)</span>
+    <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_startup_agents</span><span class="p">(</span><span class="n">common_meta</span><span class="p">,</span> <span class="n">distributed_address</span><span class="p">,</span>
+                    <span class="n">agent_ip</span><span class="p">,</span> <span class="n">agent_start_port</span><span class="p">,</span> <span class="n">device_id_list</span><span class="p">,</span> <span class="n">rank_id_list</span><span class="p">,</span>
+                    <span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">,</span> <span class="n">rank_table_file</span><span class="p">,</span>
+                    <span class="n">dec_key</span><span class="p">,</span> <span class="n">dec_mode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Start up all agents in one machine&quot;&quot;&quot;</span>
+    <span class="n">servable_name</span> <span class="o">=</span> <span class="n">common_meta</span><span class="o">.</span><span class="n">model_key</span>
+    <span class="n">send_pipe_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">subprocess_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">c_send_pipe</span><span class="p">,</span> <span class="n">p_recv_pipe</span> <span class="o">=</span> <span class="n">Pipe</span><span class="p">()</span>
+    <span class="n">group_file</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">agents_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">device_id_list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">agents_count</span><span class="p">):</span>
+        <span class="n">device_id</span><span class="p">,</span> <span class="n">rank_id</span><span class="p">,</span> <span class="n">model_file</span> <span class="o">=</span> <span class="n">device_id_list</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">rank_id_list</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">model_files</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">group_config_files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">group_file</span> <span class="o">=</span> <span class="n">group_config_files</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+
+        <span class="n">p_send_pipe</span><span class="p">,</span> <span class="n">c_recv_pipe</span> <span class="o">=</span> <span class="n">Pipe</span><span class="p">()</span>
+        <span class="n">send_pipe_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p_send_pipe</span><span class="p">)</span>
+
+        <span class="n">agent_port</span> <span class="o">=</span> <span class="n">agent_start_port</span> <span class="o">+</span> <span class="n">index</span>
+
+        <span class="n">start_config</span> <span class="o">=</span> <span class="n">AgentStartUpConfig_</span><span class="p">()</span>
+        <span class="n">start_config</span><span class="o">.</span><span class="n">rank_id</span> <span class="o">=</span> <span class="n">rank_id</span>
+        <span class="n">start_config</span><span class="o">.</span><span class="n">device_id</span> <span class="o">=</span> <span class="n">device_id</span>
+        <span class="n">start_config</span><span class="o">.</span><span class="n">model_file_names</span> <span class="o">=</span> <span class="n">model_file</span>
+        <span class="k">if</span> <span class="n">group_config_files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">start_config</span><span class="o">.</span><span class="n">group_file_names</span> <span class="o">=</span> <span class="n">group_file</span>
+        <span class="n">start_config</span><span class="o">.</span><span class="n">rank_table_json_file_name</span> <span class="o">=</span> <span class="n">rank_table_file</span>
+        <span class="n">start_config</span><span class="o">.</span><span class="n">agent_address</span> <span class="o">=</span> <span class="n">agent_ip</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">agent_port</span><span class="p">)</span>
+        <span class="n">start_config</span><span class="o">.</span><span class="n">distributed_address</span> <span class="o">=</span> <span class="n">distributed_address</span>
+        <span class="n">start_config</span><span class="o">.</span><span class="n">common_meta</span> <span class="o">=</span> <span class="n">common_meta</span>
+
+        <span class="n">process</span> <span class="o">=</span> <span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">_agent_process</span><span class="p">,</span>
+                          <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">c_send_pipe</span><span class="p">,</span> <span class="n">c_recv_pipe</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">start_config</span><span class="p">,</span> <span class="n">dec_key</span><span class="p">,</span> <span class="n">dec_mode</span><span class="p">),</span>
+                          <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">servable_name</span><span class="si">}</span><span class="s2">_worker_agent_rank</span><span class="si">{</span><span class="n">rank_id</span><span class="si">}</span><span class="s2">_device</span><span class="si">{</span><span class="n">device_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="n">subprocess_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">process</span><span class="p">)</span>
+
+    <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;distributed worker_address: </span><span class="si">{</span><span class="n">distributed_address</span><span class="si">}</span><span class="s2">, agent_ip: </span><span class="si">{</span><span class="n">agent_ip</span><span class="si">}</span><span class="s2">, &quot;</span> \
+          <span class="sa">f</span><span class="s2">&quot;agent_start_port: </span><span class="si">{</span><span class="n">agent_start_port</span><span class="si">}</span><span class="s2">, device ids: </span><span class="si">{</span><span class="n">device_id_list</span><span class="si">}</span><span class="s2">, rank ids: </span><span class="si">{</span><span class="n">rank_id_list</span><span class="si">}</span><span class="s2">, &quot;</span> \
+          <span class="sa">f</span><span class="s2">&quot;rank table file: </span><span class="si">{</span><span class="n">rank_table_file</span><span class="si">}</span><span class="s2">, model files: </span><span class="si">{</span><span class="n">model_files</span><span class="si">}</span><span class="s2">, group config files: </span><span class="si">{</span><span class="n">group_config_files</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">_listening_agents_when_startup</span><span class="p">(</span><span class="n">p_recv_pipe</span><span class="p">,</span> <span class="n">send_pipe_list</span><span class="p">,</span> <span class="n">subprocess_list</span><span class="p">)</span>
+    <span class="c1"># pylint: disable=broad-except</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">WorkerAgent_</span><span class="o">.</span><span class="n">notify_failed</span><span class="p">(</span><span class="n">distributed_address</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to start agents, </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to start agents, </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">e</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Success to start agents, </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Success to start agents, </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">_listening_agents_after_startup</span><span class="p">(</span><span class="n">subprocess_list</span><span class="p">,</span> <span class="n">distributed_address</span><span class="p">,</span> <span class="n">agent_ip</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">DistributedServableConfig</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Python DistributedServableConfig&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank_table_content</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank_list</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">common_meta</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distributed_meta</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set from C++ DistributedServableConfig_ obj&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank_table_content</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">rank_table_content</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">rank_list</span><span class="p">:</span>
+            <span class="n">new_item</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;device_id&quot;</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">device_id</span><span class="p">,</span> <span class="s2">&quot;ip&quot;</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">ip</span><span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rank_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_item</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">common_meta</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;model_key&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">model_key</span><span class="p">,</span>
+                            <span class="s2">&quot;with_batch_dim&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">with_batch_dim</span><span class="p">,</span>
+                            <span class="s2">&quot;without_batch_dim_inputs&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">without_batch_dim_inputs</span><span class="p">,</span>
+                            <span class="s2">&quot;inputs_count&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">inputs_count</span><span class="p">,</span>
+                            <span class="s2">&quot;outputs_count&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">outputs_count</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">distributed_meta</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;rank_size&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">distributed_meta</span><span class="o">.</span><span class="n">rank_size</span><span class="p">,</span>
+                                 <span class="s2">&quot;stage_size&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">distributed_meta</span><span class="o">.</span><span class="n">stage_size</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get as C++ DistributedServableConfig_ obj&quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">DistributedServableConfig_</span><span class="p">()</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">rank_table_content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank_table_content</span>
+        <span class="n">rank_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank_list</span><span class="p">:</span>
+            <span class="n">new_item</span> <span class="o">=</span> <span class="n">OneRankConfig_</span><span class="p">()</span>
+            <span class="n">new_item</span><span class="o">.</span><span class="n">device_id</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;device_id&quot;</span><span class="p">]</span>
+            <span class="n">new_item</span><span class="o">.</span><span class="n">ip</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;ip&quot;</span><span class="p">]</span>
+            <span class="n">rank_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_item</span><span class="p">)</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">rank_list</span> <span class="o">=</span> <span class="n">rank_list</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">model_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">common_meta</span><span class="p">[</span><span class="s2">&quot;model_key&quot;</span><span class="p">]</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">with_batch_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">common_meta</span><span class="p">[</span><span class="s2">&quot;with_batch_dim&quot;</span><span class="p">]</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">without_batch_dim_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">common_meta</span><span class="p">[</span><span class="s2">&quot;without_batch_dim_inputs&quot;</span><span class="p">]</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">inputs_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">common_meta</span><span class="p">[</span><span class="s2">&quot;inputs_count&quot;</span><span class="p">]</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">common_meta</span><span class="o">.</span><span class="n">outputs_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">common_meta</span><span class="p">[</span><span class="s2">&quot;outputs_count&quot;</span><span class="p">]</span>
+
+        <span class="n">config</span><span class="o">.</span><span class="n">distributed_meta</span><span class="o">.</span><span class="n">rank_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distributed_meta</span><span class="p">[</span><span class="s2">&quot;rank_size&quot;</span><span class="p">]</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">distributed_meta</span><span class="o">.</span><span class="n">stage_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distributed_meta</span><span class="p">[</span><span class="s2">&quot;stage_size&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">config</span>
+
+
+<span class="k">def</span> <span class="nf">_get_worker_distributed_config</span><span class="p">(</span><span class="n">distributed_address</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get worker distributed config from worker through sub process&quot;&quot;&quot;</span>
+    <span class="n">c_send_pipe</span><span class="p">,</span> <span class="n">p_recv_pipe</span> <span class="o">=</span> <span class="n">Pipe</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">process_fun</span><span class="p">(</span><span class="n">c_send_pipe</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">distributed_config</span> <span class="o">=</span> <span class="n">WorkerAgent_</span><span class="o">.</span><span class="n">get_agents_config_from_worker</span><span class="p">(</span><span class="n">distributed_address</span><span class="p">)</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">DistributedServableConfig</span><span class="p">()</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">distributed_config</span><span class="p">)</span>
+            <span class="n">c_send_pipe</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="c1"># pylint: disable=broad-except</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">c_send_pipe</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+    <span class="n">process</span> <span class="o">=</span> <span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">process_fun</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">c_send_pipe</span><span class="p">,),</span>
+                      <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;worker_agent_get_agents_config_from_worker&quot;</span><span class="p">)</span>
+    <span class="n">process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">process</span><span class="o">.</span><span class="n">is_alive</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">p_recv_pipe</span><span class="o">.</span><span class="n">poll</span><span class="p">(</span><span class="mf">0.1</span><span class="p">):</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">p_recv_pipe</span><span class="o">.</span><span class="n">recv</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">config</span>
+        <span class="n">distributed_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">distributed_config</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get agents config from worker&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="startup_agents"><a class="viewcode-back" href="../../../../../server.html#mindspore_serving.server.distributed.startup_agents">[docs]</a><span class="k">def</span> <span class="nf">startup_agents</span><span class="p">(</span><span class="n">distributed_address</span><span class="p">,</span> <span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">agent_start_port</span><span class="o">=</span><span class="mi">7000</span><span class="p">,</span> <span class="n">agent_ip</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rank_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">dec_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dec_mode</span><span class="o">=</span><span class="s1">&#39;AES-GCM&#39;</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Start up all needed agents on current machine.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        distributed_address (str): The distributed worker address the agents linked to.</span>
+<span class="sd">        model_files (Union[list[str], tuple[str]]): All model files need in current machine, absolute path or path</span>
+<span class="sd">            relative to this startup python script.</span>
+<span class="sd">        group_config_files (Union[list[str], tuple[str]], optional): All group config files need in current machine,</span>
+<span class="sd">            absolute path or path relative to this startup python script, default None, which means there are no</span>
+<span class="sd">            configuration files. Default: None.</span>
+<span class="sd">        agent_start_port (int, optional): The starting agent port of the agents link to worker. Default: 7000.</span>
+<span class="sd">        agent_ip (str, optional): The local agent ip, if it&#39;s None, the agent ip will be obtained from rank table file.</span>
+<span class="sd">            Default None. Parameter agent_ip and parameter rank_start must have values at the same time,</span>
+<span class="sd">            or both None at the same time. Default: None.</span>
+<span class="sd">        rank_start (int, optional): The starting rank id of this machine, if it&#39;s None, the rank ip will be obtained</span>
+<span class="sd">            from rank table file. Default None. Parameter agent_ip and parameter rank_start must have values at the same</span>
+<span class="sd">            time, or both None at the same time. Default: None.</span>
+<span class="sd">        dec_key (bytes, optional): Byte type key used for decryption. The valid length is 16, 24, or 32. Default: None.</span>
+<span class="sd">        dec_mode (str, optional): Specifies the decryption mode, take effect when dec_key is set.</span>
+<span class="sd">            Option: &#39;AES-GCM&#39; or &#39;AES-CBC&#39;. Default: &#39;AES-GCM&#39;.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        RuntimeError: Failed to start agents.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import os</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_serving.server import distributed</span>
+<span class="sd">        &gt;&gt;&gt; model_files = []</span>
+<span class="sd">        &gt;&gt;&gt; for i in range(8):</span>
+<span class="sd">        &gt;&gt;&gt;    model_files.append(f&quot;models/device{i}/matmul.mindir&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; distributed.startup_agents(distributed_address=&quot;127.0.0.1:6200&quot;, model_files=model_files)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">check_type</span><span class="o">.</span><span class="n">check_str</span><span class="p">(</span><span class="s2">&quot;distributed_address&quot;</span><span class="p">,</span> <span class="n">distributed_address</span><span class="p">)</span>
+    <span class="n">check_type</span><span class="o">.</span><span class="n">check_int</span><span class="p">(</span><span class="s2">&quot;agent_start_port&quot;</span><span class="p">,</span> <span class="n">agent_start_port</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">65535</span> <span class="o">-</span> <span class="mi">7</span><span class="p">)</span>
+    <span class="n">model_files</span> <span class="o">=</span> <span class="n">check_type</span><span class="o">.</span><span class="n">check_and_as_tuple_with_str_list</span><span class="p">(</span><span class="s2">&quot;model_files&quot;</span><span class="p">,</span> <span class="n">model_files</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">group_config_files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">group_config_files</span> <span class="o">=</span> <span class="n">check_type</span><span class="o">.</span><span class="n">check_and_as_tuple_with_str_list</span><span class="p">(</span><span class="s2">&quot;group_config_files&quot;</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">)</span>
+
+    <span class="c1"># check dec_key and dec_mode</span>
+    <span class="k">if</span> <span class="n">dec_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dec_key</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;dec_key&#39; should be bytes, but actually </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">dec_key</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dec_key</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;dec_key&#39; should not be empty bytes&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dec_key</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">32</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;dec_key&#39; length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dec_key</span><span class="p">)</span><span class="si">}</span><span class="s2"> expected to be 16, 24 or 32&quot;</span><span class="p">)</span>
+    <span class="n">check_type</span><span class="o">.</span><span class="n">check_str</span><span class="p">(</span><span class="s2">&quot;dec_mode&quot;</span><span class="p">,</span> <span class="n">dec_mode</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dec_mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;AES-GCM&#39;</span><span class="p">,</span> <span class="s1">&#39;AES-CBC&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;dec_mode&#39; expected to be &#39;AES-GCM&#39; or &#39;AES-CBC&#39;&quot;</span><span class="p">)</span>
+
+    <span class="n">ExitSignalHandle_</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="n">distributed_config</span> <span class="o">=</span> <span class="n">_get_worker_distributed_config</span><span class="p">(</span><span class="n">distributed_address</span><span class="p">)</span>
+
+    <span class="c1"># get machine ip</span>
+    <span class="n">rank_list</span> <span class="o">=</span> <span class="n">distributed_config</span><span class="o">.</span><span class="n">rank_list</span>
+    <span class="n">local_device_id_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">local_rank_id_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">agent_ip</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">rank_start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Parameter &#39;agent_ip&#39; and parameter &#39;rank_start&#39; must have values at the same time, &quot;</span>
+                               <span class="s2">&quot;or both None at the same time.&quot;</span><span class="p">)</span>
+        <span class="n">local_ip</span> <span class="o">=</span> <span class="n">_get_local_ip</span><span class="p">(</span><span class="n">rank_list</span><span class="p">,</span> <span class="n">agent_start_port</span><span class="p">)</span>
+        <span class="c1"># get all device_id and rank_id</span>
+        <span class="k">for</span> <span class="n">rank_id</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">rank_list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">ip</span> <span class="o">==</span> <span class="n">local_ip</span><span class="p">:</span>
+                <span class="n">local_device_id_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">device_id</span><span class="p">)</span>
+                <span class="n">local_rank_id_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rank_id</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">rank_start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Parameter &#39;agent_ip&#39; and parameter &#39;rank_start&#39; must have values at the same time, &quot;</span>
+                               <span class="s2">&quot;or both None at the same time.&quot;</span><span class="p">)</span>
+        <span class="n">check_type</span><span class="o">.</span><span class="n">check_str</span><span class="p">(</span><span class="s2">&quot;agent_ip&quot;</span><span class="p">,</span> <span class="n">agent_ip</span><span class="p">)</span>
+        <span class="n">check_type</span><span class="o">.</span><span class="n">check_int</span><span class="p">(</span><span class="s2">&quot;rank_start&quot;</span><span class="p">,</span> <span class="n">rank_start</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rank_start</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">rank_list</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;rank_start&#39; cannot equal or larger than rank size </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">rank_list</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_local_ip</span><span class="p">(</span><span class="n">agent_ip</span><span class="p">,</span> <span class="n">agent_start_port</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Check ip &#39;agent_ip&#39; valid failed, agent_ip: </span><span class="si">{</span><span class="n">agent_ip</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">local_ip</span> <span class="o">=</span> <span class="n">agent_ip</span>
+        <span class="n">rank_table_ip</span> <span class="o">=</span> <span class="n">rank_list</span><span class="p">[</span><span class="n">rank_start</span><span class="p">]</span><span class="o">.</span><span class="n">ip</span>
+        <span class="k">for</span> <span class="n">rank_id</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">rank_list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">ip</span> <span class="o">==</span> <span class="n">rank_table_ip</span><span class="p">:</span>
+                <span class="n">local_device_id_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">device_id</span><span class="p">)</span>
+                <span class="n">local_rank_id_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rank_id</span><span class="p">)</span>
+
+    <span class="c1"># handle model files and group config files</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">local_device_id_list</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">model_files</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Card count </span><span class="si">{</span><span class="n">local_device_id_list</span><span class="si">}</span><span class="s2"> described rank table does not equal to model files size &quot;</span>
+                           <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">model_files</span><span class="p">)</span><span class="si">}</span><span class="s2">, model files: </span><span class="si">{</span><span class="n">model_files</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">group_config_files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">model_files</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">group_config_files</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model files count </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">model_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not equal to group config files &quot;</span>
+                           <span class="sa">f</span><span class="s2">&quot;count </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">group_config_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> when group_config_files is not None, &quot;</span>
+                           <span class="sa">f</span><span class="s2">&quot;model files: </span><span class="si">{</span><span class="n">model_files</span><span class="si">}</span><span class="s2">, group config files: </span><span class="si">{</span><span class="n">group_config_files</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">_check_model_num</span><span class="p">(</span><span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">)</span>
+    <span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span> <span class="o">=</span> <span class="n">_update_model_files_path</span><span class="p">(</span><span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">)</span>
+
+    <span class="c1"># make json table file and export env</span>
+    <span class="n">rank_table_file</span> <span class="o">=</span> <span class="n">_make_json_table_file</span><span class="p">(</span><span class="n">distributed_config</span><span class="p">)</span>
+    <span class="n">_startup_agents</span><span class="p">(</span><span class="n">distributed_config</span><span class="o">.</span><span class="n">common_meta</span><span class="p">,</span> <span class="n">distributed_address</span><span class="p">,</span> <span class="n">local_ip</span><span class="p">,</span> <span class="n">agent_start_port</span><span class="p">,</span>
+                    <span class="n">local_device_id_list</span><span class="p">,</span> <span class="n">local_rank_id_list</span><span class="p">,</span>
+                    <span class="n">model_files</span><span class="p">,</span> <span class="n">group_config_files</span><span class="p">,</span> <span class="n">rank_table_file</span><span class="p">,</span> <span class="n">dec_key</span><span class="p">,</span> <span class="n">dec_mode</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2020, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+</body>
+</html>

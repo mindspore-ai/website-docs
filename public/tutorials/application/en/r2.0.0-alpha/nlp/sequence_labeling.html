@@ -1,0 +1,740 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>LSTM+CRF Sequence Labeling &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Sentiment Classification Implemented by RNN" href="sentiment_analysis.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">CV</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cv/resnet50.html">ResNet-50 for Image Classification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/transfer_learning.html">ResNet50 Transfer Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/fgsm.html">FGSM Network Adversarial Attack</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/dcgan.html">Generating Cartoon Head Portrait via DCGAN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/vit.html">Vision Transformer Image Classification</a></li>
+</ul>
+<p class="caption"><span class="caption-text">NLP</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="sentiment_analysis.html">Sentiment Classification Implemented by RNN</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">LSTM+CRF Sequence Labeling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#conditional-random-field-crf">Conditional Random Field (CRF)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#score-calculation">Score Calculation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#normalizer-calculation">Normalizer Calculation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#viterbi-algorithm">Viterbi Algorithm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#crf-layer">CRF Layer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#bilstm+crf-model">BiLSTM+CRF Model</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>LSTM+CRF Sequence Labeling</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/nlp/sequence_labeling.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="lstm+crf-sequence-labeling">
+<h1>LSTM+CRF Sequence Labeling<a class="headerlink" href="#lstm+crf-sequence-labeling" title="Permalink to this headline">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/r2.0.0-alpha/tutorials/application/source_en/nlp/sequence_labeling.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.0.0-alpha/resource/_static/logo_source_en.png"></a></p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Sequence labeling refers to the process of labeling each token for a given input sequence. Sequence labeling is usually used to extract information from text, including word segmentation, position tagging, and named entity recognition (NER). The following uses NER as an example:</p>
+<table border="1" class="docutils">
+<thead>
+<tr>
+<th>Input Sequence</th>
+<th>the</th>
+<th>wall</th>
+<th>street</th>
+<th>journal</th>
+<th>reported</th>
+<th>today</th>
+<th>that</th>
+<th>apple</th>
+<th>corporation</th>
+<th>made</th>
+<th>money</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Output Labeling</td>
+<td>B</td>
+<td>I</td>
+<td>I</td>
+<td>I</td>
+<td>O</td>
+<td>O</td>
+<td>O</td>
+<td>B</td>
+<td>I</td>
+<td>O</td>
+<td>O</td>
+</tr>
+</tbody>
+</table>
+<p>As shown in the preceding table, <code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">wall</span> <span class="pre">street</span> <span class="pre">journal</span></code> and <code class="docutils literal notranslate"><span class="pre">apple</span> <span class="pre">corporation</span></code> are place names and need to be identified. We predict the label of each input word and identify the entity based on the label.</p>
+<blockquote>
+<div><p>A common labeling method for NER is used, that is, BIOE labeling. The beginning of an entity is labeled as B, other parts are labeled as I, and non-entity is labeled as O.</p>
+</div></blockquote>
+</div>
+<div class="section" id="conditional-random-field-crf">
+<h2>Conditional Random Field (CRF)<a class="headerlink" href="#conditional-random-field-crf" title="Permalink to this headline">¶</a></h2>
+<p>It can be learned from the preceding example that labeling a sequence is actually performing label prediction on each token in the sequence, and may be directly considered as a simple multi-classification problem. However, sequence labeling not only needs to classify and predict a single token, but also directly associates adjacent tokens. The <code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">wall</span> <span class="pre">street</span> <span class="pre">journal</span></code> is used as an example.</p>
+<table border="1" class="docutils">
+<thead>
+<tr>
+<th>Input Sequence</th>
+<th>the</th>
+<th>wall</th>
+<th>street</th>
+<th>journal</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Output Labeling</td>
+<td>B</td>
+<td>I</td>
+<td>I</td>
+<td>I</td>
+<td>√</td>
+</tr>
+<tr>
+<td>Output Labeling</td>
+<td>O</td>
+<td>I</td>
+<td>I</td>
+<td>I</td>
+<td>×</td>
+</tr>
+</tbody>
+</table>
+<p>As shown in the preceding table, the four tokens contained in the correct entity depend on each other. A word before I must be B or I. However, in the error output, the token <code class="docutils literal notranslate"><span class="pre">the</span></code> is marked as O, which violates the dependency. If NER is regarded as a multi-classification problem, the prediction probability of each word is independent and similar problems may occur. Therefore, an algorithm that can learn the association relationship is introduced to ensure the correctness of the prediction result. CRF is a <a class="reference external" href="https://en.wikipedia.org/wiki/Graphical_model">probabilistic graphical model</a> suitable for this scenario. The definition and parametric form of conditional random field are briefly analyzed in the following.</p>
+<blockquote>
+<div><p>Considering the linear sequence feature of the sequence labeling problem, the CRF described in this section refers to the linear chain CRF.</p>
+</div></blockquote>
+<p>Assume that <span class="math notranslate nohighlight">\(x=\{x_0, ..., x_n\}\)</span> indicates the input sequence, <span class="math notranslate nohighlight">\(y=\{y_0, ..., y_n\}, y \in Y\)</span> indicates the output labeling sequence, where <span class="math notranslate nohighlight">\(n\)</span> indicates the maximum length of the sequence, and <span class="math notranslate nohighlight">\(Y\)</span> indicates the set of all possible output sequences corresponding to <span class="math notranslate nohighlight">\(x\)</span>. The probability of the output sequence <span class="math notranslate nohighlight">\(y\)</span> is as follows:</p>
+<div class="math notranslate nohighlight">
+\[\begin{align}P(y|x) = \frac{\exp{(\text{Score}(x, y)})}{\sum_{y' \in Y} \exp{(\text{Score}(x, y')})} \qquad (1)\end{align}\]</div>
+<p>If <span class="math notranslate nohighlight">\(x_i\)</span> and <span class="math notranslate nohighlight">\(y_i\)</span> are the <span class="math notranslate nohighlight">\(i\)</span>th token and the corresponding label in the sequence, <span class="math notranslate nohighlight">\(\text{Score}\)</span> must calculate the mapping between <span class="math notranslate nohighlight">\(x_i\)</span> and <span class="math notranslate nohighlight">\(y_i\)</span> and capture the relationship between adjacent labels <span class="math notranslate nohighlight">\(y_{i-1}\)</span> and <span class="math notranslate nohighlight">\(y_{i}\)</span>. Therefore, two probability functions are defined:</p>
+<ol class="simple">
+<li><p>The emission probability function <span class="math notranslate nohighlight">\(\psi_\text{EMIT}\)</span> indicates the probability of <span class="math notranslate nohighlight">\(x_i \rightarrow y_i\)</span>.</p></li>
+<li><p>The transition probability function <span class="math notranslate nohighlight">\(\psi_\text{TRANS}\)</span> indicates the probability of <span class="math notranslate nohighlight">\(y_{i-1} \rightarrow y_i\)</span>.</p></li>
+</ol>
+<p>The formula for calculating <span class="math notranslate nohighlight">\(\text{Score}\)</span> is as follows:</p>
+<div class="math notranslate nohighlight">
+\[\begin{align}\text{Score}(x,y) = \sum_i \log \psi_\text{EMIT}(x_i \rightarrow y_i) + \log \psi_\text{TRANS}(y_{i-1} \rightarrow y_i) \qquad (2)\end{align} \]</div>
+<p>Assume that the label set is <span class="math notranslate nohighlight">\(T\)</span>. Build a matrix <span class="math notranslate nohighlight">\(\textbf{P}\)</span> with a size of <span class="math notranslate nohighlight">\(|T|x|T|\)</span> to store the transition probability between labels. A hidden state <span class="math notranslate nohighlight">\(h\)</span> output by the encoding layer (which may be Dense, LSTM, or the like) may be directly considered as an emission probability. In this case, the formula for calculating <span class="math notranslate nohighlight">\(\text{Score}\)</span> can be converted into the following:</p>
+<div class="math notranslate nohighlight">
+\[\begin{align}\text{Score}(x,y) = \sum_i h_i[y_i] + \textbf{P}_{y_{i-1}, y_{i}} \qquad (3)\end{align}\]</div>
+<blockquote>
+<div><p>For details about the complete CRF-based deduction, see <a class="reference external" href="http://www.cs.columbia.edu/~mcollins/crf.pdf">Log-Linear Models, MEMMs, and CRFs</a>.</p>
+</div></blockquote>
+<p>Next, we use MindSpore to implement the CRF parameterization based on the preceding formula. First, a forward training part of a CRF layer is implemented, the CRF and a loss function are combined, and a negative log likelihood (NLL) function commonly used for a classification problem is selected.</p>
+<div class="math notranslate nohighlight">
+\[\begin{align}\text{Loss} = -log(P(y|x)) \qquad (4)\end{align} \]</div>
+<p>According to the formula <span class="math notranslate nohighlight">\((1)\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[\begin{align}\text{Loss} = -log(\frac{\exp{(\text{Score}(x, y)})}{\sum_{y' \in Y} \exp{(\text{Score}(x, y')})}) \qquad (5)\end{align} \]</div>
+<div class="math notranslate nohighlight">
+\[\begin{align}= log(\sum_{y' \in Y} \exp{(\text{Score}(x, y')}) - \text{Score}(x, y) \end{align}\]</div>
+<p>According to the formula <span class="math notranslate nohighlight">\((5)\)</span>, the minuend is called Normalizer, and the subtrahend is called Score. The final loss is obtained after the subtraction.</p>
+<div class="section" id="score-calculation">
+<h3>Score Calculation<a class="headerlink" href="#score-calculation" title="Permalink to this headline">¶</a></h3>
+<p>First, the score corresponding to the correct label sequence is calculated according to the formula <span class="math notranslate nohighlight">\((3)\)</span>. It should be noted that, in addition to the transition probability matrix <span class="math notranslate nohighlight">\(\textbf{P}\)</span>, two vectors whose sizes are <span class="math notranslate nohighlight">\(|T|\)</span> need to be maintained, and are respectively used as transition probabilities at the beginning and the end of the sequence. In addition, a mask matrix <span class="math notranslate nohighlight">\(mask\)</span> is introduced. When multiple sequences are packed into a batch, the filled values are ignored. In this way, the <span class="math notranslate nohighlight">\(\text{Score}\)</span> calculation contains only valid tokens.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">compute_score</span><span class="p">(</span><span class="n">emissions</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">seq_ends</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">trans</span><span class="p">,</span> <span class="n">start_trans</span><span class="p">,</span> <span class="n">end_trans</span><span class="p">):</span>
+    <span class="c1"># emissions: (seq_length, batch_size, num_tags)</span>
+    <span class="c1"># tags: (seq_length, batch_size)</span>
+    <span class="c1"># mask: (seq_length, batch_size)</span>
+
+    <span class="n">seq_length</span><span class="p">,</span> <span class="n">batch_size</span> <span class="o">=</span> <span class="n">tags</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">emissions</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+    <span class="c1"># Set score to the initial transition probability.</span>
+    <span class="c1"># shape: (batch_size,)</span>
+    <span class="n">score</span> <span class="o">=</span> <span class="n">start_trans</span><span class="p">[</span><span class="n">tags</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+    <span class="c1"># score += Probability of the first emission</span>
+    <span class="c1"># shape: (batch_size,)</span>
+    <span class="n">score</span> <span class="o">+=</span> <span class="n">emissions</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">mnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">batch_size</span><span class="p">),</span> <span class="n">tags</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">):</span>
+        <span class="c1"># Probability that the label is transited from i-1 to i (valid when mask == 1).</span>
+        <span class="c1"># shape: (batch_size,)</span>
+        <span class="n">score</span> <span class="o">+=</span> <span class="n">trans</span><span class="p">[</span><span class="n">tags</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tags</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">*</span> <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="c1"># Emission probability of tags[i] prediction(valid when mask == 1).</span>
+        <span class="c1"># shape: (batch_size,)</span>
+        <span class="n">score</span> <span class="o">+=</span> <span class="n">emissions</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">mnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">batch_size</span><span class="p">),</span> <span class="n">tags</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">*</span> <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="c1"># End the transition.</span>
+    <span class="c1"># shape: (batch_size,)</span>
+    <span class="n">last_tags</span> <span class="o">=</span> <span class="n">tags</span><span class="p">[</span><span class="n">seq_ends</span><span class="p">,</span> <span class="n">mnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)]</span>
+    <span class="c1"># score += End transition probability</span>
+    <span class="c1"># shape: (batch_size,)</span>
+    <span class="n">score</span> <span class="o">+=</span> <span class="n">end_trans</span><span class="p">[</span><span class="n">last_tags</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">score</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="normalizer-calculation">
+<h3>Normalizer Calculation<a class="headerlink" href="#normalizer-calculation" title="Permalink to this headline">¶</a></h3>
+<p>According to the formula <span class="math notranslate nohighlight">\((5)\)</span>, Normalizer is the Log-Sum-Exp of scores of all possible output sequences corresponding to <span class="math notranslate nohighlight">\(x\)</span>. In this case, if the enumeration method is used for calculation, each possible output sequence score needs to be calculated, and there are <span class="math notranslate nohighlight">\(|T|^{n}\)</span> results in total. Here, we use the dynamic programming algorithm to improve the efficiency by reusing the calculation result.</p>
+<p>Assume that you need to calculate the scores <span class="math notranslate nohighlight">\(\text{Score}{i}\)</span> of all possible output sequences from token <span class="math notranslate nohighlight">\(0\)</span> to token <span class="math notranslate nohighlight">\(i\)</span>. In this case, scores <span class="math notranslate nohighlight">\(\text{Score}{i-1}\)</span> of all possible output sequences from the <span class="math notranslate nohighlight">\(0\)</span>th token to the <span class="math notranslate nohighlight">\(i-1\)</span>th token may be calculated first. Therefore, the Normalizer can be rewritten as follows:</p>
+<div class="math notranslate nohighlight">
+\[log(\sum_{y'_{0,i} \in Y} \exp{(\text{Score}_i})) = log(\sum_{y'_{0,i-1} \in Y} \exp{(\text{Score}_{i-1} + h_{i} + \textbf{P}})) \qquad (6)\]</div>
+<p><span class="math notranslate nohighlight">\(h_i\)</span> is the emission probability of the <span class="math notranslate nohighlight">\(i\)</span>th token, and <span class="math notranslate nohighlight">\(\textbf{P}\)</span> is the transition matrix. Because the emission probability matrix <span class="math notranslate nohighlight">\(h\)</span> and the transition probability matrix <span class="math notranslate nohighlight">\(\textbf{P}\)</span> are independent of the sequence path calculation of <span class="math notranslate nohighlight">\(y\)</span>, we can obtain that:</p>
+<div class="math notranslate nohighlight">
+\[log(\sum_{y'_{0,i} \in Y} \exp{(\text{Score}_i})) = log(\sum_{y'_{0,i-1} \in Y} \exp{(\text{Score}_{i-1}})) + h_{i} + \textbf{P} \qquad (7)\]</div>
+<p>According to formula (7), the Normalizer is implemented as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">compute_normalizer</span><span class="p">(</span><span class="n">emissions</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">trans</span><span class="p">,</span> <span class="n">start_trans</span><span class="p">,</span> <span class="n">end_trans</span><span class="p">):</span>
+    <span class="c1"># emissions: (seq_length, batch_size, num_tags)</span>
+    <span class="c1"># mask: (seq_length, batch_size)</span>
+
+    <span class="n">seq_length</span> <span class="o">=</span> <span class="n">emissions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Set score to the initial transition probability and add the first emission probability.</span>
+    <span class="c1"># shape: (batch_size, num_tags)</span>
+    <span class="n">score</span> <span class="o">=</span> <span class="n">start_trans</span> <span class="o">+</span> <span class="n">emissions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">):</span>
+        <span class="c1"># The score dimension is extended to calculate the total score.</span>
+        <span class="c1"># shape: (batch_size, num_tags, 1)</span>
+        <span class="n">broadcast_score</span> <span class="o">=</span> <span class="n">score</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># The emission dimension is extended to calculate the total score.</span>
+        <span class="c1"># shape: (batch_size, 1, num_tags)</span>
+        <span class="n">broadcast_emissions</span> <span class="o">=</span> <span class="n">emissions</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Calculate score_i according to formula (7).</span>
+        <span class="c1"># In this case, broadcast_score indicates all possible paths from token 0 to the current token.</span>
+        <span class="c1"># log_sum_exp corresponding to score</span>
+        <span class="c1"># shape: (batch_size, num_tags, num_tags)</span>
+        <span class="n">next_score</span> <span class="o">=</span> <span class="n">broadcast_score</span> <span class="o">+</span> <span class="n">trans</span> <span class="o">+</span> <span class="n">broadcast_emissions</span>
+
+        <span class="c1"># Perform the log_sum_exp operation on score_i to calculate the score of the next token.</span>
+        <span class="c1"># shape: (batch_size, num_tags)</span>
+        <span class="n">next_score</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">next_score</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># The score changes only when mask == 1.</span>
+        <span class="c1"># shape: (batch_size, num_tags)</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="n">mnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">next_score</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span>
+
+    <span class="c1"># Add the end transition probability.</span>
+    <span class="c1"># shape: (batch_size, num_tags)</span>
+    <span class="n">score</span> <span class="o">+=</span> <span class="n">end_trans</span>
+    <span class="c1"># Calculate log_sum_exp based on the scores of all possible paths.</span>
+    <span class="c1"># shape: (batch_size,)</span>
+    <span class="k">return</span> <span class="n">ops</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="viterbi-algorithm">
+<h3>Viterbi Algorithm<a class="headerlink" href="#viterbi-algorithm" title="Permalink to this headline">¶</a></h3>
+<p>After the forward training part is completed, the decoding part needs to be implemented. Here we select the <a class="reference external" href="https://en.wikipedia.org/wiki/Viterbi_algorithm">Viterbi algorithm</a> that is suitable for finding the optimal path of the sequence. Similar to calculating Normalizer, dynamic programming is used to solve all possible prediction sequence scores. The difference is that the label with the maximum score corresponding to token <span class="math notranslate nohighlight">\(i\)</span> needs to be saved during decoding. The label is used by the Viterbi algorithm to calculate the optimal prediction sequence.</p>
+<p>After obtaining the maximum probability score <span class="math notranslate nohighlight">\(\text{Score}\)</span> and the label history <span class="math notranslate nohighlight">\(\text{History}\)</span> corresponding to each token, use the Viterbi algorithm to calculate the following formula:</p>
+<div class="math notranslate nohighlight">
+\[P_{0,i} = max(P_{0, i-1}) + P_{i-1, i}\]</div>
+<p>The 0th token to the <span class="math notranslate nohighlight">\(i\)</span>th token correspond to sequences with a maximum probability. Only sequences with a maximum probability corresponding to the 0th token to the <span class="math notranslate nohighlight">\(i-1\)</span>th token and labels with a maximum probability corresponding to the <span class="math notranslate nohighlight">\(i\)</span>th token to the <span class="math notranslate nohighlight">\(i-1\)</span>th token need to be considered. Therefore, we solve each label with the highest probability in reverse order to form the optimal prediction sequence.</p>
+<blockquote>
+<div><p>Due to the syntax restrictions of static graphs, the Viterbi algorithm is used to solve the optimal prediction sequence as a post-processing function and is not included in the implementation of the CRF layer.</p>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">viterbi_decode</span><span class="p">(</span><span class="n">emissions</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">trans</span><span class="p">,</span> <span class="n">start_trans</span><span class="p">,</span> <span class="n">end_trans</span><span class="p">):</span>
+    <span class="c1"># emissions: (seq_length, batch_size, num_tags)</span>
+    <span class="c1"># mask: (seq_length, batch_size)</span>
+
+    <span class="n">seq_length</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">score</span> <span class="o">=</span> <span class="n">start_trans</span> <span class="o">+</span> <span class="n">emissions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">history</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">):</span>
+        <span class="n">broadcast_score</span> <span class="o">=</span> <span class="n">score</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">broadcast_emission</span> <span class="o">=</span> <span class="n">emissions</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">next_score</span> <span class="o">=</span> <span class="n">broadcast_score</span> <span class="o">+</span> <span class="n">trans</span> <span class="o">+</span> <span class="n">broadcast_emission</span>
+
+        <span class="c1"># Obtain the label with the maximum score corresponding to the current token and save the label.</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">next_score</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">history</span> <span class="o">+=</span> <span class="p">(</span><span class="n">indices</span><span class="p">,)</span>
+
+        <span class="n">next_score</span> <span class="o">=</span> <span class="n">next_score</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="n">mnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">next_score</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span>
+
+    <span class="n">score</span> <span class="o">+=</span> <span class="n">end_trans</span>
+
+    <span class="k">return</span> <span class="n">score</span><span class="p">,</span> <span class="n">history</span>
+
+<span class="k">def</span> <span class="nf">post_decode</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">history</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">):</span>
+    <span class="c1"># Use Score and History to calculate the optimal prediction sequence.</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="n">seq_length</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">seq_ends</span> <span class="o">=</span> <span class="n">seq_length</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="c1"># shape: (batch_size,)</span>
+    <span class="n">best_tags_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Decode each sample in a batch in sequence.</span>
+    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
+        <span class="c1"># Search for the label that maximizes the prediction probability corresponding to the last token.</span>
+        <span class="c1"># Add it to the list of best prediction sequence stores.</span>
+        <span class="n">best_last_tag</span> <span class="o">=</span> <span class="n">score</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">best_tags</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">best_last_tag</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())]</span>
+
+        <span class="c1"># Repeatedly search for the label with the maximum prediction probability corresponding to each token and add the label to the list.</span>
+        <span class="k">for</span> <span class="n">hist</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">history</span><span class="p">[:</span><span class="n">seq_ends</span><span class="p">[</span><span class="n">idx</span><span class="p">]]):</span>
+            <span class="n">best_last_tag</span> <span class="o">=</span> <span class="n">hist</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">best_tags</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+            <span class="n">best_tags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">best_last_tag</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()))</span>
+
+        <span class="c1"># Reset the solved label sequence in reverse order to the positive sequence.</span>
+        <span class="n">best_tags</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="n">best_tags_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">best_tags</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">best_tags_list</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="crf-layer">
+<h3>CRF Layer<a class="headerlink" href="#crf-layer" title="Permalink to this headline">¶</a></h3>
+<p>After the code of the forward training part and the code of the decoding part are completed, a complete CRF layer is assembled. Considering that the input sequence may be padded, the actual length of the input sequence needs to be considered during CRF input. Therefore, in addition to the emissions matrix and label, the <code class="docutils literal notranslate"><span class="pre">seq_length</span></code> parameter is added to transfer the length of the sequence before padding and implement the <code class="docutils literal notranslate"><span class="pre">sequence_mask</span></code> method for generating the mask matrix.</p>
+<p>Based on the preceding code, <code class="docutils literal notranslate"><span class="pre">nn.Cell</span></code> is used for encapsulation. The complete CRF layer is implemented as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+<span class="kn">import</span> <span class="nn">mindspore.numpy</span> <span class="k">as</span> <span class="nn">mnp</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span><span class="p">,</span> <span class="n">Uniform</span>
+
+<span class="k">def</span> <span class="nf">sequence_mask</span><span class="p">(</span><span class="n">seq_length</span><span class="p">,</span> <span class="n">max_length</span><span class="p">,</span> <span class="n">batch_first</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate the mask matrix based on the actual length and maximum length of the sequence.&quot;&quot;&quot;</span>
+    <span class="n">range_vector</span> <span class="o">=</span> <span class="n">mnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_length</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">seq_length</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">range_vector</span> <span class="o">&lt;</span> <span class="n">seq_length</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">seq_length</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span>
+    <span class="k">if</span> <span class="n">batch_first</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">CRF</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_tags</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">batch_first</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;sum&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">num_tags</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;invalid number of tags: </span><span class="si">{</span><span class="n">num_tags</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">reduction</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;token_mean&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;invalid reduction: </span><span class="si">{</span><span class="n">reduction</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_tags</span> <span class="o">=</span> <span class="n">num_tags</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_first</span> <span class="o">=</span> <span class="n">batch_first</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">=</span> <span class="n">reduction</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_transitions</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="n">Uniform</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span> <span class="p">(</span><span class="n">num_tags</span><span class="p">,)),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;start_transitions&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_transitions</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="n">Uniform</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span> <span class="p">(</span><span class="n">num_tags</span><span class="p">,)),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;end_transitions&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transitions</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="n">Uniform</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span> <span class="p">(</span><span class="n">num_tags</span><span class="p">,</span> <span class="n">num_tags</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;transitions&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">emissions</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seq_length</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">tags</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">emissions</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_forward</span><span class="p">(</span><span class="n">emissions</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">emissions</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seq_length</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_first</span><span class="p">:</span>
+            <span class="n">batch_size</span><span class="p">,</span> <span class="n">max_length</span> <span class="o">=</span> <span class="n">tags</span><span class="o">.</span><span class="n">shape</span>
+            <span class="n">emissions</span> <span class="o">=</span> <span class="n">emissions</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">tags</span> <span class="o">=</span> <span class="n">tags</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">max_length</span><span class="p">,</span> <span class="n">batch_size</span> <span class="o">=</span> <span class="n">tags</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="k">if</span> <span class="n">seq_length</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">seq_length</span> <span class="o">=</span> <span class="n">mnp</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,),</span> <span class="n">max_length</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">sequence_mask</span><span class="p">(</span><span class="n">seq_length</span><span class="p">,</span> <span class="n">max_length</span><span class="p">)</span>
+
+        <span class="c1"># shape: (batch_size,)</span>
+        <span class="n">numerator</span> <span class="o">=</span> <span class="n">compute_score</span><span class="p">(</span><span class="n">emissions</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">seq_length</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transitions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_transitions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_transitions</span><span class="p">)</span>
+        <span class="c1"># shape: (batch_size,)</span>
+        <span class="n">denominator</span> <span class="o">=</span> <span class="n">compute_normalizer</span><span class="p">(</span><span class="n">emissions</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transitions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_transitions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_transitions</span><span class="p">)</span>
+        <span class="c1"># shape: (batch_size,)</span>
+        <span class="n">llh</span> <span class="o">=</span> <span class="n">denominator</span> <span class="o">-</span> <span class="n">numerator</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s1">&#39;none&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">llh</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s1">&#39;sum&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">llh</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s1">&#39;mean&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">llh</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">llh</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">emissions</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">emissions</span><span class="p">,</span> <span class="n">seq_length</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_first</span><span class="p">:</span>
+            <span class="n">batch_size</span><span class="p">,</span> <span class="n">max_length</span> <span class="o">=</span> <span class="n">emissions</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">emissions</span> <span class="o">=</span> <span class="n">emissions</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">batch_size</span><span class="p">,</span> <span class="n">max_length</span> <span class="o">=</span> <span class="n">emissions</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">seq_length</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">seq_length</span> <span class="o">=</span> <span class="n">mnp</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,),</span> <span class="n">max_length</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">sequence_mask</span><span class="p">(</span><span class="n">seq_length</span><span class="p">,</span> <span class="n">max_length</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">viterbi_decode</span><span class="p">(</span><span class="n">emissions</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transitions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_transitions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_transitions</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="bilstm+crf-model">
+<h2>BiLSTM+CRF Model<a class="headerlink" href="#bilstm+crf-model" title="Permalink to this headline">¶</a></h2>
+<p>After CRF is implemented, a bidirectional LSTM+CRF model is designed to train NER tasks. The model structure is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>nn.Embedding -&gt; nn.LSTM -&gt; nn.Dense -&gt; CRF
+</pre></div>
+</div>
+<p>The LSTM extracts a sequence feature, obtains an emission probability matrix by means of Dense layer transformation, and finally sends the emission probability matrix to the CRF layer. The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">BiLSTM_CRF</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">,</span> <span class="n">num_tags</span><span class="p">,</span> <span class="n">padding_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">vocab_size</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">padding_idx</span><span class="o">=</span><span class="n">padding_idx</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lstm</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">LSTM</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">hidden_dim</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">bidirectional</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">batch_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hidden2tag</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">num_tags</span><span class="p">,</span> <span class="s1">&#39;he_uniform&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">crf</span> <span class="o">=</span> <span class="n">CRF</span><span class="p">(</span><span class="n">num_tags</span><span class="p">,</span> <span class="n">batch_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lstm</span><span class="p">(</span><span class="n">embeds</span><span class="p">,</span> <span class="n">seq_length</span><span class="o">=</span><span class="n">seq_length</span><span class="p">)</span>
+        <span class="n">feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hidden2tag</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+
+        <span class="n">crf_outs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">crf</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">crf_outs</span>
+</pre></div>
+</div>
+<p>After the model design is complete, two examples and corresponding labels are generated, and a vocabulary and a label table are built.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">embedding_dim</span> <span class="o">=</span> <span class="mi">16</span>
+<span class="n">hidden_dim</span> <span class="o">=</span> <span class="mi">32</span>
+
+<span class="n">training_data</span> <span class="o">=</span> <span class="p">[(</span>
+    <span class="s2">&quot;the wall street journal reported today that apple corporation made money&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">(),</span>
+    <span class="s2">&quot;B I I I O O O B I O O&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+<span class="p">),</span> <span class="p">(</span>
+    <span class="s2">&quot;georgia tech is a university in georgia&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">(),</span>
+    <span class="s2">&quot;B I O O O O B&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+<span class="p">)]</span>
+
+<span class="n">word_to_idx</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">word_to_idx</span><span class="p">[</span><span class="s1">&#39;&lt;pad&gt;&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">sentence</span><span class="p">,</span> <span class="n">tags</span> <span class="ow">in</span> <span class="n">training_data</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">sentence</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">word</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">word_to_idx</span><span class="p">:</span>
+            <span class="n">word_to_idx</span><span class="p">[</span><span class="n">word</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">word_to_idx</span><span class="p">)</span>
+
+<span class="n">tag_to_idx</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;B&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;I&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">len</span><span class="p">(</span><span class="n">word_to_idx</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>    21
+</pre></div>
+</div>
+<p>Instantiate the model, select an optimizer, and send the model and optimizer to the Wrapper.</p>
+<blockquote>
+<div><p>The NLLLoss has been calculated at the CRF layer. Therefore, you do not need to set Loss.</p>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">BiLSTM_CRF</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">word_to_idx</span><span class="p">),</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tag_to_idx</span><span class="p">))</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+<p>Pack the generated data into a batch, pad the sequence with insufficient length based on the maximum sequence length, and return tensors consisting of the input sequence, output label, and sequence length.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">prepare_sequence</span><span class="p">(</span><span class="n">seqs</span><span class="p">,</span> <span class="n">word_to_idx</span><span class="p">,</span> <span class="n">tag_to_idx</span><span class="p">):</span>
+    <span class="n">seq_outputs</span><span class="p">,</span> <span class="n">label_outputs</span><span class="p">,</span> <span class="n">seq_length</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="n">max_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">seqs</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">seq</span><span class="p">,</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">seqs</span><span class="p">:</span>
+        <span class="n">seq_length</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">))</span>
+        <span class="n">idxs</span> <span class="o">=</span> <span class="p">[</span><span class="n">word_to_idx</span><span class="p">[</span><span class="n">w</span><span class="p">]</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">tag_to_idx</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tag</span><span class="p">]</span>
+        <span class="n">idxs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">word_to_idx</span><span class="p">[</span><span class="s1">&#39;&lt;pad&gt;&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_len</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">))])</span>
+        <span class="n">labels</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">tag_to_idx</span><span class="p">[</span><span class="s1">&#39;O&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_len</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">))])</span>
+        <span class="n">seq_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idxs</span><span class="p">)</span>
+        <span class="n">label_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">seq_outputs</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span> \
+            <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">label_outputs</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span> \
+            <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">seq_length</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">seq_length</span> <span class="o">=</span> <span class="n">prepare_sequence</span><span class="p">(</span><span class="n">training_data</span><span class="p">,</span> <span class="n">word_to_idx</span><span class="p">,</span> <span class="n">tag_to_idx</span><span class="p">)</span>
+<span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">label</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">seq_length</span><span class="o">.</span><span class="n">shape</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>    ((2, 11), (2, 11), (2,))
+</pre></div>
+</div>
+<p>After the model is precompiled, 500 steps are trained.</p>
+<blockquote>
+<div><p>Training process visualization depends on the <code class="docutils literal notranslate"><span class="pre">tqdm</span></code> library, which can be installed by running the <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">tqdm</span></code> command.</p>
+</div></blockquote>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>    100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 500/500 [00:23&lt;00:00, 21.13it/s, loss=0.3487625]
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="n">steps</span> <span class="o">=</span> <span class="mi">500</span>
+<span class="k">with</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">t</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">train_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">set_postfix</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">)</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Finally, let’s observe the model effect after 500 steps of training. First, use the model to predict possible path scores and candidate sequences.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">score</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">)</span>
+<span class="n">score</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>    Tensor(shape=[2, 3], dtype=Float32, value=
+    [[ 3.15928860e+01,  3.63119812e+01,  3.17248516e+01],
+     [ 2.81416149e+01,  2.61749763e+01,  3.24760780e+01]])
+</pre></div>
+</div>
+<p>Perform post-processing on the predicted score.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">predict</span> <span class="o">=</span> <span class="n">post_decode</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">history</span><span class="p">,</span> <span class="n">seq_length</span><span class="p">)</span>
+<span class="n">predict</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>    [[0, 1, 1, 1, 2, 2, 2, 0, 1, 2, 2], [0, 1, 2, 2, 2, 2, 0, 2, 2]]
+</pre></div>
+</div>
+<p>Finally, convert the predicted index sequence into a label sequence, print the output result, and view the effect.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">idx_to_tag</span> <span class="o">=</span> <span class="p">{</span><span class="n">idx</span><span class="p">:</span> <span class="n">tag</span> <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">tag_to_idx</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+<span class="k">def</span> <span class="nf">sequence_to_tag</span><span class="p">(</span><span class="n">sequences</span><span class="p">,</span> <span class="n">idx_to_tag</span><span class="p">):</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">sequences</span><span class="p">:</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">idx_to_tag</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">outputs</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sequence_to_tag</span><span class="p">(</span><span class="n">predict</span><span class="p">,</span> <span class="n">idx_to_tag</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>    [[&#39;B&#39;, &#39;I&#39;, &#39;I&#39;, &#39;I&#39;, &#39;O&#39;, &#39;O&#39;, &#39;O&#39;, &#39;B&#39;, &#39;I&#39;, &#39;O&#39;, &#39;O&#39;],
+     [&#39;B&#39;, &#39;I&#39;, &#39;O&#39;, &#39;O&#39;, &#39;O&#39;, &#39;O&#39;, &#39;B&#39;, &#39;O&#39;, &#39;O&#39;]]
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="sentiment_analysis.html" class="btn btn-neutral float-left" title="Sentiment Classification Implemented by RNN" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

@@ -1,0 +1,1323 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>使用RNN实现情感分类 &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "tex2jax_ignore|mathjax_ignore|document", "processClass": "tex2jax_process|mathjax_process|math|output_area"}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="LSTM+CRF实现序列标注" href="sequence_labeling.html" />
+    <link rel="prev" title="生成式对抗网络" href="../cv/dcgan.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">计算机视觉</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cv/resnet50.html">ResNet50网络进行图像分类</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/transfer_learning.html">图像分类迁移学习</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/fgsm.html">FGSM网络对抗攻击</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/dcgan.html">生成式对抗网络</a></li>
+</ul>
+<p class="caption"><span class="caption-text">自然语言处理</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">使用RNN实现情感分类</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#数据准备">数据准备</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#数据下载模块">数据下载模块</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#加载imdb数据集">加载IMDB数据集</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#加载预训练词向量">加载预训练词向量</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#数据集预处理">数据集预处理</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#模型构建">模型构建</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#embedding">Embedding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rnn循环神经网络">RNN(循环神经网络)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dense">Dense</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#损失函数与优化器">损失函数与优化器</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#训练逻辑">训练逻辑</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#评估指标和逻辑">评估指标和逻辑</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#模型训练与保存">模型训练与保存</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#模型加载与测试">模型加载与测试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#自定义输入测试">自定义输入测试</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sequence_labeling.html">LSTM+CRF实现序列标注</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>使用RNN实现情感分类</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/nlp/sentiment_analysis.ipynb.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars and line breaks on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+    white-space: pre;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt .copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+.jp-RenderedHTMLCommon table,
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.jp-RenderedHTMLCommon thead,
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+.jp-RenderedHTMLCommon tr,
+.jp-RenderedHTMLCommon th,
+.jp-RenderedHTMLCommon td,
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+.jp-RenderedHTMLCommon th,
+div.rendered_html th {
+  font-weight: bold;
+}
+.jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+.jp-RenderedHTMLCommon tbody tr:hover,
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="使用rnn实现情感分类">
+<h1>使用RNN实现情感分类<a class="headerlink" href="#使用rnn实现情感分类" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://authoring-modelarts-cnnorth4.huaweicloud.com/console/lab?share-url-b64=aHR0cHM6Ly9vYnMuZHVhbHN0YWNrLmNuLW5vcnRoLTQubXlodWF3ZWljbG91ZC5jb20vbWluZHNwb3JlLXdlYnNpdGUvbm90ZWJvb2svcjEuNy90dXRvcmlhbHMvYXBwbGljYXRpb24vemhfY24vbmxwL21pbmRzcG9yZV9zZW50aW1lbnRfYW5hbHlzaXMuaXB5bmI=&amp;imageid=9d63f4d1-dc09-4873-b669-3483cea777c0"><img alt="在线运行" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.7/resource/_static/logo_modelarts.png" /></a> <a class="reference external" href="https://obs.dualstack.cn-north-4.myhuaweicloud.com/mindspore-website/notebook/r1.7/tutorials/application/zh_cn/nlp/mindspore_sentiment_analysis.ipynb"><img alt="下载Notebook" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.7/resource/_static/logo_notebook.png" /></a> <a class="reference external" href="https://obs.dualstack.cn-north-4.myhuaweicloud.com/mindspore-website/notebook/r1.7/tutorials/application/zh_cn/nlp/mindspore_sentiment_analysis.py"><img alt="下载样例代码" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.7/resource/_static/logo_download_code.png" /></a> <a class="reference external" href="https://gitee.com/mindspore/docs/blob/r1.7/tutorials/application/source_zh_cn/nlp/sentiment_analysis.ipynb"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.7/resource/_static/logo_source.png" /></a></p>
+<div class="section" id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline">¶</a></h2>
+<p>情感分类是自然语言处理中的经典任务，是典型的分类问题。本节使用MindSpore实现一个基于RNN网络的情感分类模型，实现如下的效果：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>输入: This film is terrible
+正确标签: Negative
+预测标签: Negative
+
+输入: This film is great
+正确标签: Positive
+预测标签: Positive
+</pre></div>
+</div>
+</div>
+<div class="section" id="数据准备">
+<h2>数据准备<a class="headerlink" href="#数据准备" title="Permalink to this headline">¶</a></h2>
+<p>本节使用情感分类的经典数据集<a class="reference external" href="https://ai.stanford.edu/~amaas/data/sentiment/">IMDB影评数据集</a>，数据集包含Positive和Negative两类，下面为其样例：</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 46%" />
+<col style="width: 54%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Review</p></th>
+<th class="head"><p>Label</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>“Quitting” may be as much about
+exiting a pre-ordained identity as
+about drug withdrawal. As a rural
+guy coming to Beijing, class and
+success must have struck this
+young artist face on as an appeal
+to separate from his roots and far
+surpass his peasant parents’
+acting success. Troubles arise,
+however, when the new man is too
+new, when it demands too big a
+departure from family, history,
+nature, and personal identity. The
+ensuing splits, and confusion
+between the imaginary and the real
+and the dissonance between the
+ordinary and the heroic are the
+stuff of a gut check on the one
+hand or a complete escape from
+self on the other.</p></td>
+<td><p>Negative</p></td>
+</tr>
+<tr class="row-odd"><td><p>This movie is amazing because the
+fact that the real people portray
+themselves and their real life
+experience and do such a good job
+it’s like they’re almost living
+the past over again. Jia Hongsheng
+plays himself an actor who quit
+everything except music and drugs
+struggling with depression and
+searching for the meaning of life
+while being angry at everyone
+especially the people who care for
+him most.</p></td>
+<td><p>Positive</p></td>
+</tr>
+</tbody>
+</table>
+<p>此外，需要使用预训练词向量对自然语言单词进行编码，以获取文本的语义特征，本节选取<a class="reference external" href="https://nlp.stanford.edu/projects/glove/">Glove</a>词向量作为Embedding。</p>
+<div class="section" id="数据下载模块">
+<h3>数据下载模块<a class="headerlink" href="#数据下载模块" title="Permalink to this headline">¶</a></h3>
+<p>为了方便数据集和预训练词向量的下载，首先设计数据下载模块，实现可视化下载流程，并保存至指定路径。数据下载模块使用<code class="docutils literal notranslate"><span class="pre">requests</span></code>库进行http请求，并通过<code class="docutils literal notranslate"><span class="pre">tqdm</span></code>库对下载百分比进行可视化。此外针对下载安全性，使用IO的方式下载临时文件，而后保存至指定的路径并返回。</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">tqdm</span></code>和<code class="docutils literal notranslate"><span class="pre">requests</span></code>库需手动安装，命令如下：<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">tqdm</span> <span class="pre">requests</span></code></p>
+</div></blockquote>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">IO</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># 指定保存路径为 `home_path/.mindspore_examples`</span>
+<span class="n">cache_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s1">&#39;.mindspore_examples&#39;</span>
+
+<span class="k">def</span> <span class="nf">http_get</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">temp_file</span><span class="p">:</span> <span class="n">IO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;使用requests库下载数据，并使用tqdm库进行流程可视化&quot;&quot;&quot;</span>
+    <span class="n">req</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">content_length</span> <span class="o">=</span> <span class="n">req</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Content-Length&#39;</span><span class="p">)</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">content_length</span><span class="p">)</span> <span class="k">if</span> <span class="n">content_length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">progress</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">unit</span><span class="o">=</span><span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">total</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">req</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="mi">1024</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">chunk</span><span class="p">:</span>
+            <span class="n">progress</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">))</span>
+            <span class="n">temp_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+    <span class="n">progress</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">download</span><span class="p">(</span><span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;下载数据并存为指定名称&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">)</span>
+    <span class="n">cache_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+    <span class="n">cache_exist</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">cache_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">cache_exist</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">temp_file</span><span class="p">:</span>
+            <span class="n">http_get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">temp_file</span><span class="p">)</span>
+            <span class="n">temp_file</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+            <span class="n">temp_file</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cache_path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">cache_file</span><span class="p">:</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">temp_file</span><span class="p">,</span> <span class="n">cache_file</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cache_path</span>
+</pre></div>
+</div>
+</div>
+<p>完成数据下载模块后，下载IMDB数据集进行测试(此处使用华为云的镜像用于提升下载速度)。下载过程及保存的路径如下：</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imdb_path</span> <span class="o">=</span> <span class="n">download</span><span class="p">(</span><span class="s1">&#39;aclImdb_v1.tar.gz&#39;</span><span class="p">,</span> <span class="s1">&#39;https://mindspore-website.obs.myhuaweicloud.com/notebook/datasets/aclImdb_v1.tar.gz&#39;</span><span class="p">)</span>
+<span class="n">imdb_path</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;/root/.mindspore_examples/aclImdb_v1.tar.gz&#39;
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="加载imdb数据集">
+<h3>加载IMDB数据集<a class="headerlink" href="#加载imdb数据集" title="Permalink to this headline">¶</a></h3>
+<p>下载好的IMDB数据集为<code class="docutils literal notranslate"><span class="pre">tar.gz</span></code>文件，我们使用Python的<code class="docutils literal notranslate"><span class="pre">tarfile</span></code>库对其进行读取，并将所有数据和标签分别进行存放。原始的IMDB数据集解压目录如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>├── aclImdb
+│   ├── imdbEr.txt
+│   ├── imdb.vocab
+│   ├── README
+│   ├── test
+│   └── train
+│         ├── neg
+│         ├── pos
+...
+</pre></div>
+</div>
+<p>数据集已分割为train和test两部分，且每部分包含neg和pos两个分类的文件夹，因此需分别train和test进行读取并处理数据和标签。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
+
+<span class="k">class</span> <span class="nc">IMDBData</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;IMDB数据集加载器</span>
+
+<span class="sd">    加载IMDB数据集并处理为一个Python迭代对象。</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">label_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;pos&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;neg&quot;</span><span class="p">:</span> <span class="mi">0</span>
+    <span class="p">}</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">docs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load</span><span class="p">(</span><span class="s2">&quot;pos&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load</span><span class="p">(</span><span class="s2">&quot;neg&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;aclImdb/</span><span class="si">{}</span><span class="s2">/</span><span class="si">{}</span><span class="s2">/.*\.txt$&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="n">label</span><span class="p">))</span>
+        <span class="c1"># 将数据加载至内存</span>
+        <span class="k">with</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">tarf</span><span class="p">:</span>
+            <span class="n">tf</span> <span class="o">=</span> <span class="n">tarf</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+            <span class="k">while</span> <span class="n">tf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">pattern</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">name</span><span class="p">)):</span>
+                    <span class="c1"># 对文本进行分词、去除标点和特殊字符、小写处理</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">docs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">tarf</span><span class="o">.</span><span class="n">extractfile</span><span class="p">(</span><span class="n">tf</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">b</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\r</span><span class="s2">&quot;</span><span class="p">))</span>
+                                         <span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">b</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">punctuation</span><span class="p">))</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">label_map</span><span class="p">[</span><span class="n">label</span><span class="p">]])</span>
+                <span class="n">tf</span> <span class="o">=</span> <span class="n">tarf</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">docs</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">docs</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>完成IMDB数据加载器后，加载训练数据集进行测试，输出数据集数量：</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imdb_train</span> <span class="o">=</span> <span class="n">IMDBData</span><span class="p">(</span><span class="n">imdb_path</span><span class="p">,</span> <span class="s1">&#39;train&#39;</span><span class="p">)</span>
+<span class="nb">len</span><span class="p">(</span><span class="n">imdb_train</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+25000
+</pre></div></div>
+</div>
+<p>将IMDB数据集加载至内存并构造为迭代对象后，可以使用<code class="docutils literal notranslate"><span class="pre">mindspore.dataset</span></code>提供的<code class="docutils literal notranslate"><span class="pre">Generatordataset</span></code>接口加载数据集迭代对象，并进行下一步的数据处理，下面封装一个函数将train和test分别使用<code class="docutils literal notranslate"><span class="pre">Generatordataset</span></code>进行加载，并指定数据集中文本和标签的<code class="docutils literal notranslate"><span class="pre">column_name</span></code>分别为<code class="docutils literal notranslate"><span class="pre">text</span></code>和<code class="docutils literal notranslate"><span class="pre">label</span></code>:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">dataset</span>
+
+<span class="k">def</span> <span class="nf">load_imdb</span><span class="p">(</span><span class="n">imdb_path</span><span class="p">):</span>
+    <span class="n">imdb_train</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">IMDBData</span><span class="p">(</span><span class="n">imdb_path</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">),</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">imdb_test</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">IMDBData</span><span class="p">(</span><span class="n">imdb_path</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">),</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">imdb_train</span><span class="p">,</span> <span class="n">imdb_test</span>
+</pre></div>
+</div>
+</div>
+<p>加载IMDB数据集，可以看到<code class="docutils literal notranslate"><span class="pre">imdb_train</span></code>是一个GeneratorDataset对象。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imdb_train</span><span class="p">,</span> <span class="n">imdb_test</span> <span class="o">=</span> <span class="n">load_imdb</span><span class="p">(</span><span class="n">imdb_path</span><span class="p">)</span>
+<span class="n">imdb_train</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;mindspore.dataset.engine.datasets_user_defined.GeneratorDataset at 0x7f3885733710&gt;
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="加载预训练词向量">
+<h3>加载预训练词向量<a class="headerlink" href="#加载预训练词向量" title="Permalink to this headline">¶</a></h3>
+<p>预训练词向量是对输入单词的数值化表示，通过<code class="docutils literal notranslate"><span class="pre">nn.Embedding</span></code>层，采用查表的方式，输入单词对应词表中的index，获得对应的表达向量。 因此进行模型构造前，需要将Embedding层所需的词向量和词表进行构造。这里我们使用Glove(Global Vectors for Word Representation)这种经典的预训练词向量， 其数据格式如下：</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 46%" />
+<col style="width: 54%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Word</p></th>
+<th class="head"><p>Vector</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>the</p></td>
+<td><p>0.418 0.24968 -0.41242 0.1217 0.34527
+-0.044457 -0.49688 -0.17862 -0.00066023
+…</p></td>
+</tr>
+<tr class="row-odd"><td><p>,</p></td>
+<td><p>0.013441 0.23682 -0.16899 0.40951 0.63812
+0.47709 -0.42852 -0.55641 -0.364 …</p></td>
+</tr>
+</tbody>
+</table>
+<p>我们直接使用第一列的单词作为词表，使用<code class="docutils literal notranslate"><span class="pre">dataset.text.Vocab</span></code>将其按顺序加载；同时读取每一行的Vector并转为<code class="docutils literal notranslate"><span class="pre">numpy.array</span></code>，用于<code class="docutils literal notranslate"><span class="pre">nn.Embedding</span></code>加载权重使用。具体实现如下：</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zipfile</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="k">def</span> <span class="nf">load_glove</span><span class="p">(</span><span class="n">glove_path</span><span class="p">):</span>
+    <span class="n">glove_100d_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">,</span> <span class="s1">&#39;glove.6B.100d.txt&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">glove_100d_path</span><span class="p">):</span>
+        <span class="n">glove_zip</span> <span class="o">=</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">glove_path</span><span class="p">)</span>
+        <span class="n">glove_zip</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">)</span>
+
+    <span class="n">embeddings</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">tokens</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">glove_100d_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">gf</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">glove</span> <span class="ow">in</span> <span class="n">gf</span><span class="p">:</span>
+            <span class="n">word</span><span class="p">,</span> <span class="n">embedding</span> <span class="o">=</span> <span class="n">glove</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">tokens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">word</span><span class="p">)</span>
+            <span class="n">embeddings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">embedding</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">))</span>
+    <span class="c1"># 添加 &lt;unk&gt;, &lt;pad&gt; 两个特殊占位符对应的embedding</span>
+    <span class="n">embeddings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">100</span><span class="p">))</span>
+    <span class="n">embeddings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">100</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+
+    <span class="n">vocab</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">Vocab</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">special_tokens</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;&lt;unk&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;pad&gt;&quot;</span><span class="p">],</span> <span class="n">special_first</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">embeddings</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">embeddings</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">vocab</span><span class="p">,</span> <span class="n">embeddings</span>
+</pre></div>
+</div>
+</div>
+<p>由于数据集中可能存在词表没有覆盖的单词，因此需要加入<code class="docutils literal notranslate"><span class="pre">&lt;unk&gt;</span></code>标记符；同时由于输入长度的不一致，在打包为一个batch时需要将短的文本进行填充，因此需要加入<code class="docutils literal notranslate"><span class="pre">&lt;pad&gt;</span></code>标记符。完成后的词表长度为原词表长度+2。</p>
+<p>下面下载Glove词向量，并加载生成词表和词向量权重矩阵。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">glove_path</span> <span class="o">=</span> <span class="n">download</span><span class="p">(</span><span class="s1">&#39;glove.6B.zip&#39;</span><span class="p">,</span> <span class="s1">&#39;https://mindspore-website.obs.myhuaweicloud.com/notebook/datasets/glove.6B.zip&#39;</span><span class="p">)</span>
+<span class="n">vocab</span><span class="p">,</span> <span class="n">embeddings</span> <span class="o">=</span> <span class="n">load_glove</span><span class="p">(</span><span class="n">glove_path</span><span class="p">)</span>
+<span class="nb">len</span><span class="p">(</span><span class="n">vocab</span><span class="o">.</span><span class="n">vocab</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+400002
+</pre></div></div>
+</div>
+<p>使用词表将<code class="docutils literal notranslate"><span class="pre">the</span></code>转换为index id，并查询词向量矩阵对应的词向量：</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">idx</span> <span class="o">=</span> <span class="n">vocab</span><span class="o">.</span><span class="n">tokens_to_ids</span><span class="p">(</span><span class="s1">&#39;the&#39;</span><span class="p">)</span>
+<span class="n">embedding</span> <span class="o">=</span> <span class="n">embeddings</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+<span class="n">idx</span><span class="p">,</span> <span class="n">embedding</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(0,
+ array([-0.038194, -0.24487 ,  0.72812 , -0.39961 ,  0.083172,  0.043953,
+        -0.39141 ,  0.3344  , -0.57545 ,  0.087459,  0.28787 , -0.06731 ,
+         0.30906 , -0.26384 , -0.13231 , -0.20757 ,  0.33395 , -0.33848 ,
+        -0.31743 , -0.48336 ,  0.1464  , -0.37304 ,  0.34577 ,  0.052041,
+         0.44946 , -0.46971 ,  0.02628 , -0.54155 , -0.15518 , -0.14107 ,
+        -0.039722,  0.28277 ,  0.14393 ,  0.23464 , -0.31021 ,  0.086173,
+         0.20397 ,  0.52624 ,  0.17164 , -0.082378, -0.71787 , -0.41531 ,
+         0.20335 , -0.12763 ,  0.41367 ,  0.55187 ,  0.57908 , -0.33477 ,
+        -0.36559 , -0.54857 , -0.062892,  0.26584 ,  0.30205 ,  0.99775 ,
+        -0.80481 , -3.0243  ,  0.01254 , -0.36942 ,  2.2167  ,  0.72201 ,
+        -0.24978 ,  0.92136 ,  0.034514,  0.46745 ,  1.1079  , -0.19358 ,
+        -0.074575,  0.23353 , -0.052062, -0.22044 ,  0.057162, -0.15806 ,
+        -0.30798 , -0.41625 ,  0.37972 ,  0.15006 , -0.53212 , -0.2055  ,
+        -1.2526  ,  0.071624,  0.70565 ,  0.49744 , -0.42063 ,  0.26148 ,
+        -1.538   , -0.30223 , -0.073438, -0.28312 ,  0.37104 , -0.25217 ,
+         0.016215, -0.017099, -0.38984 ,  0.87424 , -0.72569 , -0.51058 ,
+        -0.52028 , -0.1459  ,  0.8278  ,  0.27062 ], dtype=float32))
+</pre></div></div>
+</div>
+</div>
+</div>
+<div class="section" id="数据集预处理">
+<h2>数据集预处理<a class="headerlink" href="#数据集预处理" title="Permalink to this headline">¶</a></h2>
+<p>通过加载器加载的IMDB数据集进行了分词处理，但不满足构造训练数据的需要，因此要对其进行额外的预处理。其中包含的预处理如下：</p>
+<ul class="simple">
+<li><p>通过Vocab将所有的Token处理为index id。</p></li>
+<li><p>将文本序列统一长度，不足的使用<code class="docutils literal notranslate"><span class="pre">&lt;pad&gt;</span></code>补齐，超出的进行截断。</p></li>
+</ul>
+<p>这里我们使用<code class="docutils literal notranslate"><span class="pre">mindspore.dataset</span></code>中提供的接口进行预处理操作。这里使用到的接口均为MindSpore的高性能数据引擎设计，每个接口对应操作视作数据流水线的一部分，详情请参考<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r1.7/design/data_engine.html">MindSpore数据引擎</a>。 首先针对token到index
+id的查表操作，使用<code class="docutils literal notranslate"><span class="pre">text.Lookup</span></code>接口，将前文构造的词表加载，并指定<code class="docutils literal notranslate"><span class="pre">unknown_token</span></code>。其次为文本序列统一长度操作，使用<code class="docutils literal notranslate"><span class="pre">PadEnd</span></code>接口，此接口定义最大长度和补齐值(<code class="docutils literal notranslate"><span class="pre">pad_value</span></code>)，这里我们取最大长度为500，填充值对应词表中<code class="docutils literal notranslate"><span class="pre">&lt;pad&gt;</span></code>的index id。</p>
+<blockquote>
+<div><p>除了对数据集中<code class="docutils literal notranslate"><span class="pre">text</span></code>进行预处理外，由于后续模型训练的需要，要将<code class="docutils literal notranslate"><span class="pre">label</span></code>数据转为float32格式。</p>
+</div></blockquote>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+
+<span class="n">lookup_op</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">Lookup</span><span class="p">(</span><span class="n">vocab</span><span class="p">,</span> <span class="n">unknown_token</span><span class="o">=</span><span class="s1">&#39;&lt;unk&gt;&#39;</span><span class="p">)</span>
+<span class="n">pad_op</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">c_transforms</span><span class="o">.</span><span class="n">PadEnd</span><span class="p">([</span><span class="mi">500</span><span class="p">],</span> <span class="n">pad_value</span><span class="o">=</span><span class="n">vocab</span><span class="o">.</span><span class="n">tokens_to_ids</span><span class="p">(</span><span class="s1">&#39;&lt;pad&gt;&#39;</span><span class="p">))</span>
+<span class="n">type_cast_op</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">c_transforms</span><span class="o">.</span><span class="n">TypeCast</span><span class="p">(</span><span class="n">mindspore</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>完成预处理操作后，需将其加入到数据集处理流水线中，使用<code class="docutils literal notranslate"><span class="pre">map</span></code>接口对指定的column添加操作。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imdb_train</span> <span class="o">=</span> <span class="n">imdb_train</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="p">[</span><span class="n">lookup_op</span><span class="p">,</span> <span class="n">pad_op</span><span class="p">],</span> <span class="n">input_columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">])</span>
+<span class="n">imdb_train</span> <span class="o">=</span> <span class="n">imdb_train</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="p">[</span><span class="n">type_cast_op</span><span class="p">],</span> <span class="n">input_columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
+
+<span class="n">imdb_test</span> <span class="o">=</span> <span class="n">imdb_test</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="p">[</span><span class="n">lookup_op</span><span class="p">,</span> <span class="n">pad_op</span><span class="p">],</span> <span class="n">input_columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">])</span>
+<span class="n">imdb_test</span> <span class="o">=</span> <span class="n">imdb_test</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="p">[</span><span class="n">type_cast_op</span><span class="p">],</span> <span class="n">input_columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<p>由于IMDB数据集本身不包含验证集，我们手动将其分割为训练和验证两部分，比例取0.7, 0.3。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imdb_train</span><span class="p">,</span> <span class="n">imdb_valid</span> <span class="o">=</span> <span class="n">imdb_train</span><span class="o">.</span><span class="n">split</span><span class="p">([</span><span class="mf">0.7</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<p>最后指定数据集的batch大小，通过<code class="docutils literal notranslate"><span class="pre">batch</span></code>接口指定，并设置是否丢弃无法被batch size整除的剩余数据。</p>
+<blockquote>
+<div><p>调用数据集的<code class="docutils literal notranslate"><span class="pre">map</span></code>、<code class="docutils literal notranslate"><span class="pre">split</span></code>、<code class="docutils literal notranslate"><span class="pre">batch</span></code>为数据集处理流水线增加对应操作，返回值为新的Dataset类型。现在仅定义流水线操作，在执行时开始执行数据处理流水线，获取最终处理好的数据并送入模型进行训练。</p>
+</div></blockquote>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imdb_train</span> <span class="o">=</span> <span class="n">imdb_train</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">imdb_valid</span> <span class="o">=</span> <span class="n">imdb_valid</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="模型构建">
+<h2>模型构建<a class="headerlink" href="#模型构建" title="Permalink to this headline">¶</a></h2>
+<p>完成数据集的处理后，我们设计用于情感分类的模型结构。首先需要将输入文本(即序列化后的index id列表)通过查表转为向量化表示，此时需要使用<code class="docutils literal notranslate"><span class="pre">nn.Embedding</span></code>层加载Glove词向量；然后使用RNN循环神经网络做特征提取；最后将RNN连接至一个全连接层，即<code class="docutils literal notranslate"><span class="pre">nn.Dense</span></code>，将特征转化为与分类数量相同的size，用于后续进行模型优化训练。整体模型结构如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>nn.Embedding -&gt; nn.RNN -&gt; nn.Dense
+</pre></div>
+</div>
+<p>这里我们使用能够一定程度规避RNN梯度消失问题的变种LSTM(Long short term memory)做特征提取层。下面对模型进行详解：</p>
+<div class="section" id="embedding">
+<h3>Embedding<a class="headerlink" href="#embedding" title="Permalink to this headline">¶</a></h3>
+<p>Embedding层又可称为EmbeddingLookup层，其作用是使用index id对权重矩阵对应id的向量进行查找，当输入为一个由index id组成的序列时，则查找并返回一个相同长度的矩阵，例如：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>embedding = nn.Embedding(1000, 100) # 词表大小(index的取值范围)为1000，表示向量的size为100
+input shape: (1, 16)                # 序列长度为16
+output shape：(1, 16, 100)
+</pre></div>
+</div>
+<p>这里我们使用前文处理好的Glove词向量矩阵，设置<code class="docutils literal notranslate"><span class="pre">nn.Embedding</span></code>的<code class="docutils literal notranslate"><span class="pre">embedding_table</span></code>为预训练词向量矩阵。对应的<code class="docutils literal notranslate"><span class="pre">vocab_size</span></code>为词表大小400002，<code class="docutils literal notranslate"><span class="pre">embedding_size</span></code>为选用的<code class="docutils literal notranslate"><span class="pre">glove.6B.100d</span></code>向量大小，即100。</p>
+</div>
+<div class="section" id="rnn循环神经网络">
+<h3>RNN(循环神经网络)<a class="headerlink" href="#rnn循环神经网络" title="Permalink to this headline">¶</a></h3>
+<p>循环神经网络（Recurrent Neural Network, RNN）是一类以序列（sequence）数据为输入，在序列的演进方向进行递归（recursion）且所有节点（循环单元）按链式连接的神经网络。下图为RNN的一般结构：</p>
+<p><img alt="RNN-0" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.7/tutorials/application/source_zh_cn/nlp/images/0-RNN-0.png" /></p>
+<blockquote>
+<div><p>图示左侧为一个RNN Cell循环，右侧为RNN的链式连接平铺。实际上不管是单个RNN Cell还是一个RNN网络，都只有一个Cell的参数，在不断进行循环计算中更新。</p>
+</div></blockquote>
+<p>由于RNN的循环特性，和自然语言文本的序列特性(句子是由单词组成的序列)十分匹配，因此被大量应用于自然语言处理研究中。下图为RNN的结构拆解：</p>
+<p><img alt="RNN" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.7/tutorials/application/source_zh_cn/nlp/images/0-RNN.png" /></p>
+<p>RNN单个Cell的结构简单，因此也造成了梯度消失(Gradient Vanishing)问题，具体表现为RNN网络在序列较长时，在序列尾部已经基本丢失了序列首部的信息。为了克服这一问题，LSTM(Long short term memory)被提出，通过门控机制(Gating Mechanism)来控制信息流在每个循环步中的留存和丢弃。下图为LSTM的结构拆解：</p>
+<p><img alt="LSTM" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.7/tutorials/application/source_zh_cn/nlp/images/0-LSTM.png" /></p>
+<p>本节我们选择LSTM变种而不是经典的RNN做特征提取，来规避梯度消失问题，并获得更好的模型效果。下面来看MindSpore中<code class="docutils literal notranslate"><span class="pre">nn.LSTM</span></code>对应的公式：</p>
+<div class="math notranslate nohighlight">
+\[h_{0:t}, (h_t, c_t) = \text{LSTM}(x_{0:t}, (h_0, c_0))\]</div>
+<p>这里<code class="docutils literal notranslate"><span class="pre">nn.LSTM</span></code>隐藏了整个循环神经网络在序列时间步(Time step)上的循环，送入输入序列、初始状态，即可获得每个时间步的隐状态(hidden state)拼接而成的矩阵，以及最后一个时间步对应的隐状态。我们使用最后的一个时间步的隐状态作为输入句子的编码特征，送入下一层。</p>
+<blockquote>
+<div><p>Time step：在循环神经网络计算的每一次循环，成为一个Time step。在送入文本序列时，一个Time step对应一个单词。因此在本例中，LSTM的输出<span class="math notranslate nohighlight">\(h_{0:t}\)</span>对应每个单词的隐状态集合，<span class="math notranslate nohighlight">\(h_t\)</span>和<span class="math notranslate nohighlight">\(c_t\)</span>对应最后一个单词对应的隐状态。</p>
+</div></blockquote>
+</div>
+<div class="section" id="dense">
+<h3>Dense<a class="headerlink" href="#dense" title="Permalink to this headline">¶</a></h3>
+<p>在经过LSTM编码获取句子特征后，将其送入一个全连接层，即<code class="docutils literal notranslate"><span class="pre">nn.Dense</span></code>，将特征维度变换为二分类所需的维度1，经过Dense层后的输出即为模型预测结果。</p>
+<blockquote>
+<div><p>在Dense层后进行了<code class="docutils literal notranslate"><span class="pre">sigmoid</span></code>运算，将预测值归一至<code class="docutils literal notranslate"><span class="pre">[0,1]</span></code>区间，用于后续和<code class="docutils literal notranslate"><span class="pre">BCELoss</span></code>(BinaryCrossEntropyLoss)计算二分类交叉熵损失使用。</p>
+</div></blockquote>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore.numpy</span> <span class="k">as</span> <span class="nn">mnp</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">Uniform</span><span class="p">,</span> <span class="n">HeUniform</span>
+
+<span class="k">class</span> <span class="nc">RNN</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">embeddings</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">,</span> <span class="n">n_layers</span><span class="p">,</span>
+                 <span class="n">bidirectional</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">pad_idx</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">vocab_size</span><span class="p">,</span> <span class="n">embedding_dim</span> <span class="o">=</span> <span class="n">embeddings</span><span class="o">.</span><span class="n">shape</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">vocab_size</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">embedding_table</span><span class="o">=</span><span class="n">Tensor</span><span class="p">(</span><span class="n">embeddings</span><span class="p">),</span> <span class="n">padding_idx</span><span class="o">=</span><span class="n">pad_idx</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rnn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">LSTM</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span>
+                           <span class="n">hidden_dim</span><span class="p">,</span>
+                           <span class="n">num_layers</span><span class="o">=</span><span class="n">n_layers</span><span class="p">,</span>
+                           <span class="n">bidirectional</span><span class="o">=</span><span class="n">bidirectional</span><span class="p">,</span>
+                           <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                           <span class="n">batch_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">weight_init</span> <span class="o">=</span> <span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+        <span class="n">bias_init</span> <span class="o">=</span> <span class="n">Uniform</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">hidden_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">hidden_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="n">weight_init</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="n">bias_init</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">dropout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigmoid</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+        <span class="n">embedded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">embedding</span><span class="p">(</span><span class="n">inputs</span><span class="p">))</span>
+        <span class="n">_</span><span class="p">,</span> <span class="p">(</span><span class="n">hidden</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rnn</span><span class="p">(</span><span class="n">embedded</span><span class="p">)</span>
+        <span class="n">hidden</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">mnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">hidden</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">hidden</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span><span class="n">hidden</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="损失函数与优化器">
+<h3>损失函数与优化器<a class="headerlink" href="#损失函数与优化器" title="Permalink to this headline">¶</a></h3>
+<p>完成模型主体构建后，首先根据指定的参数实例化网络；然后选择损失函数和优化器，并将其使用<code class="docutils literal notranslate"><span class="pre">nn.TrainOneStepCell</span></code>进行封装。针对本节情感分类问题的特性，即预测Positive或Negative的二分类问题，我们选择<code class="docutils literal notranslate"><span class="pre">nn.BCELoss</span></code>(二分类交叉熵损失函数)，这里也可以选择``nn.BCEWithLogitsLoss``, 其包含<code class="docutils literal notranslate"><span class="pre">sigmoid</span></code>运算，即：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>BCEWithLogitsLoss = Sigmoid + BCELoss
+</pre></div>
+</div>
+<p>这里使用<code class="docutils literal notranslate"><span class="pre">BECLoss</span></code>需要设置<code class="docutils literal notranslate"><span class="pre">reduction</span></code>参数为均值。而后使用<code class="docutils literal notranslate"><span class="pre">nn.WithLossCell</span></code>将其与实例化网络对象进行关联。</p>
+<p>选择合适的损失函数后，选择<code class="docutils literal notranslate"><span class="pre">Adam</span></code>优化器，并将二者传入<code class="docutils literal notranslate"><span class="pre">TrainOneStepCell</span></code>中。</p>
+<blockquote>
+<div><p>MindSpore的设计理念为整图计算与优化，因此将Loss function和Optimizer均视为计算图的一部分，所以构造<code class="docutils literal notranslate"><span class="pre">TrainOneStepCell</span></code>作为Wrapper使用。</p>
+</div></blockquote>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">hidden_size</span> <span class="o">=</span> <span class="mi">256</span>
+<span class="n">output_size</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">num_layers</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">bidirectional</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">dropout</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">lr</span> <span class="o">=</span> <span class="mf">0.001</span>
+<span class="n">pad_idx</span> <span class="o">=</span> <span class="n">vocab</span><span class="o">.</span><span class="n">tokens_to_ids</span><span class="p">(</span><span class="s1">&#39;&lt;pad&gt;&#39;</span><span class="p">)</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">RNN</span><span class="p">(</span><span class="n">embeddings</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">output_size</span><span class="p">,</span> <span class="n">num_layers</span><span class="p">,</span> <span class="n">bidirectional</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">pad_idx</span><span class="p">)</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">BCELoss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">)</span>
+<span class="n">net_with_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+<span class="n">train_one_step</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">TrainOneStepCell</span><span class="p">(</span><span class="n">net_with_loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="训练逻辑">
+<h3>训练逻辑<a class="headerlink" href="#训练逻辑" title="Permalink to this headline">¶</a></h3>
+<p>在完成模型构建，进行训练逻辑的设计。一般训练逻辑分为一下步骤：</p>
+<ol class="arabic simple">
+<li><p>读取一个Batch的数据；</p></li>
+<li><p>送入网络，进行正向计算和反向传播，更新权重；</p></li>
+<li><p>返回loss。</p></li>
+</ol>
+<p>下面按照此逻辑，使用<code class="docutils literal notranslate"><span class="pre">tqdm</span></code>库，设计训练一个epoch的函数，用于训练过程和loss的可视化。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">train_one_epoch</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">train_dataset</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+    <span class="n">loss_total</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">step_total</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">with</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">total</span><span class="p">)</span> <span class="k">as</span> <span class="n">t</span><span class="p">:</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">set_description</span><span class="p">(</span><span class="s1">&#39;Epoch </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">epoch</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">create_tuple_iterator</span><span class="p">():</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="o">*</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">loss_total</span> <span class="o">+=</span> <span class="n">loss</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+            <span class="n">step_total</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">set_postfix</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="n">loss_total</span><span class="o">/</span><span class="n">step_total</span><span class="p">)</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="评估指标和逻辑">
+<h3>评估指标和逻辑<a class="headerlink" href="#评估指标和逻辑" title="Permalink to this headline">¶</a></h3>
+<p>训练逻辑完成后，需要对模型进行评估。即使用模型的预测结果和测试集的正确标签进行对比，求出预测的准确率。由于IMDB的情感分类为二分类问题，对预测值直接进行四舍五入即可获得分类标签(0或1)，然后判断是否与正确标签相等即可。下面为二分类准确率计算函数实现：</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">binary_accuracy</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    计算每个batch的准确率</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># 对预测值进行四舍五入</span>
+    <span class="n">rounded_preds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">around</span><span class="p">(</span><span class="n">preds</span><span class="p">)</span>
+    <span class="n">correct</span> <span class="o">=</span> <span class="p">(</span><span class="n">rounded_preds</span> <span class="o">==</span> <span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">acc</span> <span class="o">=</span> <span class="n">correct</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">correct</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">acc</span>
+</pre></div>
+</div>
+</div>
+<p>有了准确率计算函数后，类似于训练逻辑，对评估逻辑进行设计, 分别为以下步骤：</p>
+<ol class="arabic simple">
+<li><p>读取一个Batch的数据；</p></li>
+<li><p>送入网络，进行正向计算，获得预测结果；</p></li>
+<li><p>计算准确率。</p></li>
+</ol>
+<p>同训练逻辑一样，使用<code class="docutils literal notranslate"><span class="pre">tqdm</span></code>进行loss和过程的可视化。此外返回评估loss至供保存模型时作为模型优劣的判断依据。</p>
+<blockquote>
+<div><p>在进行evaluate时，使用的模型是不包含损失函数和优化器的网络主体； 在进行evaluate前，需要通过<code class="docutils literal notranslate"><span class="pre">model.set_train(False)</span></code>将模型置为评估状态，此时Dropout不生效。</p>
+</div></blockquote>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">test_dataset</span><span class="p">,</span> <span class="n">criterion</span><span class="p">,</span> <span class="n">epoch</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">test_dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+    <span class="n">epoch_loss</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">epoch_acc</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">step_total</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">total</span><span class="p">)</span> <span class="k">as</span> <span class="n">t</span><span class="p">:</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">set_description</span><span class="p">(</span><span class="s1">&#39;Epoch </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">epoch</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">test_dataset</span><span class="o">.</span><span class="n">create_tuple_iterator</span><span class="p">():</span>
+            <span class="n">predictions</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">criterion</span><span class="p">(</span><span class="n">predictions</span><span class="p">,</span> <span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">epoch_loss</span> <span class="o">+=</span> <span class="n">loss</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+
+            <span class="n">acc</span> <span class="o">=</span> <span class="n">binary_accuracy</span><span class="p">(</span><span class="n">predictions</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">(),</span> <span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+            <span class="n">epoch_acc</span> <span class="o">+=</span> <span class="n">acc</span>
+
+            <span class="n">step_total</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">set_postfix</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="n">epoch_loss</span><span class="o">/</span><span class="n">step_total</span><span class="p">,</span> <span class="n">acc</span><span class="o">=</span><span class="n">epoch_acc</span><span class="o">/</span><span class="n">step_total</span><span class="p">)</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">epoch_loss</span> <span class="o">/</span> <span class="n">total</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="模型训练与保存">
+<h2>模型训练与保存<a class="headerlink" href="#模型训练与保存" title="Permalink to this headline">¶</a></h2>
+<p>前序完成了模型构建和训练、评估逻辑的设计，下面进行模型训练。这里我们设置训练轮数为5轮。同时维护一个用于保存最优模型的变量<code class="docutils literal notranslate"><span class="pre">best_valid_loss</span></code>，根据每一轮评估的loss值，取loss值最小的轮次，将模型进行保存。</p>
+<p>MindSpore默认采用静态图模式(即Define and Run)进行训练，第一个step会进行计算图编译操作，较为耗时，但整体训练效率更高，若需要进行单步调试或使用动态图模式，可使用如下代码进行设置：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">set_context</span><span class="p">,</span> <span class="n">PYNATIVE_MODE</span>
+<span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">PYNATIVE_MODE</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">save_checkpoint</span>
+
+<span class="n">num_epochs</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">best_valid_loss</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)</span>
+<span class="n">ckpt_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">,</span> <span class="s1">&#39;sentiment-analysis.ckpt&#39;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">):</span>
+    <span class="n">train_one_epoch</span><span class="p">(</span><span class="n">train_one_step</span><span class="p">,</span> <span class="n">imdb_train</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>
+    <span class="n">valid_loss</span> <span class="o">=</span> <span class="n">evaluate</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">imdb_valid</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">valid_loss</span> <span class="o">&lt;</span> <span class="n">best_valid_loss</span><span class="p">:</span>
+        <span class="n">best_valid_loss</span> <span class="o">=</span> <span class="n">valid_loss</span>
+        <span class="n">save_checkpoint</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">ckpt_file_name</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Epoch 0: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 273/273 [00:48&lt;00:00,  5.59it/s, loss=0.681]
+Epoch 0: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 117/117 [00:42&lt;00:00,  2.72it/s, acc=0.581, loss=0.674]
+Epoch 1: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 273/273 [00:44&lt;00:00,  6.15it/s, loss=0.661]
+Epoch 1: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 117/117 [00:41&lt;00:00,  2.81it/s, acc=0.759, loss=0.519]
+Epoch 2: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 273/273 [00:44&lt;00:00,  6.15it/s, loss=0.487]
+Epoch 2: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 117/117 [00:41&lt;00:00,  2.82it/s, acc=0.836, loss=0.383]
+Epoch 3: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 273/273 [00:44&lt;00:00,  6.15it/s, loss=0.35]
+Epoch 3: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 117/117 [00:41&lt;00:00,  2.83it/s, acc=0.868, loss=0.305]
+Epoch 4: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 273/273 [00:44&lt;00:00,  6.18it/s, loss=0.298]
+Epoch 4: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 117/117 [00:41&lt;00:00,  2.82it/s, acc=0.916, loss=0.219]
+</pre></div></div>
+</div>
+<p>可以看到每轮Loss逐步下降，在验证集上的准确率逐步提升。</p>
+</div>
+<div class="section" id="模型加载与测试">
+<h2>模型加载与测试<a class="headerlink" href="#模型加载与测试" title="Permalink to this headline">¶</a></h2>
+<p>模型训练完成后，一般需要对模型进行测试或部署上线，此时需要加载已保存的最优模型(即checkpoint)，供后续测试使用。这里我们直接使用MindSpore提供的Checkpoint加载和网络权重加载接口：1.将保存的模型Checkpoint加载到内存中，2.将Checkpoint加载至模型。</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">load_param_into_net</span></code>接口会返回模型中没有和Checkpoint匹配的权重名，正确匹配时返回空列表。</p>
+</div></blockquote>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">load_param_into_net</span>
+
+<span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">ckpt_file_name</span><span class="p">)</span>
+<span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[]
+</pre></div></div>
+</div>
+<p>对测试集打batch，然后使用evaluate方法进行评估，得到模型在测试集上的效果。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imdb_test</span> <span class="o">=</span> <span class="n">imdb_test</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+<span class="n">evaluate</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">imdb_test</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Epoch 0: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 391/391 [00:31&lt;00:00, 12.36it/s, acc=0.873, loss=0.322]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0.32153618827347863
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="自定义输入测试">
+<h2>自定义输入测试<a class="headerlink" href="#自定义输入测试" title="Permalink to this headline">¶</a></h2>
+<p>最后我们设计一个预测函数，实现开头描述的效果，输入一句评价，获得评价的情感分类。具体包含以下步骤:</p>
+<ol class="arabic simple">
+<li><p>将输入句子进行分词；</p></li>
+<li><p>使用词表获取对应的index id序列；</p></li>
+<li><p>index id序列转为Tensor；</p></li>
+<li><p>送入模型获得预测结果；</p></li>
+<li><p>打印输出预测结果。</p></li>
+</ol>
+<p>具体实现如下：</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">score_map</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;Positive&quot;</span><span class="p">,</span>
+    <span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;Negative&quot;</span>
+<span class="p">}</span>
+
+<span class="k">def</span> <span class="nf">predict_sentiment</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">vocab</span><span class="p">,</span> <span class="n">sentence</span><span class="p">):</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">tokenized</span> <span class="o">=</span> <span class="n">sentence</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="n">indexed</span> <span class="o">=</span> <span class="n">vocab</span><span class="o">.</span><span class="n">tokens_to_ids</span><span class="p">(</span><span class="n">tokenized</span><span class="p">)</span>
+    <span class="n">tensor</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">indexed</span><span class="p">,</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">tensor</span> <span class="o">=</span> <span class="n">tensor</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">prediction</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">tensor</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">score_map</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">prediction</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()))]</span>
+</pre></div>
+</div>
+</div>
+<p>最后我们预测开头的样例，可以看到模型可以很好地将评价语句的情感进行分类。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">predict_sentiment</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">vocab</span><span class="p">,</span> <span class="s2">&quot;This film is terrible&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;Negative&#39;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">predict_sentiment</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">vocab</span><span class="p">,</span> <span class="s2">&quot;This film is great&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;Positive&#39;
+</pre></div></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="sequence_labeling.html" class="btn btn-neutral float-right" title="LSTM+CRF实现序列标注" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../cv/dcgan.html" class="btn btn-neutral float-left" title="生成式对抗网络" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

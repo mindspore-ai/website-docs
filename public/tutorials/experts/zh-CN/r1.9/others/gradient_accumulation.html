@@ -1,0 +1,714 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>梯度累积算法 &mdash; MindSpore master documentation</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "tex2jax_ignore|mathjax_ignore|document", "processClass": "tex2jax_process|mathjax_process|math|output_area"}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="自适应梯度求和算法" href="adaptive_summation.html" />
+    <link rel="prev" title="混合精度" href="mixed_precision.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">数据处理</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/augment.html">自动数据增强</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/eager.html">轻量化数据处理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/cache.html">单节点数据缓存</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/optimize.html">数据处理性能优化</a></li>
+</ul>
+<p class="caption"><span class="caption-text">图编译</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../network/control_flow.html">流程控制语句</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/op_overload.html">静态图网络编译性能优化</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/custom_cell_reverse.html">自定义Cell的反向传播函数</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/ms_class.html">调用自定义类</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/constexpr.html">网络内构造常量</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../network/dependency_control.html">依赖控制</a></li>
+</ul>
+<p class="caption"><span class="caption-text">模型训练优化</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="mixed_precision.html">混合精度</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">梯度累积算法</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#梯度累积原理">梯度累积原理</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#梯度累积实现">梯度累积实现</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#单机模式">单机模式</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#导入需要的库文件">导入需要的库文件</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#加载数据集">加载数据集</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#定义网络">定义网络</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#定义训练流程">定义训练流程</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#定义训练模型">定义训练模型</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#训练并保存模型">训练并保存模型</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#实验结果">实验结果</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#boost模式">Boost模式</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#导入需要的库文件-1">导入需要的库文件</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#加载数据集-1">加载数据集</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#定义网络-1">定义网络</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#定义训练模型-1">定义训练模型</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#训练模型并进行推理">训练模型并进行推理</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#实验结果-1">实验结果</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#参考文献">参考文献</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="adaptive_summation.html">自适应梯度求和算法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dimention_reduce_training.html">降维训练算法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="thor.html">二阶优化</a></li>
+</ul>
+<p class="caption"><span class="caption-text">自定义算子</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../operation/op_custom.html">自定义算子（基于Custom表达）</a></li>
+</ul>
+<p class="caption"><span class="caption-text">模型推理</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../infer/inference.html">模型推理总览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/cpu_gpu_mindir.html">GPU推理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_910_mindir.html">Ascend 910 AI处理器上推理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_310_mindir.html">Ascend 310 AI处理器上使用MindIR模型进行推理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/ascend_310_air.html">Ascend 310 AI处理器上使用AIR模型进行推理</a></li>
+</ul>
+<p class="caption"><span class="caption-text">调试调优</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../debug/function_debug.html">功能调试</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/performance_optimization.html">性能调优</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://mindspore.cn/mindinsight/docs/zh-CN/r1.9/accuracy_problem_preliminary_location.html">精度调优↗</a></li>
+</ul>
+<p class="caption"><span class="caption-text">分布式并行</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/introduction.html">分布式并行总览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/communicate_ops.html">分布式集合通信原语</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/distributed_case.html">分布式案例</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/distributed_inference.html">分布式推理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/save_load.html">保存和加载模型（HyBrid Parallel模式）</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/fault_recover.html">分布式故障恢复</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/multi_dimensional.html">多维度混合并行</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/other_features.html">其他特性</a></li>
+</ul>
+<p class="caption"><span class="caption-text">环境变量</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../env/env_var_list.html">环境变量</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>梯度累积算法</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/others/gradient_accumulation.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="梯度累积算法">
+<h1>梯度累积算法<a class="headerlink" href="#梯度累积算法" title="Permalink to this headline">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/r1.9/tutorials/experts/source_zh_cn/others/gradient_accumulation.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r1.9/resource/_static/logo_source.png"></a></p>
+<div class="section" id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline">¶</a></h2>
+<p>本教程介绍梯度累积的训练算法，目的是为了解决由于内存不足，导致Batch size过大神经网络无法训练或者网络模型过大无法加载的OOM（Out Of Memory）问题。</p>
+</div>
+<div class="section" id="梯度累积原理">
+<h2>梯度累积原理<a class="headerlink" href="#梯度累积原理" title="Permalink to this headline">¶</a></h2>
+<p>梯度累积是一种训练神经网络的数据样本按Batch拆分为几个小Batch的方式，然后按顺序计算。</p>
+<p>在进一步讨论梯度累积之前，我们来看看神经网络的计算过程。</p>
+<p>深度学习模型由许多相互连接的神经网络单元所组成，在所有神经网络层中，样本数据会不断向前传播。在通过所有层后，网络模型会输出样本的预测值，通过损失函数然后计算每个样本的损失值（误差）。神经网络通过反向传播，去计算损失值相对于模型参数的梯度。最后这些梯度信息用于对网络模型中的参数进行更新。</p>
+<p>优化器用于对网络模型权重参数更新的数学公式。以一个简单随机梯度下降(SGD)算法为例。</p>
+<p>假设Loss Function函数公式为：</p>
+<div class="math notranslate nohighlight">
+\[Loss(\theta)=\frac{1}{2}\left(h(x^{k})-y^{k}\right)^{2}\]</div>
+<p>在构建模型时，优化器用于计算最小化损失的算法。这里SGD算法利用Loss函数来更新权重参数公式为：</p>
+<div class="math notranslate nohighlight">
+\[\theta{i}=\theta_{i-1}-lr * grad_{i}\]</div>
+<p>其中<span class="math notranslate nohighlight">\(\theta\)</span>是网络模型中的可训练参数（权重或偏差），lr是学习率，<span class="math notranslate nohighlight">\(grad_{i}\)</span>是相对于网络模型参数的损失。</p>
+<p>梯度累积只计算神经网络模型，并不及时更新网络模型的参数，同时在计算的时候累积得到的梯度信息，最后统一使用累积的梯度来对参数进行更新。</p>
+<div class="math notranslate nohighlight">
+\[accumulated=\sum_{i=0}^{N} grad_{i}\]</div>
+<p>在不更新模型变量的时候，实际上是把原来的数据Batch分成几个小的Mini-Batch，每个step中使用的样本实际上是更小的数据集。</p>
+<p>在N个step内不更新变量，使所有Mini-Batch使用相同的模型变量来计算梯度，以确保计算出来得到相同的梯度和权重信息，算法上等价于使用原来没有切分的Batch size大小一样。即：</p>
+<div class="math notranslate nohighlight">
+\[\theta{i}=\theta_{i-1}-lr * \sum_{i=0}^{N} grad_{i}\]</div>
+<p>最终在上面步骤中累积梯度会产生与使用全局Batch size大小相同的梯度总和。</p>
+<p><img alt="" src="../_images/GradientAccumulation1.png" /></p>
+<p>当然在实际工程当中，关于调参和算法上有两点需要注意的：</p>
+<ol class="simple">
+<li><p><strong>学习率 learning rate</strong>：一定条件下，Batch size越大训练效果越好，梯度累积则模拟了Batch size增大的效果，如果accumulation steps为4，则Batch size增大了4倍，根据经验，使用梯度累积的时候需要把学习率适当放大。</p></li>
+<li><p><strong>归一化 Batch Norm</strong>：accumulation steps为4时进行Batch size模拟放大的效果，与真实Batch size相比，数据的分布其实并不完全相同，4倍Batch size的BN计算出来的均值和方差与实际数据均值和方差不太相同，因此有些实现中会使用Group Norm来代替Batch Norm。</p></li>
+</ol>
+</div>
+<div class="section" id="梯度累积实现">
+<h2>梯度累积实现<a class="headerlink" href="#梯度累积实现" title="Permalink to this headline">¶</a></h2>
+<p>下面教程内容将分别介绍在单机模式、Boost模式下实现梯度累积训练。</p>
+<blockquote>
+<div><p>注意：<code class="docutils literal notranslate"><span class="pre">auto_parallel</span></code>以及<code class="docutils literal notranslate"><span class="pre">semi_auto_parallel</span></code>并行模式下不支持梯度累积的训练方式。</p>
+</div></blockquote>
+<div class="section" id="单机模式">
+<h3>单机模式<a class="headerlink" href="#单机模式" title="Permalink to this headline">¶</a></h3>
+<p>单机模式下，主要通过将训练流程拆分为1)正向反向训练、2)参数更新和3)累积梯度清理，三个部分实现梯度累积。</p>
+<p>下面以MNIST作为示范数据集，自定义简单模型实现梯度累积需要如下个步骤。</p>
+<blockquote>
+<div><p>您可以在这里下载主要的训练样例代码：<a class="reference external" href="https://gitee.com/mindspore/docs/blob/r1.9/docs/sample_code/gradient_accumulation/train.py">train.py</a></p>
+</div></blockquote>
+<p>由于需要使用models仓中的LeNet网络，请先执行如下命令拉取models仓的代码：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://gitee.com/mindspore/models.git
+</pre></div>
+</div>
+<p>如果models仓不在系统路径中，需要在<code class="docutils literal notranslate"><span class="pre">train.py</span></code>代码起始部分添加以下两段代码。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">models仓的路径</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="导入需要的库文件">
+<h4>导入需要的库文件<a class="headerlink" href="#导入需要的库文件" title="Permalink to this headline">¶</a></h4>
+<p>下列是所需要的公共模块及MindSpore的模块及库文件。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
+
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Cell</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+<span class="kn">from</span> <span class="nn">models.official.cv.lenet.src.dataset</span> <span class="kn">import</span> <span class="n">create_dataset</span>
+<span class="kn">from</span> <span class="nn">models.official.cv.lenet.src.lenet</span> <span class="kn">import</span> <span class="n">LeNet5</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="加载数据集">
+<h4>加载数据集<a class="headerlink" href="#加载数据集" title="Permalink to this headline">¶</a></h4>
+<p>利用MindSpore的<code class="docutils literal notranslate"><span class="pre">dataset</span></code>提供的<code class="docutils literal notranslate"><span class="pre">MnistDataset</span></code>接口加载MNIST数据集，此部分代码由models中<code class="docutils literal notranslate"><span class="pre">lenet</span></code>目录下的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/official/cv/lenet/src/dataset.py">dataset.py</a>导入。</p>
+</div>
+<div class="section" id="定义网络">
+<h4>定义网络<a class="headerlink" href="#定义网络" title="Permalink to this headline">¶</a></h4>
+<p>这里以LeNet网络为例进行介绍，当然也可以使用其它的网络，如ResNet-50、BERT等, 此部分代码由models中<code class="docutils literal notranslate"><span class="pre">lenet</span></code>目录下的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/official/cv/lenet/src/lenet.py">lenet.py</a>导入。</p>
+</div>
+<div class="section" id="定义训练流程">
+<h4>定义训练流程<a class="headerlink" href="#定义训练流程" title="Permalink to this headline">¶</a></h4>
+<p>将训练流程拆分为正向反向训练、参数更新和累积梯度清理三个部分：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TrainForwardBackward</span></code> 计算loss和梯度，利用grad_sum实现梯度累加。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TrainOptim</span></code> 实现参数更新。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TrainClear</span></code> 实现对梯度累加变量grad_sum清零。</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">_sum_op</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MultitypeFuncGraph</span><span class="p">(</span><span class="s2">&quot;grad_sum_op&quot;</span><span class="p">)</span>
+<span class="n">_clear_op</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MultitypeFuncGraph</span><span class="p">(</span><span class="s2">&quot;clear_op&quot;</span><span class="p">)</span>
+
+<span class="nd">@_sum_op</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;Tensor&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_cumulative_grad</span><span class="p">(</span><span class="n">grad_sum</span><span class="p">,</span> <span class="n">grad</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply grad sum to cumulative gradient.&quot;&quot;&quot;</span>
+    <span class="n">add</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">AssignAdd</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">add</span><span class="p">(</span><span class="n">grad_sum</span><span class="p">,</span> <span class="n">grad</span><span class="p">)</span>
+
+<span class="nd">@_clear_op</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;Tensor&quot;</span><span class="p">,</span> <span class="s2">&quot;Tensor&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_clear_grad_sum</span><span class="p">(</span><span class="n">grad_sum</span><span class="p">,</span> <span class="n">zero</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply zero to clear grad_sum.&quot;&quot;&quot;</span>
+    <span class="n">success</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">success</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">success</span><span class="p">,</span> <span class="n">ops</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">grad_sum</span><span class="p">,</span> <span class="n">zero</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">success</span>
+
+<span class="k">class</span> <span class="nc">TrainForwardBackward</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">grad_sum</span><span class="p">,</span> <span class="n">sens</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TrainForwardBackward</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="n">network</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_grad</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">add_flags</span><span class="p">(</span><span class="n">defer_inline</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">ParameterTuple</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grad_sum</span> <span class="o">=</span> <span class="n">grad_sum</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grad</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">GradOperation</span><span class="p">(</span><span class="n">get_by_list</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sens_param</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sens</span> <span class="o">=</span> <span class="n">sens</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hyper_map</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">HyperMap</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="p">(</span><span class="o">*</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">sens</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Fill</span><span class="p">()(</span><span class="n">ops</span><span class="o">.</span><span class="n">DType</span><span class="p">()(</span><span class="n">loss</span><span class="p">),</span> <span class="n">ops</span><span class="o">.</span><span class="n">Shape</span><span class="p">()(</span><span class="n">loss</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">sens</span><span class="p">)</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="p">,</span> <span class="n">weights</span><span class="p">)(</span><span class="o">*</span><span class="n">inputs</span><span class="p">,</span> <span class="n">sens</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hyper_map</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">_sum_op</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad_sum</span><span class="p">,</span> <span class="n">grads</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">TrainOptim</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">grad_sum</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TrainOptim</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grad_sum</span> <span class="o">=</span> <span class="n">grad_sum</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grad_sum</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">TrainClear</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grad_sum</span><span class="p">,</span> <span class="n">zeros</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TrainClear</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grad_sum</span> <span class="o">=</span> <span class="n">grad_sum</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zeros</span> <span class="o">=</span> <span class="n">zeros</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hyper_map</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">HyperMap</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hyper_map</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">_clear_op</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad_sum</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeros</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">success</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="定义训练模型">
+<h4>定义训练模型<a class="headerlink" href="#定义训练模型" title="Permalink to this headline">¶</a></h4>
+<p>每个Mini-Batch通过正反向训练计算损失loss和梯度grad，通过mini_steps控制每次更新参数前的累加次数。达到累加次数后进行参数更新和累加梯度变量清零。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GradientAccumulation</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_network</span> <span class="o">=</span> <span class="n">network</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span> <span class="o">=</span> <span class="n">loss_fn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_grad_sum</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;grad_sum&quot;</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_zeros</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_train_forward_backward</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_train_forward_backward_network</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_train_optim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_train_optim</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_train_clear</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_train_clear</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_transform_callbacks</span><span class="p">(</span><span class="n">callbacks</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transform callback to a list.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">callbacks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">callbacks</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">callbacks</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">callbacks</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_build_train_forward_backward_network</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build forward and backward network&quot;&quot;&quot;</span>
+        <span class="n">network</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_network</span>
+        <span class="n">network</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loss_fn</span><span class="p">)</span>
+        <span class="n">loss_scale</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">network</span> <span class="o">=</span> <span class="n">TrainForwardBackward</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad_sum</span><span class="p">,</span> <span class="n">loss_scale</span><span class="p">)</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">network</span>
+
+    <span class="k">def</span> <span class="nf">_build_train_optim</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build optimizer network&quot;&quot;&quot;</span>
+        <span class="n">network</span> <span class="o">=</span> <span class="n">TrainOptim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_optimizer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad_sum</span><span class="p">)</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">network</span>
+
+    <span class="k">def</span> <span class="nf">_build_train_clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build clear network&quot;&quot;&quot;</span>
+        <span class="n">network</span> <span class="o">=</span> <span class="n">TrainClear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_sum</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zeros</span><span class="p">)</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">network</span>
+
+    <span class="k">def</span> <span class="nf">train_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">train_dataset</span><span class="p">,</span> <span class="n">mini_steps</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Training process. The data would be passed to network directly.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dataset_helper</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">DatasetHelper</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">,</span> <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">epoch_num</span><span class="o">=</span><span class="n">epoch</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epoch</span><span class="p">):</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">next_element</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataset_helper</span><span class="p">):</span>
+                <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_train_forward_backward</span><span class="p">(</span><span class="o">*</span><span class="n">next_element</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">mini_steps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">step</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;epoch:&quot;</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;step:&quot;</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="s2">&quot;loss is &quot;</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_train_optim</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_train_clear</span><span class="p">()</span>
+
+            <span class="n">train_dataset</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+        <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_train_forward_backward</span><span class="p">,</span> <span class="s2">&quot;gradient_accumulation.ckpt&quot;</span><span class="p">,</span> <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="训练并保存模型">
+<h4>训练并保存模型<a class="headerlink" href="#训练并保存模型" title="Permalink to this headline">¶</a></h4>
+<p>调用网络、优化器及损失函数，然后自定义<code class="docutils literal notranslate"><span class="pre">GradientAccumulation</span></code>的<code class="docutils literal notranslate"><span class="pre">train_process</span></code>接口，进行模型训练。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;MindSpore Grad Cumulative Example&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--device_target&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;GPU&quot;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GPU&#39;</span><span class="p">],</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;device where the code will be implemented (default: GPU)&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--data_path&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;./Data&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;path where the dataset is saved&#39;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">device_target</span><span class="p">)</span>
+    <span class="n">ds_train</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">),</span> <span class="mi">32</span><span class="p">)</span>
+
+    <span class="n">net</span> <span class="o">=</span> <span class="n">LeNet5</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">net_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+    <span class="n">net_opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">)</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">GradientAccumulation</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Starting Training ==============&quot;</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train_process</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">ds_train</span><span class="p">,</span> <span class="n">mini_steps</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="实验结果">
+<h4>实验结果<a class="headerlink" href="#实验结果" title="Permalink to this headline">¶</a></h4>
+<p>在经历了10轮epoch之后，在测试集上的精度约为96.31%。</p>
+<p><strong>执行训练:</strong></p>
+<ol>
+<li><p>运行训练代码，查看运行结果。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>train.py<span class="w"> </span>--data_path<span class="o">=</span>./MNIST_Data
+</pre></div>
+</div>
+<p>输出如下，可以看到loss值随着训练逐步降低：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 1 step: 27 loss is  0.3660637
+epoch: 1 step: 28 loss is  0.25238192
+...
+epoch: 3 step: 2 loss is  0.12296932
+epoch: 3 step: 3 loss is  0.15799297
+...
+epoch: 10 step: 448 loss is  0.06443884
+epoch: 10 step: 449 loss is  0.0067842817
+</pre></div>
+</div>
+</li>
+<li><p>查看保存的CheckPoint文件。</p>
+<p>训练过程中保存了CheckPoint文件<code class="docutils literal notranslate"><span class="pre">gradient_accumulation.ckpt</span></code>，即模型文件。</p>
+</li>
+</ol>
+<p><strong>验证模型:</strong></p>
+<p>通过ModelZoo中<code class="docutils literal notranslate"><span class="pre">lenet</span></code>目录下的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/official/cv/lenet/eval.py">eval.py</a>，使用保存的CheckPoint文件，加载验证数据集，进行验证。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>eval.py<span class="w"> </span>--data_path<span class="o">=</span>./MNIST_Data<span class="w"> </span>--ckpt_path<span class="o">=</span>./gradient_accumulation.ckpt<span class="w"> </span>--device_target<span class="o">=</span>GPU
+</pre></div>
+</div>
+<p>输出如下，可以看到使用验证的数据集，正确率在96.31%左右，与batch_size为32的验证结果一致。</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>============== Starting Testing ==============
+============== {&#39;Accuracy&#39;: 0.9631730769230769} ==============
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="boost模式">
+<h3>Boost模式<a class="headerlink" href="#boost模式" title="Permalink to this headline">¶</a></h3>
+<p>在Boost模式下，只要简单调用Boost的梯度累积接口，即可实现梯度累积的功能。这里同样以MNIST作为示范数据集，展示如何调用Boost接口来实现梯度累积功能。</p>
+<blockquote>
+<div><p>你可以在这里下载主要的训练样例代码：<a class="reference external" href="https://gitee.com/mindspore/docs/blob/r1.9/docs/sample_code/gradient_accumulation/train_and_eval_boost.py">train_and_eval_boost.py</a></p>
+</div></blockquote>
+<div class="section" id="导入需要的库文件-1">
+<h4>导入需要的库文件<a class="headerlink" href="#导入需要的库文件-1" title="Permalink to this headline">¶</a></h4>
+<p>下列是所需要的公共模块及MindSpore的模块及库文件。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">WithLossCell</span><span class="p">,</span> <span class="n">TrainOneStepCell</span><span class="p">,</span> <span class="n">Accuracy</span>
+<span class="kn">from</span> <span class="nn">mindspore.boost</span> <span class="kn">import</span> <span class="n">GradientAccumulation</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="kn">from</span> <span class="nn">models.official.cv.lenet.src.dataset</span> <span class="kn">import</span> <span class="n">create_dataset</span>
+<span class="kn">from</span> <span class="nn">models.official.cv.lenet.src.lenet</span> <span class="kn">import</span> <span class="n">LeNet5</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="加载数据集-1">
+<h4>加载数据集<a class="headerlink" href="#加载数据集-1" title="Permalink to this headline">¶</a></h4>
+<p>利用MindSpore的<code class="docutils literal notranslate"><span class="pre">dataset</span></code>提供的<code class="docutils literal notranslate"><span class="pre">MnistDataset</span></code>接口加载MNIST数据集，此部分代码由models中<code class="docutils literal notranslate"><span class="pre">lenet</span></code>目录下的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/official/cv/lenet/src/dataset.py">dataset.py</a>导入。</p>
+</div>
+<div class="section" id="定义网络-1">
+<h4>定义网络<a class="headerlink" href="#定义网络-1" title="Permalink to this headline">¶</a></h4>
+<p>这里以LeNet网络为例进行介绍，当然也可以使用其它的网络，如ResNet-50、BERT等, 此部分代码由models中<code class="docutils literal notranslate"><span class="pre">lenet</span></code>目录下的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r1.9/official/cv/lenet/src/lenet.py">lenet.py</a>导入。</p>
+</div>
+<div class="section" id="定义训练模型-1">
+<h4>定义训练模型<a class="headerlink" href="#定义训练模型-1" title="Permalink to this headline">¶</a></h4>
+<p>我们可以调用MindSpore Boost下的<code class="docutils literal notranslate"><span class="pre">GradientAccumulation</span></code>来使能梯度累积，通过max_accumulation_step控制每次更新参数前的累加次数。</p>
+<p>达到累加次数后进行参数更新和累加梯度变量清零，只需要基于<code class="docutils literal notranslate"><span class="pre">TrainOneStepCell</span></code>定义<code class="docutils literal notranslate"><span class="pre">TrainGradAccumulationStepsCell</span></code>来调用该接口即可。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">TrainGradAccumulationStepsCell</span><span class="p">(</span><span class="n">TrainOneStepCell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;construct train accu step cell&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">sens</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">max_accumulation_step</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TrainGradAccumulationStepsCell</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">sens</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_accumulation_step</span> <span class="o">=</span> <span class="n">max_accumulation_step</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grad_accumulation</span> <span class="o">=</span> <span class="n">GradientAccumulation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_accumulation_step</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="p">(</span><span class="o">*</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">sens</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="n">loss</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">loss</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sens</span><span class="p">)</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">)(</span><span class="o">*</span><span class="n">inputs</span><span class="p">,</span> <span class="n">sens</span><span class="p">)</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad_reducer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad_accumulation</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">grads</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="训练模型并进行推理">
+<h4>训练模型并进行推理<a class="headerlink" href="#训练模型并进行推理" title="Permalink to this headline">¶</a></h4>
+<p>定义好网络后即可进行训练，训练结束后加载训练过程中保存的ckpt文件进行推理，可以得到模型的精度。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;MindSpore Grad Cumulative Example&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--device_target&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;Ascend&quot;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Ascend&#39;</span><span class="p">,</span> <span class="s1">&#39;GPU&#39;</span><span class="p">],</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;device where the code will be implemented (default: Ascend)&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--data_path&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;./Data&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;path where the dataset is saved&#39;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">device_target</span><span class="p">)</span>
+    <span class="n">ds_train</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">),</span> <span class="mi">32</span><span class="p">)</span>
+
+    <span class="n">net</span> <span class="o">=</span> <span class="n">LeNet5</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">net_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+    <span class="n">net_opt</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">)</span>
+    <span class="n">time_cb</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">TimeMonitor</span><span class="p">(</span><span class="n">data_size</span><span class="o">=</span><span class="n">ds_train</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">())</span>
+
+    <span class="n">train_net</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">)</span>
+    <span class="n">train_net</span> <span class="o">=</span> <span class="n">TrainGradAccumulationStepsCell</span><span class="p">(</span><span class="n">train_net</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">train_net</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Starting Training ==============&quot;</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">ds_train</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">time_cb</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">LossMonitor</span><span class="p">()])</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Starting Testing ==============&quot;</span><span class="p">)</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">net_loss</span><span class="p">,</span> <span class="n">net_opt</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Accuracy&quot;</span><span class="p">:</span> <span class="n">Accuracy</span><span class="p">()})</span>
+    <span class="n">ds_eval</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">),</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ds_eval</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Please check dataset size &gt; 0 and batch_size &lt;= dataset size&quot;</span><span class="p">)</span>
+
+    <span class="n">acc</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">ds_eval</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== </span><span class="si">{}</span><span class="s2"> ==============&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">acc</span><span class="p">))</span>
+
+</pre></div>
+</div>
+</div>
+<div class="section" id="实验结果-1">
+<h4>实验结果<a class="headerlink" href="#实验结果-1" title="Permalink to this headline">¶</a></h4>
+<p>在经历了10轮epoch之后，在测试集上的精度约为98.30%。</p>
+<ol>
+<li><p>运行训练与推理代码，查看运行结果。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>train_and_eval_boost.py<span class="w"> </span>--data_path<span class="o">=</span>./MNIST_Data
+</pre></div>
+</div>
+<p>输出如下，可以看到loss值随着训练逐步降低：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 1 step: 1875 loss is  0.1889342879
+...
+epoch: 5 step: 1875 loss is  0.11749879342
+...
+epoch: 10 step: 1875 loss is  0.00029468764328
+</pre></div>
+</div>
+</li>
+<li><p>查看推理精度，代码中会将checkpoint保存到当前目录，随后会加载该checkpoint推理。</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>============== Starting Testing ==============
+============== {&#39;Accuracy&#39;: 0.983072916666} ==============
+</pre></div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="section" id="参考文献">
+<h2>参考文献<a class="headerlink" href="#参考文献" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>[1] Hermans, Joeri R., Gerasimos Spanakis, and Rico Möckel. “Accumulated gradient normalization.” Asian Conference on Machine Learning. PMLR, 2017.</p></li>
+<li><p>[2] Lin, Yujun, et al. “Deep gradient compression: Reducing the communication bandwidth for distributed training.” arXiv preprint arXiv:1712.01887 (2017).</p></li>
+<li><p>[3] <a class="reference external" href="https://towardsdatascience.com/how-to-break-gpu-memory-boundaries-even-with-large-batch-sizes-7a9c27a400ce">how-to-break-gpu-memory-boundaries-even-with-large-batch-sizes</a></p></li>
+<li><p>[4] <a class="reference external" href="https://towardsdatascience.com/what-is-gradient-accumulation-in-deep-learning-ec034122cfa">what-is-gradient-accumulation-in-deep-learning</a></p></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="adaptive_summation.html" class="btn btn-neutral float-right" title="自适应梯度求和算法" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="mixed_precision.html" class="btn btn-neutral float-left" title="混合精度" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

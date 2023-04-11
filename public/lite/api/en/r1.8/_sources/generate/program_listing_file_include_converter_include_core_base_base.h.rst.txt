@@ -1,0 +1,160 @@
+:gitee_url: https://gitee.com/mindspore/docs
+
+
+.. _program_listing_file_include_converter_include_core_base_base.h:
+
+Program Listing for File base.h
+===============================
+
+|exhale_lsh| :ref:`Return to documentation for file <file_include_converter_include_core_base_base.h>` (``include/converter/include/core/base/base.h``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. code-block:: cpp
+
+   
+   
+   #ifndef MINDSPORE_CORE_BASE_BASE_H_
+   #define MINDSPORE_CORE_BASE_BASE_H_
+   
+   #include <atomic>
+   #include <iostream>
+   #include <memory>
+   #include <mutex>
+   #include <string>
+   #include <typeinfo>
+   #include <vector>
+   #include <utility>
+   #include <algorithm>
+   #include "utils/hashing.h"
+   #include "utils/visible.h"
+   #include "utils/log_adapter.h"
+   #include "utils/ordered_set.h"
+   #include "utils/ordered_map.h"
+   
+   namespace mindspore {
+   template <typename T>
+   struct is_shared_ptr : public std::false_type {};
+   template <typename T>
+   struct is_shared_ptr<std::shared_ptr<T>> : public std::true_type {};
+   
+   class MS_CORE_API Base : public std::enable_shared_from_this<Base> {
+    public:
+     static constexpr uint32_t kTypeId = ConstStringHash("Base");
+   
+     constexpr Base() = default;
+   
+     Base(const Base &other) : std::enable_shared_from_this<Base>(other) {}
+   
+     virtual bool operator==(const Base &rhs) {
+       if (this == &rhs) {
+         return true;
+       }
+       return false;
+     }
+   
+     virtual Base &operator=(const Base &) { return *this; }
+   
+     virtual ~Base() = default;
+   
+     virtual std::size_t hash() const { return tid(); }
+   
+     virtual std::string ToString() const { return type_name(); }
+   
+     virtual void dump() const { std::cout << ToString() << std::endl; }
+   
+     virtual std::string DumpText() const { return ToString(); }
+   
+     virtual bool IsFromTypeId(uint32_t tid) const { return Base::IsDerivedFrom(tid); }
+   
+     virtual bool IsSameTypeId(uint32_t tid) const { return tid == Base::kTypeId; }
+   
+     virtual std::string type_name() const { return "Base"; }
+   
+     virtual uint32_t tid() const { return Base::kTypeId; }
+   
+     static bool IsDerivedFrom(uint32_t tid) __attribute__((__always_inline__)) { return tid == Base::kTypeId; }
+   
+     template <typename T,
+               typename std::enable_if<!is_shared_ptr<T>::value && std::is_base_of<Base, T>::value, T>::type * = nullptr>
+     inline bool isa() const {
+       if constexpr (std::is_final<T>::value) {
+         return this->IsSameTypeId(T::kTypeId);
+       } else {
+         return this->IsFromTypeId(T::kTypeId);
+       }
+     }
+   
+     template <typename T, typename U = typename std::enable_if<is_shared_ptr<T>::value, typename T::element_type>::type>
+     inline T cast() {
+       if (isa<U>()) {
+         return std::static_pointer_cast<U>(shared_from_this());
+       } else {
+         return nullptr;
+       }
+     }
+   
+    protected:
+     template <typename Derived>
+     std::shared_ptr<Derived> shared_from_base() {
+       return std::static_pointer_cast<Derived>(shared_from_this());
+     }
+   };
+   
+   using BasePtr = std::shared_ptr<Base>;
+   using BaseWeakPtr = std::weak_ptr<Base>;
+   
+   template <typename T, typename U>
+   inline T *cast(U *source) {
+     if (source != nullptr && source->template isa<T>()) {
+       return static_cast<T *>(source);
+     } else {
+       return nullptr;
+     }
+   }
+   
+   template <
+     typename T, typename U,
+     typename std::enable_if<std::is_base_of<Base, T>::value && std::is_base_of<Base, U>::value, T>::type * = nullptr>
+   inline std::shared_ptr<T> dyn_cast(const std::shared_ptr<U> &r) {
+     if (r != nullptr && r->template isa<T>()) {
+       return std::static_pointer_cast<T>(r);
+     } else {
+       return std::shared_ptr<T>();
+     }
+   }
+   
+   #define MS_DECLARE_PARENT(current_t, parent_t)                                             \
+     static constexpr uint32_t kTypeId = ConstStringHash(#parent_t "_" #current_t);           \
+     static bool IsDerivedFrom(uint32_t tid) __attribute__((__always_inline__)) {             \
+       return (tid == current_t::kTypeId) || parent_t::IsDerivedFrom(tid);                    \
+     }                                                                                        \
+     uint32_t tid() const override { return current_t::kTypeId; }                             \
+     bool IsFromTypeId(uint32_t tid) const override { return current_t::IsDerivedFrom(tid); } \
+     bool IsSameTypeId(uint32_t tid) const override { return tid == current_t::kTypeId; }     \
+     std::string type_name() const override { return #current_t; }
+   
+   class Type;
+   using TypePtr = std::shared_ptr<Type>;
+   
+   class AnfNode;
+   using AnfNodePtr = std::shared_ptr<AnfNode>;
+   using AnfNodePtrList = std::vector<AnfNodePtr>;
+   using AnfNodeSet = OrderedSet<AnfNodePtr>;
+   using AnfNodeWeakPtr = std::weak_ptr<AnfNode>;
+   using AnfNodeWeakPtrList = std::vector<AnfNodeWeakPtr>;
+   
+   class FuncGraph;
+   using FuncGraphPtr = std::shared_ptr<FuncGraph>;
+   using FuncGraphWeakPtr = std::weak_ptr<FuncGraph>;
+   
+   namespace abstract {
+   class AbstractBase;
+   using AbstractBasePtr = std::shared_ptr<AbstractBase>;
+   using AbstractAttribute = std::pair<std::string, AbstractBasePtr>;
+   class AnalysisContext;
+   using AnalysisContextPtr = std::shared_ptr<AnalysisContext>;
+   }  // namespace abstract
+   }  // namespace mindspore
+   
+   #endif  // MINDSPORE_CORE_BASE_BASE_H_

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>应用案例管理</title>
+    <link rel="stylesheet" href="../../layui/css/layui.css" />
+    <link rel="stylesheet" href="../../static/weadmin.css" />
+    <style>
+     	.search-box .layui-inline {
+			width:340px !important;
+		}
+		.layui-layer-iframe {
+			width:1000px;
+		}
+    </style>
+  </head>
+
+  <body>
+    <div class="weadmin-body">
+		<div class="search-box">
+			<div class="layui-inline categoryId">
+				<input type="text" value="" name="categoryId" id="categoryId" style="display: none;" />
+			</div>
+			<div class="layui-inline">
+			  <input class="layui-input" name="searchId" id="search" autocomplete="off" placeholder="输入案例标题进行搜索">
+			</div>
+			<button class="layui-btn name-search">搜索</button>
+			<button class="layui-btn name-reset">重置</button>
+		</div>
+
+      	<table class="layui-hide" id="casesTable" lay-filter="casesTable"></table>
+
+      	<script type="text/html" id="toolbar">
+      	  	<div class="layui-btn-container">
+      	  	    <button class="layui-btn layui-btn-sm layui-btn-warm" lay-event="mutiDelete">批量删除</button>
+      	  	    <button class="layui-btn layui-btn-sm" lay-event="add">添加案列</button>
+      	  	    <button class="layui-btn layui-btn-sm layui-btn-warm" lay-event="mutiOnshelf">批量上架</button>
+      	  	    <button class="layui-btn layui-btn-sm" lay-event="mutiUnshelf">批量下架</button>
+      	  	</div>
+      	</script>
+      	<script type="text/html" id="barDemo">
+      	  	<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+      	  	<a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="onshelf">上架</a>
+      	  	<a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="unshelf">下架</a>
+      	  	<a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+      	</script>
+    </div>
+    <script src="../../layui/layui.js"></script>
+    <script>
+    window.onload = function () {
+        layui.config({
+          	base: '../../static/',
+        }).extend({
+			cascader: 'cascader/cascader'
+		});
+        layui.use(['jquery', 'weadmin', 'table', 'cascader'], function () {
+          	var $ = layui.jquery;
+          	var weadmin = layui.weadmin;
+          	var table = layui.table;
+          	var cascader = layui.cascader;
+
+        	// 案例分类
+			let categoryIdInit = [];
+			function getCatagoryList() {
+        	layui.$.ajax({
+            	type: 'get',
+            	url: '/source/casescategory/dropdown',
+            	success: function (res) {
+            	    let categoryIdTree = [];
+            	    try {
+            		    if(res.obj) {
+                     		res.obj.forEach((first_item, first_index) => {
+								categoryIdTree.push({
+                     		 	  	id: first_item.id,
+                     		 	  	cases_name: first_item.name,
+                     		 	  	fid: '0',
+                     		 	  	children:[]
+                     		 	})
+                 			  	if(first_item.child) {
+                 			  	  	first_item.child.forEach((secend_item, secend_index) => {
+										categoryIdTree[first_index].children.push({
+                 			  	      	id: secend_item.id,
+                 			  	      	cases_name: secend_item.name,
+                 			  	      	fid: first_item.id,
+                 			  	      	children:[]
+                 			  	    })
+                 			  	    if(secend_item.child) {
+                 			  	      	secend_item.child.forEach((three_item, three_index) => {
+											categoryIdTree[first_index].children[secend_index].children.push({
+                 			  	      	    id: three_item.id,
+                 			  	      	    cases_name: three_item.name,
+                 			  	      	    fid: secend_item.id,
+                 			  	      	  })
+                 			  	      	})
+                 			  	    }
+                 			  	  })
+                 			  	}
+                 			});
+						}
+						categoryIdInit = categoryIdTree;
+						categoryIdTree = JSON.stringify(categoryIdInit)
+						// 案例分类
+						var categoryIdInstance = cascader.render({
+							elem: $('input[name=categoryId]')[0],
+							options: JSON.parse(categoryIdTree),
+            			    multiple: false, // 支持多选
+            			    showAllLevels: true,
+            			    props: {
+            			      	label: 'cases_name',
+            			      	value: 'id',
+            			      	children: 'children'
+            			    },
+		    			    placeholder:'请选择'
+						}); 
+            		} catch (error) {
+						console.log(error)
+					}
+            	},
+            	error: function (err) {
+            	    console.log(err);
+            	},
+			});
+			}
+			getCatagoryList();
+         	// 搜索
+         	$('.name-search').on('click', function (e) {
+         	   	let nameValue = $('#search')[0].value;
+         	   	let categoryId = $('#categoryId')[0].value;
+         	   	if(categoryId == null || categoryId == '') {
+         	   	  	categoryId = 0;
+         	   	} else {
+         	   	  	categoryId = categoryId.split(',').pop();
+         	   	}
+         	   	tableInstance.reload({
+         	   	    where: {
+         	   	      	'name': nameValue,
+         	   	      	'categoryId': categoryId
+         	   	    },
+         	   	    page: {
+         	   	      	curr:1
+         	   	    }
+         	   	});
+         	});
+
+          	// 重置
+          	$('.name-reset').on('click', function (e) {
+          	  	$('#search')[0].value = '';
+          	  	let html_str = `
+          	  	  	<input type="text"  lay-verify="" name="categoryId" value="" id="categoryId" style="display: none;" />
+          	  	`
+          	  	$('.categoryId').html(html_str);
+          	  	let categoryIdTree = JSON.stringify(categoryIdInit)
+          	  	cascader.render({
+					elem: $('input[name=categoryId]')[0],
+					options: JSON.parse(categoryIdTree),
+          	  	    multiple: false, // 支持多选
+          	  	    showAllLevels: true,
+          	  	    props: {
+          	  	      	label: 'cases_name',
+          	  	      	value: 'id',
+          	  	      	children: 'children'
+          	  	    },
+		  	  	    placeholder:'请选择案例种类'
+          	  	}); 
+          	  	tableInstance.reload({
+          	  	    where: {
+          	  	      	'name': '',
+          	  	      	'categoryId': 0
+          	  	    },
+          	  	    page: {
+          	  	      	curr: 1
+          	  	    }
+          	  	});
+          	});
+			  
+          	// 全部案例表格
+          	let tableInstance = table.render({
+          	  	elem: '#casesTable',
+          	  	url: '/source/cases/list',
+          	  	request: {
+          	  	  	pageName: 'pageCurrent',
+          	  	  	limitName: 'limit',
+          	  	},
+          	  	where: {
+          	  	  	'name': '',
+          	  	  	'categoryId': 0
+          	  	},
+          	  	parseData: function (res) {
+          	  	  	if(res.records) {
+          	  	  	  	let transformData = res.records.map((newsRow, index) => {
+          	  	  	  	  	newsRow.statusText = newsRow.status === '1' ? '已上架' : '未上架';
+          	  	  	  	  	return newsRow;
+          	  	  	  	});
+          	  	  	  	return {
+          	  	  	  	  	code: 0, //解析接口状态
+          	  	  	  	  	msg: '', //解析提示文本
+          	  	  	  	  	count: res.totalNum.totalNum, //解析数据长度
+          	  	  	  	  	data: transformData, //解析数据列表
+          	  	  	  	};
+          	  	  	} else {
+          	  	  	  	return {
+          	  	  	    	code: 0, //解析接口状态
+              	  	  		msg: '', //解析提示文本
+              	  	  		count: 0, //解析数据长度
+              	  	  		data: [], //解析数据列表
+              	  		};
+              		}
+            	},
+            	toolbar: '#toolbar',
+            	title: '案例管理表',
+            	cols: [[
+            	    { type: 'checkbox', fixed: 'left' },
+            	    { field: 'id',  title: '案例ID', fixed: 'left'},
+            	    { field: 'typeName', title: '案例类型' },
+            	    { field: 'categoryName', title: '案例种类' },
+            	    { field: 'title', title: '案例标题' },
+            	    { field: 'introduction', title: '案例简介' },
+            	    { field: 'technology', title: '关键技术' },
+            	    { field: 'releaseDate', title: '上架时间' },
+            	    { field: 'updateTime', title: '最近修改时间' },
+            	    { field: 'sequenceNo', title: '顺序' },
+            	    {
+            	      	field: 'statusText',
+            	      	sort: true,
+            	      	title: '状态',
+            	      	templet: function (d) {
+            	      	  	if (d.status === '1') {
+            	      	  	  	return d.statusText;
+            	      	  	} else {
+            	      	  	  	return (
+            	      	  	  	  	'<span style="color: red;">' + d.statusText + '</span>'
+            	      	  	  	);
+            	      	  	}
+            	      	}
+            	    },
+            	    {
+            	      	fixed: 'right',
+            	      	width: 250,
+            	      	title: '操作',
+            	      	toolbar: '#barDemo'
+            	    }
+            	]],
+            	page: true
+          	});
+
+          	//工具栏事件
+          	table.on('toolbar(casesTable)', function (obj) {
+          	  	let checkStatus = table.checkStatus(obj.config.id);
+          	  	let data = checkStatus.data;
+          	  	switch (obj.event) {
+          	    	case 'mutiDelete':
+          	      		if (data.length > 0) {
+          	      		  	let index = layer.confirm(
+          	      		    	'您确定要删除已选的案例吗？',
+          	      		    	{
+          	      		    	  	btn: ['确定', '取消'], //按钮
+          	      		    	},
+          	      		    	function () {
+          	      		    	  	let ids = data.map((rowData, index) => {
+          	      		    	  	  	return rowData.id;
+          	      		    	  	});
+          	      		    	  	$.ajax({
+                      				  	type: 'get',
+                      				  	url: '/source/cases/delete?ids=' + ids,
+                      				  	success: function (response) {
+                      				  	  	if(response.status === 200) {
+                      				  	  	  	let index = layer.alert(
+                      				  	  	  	 	'删除成功',
+                      				  	  	  	 	{ icon: 6 },
+                      				  	  	  	 	function () {
+                      				  	  	  	 	  	layer.close(index);
+                      				  	  	  	 	  	tableInstance.reload();
+                      				  	  	  	 	}
+                      				  	  	  	);
+                      				  	  	} else {
+                      				  	  	  	layer.alert( response.msg +":" + response.obj, { icon: 5 })
+                      				  	  	}
+                      				  	},
+                      				  	error: function (err) {
+                      				  	  layer.alert('删除失败:' + err, { icon: 5 });
+                      				  	}
+                      				});
+          	      		    	},
+          	      		    	function () {
+          	      		    	  	layer.close(index);
+          	      		    	}
+          	      		  	);
+          	      		} else {
+          	      		  	layer.alert('请选择您要删除的案例', { icon: 5 });
+          	      		}
+          	      		break;
+          	    	case 'mutiOnshelf':
+          	    		if (data.length > 0) {
+                  			let index = layer.confirm(
+                  			  	'您确定要上架已选的案例吗？',
+                  			  	{
+                  			  	  	btn: ['确定', '取消'], //按钮
+                  			  	},
+                  			  	function () {
+                  			  	  	let ids = data.map((rowData, index) => {
+                  			  	  	  	return rowData.id;
+                  			  	  	});
+                  			  	  	$.ajax({
+                  			  	  	  	type: 'get',
+                  			  	  	  	url: '/source/cases/release?ids=' + ids,
+                  			  	  	  	success: function (response) {
+                  			  	  	  	  	let index = layer.alert(
+                  			  	  	  	  	  	'上架成功',
+                  			  	  	  	  	  	{ icon: 6 },
+                  			  	  	  	  	  	function () {
+                  			  	  	  	  	  	  	layer.close(index);
+                  			  	  	  	  	  	  	tableInstance.reload();
+                  			  	  	  	  	  	}
+                  			  	  	  	  	);
+                  			  	  	  	},
+                  			  	  	  	error: function (err) {
+                  			  	  	  	  	layer.alert('上架失败:' + err, { icon: 5 });
+                  			  	  	  	},
+                  			  	  	});
+                  			  	},
+                  			  	function () {
+                  			  	  	layer.close(index);
+                  			  	}
+                  			);
+                		} else {
+          	        		layer.alert('请选择您要上架的案例', { icon: 5 });
+          	      		}
+          	      		break;
+          	    	case 'mutiUnshelf':
+          	    		if (data.length > 0) {
+                  			let index = layer.confirm(
+                  			  	'您确定要下架已选的案例吗？',
+                  			  	{
+                  			  	  	btn: ['确定', '取消'], //按钮
+                  			  	},
+                  			  	function () {
+                  			  	  	let ids = data.map((rowData, index) => {
+                  			  	  	  	return rowData.id;
+                  			  	  	});
+                  			  	  	$.ajax({
+                  			  	  	  	type: 'get',
+                  			  	  	  	url: '/source/cases/unshelf?ids=' + ids,
+                  			  	  	  	success: function (response) {
+                  			  	  	  	  	let index = layer.alert(
+                  			  	  	  	  	  	'下架成功',
+                  			  	  	  	  	  	{ icon: 6 },
+                  			  	  	  	  	  	function () {
+                  			  	  	  	  	  	  	layer.close(index);
+                  			  	  	  	  	  	  	tableInstance.reload();
+                  			  	  	  	  	  	}
+                  			  	  	  	  	);
+                  			  	  	  	},
+                  			  	  	  	error: function (err) {
+                  			  	  	  	  	layer.alert('下架失败:' + err, { icon: 5 });
+                  			  	  	  	}
+                  			  	  	});
+                  			  	},
+                  			  	function () {
+                  			    	layer.close(index);
+                			    }
+                			);
+                		} else {
+          	    			layer.alert('请选择您要下架的案例', { icon: 5 });
+          	    	  	}
+          	    	  	break;
+          	    	case 'add':
+          	    	  	WeAdminShow('案例添加', './add.html');
+          	    	  	break;
+          	    	default:
+          	    	  	break;
+          	  	}
+          	});
+
+          	//监听行单击事件
+          	table.on('tool(casesTable)', function (obj) {
+          	  	switch (obj.event) {
+          	    	case 'edit':
+          	    	  	WeAdminEdit('案例编辑', './add.html', JSON.stringify(obj.data));
+          	    	  	break;
+          	    	case 'onshelf':
+          	      		if (obj.data.status === '1') {
+          	        		layer.alert('该条案例已经上架过啦！', { icon: 5 });
+          	        		return;
+          	      		}
+          	      		let index = layer.confirm(
+          	      		  	'您确定要上架这条案例吗？',
+          	      		  	{
+          	      		  	  	btn: ['确定', '取消'], //按钮
+          	      		  	},
+          	      		  	function () {
+          	      		  	  	$.ajax({
+          	      		  	  	  	type: 'get',
+          	      		  	  		url: '/source/cases/release?ids=' + [obj.data.id],
+          	      		  	  	  	success: function (response) {
+          	      		  	  	  	  	let index = layer.alert(
+          	      		  	  	  	  	  	'上架成功',
+          	      		  	  	  	  	  	{ icon: 6 },
+          	      		  	  	  	  	  	function () {
+          	      		  	  	  	  	  	  	layer.close(index);
+          	      		  	  	  	  	  	  	tableInstance.reload();
+          	      		  	  	  	  	  	}
+          	      		  	  	  	  	);
+          	      		  	  	  	},
+          	      		  	  	  	error: function (err) {
+          	      		  	  	  	  	layer.alert('上架失败:' + err, { icon: 5 });
+          	      		  	  	  	},
+          	      		  	  	});
+          	      		  	},
+          	      		  	function () {
+          	      		  	  layer.close(index);
+          	      		  	}
+          	      		);
+          	      		break;
+          	    	case 'unshelf':
+          	    	  	if (obj.data.status === '0') {
+          	    	  	  	layer.alert('该条案例已经下架过啦！', { icon: 5 });
+          	    	  	  	return;
+          	    	  	}
+          	    	  	let index2 = layer.confirm(
+          	    	  	  	'您确定要下架这条案例吗？',
+          	    	  	  	{
+          	    	  	    	btn: ['确定', '取消'], //按钮
+          	    	  	  	},
+          	    	  	  	function () {
+          	    	  	  	  	$.ajax({
+          	    	  	  	  	  	type: 'get',
+          	    	  	  	  	  	url: '/source/cases/unshelf?ids=' + [obj.data.id],
+          	    	  	  	  	  	success: function (response) {
+          	    	  	  	  	  	  	let index = layer.alert(
+          	    	  	  	  	  	  	  	'下架成功',
+          	    	  	  	  	  	  	  	{ icon: 6 },
+          	    	  	  	  	  	  	  	function () {
+          	    	  	  	  	  	  	  	  	layer.close(index);
+          	    	  	  	  	  	  	  	  	tableInstance.reload();
+          	    	  	  	  	  	  	  	}
+          	    	  	  	  	  	  	);
+          	    	  	  	  	  	},
+          	    	  	  	  	  	error: function (err) {
+          	    	  	  	  	  	  layer.alert('下架失败:' + err, { icon: 5 });
+          	    	  	  	  	  	}
+          	    	  	  	  	});
+          	    	  	  	},
+          	    	  	  	function () {
+          	    	  	  	  	layer.close(index2);
+          	    	  	  	}
+          	      		);
+          	      		break;
+          	  		case 'del':
+          	  		    let index1 = layer.confirm(
+          	  		      	'您确定要删除这条案例吗？',
+          	  		      	{
+          	  		      	  	btn: ['确定', '取消'], //按钮
+          	  		      	},
+          	  		      	function () {
+          	  		      	  	$.ajax({
+          	  		      	  	  	type: 'get',
+          	  		      	  	  	url: '/source/cases/delete?ids=' + [obj.data.id],
+          	  		      	  	  	success: function (response) {
+          	  		      	  	  	  	let index = layer.alert(
+          	  		      	  	  	  	  	'删除成功',
+          	  		      	  	  	  	  	{ icon: 6 },
+          	  		      	  	  	  	  	function () {
+          	  		      	  	  	  	  	  	layer.close(index);
+          	  		      	  	  	  	  	  	tableInstance.reload();
+          	  		      	  	  	  	  	}
+          	  		      	  	  	  	);
+          	  		      	  	  	},
+          	  		      	  	  	error: function (err) {
+          	  		      	  	  	  	console.log('删除失败');
+          	  		      	  	  	},
+          	  		      	  	});
+          	  		      	},
+          	  		      	function () {
+          	  		      	  layer.close(index1);
+          	  		      	}
+          	  		    );
+          	  		    break;
+          	  		default:
+          	  		    break;
+          	  	}
+          	});
+
+          	window.addEventListener('message', receiveMessage, false);
+          	function receiveMessage(event) {
+          	  	switch (event.data.messageType) {
+          	  	  	case 'reloadTable':
+          	  	  	  	tableInstance.reload();
+          	  	  	  	break;
+          	  	  	default:
+          	  	  	  	break;
+          	  	}
+          	}
+        });
+    }
+    </script>
+</body>
+</html>

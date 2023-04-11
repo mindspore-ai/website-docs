@@ -1,0 +1,450 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Profiler设计文档 &mdash; MindSpore r1.1 documentation</title>
+  
+
+  
+
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="MindInsight设计" href="../mindinsight.html" />
+    <link rel="prev" title="分布式训练设计" href="distributed_training_design.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">设计说明</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overall.html">总体设计</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../mindspore.html">MindSpore设计</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="mindir.html">MindSpore IR（MindIR）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="distributed_training_design.html">分布式训练设计</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Profiler设计文档</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">背景</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Profiler架构设计</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id3">上下文</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4">模块层级结构</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">内部模块交互</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">子模块设计</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#profilerapicontroller">ProfilerAPI和Controller</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#parser">Parser</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#analyser">Analyser</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#proposer">Proposer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mindinsight.html">MindInsight设计</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindarmour.html">MindArmour设计</a></li>
+</ul>
+<p class="caption"><span class="caption-text">规格说明</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../benchmark.html">基准性能</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../network_list.html">网络支持</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../operator_list.html">算子支持</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../syntax_list.html">语法支持</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model_lite.html">模型支持（Lite）</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../env_var_list.html">环境变量</a></li>
+</ul>
+<p class="caption"><span class="caption-text">其他说明</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../glossary.html">术语</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../roadmap.html">路标</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../help_seeking_path.html">如何求助（求助路径）</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../community.html">如何参与社区</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../mindspore.html">MindSpore设计</a> &raquo;</li>
+        
+      <li>Profiler设计文档</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/design/mindspore/profiler_design.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="profiler">
+<h1>Profiler设计文档<a class="headerlink" href="#profiler" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">Linux</span></code> <code class="docutils literal notranslate"><span class="pre">Ascend</span></code> <code class="docutils literal notranslate"><span class="pre">GPU</span></code> <code class="docutils literal notranslate"><span class="pre">模型开发</span></code> <code class="docutils literal notranslate"><span class="pre">模型调优</span></code> <code class="docutils literal notranslate"><span class="pre">框架开发</span></code> <code class="docutils literal notranslate"><span class="pre">中级</span></code> <code class="docutils literal notranslate"><span class="pre">高级</span></code> <code class="docutils literal notranslate"><span class="pre">贡献者</span></code></p>
+<!-- TOC --><ul class="simple">
+<li><p><a class="reference external" href="#profiler%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3">Profiler设计文档</a></p>
+<ul>
+<li><p><a class="reference external" href="#%E8%83%8C%E6%99%AF">背景</a></p></li>
+<li><p><a class="reference external" href="#profiler%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1">Profiler框架设计</a></p>
+<ul>
+<li><p><a class="reference external" href="#%E4%B8%8A%E4%B8%8B%E6%96%87">上下文</a></p></li>
+<li><p><a class="reference external" href="#%E6%A8%A1%E5%9D%97%E5%B1%82%E7%BA%A7%E7%BB%93%E6%9E%84">模块层级结构</a></p></li>
+<li><p><a class="reference external" href="#%E5%86%85%E9%83%A8%E6%A8%A1%E5%9D%97%E4%BA%A4%E4%BA%92">内部模块交互</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#%E5%87%86%E5%A4%87%E8%AE%AD%E7%BB%83%E8%84%9A%E6%9C%AC">子模块设计</a></p>
+<ul>
+<li><p><a class="reference external" href="#profiler-api-controller">ProfilerAPI和Controller</a></p>
+<ul>
+<li><p><a class="reference external" href="#profiler-api-controller%E6%A8%A1%E5%9D%97%E4%BB%8B%E7%BB%8D">ProfilerAPI和Controller模块介绍</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#analyser">Analyser</a></p>
+<ul>
+<li><p><a class="reference external" href="#analyser%E6%A8%A1%E5%9D%97%E4%BB%8B%E7%BB%8D">Analyser模块介绍</a></p></li>
+<li><p><a class="reference external" href="#analyser%E6%A8%A1%E5%9D%97%E8%AE%BE%E8%AE%A1">Analyser模块设计</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#parser">Parser</a></p>
+<ul>
+<li><p><a class="reference external" href="#parser%E6%A8%A1%E5%9D%97%E4%BB%8B%E7%BB%8D">Parser模块介绍</a></p></li>
+<li><p><a class="reference external" href="#parser%E6%A8%A1%E5%9D%97%E8%AE%BE%E8%AE%A1">Parser模块设计</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="#proposer">Proposer</a></p>
+<ul>
+<li><p><a class="reference external" href="#proposer%E6%A8%A1%E5%9D%97%E4%BB%8B%E7%BB%8D">Proposer模块介绍</a></p></li>
+<li><p><a class="reference external" href="#proposer%E6%A8%A1%E5%9D%97%E8%AE%BE%E8%AE%A1">Proposer模块设计</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<!-- /TOC --><p><a href="https://gitee.com/mindspore/docs/blob/r1.1/docs/note/source_zh_cn/design/mindspore/profiler_design.md" target="_blank"><img src="../../_static/logo_source.png"></a></p>
+<div class="section" id="id1">
+<h2>背景<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<p>为了支持用户在MindSpore进行模型开发性能调试，需要提供易用的Profile工具，直观地展现网络模型各维度的性能信息，为用户提供易用、丰富的性能分析功能，帮助用户快速定位网络中性能问题。</p>
+</div>
+<div class="section" id="id2">
+<h2>Profiler架构设计<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>这一章将介绍Profiler的架构设计，第一节从整体Profiler的角度出发介绍其上下文交互关系，第二节将打开Profiler内部，介绍模块层架结构以及模块划分，第三节将介绍模块间的交互调用关系。</p>
+<div class="section" id="id3">
+<h3>上下文<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<p>Profiler是MindSpore调试调优工具的一部分，在整个使用过程中的上下文环境如下图所示：</p>
+<p><img alt="context_profiler.png" src="../../_images/context_profiler.png" /></p>
+<p>图1：上下文关系图</p>
+<p>如上图所示，Profiler与其他部分的交互包括：</p>
+<ol class="simple">
+<li><p>在训练脚本中调用MindSpore的Profiler启动收集性能数据的命令，Ascend类型下由ada模块生成性能原始数据，GPU类型下由CUPTI模块生成性能原始数据；</p></li>
+<li><p>MindSpore侧Profiler将在用户脚本中对原始数据进行解析，并在用户指定的文件夹下面生成中间数据结果；</p></li>
+<li><p>Mindinsight侧Profiler对接中间数据，提供可视化Profiler功能供用户使用。</p></li>
+</ol>
+</div>
+<div class="section" id="id4">
+<h3>模块层级结构<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<p>模块层级划分如下：</p>
+<p><img alt="module_profiler.png" src="../../_images/module_profiler.png" /></p>
+<p>图2：层级模块关系图</p>
+<p>如上图所示，各个模块功能介绍如下：</p>
+<ol class="simple">
+<li><p>ProfilerAPI是代码侧为用户提供的调用入口，为用户提供了性能收集启动接口以及分析接口；</p></li>
+<li><p>Controller是ProfilerAPI下层的模块，被ProfilerAPI中的启动接口调用，负责控制下方性能收集功能的启动停止，原始数据会被写入固定位置；</p></li>
+<li><p>Parser是性能原始数据解析模块，由于性能原始数据是在设备侧收集的信息，所以信息不能直接被用户所理解，该模块负责将信息进行解析、组合、转换，最终形成用户可理解、上层可分析的中间结果；</p></li>
+<li><p>Analyser获取下层Parser解析出的中间结果，负责对中间结果进行封装、筛选、排序，最终按照信息分类，返回各个类别对应的信息，提供给上层的表现层Profiler API、RESTful使用；</p></li>
+<li><p>通过RESTful调用后端Analyser提供的common API，获取目标数据，以RESTful接口对接前端。</p></li>
+</ol>
+</div>
+<div class="section" id="id5">
+<h3>内部模块交互<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h3>
+<p>从用户角度，有两种使用形式API、RESTful，我们以API为例，阐述一个完整的内部模块交互流程：</p>
+<p><img alt="time_order_profiler.png" src="../../_images/time_order_profiler.png" /></p>
+<p>图3：模块交互图</p>
+<p>如上图所示，各个模块交互流程如下：</p>
+<ol class="simple">
+<li><p>ProfilerAPI会调用下层Controller的控制函数，控制下层收集模块进行收集，Ascend收集模块为ada，GPU为CUPTI；</p></li>
+<li><p>用户在训练结束后会调用ProfilerAPI的分析接口；</p></li>
+<li><p>Profiler API分析接口首先使用Parser模块对性能数据进行解析，产生中间结果，再调用Analyser进行中间结果分析，最终将各类信息返回至用户侧。</p></li>
+</ol>
+</div>
+</div>
+<div class="section" id="id6">
+<h2>子模块设计<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="profilerapicontroller">
+<h3>ProfilerAPI和Controller<a class="headerlink" href="#profilerapicontroller" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id7">
+<h4>ProfilerAPI和Controller模块说明<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h4>
+<p>ProfilerAPI为用户在训练脚本侧提供入口API，用户通过ProfilerAPI启动性能收集以及对性能数据进行分析。
+ProfilerAPI通过Controller下发命令，启动性能数据收集模块。</p>
+</div>
+<div class="section" id="id8">
+<h4>ProfilerAPI和Controller模块设计<a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h4>
+<p>ProfilerAPI模块，属于上层应用接口层，由训练脚本集成。功能分为两部分：</p>
+<ul class="simple">
+<li><p>训练前调用底层Controller接口，下发命令，启动profiling统计任务。</p></li>
+<li><p>训练完成后，调用底层Controller接口，下发命令，停止性能统计任务，再调用Analyser、Parser模块接口解析数据文件，生成算子性能统计、training trace统计等结果数据。</p></li>
+</ul>
+<p>Controller模块提供对上层接口，并调用底层性能收集模块接口，下发启动和停止性能收集的命令。</p>
+<p>最终生成的性能原始数据主要包含：</p>
+<p>Ascend:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">hwts.log.data.45.dev.profiler_default_tag</span></code>文件：存储算子执行信息，包括task的开始/结束，stream id的信息等；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DATA_PREPROCESS.dev.AICPU</span></code>文件：AI CPU算子的执行各阶段的执行时间信息；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Framework.host.task_desc_info</span></code>文件：存储算子id与算子名称的对应关系，以及每个算子的输入输出信息；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">training_trace.46.dev.profiler_default_tag</span></code>文件：存储每个step的开始结束时刻，迭代间隙、迭代前向反向、迭代拖尾的时刻信息。</p></li>
+</ul>
+<p>GPU:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">step_trace_profiling_0.txt</span></code>文件：存储了前向/反向的起止算子等信息。</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="parser">
+<h3>Parser<a class="headerlink" href="#parser" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id9">
+<h4>Parser模块介绍<a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h4>
+<p>Parser是原始性能数据解析模块，由于原始性能数据是在设备侧收集的信息，所以信息不能直接被用户所理解，该模块负责将信息进行解析、组合、转换，最终形成用户可理解、上层可分析的中间结果。</p>
+</div>
+<div class="section" id="id10">
+<h4>Parser模块设计<a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h4>
+<p><img alt="parser_module_profiler.png" src="../../_images/parser_module_profiler.png" /></p>
+<p>图4：Parser模块图</p>
+<p>如上图所示，Parser模块主要由HWTS Parser、AI CPU Parser、Framework Parser、Step Trace Parser组成，每个模块对应解析一种原始数据，通过解析原始数据得到用户能读懂的中间文件。其中
+Ascend主要用到HWTS Parser、AI CPU Parser、Framework Parser、Step Trace Parser，GPU主要用到Step Trace Parser。</p>
+<p>Ascend:</p>
+<ul class="simple">
+<li><p>HWTS Parser：解析<code class="docutils literal notranslate"><span class="pre">hwts.log.data.45.dev.profiler_default_tag</span></code>文件，获得Device基于task的统计信息，如每个task的开始/结束，stream id等数据，用于算子执行时间的计算。</p></li>
+<li><p>AI CPU Parser：解析<code class="docutils literal notranslate"><span class="pre">DATA_PREPROCESS.dev.AICPU</span></code>文件，获得AI CPU算子的执行各阶段的执行时间信息。</p></li>
+<li><p>Framework Parser：解析<code class="docutils literal notranslate"><span class="pre">Framework.host.task_desc_info</span></code>文件，用于获取AI Core算子与task的对应关系，算子关键信息等内容。</p></li>
+<li><p>Step Trace Parser：解析<code class="docutils literal notranslate"><span class="pre">training_trace.46.dev.profiler_default_tag</span></code>文件，用于分析训练各阶段的时间。</p></li>
+</ul>
+<p>GPU:</p>
+<ul class="simple">
+<li><p>Step Trace Parser：解析<code class="docutils literal notranslate"><span class="pre">step_trace_profiling_0.txt</span></code>文件，用于分析训练各阶段的时间。</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="analyser">
+<h3>Analyser<a class="headerlink" href="#analyser" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id11">
+<h4>Analyser模块介绍<a class="headerlink" href="#id11" title="Permalink to this headline">¶</a></h4>
+<p>分析器的作用是对解析阶段生成的中间结果，进行筛选、排序、查询、分页等相关操作。</p>
+</div>
+<div class="section" id="id12">
+<h4>Analyser模块设计<a class="headerlink" href="#id12" title="Permalink to this headline">¶</a></h4>
+<p>该模块负责解析Parser生成的中间文件，为上层数据分析提供通用接口，将分析后的数据返回给上层展示给用户，由于各种中间文件有一定的共同点，可以抽象出公共内容，所以Analyser类设计如下图所示：</p>
+<p><img alt="analyser_class_profiler.png" src="../../_images/analyser_class_profiler.png" /></p>
+<p>图5：Analyser类图</p>
+<p>如上图所示，针对期望查询的不同内容，实现多个Analyser，每个Analyser可以定义筛选、排序、分页条件。每个Analyser知道自己需要哪些中间文件来进行数据的合并、筛选、排序。Analyser与Parser是通过Parser生成的中间文件关联起来的，本身不存在函数调用的情况，这样对两个模块进行了解耦。Ascend和GPU分别支持不同的Analyser类。</p>
+<p>针对算子信息的Analyser，目前存在两种：</p>
+<ul class="simple">
+<li><p>针对算子类型平均信息的筛选。</p></li>
+<li><p>针对每个算子详细平均信息的筛选，分别在两个Analyser中实现（Ascend为AicoreTypeAnalyser、AicoreDetailAnalyser，GPU为GpuOpTypeAnalyser、GpuOpInfoAnalyser）。</p></li>
+</ul>
+<p>为了隐藏Analyser内部实现，方便调用，使用简单工厂模式，通过AnalyserFactory获取指定的Analyser。</p>
+</div>
+</div>
+<div class="section" id="proposer">
+<h3>Proposer<a class="headerlink" href="#proposer" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id13">
+<h4>Proposer模块介绍<a class="headerlink" href="#id13" title="Permalink to this headline">¶</a></h4>
+<p>Proposer是Profiler性能优化建议模块，Proposer调用Analyser模块获取性能数据，通过调优规则对性能数据进行分析，输出调优建议由UI、API接口展示给用户。</p>
+</div>
+<div class="section" id="id14">
+<h4>Proposer模块设计<a class="headerlink" href="#id14" title="Permalink to this headline">¶</a></h4>
+<p>模块划分如下所示：</p>
+<p><img alt="proposer_module_profiler.png" src="../../_images/proposer_module_profiler.png" /></p>
+<p>图6：Proposer模块图</p>
+<p>模块设计如上图所示：</p>
+<ul class="simple">
+<li><p>Proposer提供接口用于API、RESTful调用以获取优化建议。</p></li>
+<li><p>Proposer调用Analyser接口，获取性能数据并根据优化规则，获得优化建议。</p></li>
+<li><p>Proposer调用Analyser工厂获得Analyser对象。</p></li>
+</ul>
+<p>调用Analyser对象的query接口获取信息，包括：按时间排序TOP N的算子信息、training trace各阶段的时间信息。</p>
+<p>模块类设计如下所示：</p>
+<p><img alt="proposer_class_profiler.png" src="../../_images/proposer_class_profiler.png" /></p>
+<p>图7：Proposer类图</p>
+<p>如上模块类图所示：</p>
+<ul class="simple">
+<li><p>各类型Proposer继承抽象类Proposer并实现analyze方法；</p></li>
+<li><p>API、CLI通过调用工厂ProposerFactory获取Proposer，并调用Proposer.analyze函数获取各类型的Proposer分析的优化建议。</p></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../mindinsight.html" class="btn btn-neutral float-right" title="MindInsight设计" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="distributed_training_design.html" class="btn btn-neutral float-left" title="分布式训练设计" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, MindSpore
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
