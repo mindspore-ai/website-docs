@@ -40,6 +40,13 @@ cp -f menu_en.json /root/website-docs/public/
 cp -f menu_zh-CN.json /root/website-docs/public/
 cp -f msVersion.json /root/website-docs/public/
 
+rm -rf /root/website-docs/public/install/${VERSION}
+mkdir -p /root/website-docs/public/install/${VERSION}
+cp -r /root/docs/install* /root/website-docs/public/install/${VERSION}/
+if [ ${VERSION} == "master" ];then
+  cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
+fi
+
 # shellcheck disable=SC2164
 cd /root
 #!/bin/bash
@@ -96,13 +103,6 @@ function refreshDir() {
 }
 
 delete_old
-
-rm -rf /root/website-docs/public/install/${VERSION}
-mkdir -p /root/website-docs/public/install/${VERSION}
-cp /root/docs/install* /root/website-docs/public/install/${VERSION}/
-if [ ${VERSION} == "master" ];then
-  cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
-fi
 
 
 # shellcheck disable=SC2164
