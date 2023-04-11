@@ -21,7 +21,7 @@ mkdir -p /root/website-docs/public/install/${VERSION}
 cp -r /root/docs/install/* /root/website-docs/public/install/${VERSION}/
 if [ ${VERSION} == "master" ];then
 cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
-
+fi
 
 # shellcheck disable=SC2034
 BUILD_PATH=${VERSION}
