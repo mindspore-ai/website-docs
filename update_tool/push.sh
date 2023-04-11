@@ -12,6 +12,20 @@ git clone https://gitee.com/mindspore/docs.git -b "${VERSION}"
 
 echo "clone docs success, now start building"
 
+# shellcheck disable=SC2086
+git clone https://${GIT_USERNAME}:"${GIT_PASSWORD}"@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}"
+
+
+
+if [ ${RELEASE_TYPE} == "install" ];then
+  rm -rf /root/website-docs/public/install/${VERSION}
+  mkdir -p /root/website-docs/public/install/${VERSION}
+  cp -r /root/docs/install* /root/website-docs/public/install/${VERSION}/
+  if [ ${VERSION} == "master" ];then
+  cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
+  exit
+fi
+
 # shellcheck disable=SC2034
 BUILD_PATH=${VERSION}
 # shellcheck disable=SC2164
@@ -28,8 +42,7 @@ cd /root
 
 rm -rf website-docs
 
-# shellcheck disable=SC2086
-git clone https://${GIT_USERNAME}:"${GIT_PASSWORD}"@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}"
+
 
 # shellcheck disable=SC2164
 cd /root/docs/tools/generate_html/${BUILD_PATH}/output
@@ -39,13 +52,6 @@ cp -f h5_docs.css /root/website-docs/public/
 cp -f menu_en.json /root/website-docs/public/
 cp -f menu_zh-CN.json /root/website-docs/public/
 cp -f msVersion.json /root/website-docs/public/
-
-rm -rf /root/website-docs/public/install/${VERSION}
-mkdir -p /root/website-docs/public/install/${VERSION}
-cp -r /root/docs/install* /root/website-docs/public/install/${VERSION}/
-if [ ${VERSION} == "master" ];then
-  cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
-fi
 
 # shellcheck disable=SC2164
 cd /root
