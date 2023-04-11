@@ -97,6 +97,14 @@ function refreshDir() {
 
 delete_old
 
+rm -rf /root/website-docs/public/install/${VERSION}
+mkdir -p /root/website-docs/public/install/${VERSION}
+cp /root/docs/install* /root/website-docs/public/install/${VERSION}/
+if [ ${VERSION} == "master" ];then
+  cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
+fi
+
+
 # shellcheck disable=SC2164
 cd /root/website-docs
 
