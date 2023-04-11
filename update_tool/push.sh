@@ -20,7 +20,7 @@ git clone https://${GIT_USERNAME}:"${GIT_PASSWORD}"@gitee.com/mindspore/website-
 if [ ${RELEASE_TYPE} == "install" ];then
   rm -rf /root/website-docs/public/install/${VERSION}
   mkdir -p /root/website-docs/public/install/${VERSION}
-  cp -r /root/docs/install* /root/website-docs/public/install/${VERSION}/
+  cp -r /root/docs/install/* /root/website-docs/public/install/${VERSION}/
   if [ ${VERSION} == "master" ];then
   cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
   exit
