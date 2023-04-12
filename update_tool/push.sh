@@ -20,7 +20,7 @@ rm -rf /root/website-docs/public/install/${VERSION}
 mkdir -p /root/website-docs/public/install/${VERSION}
 cp -r /root/docs/install/* /root/website-docs/public/install/${VERSION}/
 if [ ${VERSION} == "master" ];then
-cp -r /root/docs/resource/release/release_list_* /root/website-docs/more/
+    cp -r /root/docs/resource/release/release_list_* /root/website-docs/public/more/
 fi
 
 # shellcheck disable=SC2034
