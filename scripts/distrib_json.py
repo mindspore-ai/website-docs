@@ -33,10 +33,16 @@ def main(arg_version, docs_path):
         with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
             data = json.load(f)
         for i in range(len(data)):
+            js_path_zh = []
+            js_path_en = []
+            css_path_zh = []
+            css_path_en = []
             version = data[i]["version"]
             if data[i]["repo_name"] == "mindspore":
                 first_name = "docs"
                 theme_class = theme_docs
+                if "submenu" in data[i]:
+                    theme_class = theme_lite
             elif data[i]["repo_name"] == "lite":
                 theme_class = theme_lite
                 first_name = data[i]["repo_name"]
@@ -46,12 +52,14 @@ def main(arg_version, docs_path):
             else:
                 first_name = data[i]["repo_name"] + "/docs"
                 theme_class = theme_docs
+                if "submenu" in data[i]:
+                    theme_class = theme_lite
             if "submenu" not in data[i]:
 
-                js_path_zh = os.path.join(public_path, first_name, 'zh-CN', version, "_static/js")
-                js_path_en = os.path.join(public_path, first_name, 'en', version, "_static/js")
-                css_path_zh = os.path.join(public_path, first_name, 'zh-CN', version, "_static/css")
-                css_path_en = os.path.join(public_path, first_name, 'en', version, "_static/css")
+                js_path_zh.append(os.path.join(public_path, first_name, 'zh-CN', version, "_static/js"))
+                js_path_en.append(os.path.join(public_path, first_name, 'en', version, "_static/js"))
+                css_path_zh.append(os.path.join(public_path, first_name, 'zh-CN', version, "_static/css"))
+                css_path_en.append(os.path.join(public_path, first_name, 'en', version, "_static/css"))
             else:
                 group_set = set()
                 for group in data[i]["submenu"]["zh"]:
@@ -61,41 +69,42 @@ def main(arg_version, docs_path):
                     if first_name:
                         group_set.add(first_name[0])
                 for first in group_set:
-                    js_path_zh = os.path.join(public_path, first, 'zh-CN', version, "_static/js")
-                    js_path_en = os.path.join(public_path, first, 'en', version, "_static/js")
-                    css_path_zh = os.path.join(public_path, first, 'zh-CN', version, "_static/css")
-                    css_path_en = os.path.join(public_path, first, 'en', version, "_static/css")
+                    js_path_zh.append(os.path.join(public_path, first, 'zh-CN', version, "_static/js"))
+                    js_path_en.append(os.path.join(public_path, first, 'en', version, "_static/js"))
+                    css_path_zh.append(os.path.join(public_path, first, 'zh-CN', version, "_static/css"))
+                    css_path_en.append(os.path.join(public_path, first, 'en', version, "_static/css"))
 
-            if not os.path.exists(js_path_zh):
-                error_dir.append(js_path_zh)
-                continue
-            if not os.path.exists(js_path_en):
-                error_dir.append(js_path_en)
-                continue
-            if not os.path.exists(css_path_zh):
-                error_dir.append(css_path_zh)
-                continue
-            if not os.path.exists(css_path_en):
-                error_dir.append(css_path_en)
-                continue
-            if os.path.exists(os.path.join(js_path_zh, "theme.js")):
-                os.remove(os.path.join(js_path_zh, "theme.js"))
-            shutil.copy(os.path.join(theme_class, "theme.js"), os.path.join(js_path_zh, "theme.js"))
-            if os.path.exists(os.path.join(js_path_en, "theme.js")):
-                os.remove(os.path.join(js_path_en, "theme.js"))
-            shutil.copy(os.path.join(theme_class, "theme.js"), os.path.join(js_path_en, "theme.js"))
-            if os.path.exists(os.path.join(css_path_zh, "theme.css")):
-                os.remove(os.path.join(css_path_zh, "theme.css"))
-            shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_zh, "theme.css"))
-            if os.path.exists(os.path.join(css_path_en, "theme.css")):
-                os.remove(os.path.join(css_path_en, "theme.css"))
-            shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_en, "theme.css"))
-            write_content = copy.deepcopy(data[i])
-            write_content.pop("repo_name", None)
-            with open(os.path.join(js_path_zh, f"version.json"), 'w+', encoding='utf-8') as g:
-                json.dump(write_content, g, indent=4)
-            with open(os.path.join(js_path_en, f"version.json"), 'w+', encoding='utf-8') as h:
-                json.dump(write_content, h, indent=4)
+            for num in range(len(js_path_en)):
+                if not os.path.exists(js_path_zh[num]):
+                    error_dir.append(js_path_zh[num])
+                    continue
+                if not os.path.exists(js_path_en[num]):
+                    error_dir.append(js_path_en[num])
+                    continue
+                if not os.path.exists(css_path_zh[num]):
+                    error_dir.append(css_path_zh[num])
+                    continue
+                if not os.path.exists(css_path_en[num]):
+                    error_dir.append(css_path_en[num])
+                    continue
+                if os.path.exists(os.path.join(js_path_zh[num], "theme.js")):
+                    os.remove(os.path.join(js_path_zh[num], "theme.js"))
+                shutil.copy(os.path.join(theme_class, "theme.js"), os.path.join(js_path_zh[num], "theme.js"))
+                if os.path.exists(os.path.join(js_path_en[num], "theme.js")):
+                    os.remove(os.path.join(js_path_en[num], "theme.js"))
+                shutil.copy(os.path.join(theme_class, "theme.js"), os.path.join(js_path_en[num], "theme.js"))
+                if os.path.exists(os.path.join(css_path_zh[num], "theme.css")):
+                    os.remove(os.path.join(css_path_zh[num], "theme.css"))
+                shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_zh[num], "theme.css"))
+                if os.path.exists(os.path.join(css_path_en[num], "theme.css")):
+                    os.remove(os.path.join(css_path_en[num], "theme.css"))
+                shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_en[num], "theme.css"))
+                write_content = copy.deepcopy(data[i])
+                write_content.pop("repo_name", None)
+                with open(os.path.join(js_path_zh[num], f"version.json"), 'w+', encoding='utf-8') as g:
+                    json.dump(write_content, g, indent=4)
+                with open(os.path.join(js_path_en[num], f"version.json"), 'w+', encoding='utf-8') as h:
+                    json.dump(write_content, h, indent=4)
         print(f"{'.'.join(json_name.split('.')[:-1])}版本各组件json文件生成完成！已分配至对应文件夹内！样式文件也已替换完成！")
     if error_dir:
         print('error_dir', error_dir)
