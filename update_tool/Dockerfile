@@ -36,7 +36,8 @@ RUN pip install -U sphinx_rtd_theme \
     && pip install IPython \
     && pip install setuptools==65.5.0 \
     && pip install gitpython \
-    && pip install lxml
+    && pip install lxml \
+    && pip install astor
 
 ENV VERSION VERSION
 ENV WGETDIR WGETDIR
