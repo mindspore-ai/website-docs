@@ -255,7 +255,7 @@
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">ParamInfo</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
-<span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_get_parallel_mode</span>
+<span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_get_parallel_mode</span><span class="p">,</span> <span class="n">_get_global_rank</span>
 <span class="kn">from</span> <span class="nn">mindspore.common._utils</span> <span class="kn">import</span> <span class="n">get_slice_num</span><span class="p">,</span> <span class="n">get_slice_shape</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.tensor</span> <span class="kn">import</span> <span class="n">Tensor</span>
@@ -315,6 +315,32 @@
     <span class="k">global</span> <span class="n">_GLOBAL_PARAMETER_KEY</span>
     <span class="n">_GLOBAL_PARAMETER_KEY</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="k">return</span> <span class="n">_GLOBAL_PARAMETER_KEY</span>
+
+
+<span class="k">def</span> <span class="nf">_offload_if_config</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Offload parameter(data size &gt; 512) to file when enable memory offload and offload parameter to disk.</span>
+<span class="sd">    Args:</span>
+<span class="sd">        data: The parameter data to offload.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;memory_offload&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">offload_context</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_offload_context</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">offload_context</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offload_param&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;disk&quot;</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">data_size_threshold</span> <span class="o">=</span> <span class="mi">512</span>
+    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">&lt;</span> <span class="n">data_size_threshold</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">offload_file_path</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">offload_file_path</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">offload_file_path</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">offload_file_path</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">time</span>
+        <span class="n">offload_dir</span> <span class="o">=</span> <span class="n">offload_context</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offload_path&quot;</span><span class="p">,</span> <span class="s2">&quot;./offload&quot;</span><span class="p">)</span>
+        <span class="n">offload_file_path</span> <span class="o">=</span> <span class="n">offload_dir</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">_get_global_rank</span><span class="p">())</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="n">_get_unique_parameter_key</span><span class="p">())</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="s2">&quot;.data&quot;</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">offload</span><span class="p">(</span><span class="n">offload_file_path</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Parameter"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.Parameter.html#mindspore.Parameter">[docs]</a><span class="k">class</span> <span class="nc">Parameter</span><span class="p">(</span><span class="n">Tensor_</span><span class="p">):</span>
@@ -416,6 +442,8 @@
         <span class="n">obj</span><span class="o">.</span><span class="n">is_default_input_init</span> <span class="o">=</span> <span class="n">init_data_flag</span>
         <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">has_init</span><span class="p">:</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">init_mode</span> <span class="o">=</span> <span class="n">default_input</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_offload_if_config</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 
     <span class="k">def</span> <span class="nf">__reduce_ex__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
@@ -942,6 +970,7 @@
             <span class="n">init_data_args</span> <span class="o">+=</span> <span class="p">(</span><span class="n">slice_index</span><span class="p">,</span> <span class="n">layout</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">layout</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">init_data_args</span>
 
+
 <div class="viewcode-block" id="Parameter.init_data"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.Parameter.html#mindspore.Parameter.init_data">[docs]</a>    <span class="k">def</span> <span class="nf">init_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_sliced</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize the parameter&#39;s data.</span>
@@ -995,6 +1024,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_inited_param</span> <span class="o">=</span> <span class="n">obj</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">init_mode</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">sliced</span> <span class="o">=</span> <span class="n">set_sliced</span>
+        <span class="n">_offload_if_config</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span></div></div>
 
 

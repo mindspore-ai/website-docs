@@ -168,7 +168,7 @@
            <div itemprop="articleBody">
             
   <h1>Source code for mindspore_rl.environment.environment</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright 2021 Huawei Technologies Co., Ltd</span>
+<span></span><span class="c1"># Copyright 2021-2023 Huawei Technologies Co., Ltd</span>
 <span class="c1">#</span>
 <span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
@@ -185,67 +185,130 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">The environment base class.</span>
 <span class="sd">&quot;&quot;&quot;</span>
-
+<span class="c1">#pylint: disable=R1710</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sequence</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
+<span class="kn">from</span> <span class="nn">mindspore_rl.environment.space</span> <span class="kn">import</span> <span class="n">Space</span>
 
 
 <div class="viewcode-block" id="Environment"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment">[docs]</a><span class="k">class</span> <span class="nc">Environment</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    The virtual base class for the environment. This class should be overridden before calling in the model.</span>
+<span class="sd">    The abstract base class for environment. All the environments or wrappers need to inherit</span>
+<span class="sd">    this base class. Moreover, subclass needs to overridden corresponding functions and properties.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Environment</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Environment</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Space</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the action space of the environment.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            The action space of environment.</span>
+<span class="sd">            action_space (Space), The action space of environment.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Property action_space should be overridden by subclass.&quot;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Space</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the state space of the environment.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            The state space of environment.</span>
+<span class="sd">            observation_space (Space), The state space of environment.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Property observation_space should be overridden by subclass.&quot;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">reward_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">reward_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Space</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the reward space of the environment.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            The reward space of environment.</span>
+<span class="sd">            reward_space (Space), The reward space of environment.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Property reward_space should be overridden by subclass.&quot;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">done_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">done_space</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Space</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the done space of the environment.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            The done space of environment.</span>
+<span class="sd">            done_space (Space), The done space of environment.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Property done_space should be overridden by subclass.&quot;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the config of environment.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            A dictionary which contains environment&#39;s info.</span>
+<span class="sd">            config (dict), A dictionary which contains environment&#39;s info.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Property config should be overridden by subclass.&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">batched</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Whether the environment is batched.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            batched (bool), Whether the environment is batched. Default is False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">num_environment</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of environment</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            num_env (int),  Number of environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">num_agent</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of agents in the environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            num_agent (int), Number of agent in the current environment. If the environment is</span>
+<span class="sd">                single agent, it will return 1. Otherwise, subclass needs to override this property</span>
+<span class="sd">                to return correct number of agent. Default: 1.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_num_reset_out</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Inner method, return the number of return value of reset.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int, The number of return value of reset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_num_step_out</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Inner method, return the number of return value of step.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int, The number of return value of step.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">3</span>
 
 <div class="viewcode-block" id="Environment.reset"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -253,13 +316,226 @@
 <span class="sd">        episode. It will return the value of initial state or other initial information.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            A tensor which states for the initial state of environment or a tuple contains</span>
-<span class="sd">            initial information, such as new state, action, reward, etc.</span>
+<span class="sd">            - state (Union[np.ndarray, Tensor]), A numpy array or Tensor which states for</span>
+<span class="sd">              the initial state of environment.</span>
+<span class="sd">            - args (Union[np.ndarray, Tensor], optional), Support arbitrary outputs, but user needs to ensure the</span>
+<span class="sd">              dtype. This output is optional.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method reset should be overridden by subclass.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Environment.step"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.step">[docs]</a>    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Execute the environment step, which means that interact with environment once.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            action (Union[Tensor, np.ndarray]): A tensor that contains the action information.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            - state (Union[np.ndarray, Tensor]), The environment state after performing the action.</span>
+<span class="sd">            - reward (Union[np.ndarray, Tensor]), The reward after performing the action.</span>
+<span class="sd">            - done (Union[np.ndarray, Tensor]), Whether the simulation finishes or not.</span>
+<span class="sd">            - args (Union[np.ndarray, Tensor], optional), Support arbitrary outputs, but user needs to ensure the</span>
+<span class="sd">              dtype. This output is optional.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method step should be overridden by subclass.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Environment.send"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">env_id</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Execute the environment step asynchronously. User can obtain result by using recv.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            action (Union[Tensor, np.ndarray]): A tensor or array that contains the action information.</span>
+<span class="sd">            env_id (Union[Tensor, np.ndarray]): Which environment these actions will interact with.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Success (bool), True if the action is successfully executed, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method send should be overridden by subclass.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Environment.recv"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.recv">[docs]</a>    <span class="k">def</span> <span class="nf">recv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Receive the result of interacting with environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            - state (Union[np.ndarray, Tensor]), The environment state after performing the action.</span>
+<span class="sd">            - reward (Union[np.ndarray, Tensor]), The reward after performing the action.</span>
+<span class="sd">            - done (Union[np.ndarray, Tensor]), whether the simulation finishes or not.</span>
+<span class="sd">            - env_id (Union[np.ndarray, Tensor]), Which environments are interacted.env</span>
+<span class="sd">            - args (Union[np.ndarray, Tensor], optional), Support arbitrary outputs, but user needs to ensure the</span>
+<span class="sd">              dtype. This output is optional.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method async_step should be overridden by subclass.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Environment.set_seed"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.set_seed">[docs]</a>    <span class="k">def</span> <span class="nf">set_seed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed_value</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set seed to control the randomness of environment.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            seed_value (int): The value that is used to set</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Success (np.bool\_), Whether successfully set the seed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method set_seed should be overridden by subclass.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Environment.render"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the image for current frame of environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            img (Union[Tensor, np.ndarray]), The image of environment at current frame.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method render should be overridden by subclass.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Environment.close"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the environment to release the resource.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Success (np.bool\_), Whether shutdown the process or threading successfully.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">DeprecatedEnvironment</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The virtual base class of the environment. Each environment subclass needs to inherit this class, and</span>
+<span class="sd">    implements \_reset, \_get_action, \_step, \_get_min_max_action and \_get_min_max_observation in subclass.</span>
+<span class="sd">    The base class provides the ability that automatically wrap the python function of reset and step to mindspore</span>
+<span class="sd">    ops (PyFunc), and automatically generate the space of environmment.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        env_name (str): The environment name of subclass. Default: None</span>
+<span class="sd">        env (Environment): The environmen instance of subcalss. Default: None</span>
+<span class="sd">        config (dict): The configuration of environment, it can be obtained by call the config property. Default: None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">DeprecatedEnvironment</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">new_api_env</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;MultiAgentParticleEnvironment&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">env_name</span> <span class="ow">in</span> <span class="n">new_api_env</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_base_env</span> <span class="o">=</span> <span class="n">env</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span>
+
+            <span class="c1"># pre-run environment</span>
+            <span class="n">reset_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reset</span><span class="p">()</span>
+            <span class="n">action</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_action</span><span class="p">()</span>
+            <span class="n">step_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="n">min_action</span><span class="p">,</span> <span class="n">max_action</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_min_max_action</span><span class="p">()</span>
+            <span class="n">min_obs</span><span class="p">,</span> <span class="n">max_obs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_min_max_observation</span><span class="p">()</span>
+
+            <span class="c1"># Check whether the output of reset/get_action/step func is a numpy array</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_ndarray</span><span class="p">(</span><span class="n">reset_out</span><span class="p">,</span> <span class="s2">&quot;_reset&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_ndarray</span><span class="p">(</span><span class="n">action</span><span class="p">,</span> <span class="s2">&quot;_get_action&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_ndarray</span><span class="p">(</span><span class="n">step_out</span><span class="p">,</span> <span class="s2">&quot;_step&quot;</span><span class="p">)</span>
+
+            <span class="n">reset_out_dtype</span><span class="p">,</span> <span class="n">reset_out_msdtype</span><span class="p">,</span> <span class="n">reset_output_full_shape</span><span class="p">,</span> <span class="n">reset_output_split_shape</span><span class="p">,</span> \
+                <span class="n">reset_batch_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dtype_shape</span><span class="p">(</span><span class="n">reset_out</span><span class="p">)</span>
+            <span class="n">step_input_dtype</span><span class="p">,</span> <span class="n">step_input_msdtype</span><span class="p">,</span> <span class="n">step_input_full_shape</span><span class="p">,</span> <span class="n">step_input_split_shape</span><span class="p">,</span> \
+                <span class="n">step_in_batch_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dtype_shape</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="n">step_output_dtype</span><span class="p">,</span> <span class="n">step_output_msdtype</span><span class="p">,</span> <span class="n">step_output_full_shape</span><span class="p">,</span> <span class="n">step_output_split_shape</span><span class="p">,</span> \
+                <span class="n">step_out_batch_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dtype_shape</span><span class="p">(</span><span class="n">step_out</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span> <span class="o">=</span> <span class="n">Space</span><span class="p">(</span><span class="n">reset_output_split_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">reset_out_dtype</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                            <span class="n">low</span><span class="o">=</span><span class="n">min_obs</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="n">max_obs</span><span class="p">,</span> <span class="n">batch_shape</span><span class="o">=</span><span class="n">reset_batch_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span> <span class="o">=</span> <span class="n">Space</span><span class="p">(</span><span class="n">step_input_split_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">step_input_dtype</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                       <span class="n">low</span><span class="o">=</span><span class="n">min_action</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="n">max_action</span><span class="p">,</span> <span class="n">batch_shape</span><span class="o">=</span><span class="n">step_in_batch_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span> <span class="o">=</span> <span class="n">Space</span><span class="p">(</span><span class="n">step_output_split_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                                       <span class="n">step_output_dtype</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">batch_shape</span><span class="o">=</span><span class="n">step_out_batch_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span> <span class="o">=</span> <span class="n">Space</span><span class="p">(</span><span class="n">step_output_split_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">step_output_dtype</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                                     <span class="n">batch_shape</span><span class="o">=</span><span class="n">step_out_batch_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Start create PyFunc of </span><span class="si">{</span><span class="n">env_name</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Please check whether the dtype/shape of input/output meet the expectation.&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The output dtype of reset is [MS]</span><span class="si">{</span><span class="n">reset_out_msdtype</span><span class="si">}</span><span class="s2">, [Numpy]</span><span class="si">{</span><span class="n">reset_out_dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The output shape of reset is </span><span class="si">{</span><span class="n">reset_output_full_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The output batch axis of reset is </span><span class="si">{</span><span class="n">reset_batch_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The input dtype of step is [MS]</span><span class="si">{</span><span class="n">step_input_msdtype</span><span class="si">}</span><span class="s2">, [Numpy]</span><span class="si">{</span><span class="n">step_input_dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The input shape of step is </span><span class="si">{</span><span class="n">step_input_full_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The input batch axis of step is </span><span class="si">{</span><span class="n">step_in_batch_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The output dtype of step is [MS]</span><span class="si">{</span><span class="n">step_output_msdtype</span><span class="si">}</span><span class="s2">, [Numpy]</span><span class="si">{</span><span class="n">step_output_dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The output shape of step is </span><span class="si">{</span><span class="n">step_output_full_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The output batch axis of step is </span><span class="si">{</span><span class="n">step_out_batch_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Start create Space of </span><span class="si">{</span><span class="n">env_name</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Observation space is </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Action space is </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reward space is </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Done space is </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">reset_ops</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">PyFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reset_python</span><span class="p">,</span> <span class="p">[],</span> <span class="p">[],</span> <span class="n">reset_out_msdtype</span><span class="p">,</span> <span class="n">reset_output_full_shape</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">step_ops</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">PyFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_step_python</span><span class="p">,</span> <span class="n">step_input_msdtype</span><span class="p">,</span> <span class="n">step_input_full_shape</span><span class="p">,</span>
+                                     <span class="n">step_output_msdtype</span><span class="p">,</span> <span class="n">step_output_full_shape</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_reset_out</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reset_out_dtype</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_step_out</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">step_output_dtype</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the action space of the environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            action_space(Space): The action space of environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the observation space of the environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            observation_space(Space): The observation space of environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">reward_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the reward space of the environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            reward_space(Space): The reward space of environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">done_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the done space of the environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            done_space(Space): The done space of environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the config of environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            config_dict(dict): A dictionary which contains environment&#39;s info.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span>
+
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reset the environment to the initial state. It is always used at the beginning of each</span>
+<span class="sd">        episode. It will return the value of initial state or other initial information.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            - state (Tensor), a tensor which states for the initial state of environment.</span>
+<span class="sd">            - other (Tensor), it will flatten the other output in _reset function, except for state.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_reset_out</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_ops</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">state</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_reset_out</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_ops</span><span class="p">()</span>
 
-<div class="viewcode-block" id="Environment.step"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.step">[docs]</a>    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Execute the environment step, which means that interact with environment once.</span>
 
@@ -267,18 +543,154 @@
 <span class="sd">            action (Tensor): A tensor that contains the action information.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            A tuple of Tensor which contains information after interacting with environment.</span>
+<span class="sd">            - state (Tensor), the environment state after performing the action.</span>
+<span class="sd">            - reward (Tensor), the reward after performing the action.</span>
+<span class="sd">            - done (Tensor), whether the simulation finishes or not.</span>
+<span class="sd">            - other (Tensor), it will flatten the other output in _step function, except for state, reward and done</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_ops</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Environment.close"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.Environment.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Close the environment to release the resource.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Success(np.bool\_), Whether shutdown the process or threading successfully.</span>
+<span class="sd">            - Success(np.bool\_), Whether shutdown the process or threading successfully.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="kc">True</span></div></div>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_reset_python</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wrap the python reset function&quot;&quot;&quot;</span>
+        <span class="n">reset_out</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_reset_out</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reset</span><span class="p">()</span>
+            <span class="n">reset_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">state</span><span class="p">,</span> <span class="o">*</span><span class="n">others</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reset</span><span class="p">()</span>
+            <span class="n">reset_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="o">*</span><span class="n">others</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">reset_out</span>
+
+    <span class="k">def</span> <span class="nf">_step_python</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wrap the python step function&quot;&quot;&quot;</span>
+        <span class="n">step_out</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_step_out</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">next_state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">done</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="n">step_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">next_state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">next_state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="o">*</span><span class="n">others</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="n">step_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">next_state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="o">*</span><span class="n">others</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">step_out</span>
+
+    <span class="k">def</span> <span class="nf">_shape_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Treat the first axis of input shape as batch axis, if the length of shape is larger than 2&quot;&quot;&quot;</span>
+        <span class="n">batch_shape</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">out_split_shape</span> <span class="o">=</span> <span class="n">input_shape</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">input_shape</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">out_split_shape</span> <span class="o">=</span> <span class="n">input_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">return</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">out_split_shape</span><span class="p">,</span> <span class="n">batch_shape</span>
+
+    <span class="k">def</span> <span class="nf">_get_dtype_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate mindspore dytpe/numpy dtype and shape for a set of input value&quot;&quot;&quot;</span>
+        <span class="n">out_np_dtype</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">out_ms_dtype</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">out_split_shape</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">out_full_shape</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">batch_shape</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                    <span class="n">list_dtype_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dtype_shape</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+                    <span class="n">out_np_dtype</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">list_dtype_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">out_ms_dtype</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">list_dtype_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">out_split_shape</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">list_dtype_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                    <span class="n">out_full_shape</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">list_dtype_shape</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+                    <span class="n">batch_shape</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">list_dtype_shape</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">adapted_item</span> <span class="o">=</span> <span class="n">item</span>
+                    <span class="n">out_ms_dtype</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">pytype_to_dtype</span><span class="p">(</span><span class="n">adapted_item</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">))</span>
+                    <span class="n">out_np_dtype</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">adapted_item</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+                    <span class="n">item_full_shape</span><span class="p">,</span> <span class="n">item_split_shape</span><span class="p">,</span> <span class="n">adapted_batch_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shape_adapter</span><span class="p">(</span><span class="n">adapted_item</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                    <span class="n">batch_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">adapted_batch_shape</span><span class="p">)</span>
+                    <span class="n">out_split_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item_split_shape</span><span class="p">)</span>
+                    <span class="n">out_full_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item_full_shape</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">adapted_result</span> <span class="o">=</span> <span class="n">result</span>
+            <span class="n">out_np_dtype</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">adapted_result</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+            <span class="n">out_ms_dtype</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">pytype_to_dtype</span><span class="p">(</span><span class="n">adapted_result</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">))</span>
+            <span class="n">result_full_shape</span><span class="p">,</span> <span class="n">result_split_shape</span><span class="p">,</span> <span class="n">adapted_batch_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shape_adapter</span><span class="p">(</span><span class="n">adapted_result</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">batch_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">adapted_batch_shape</span><span class="p">)</span>
+            <span class="n">out_split_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result_split_shape</span><span class="p">)</span>
+            <span class="n">out_full_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result_full_shape</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out_np_dtype</span><span class="p">,</span> <span class="n">out_ms_dtype</span><span class="p">,</span> <span class="n">out_full_shape</span><span class="p">,</span> <span class="n">out_split_shape</span><span class="p">,</span> <span class="n">batch_shape</span>
+
+    <span class="k">def</span> <span class="nf">_check_ndarray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">items</span><span class="p">,</span> <span class="n">debug_str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the input items are ndarray&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_check_ndarray</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">debug_str</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;One of the output of </span><span class="si">{</span><span class="n">debug_str</span><span class="si">}</span><span class="s2"> is not numpy array&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">items</span>
+
+    <span class="k">def</span> <span class="nf">_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The python reset function implementation. Each subclass needs to implement the reset function of environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            - state (np.ndarray), a numpy array which states for the initial state of environment.</span>
+<span class="sd">            - *args (np.ndarray), the other outputs</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">actions</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The python step function implementation. Each subclass needs to implement the step function of environment.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            action (np.ndarray): A numpy array that contains the action information.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            - state (np.ndarray), the environment state after performing the action.</span>
+<span class="sd">            - reward (np.ndarray), the reward after performing the action.</span>
+<span class="sd">            - done (np.ndarray), whether the simulation finishes or not.</span>
+<span class="sd">            - *args (np.ndarray), the other outputs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_action</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The python get\_action function implementation. Each subclass needs to implement the step</span>
+<span class="sd">        function of environment.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            - action (np.ndarray), an available action of environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_min_max_action</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The python get\_min\_max\_action function implementation. For each subclass, they all need</span>
+<span class="sd">        to implement this function</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            - min_action (np.ndarray), the minimum value of action.</span>
+<span class="sd">            - max_action (np.ndarray), the maximum value of action.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_min_max_observation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The python get\_min\_max_observation function implementation. For each subclass, they all need</span>
+<span class="sd">        to implement this function</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            - min_observation (np.ndarray), the minimum value of observation.</span>
+<span class="sd">            - max_observation (np.ndarray), the maximum value of observation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Method should be overridden by subclass.&quot;</span><span class="p">)</span>
 </pre></div>
 
            </div>
