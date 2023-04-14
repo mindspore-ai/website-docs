@@ -25,25 +25,6 @@ fi
 
 # shellcheck disable=SC2034
 BUILD_PATH=${VERSION}
-# shellcheck disable=SC2164
-cd /root/docs/tools/generate_html
-if [ ${VERSION} == "master" ];then
-  # shellcheck disable=SC2034
-  BUILD_PATH="daily"
-  python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}"
-else
-  python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}"
-fi
-
-
-# shellcheck disable=SC2164
-cd /root/docs/tools/generate_html/${BUILD_PATH}/output
-cp -f common.css /root/website-docs/public/
-cp -f common.js /root/website-docs/public/
-cp -f h5_docs.css /root/website-docs/public/
-cp -f menu_en.json /root/website-docs/public/
-cp -f menu_zh-CN.json /root/website-docs/public/
-cp -f msVersion.json /root/website-docs/public/
 
 # shellcheck disable=SC2164
 cd /root
@@ -101,6 +82,25 @@ function refreshDir() {
 }
 
 if [ ${DO_BUILD} == "true" ];then
+  # shellcheck disable=SC2164
+  cd /root/docs/tools/generate_html
+  if [ ${VERSION} == "master" ];then
+    # shellcheck disable=SC2034
+    BUILD_PATH="daily"
+    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}"
+  else
+    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}"
+  fi
+
+  # shellcheck disable=SC2164
+  cd /root/docs/tools/generate_html/${BUILD_PATH}/output
+  cp -f common.css /root/website-docs/public/
+  cp -f common.js /root/website-docs/public/
+  cp -f h5_docs.css /root/website-docs/public/
+  cp -f menu_en.json /root/website-docs/public/
+  cp -f menu_zh-CN.json /root/website-docs/public/
+  cp -f msVersion.json /root/website-docs/public/
+
   delete_old
 fi
 
