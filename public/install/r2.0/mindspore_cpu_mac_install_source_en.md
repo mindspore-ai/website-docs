@@ -14,7 +14,7 @@
 
 <a href="https://gitee.com/mindspore/docs/blob/r2.0/install/mindspore_cpu_mac_install_source_en.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.0/resource/_static/logo_source_en.png"></a>
 
-This document describes how to quickly install MindSpore by compiling source code on macOS.
+This document describes how to install MindSpore by compiling source code on macOS.
 
 ## System Environment Information Confirmation
 
@@ -77,7 +77,7 @@ The outputs should be the same as:
 
 ```text
 MindSpore version: __version__
-The result of multiplication calculation is correct, MindSpore has been installed successfully!
+The result of multiplication calculation is correct, MindSpore has been installed on platform [CPU] successfully!
 ```
 
 It means MindSpore has been installed successfully.

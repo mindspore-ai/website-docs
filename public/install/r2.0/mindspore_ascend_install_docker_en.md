@@ -16,7 +16,7 @@
 
 [Docker](https://docs.docker.com/get-docker/) is an open source application container engine, and developers can package their applications and dependencies into a lightweight, portable container. By using Docker, MindSpore can be rapidly deployed and separated from the system environment.
 
-This document describes how to quickly install MindSpore in a Linux system with an Ascend 910 environment by Docker.
+This document describes how to install MindSpore by Docker on Linux in an Ascend 910 environment.
 
 The Docker image of MindSpore is hosted on [Huawei SWR](https://support.huaweicloud.com/swr/index.html).
 
@@ -42,7 +42,7 @@ Ascend software package provides two distributions, commercial edition and commu
 
 - Community edition has no restrictions, choose `6.0.1.alpha001` in [CANN community edition](https://www.hiascend.com/software/cann/community-history), then choose relevant driver and firmware packages in [firmware and driver](https://www.hiascend.com/hardware/firmware-drivers?tag=community). Please refer to the abovementioned commercial edition installation guide to choose which packages are to be installed and how to install them.
 
-The default installation path of the installation package is `/usr/local/Ascend`. Ensure that the current user has the right to access the installation path `/usr/local/Ascend` of Ascend AI processor software package, If not, the root user needs to add the current user to the user group where `/usr/local/Ascend` is located.
+The default installation path of the installation package is `/usr/local/Ascend`. Ensure that the current user has the right to access the installation path `/usr/local/Ascend` of Ascend AI processor software package. If not, the root user needs to add the current user to the user group where `/usr/local/Ascend` is located.
 
 ## Obtaining MindSpore Image
 
@@ -83,7 +83,7 @@ of which,
 
 - `{tag}` corresponds to the label in the above table.
 
-If you want to use MindInsight, you need to set the `--network` parameter to "host" mode, for example:
+If you want to use MindSpore Insight, you need to set the `--network` parameter to "host" mode, for example:
 
 ```bash
 docker run -it -u root --ipc=host \
@@ -119,7 +119,7 @@ The outputs should be the same as:
 
 ```text
 MindSpore version: __version__
-The result of multiplication calculation is correct, MindSpore has been installed successfully!
+The result of multiplication calculation is correct, MindSpore has been installed on platform [Ascend] successfully!
 ```
 
 So far, it means MindSpore Ascend 910 has been installed by Docker successfully.
@@ -155,9 +155,9 @@ The outputs should be the same as:
 
 So far, it means MindSpore Ascend 910 has been installed by Docker successfully.
 
-If you need to verify the MindInsight installation:
+If you need to verify the MindSpore Insight installation:
 
-Enter ```mindinsight start --port 8080```, if it prompts that the startup status is successful, it means MindInsight has been installed successfully.
+Enter ```mindinsight start --port 8080```, if it prompts that the startup status is successful, it means MindSpore Insight has been installed successfully.
 
 ## Version Update
 

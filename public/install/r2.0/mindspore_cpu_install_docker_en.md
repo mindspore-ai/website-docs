@@ -14,7 +14,7 @@
 
 [Docker](https://docs.docker.com/get-docker/) is an open source application container engine, and developers can package their applications and dependencies into a lightweight, portable container. By using Docker, MindSpore can be rapidly deployed and separated from the system environment.
 
-This document describes how to quickly install MindSpore by Docker in a Linux system with a CPU environment.
+This document describes how to install MindSpore by Docker on Linux in a CPU environment.
 
 The Docker image of MindSpore is hosted on [Huawei SWR](https://support.huaweicloud.com/swr/index.html).
 
@@ -57,7 +57,7 @@ of which,
 
 - `{tag}` corresponds to the label in the above table.
 
-If you want to use MindInsight, you need to set the `--network` parameter to `host` mode, for example:
+If you want to use MindSpore Insight, you need to set the `--network` parameter to `host` mode, for example:
 
 ```bash
 docker run -it --network host swr.cn-south-1.myhuaweicloud.com/mindspore/mindspore-cpu:{tag} /bin/bash
@@ -79,7 +79,7 @@ python -c "import mindspore;mindspore.run_check()"
 
 ```text
 MindSpore version: __version__
-The result of multiplication calculation is correct, MindSpore has been installed successfully!
+The result of multiplication calculation is correct, MindSpore has been installed on platform [CPU] successfully!
 ```
 
 So far, it means MindSpore CPU has been installed by Docker successfully.
@@ -116,9 +116,9 @@ When the code is successfully run, the outputs should be the same as:
 
 So far, it means MindSpore CPU has been installed by Docker successfully.
 
-- If you need to verify the MindInsight installation:
+- If you need to verify the MindSpore Insight installation:
 
-    Enter ```mindinsight start --port 8080```, and if it prompts that the startup status is successful, it means MindInsight has been installed successfully.
+    Enter ```mindinsight start --port 8080```, and if it prompts that the startup status is successful, it means MindSpore Insight has been installed successfully.
 
 - If you install a container with the label of `runtime`, you need to install MindSpore yourself.
 
