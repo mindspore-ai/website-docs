@@ -186,8 +186,9 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Implementation of MSRL class.</span>
 <span class="sd">&quot;&quot;&quot;</span>
-
+<span class="c1"># pylint: disable=R1719</span>
 <span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
@@ -328,7 +329,9 @@
         <span class="k">return</span> <span class="n">MultiEnvironmentWrapper</span><span class="p">(</span><span class="n">env_list</span><span class="p">,</span> <span class="n">proc_num</span><span class="p">)</span>
 
     <span class="c1"># pylint: disable=W0613</span>
-    <span class="k">def</span> <span class="nf">__create_environments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">num_agent</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__create_environments</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">env_type</span><span class="p">,</span> <span class="n">need_batched</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">new_api</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create the environments object from the configuration file, and return the instance</span>
 <span class="sd">        of environment and evaluate environment.</span>
@@ -340,68 +343,46 @@
 <span class="sd">            - env (object), created environment object.</span>
 <span class="sd">            - eval_env (object), created evaluate environment object.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="n">collect_env_config</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;collect_environment&quot;</span><span class="p">]</span>
-        <span class="n">eval_env_config</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_environment&quot;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span> <span class="o">=</span> <span class="n">collect_env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;number&quot;</span><span class="p">)</span>
-        <span class="n">num_eval_env</span> <span class="o">=</span> <span class="n">eval_env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;number&quot;</span><span class="p">)</span>
-        <span class="n">collect_num_parallel</span> <span class="o">=</span> <span class="n">collect_env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_parallel&quot;</span><span class="p">)</span>
-        <span class="n">eval_num_parallel</span> <span class="o">=</span> <span class="n">eval_env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_parallel&quot;</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="k">if</span> <span class="n">num_eval_env</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">num_eval_env</span> <span class="o">=</span> <span class="mi">1</span>
-
-        <span class="k">if</span> <span class="n">collect_num_parallel</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">collect_num_parallel</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="s2">&quot;num_parallel of collect_environment can not be non-positive&quot;</span>
-                <span class="p">)</span>
-            <span class="n">collect_proc_num</span> <span class="o">=</span> <span class="n">collect_num_parallel</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">collect_proc_num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span>
-
-        <span class="k">if</span> <span class="n">eval_num_parallel</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">eval_num_parallel</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="s2">&quot;num_parallel of eval_environment can not be non-positive&quot;</span>
-                <span class="p">)</span>
-            <span class="n">eval_proc_num</span> <span class="o">=</span> <span class="n">eval_num_parallel</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">eval_proc_num</span> <span class="o">=</span> <span class="n">num_eval_env</span>
-
+        <span class="n">env_config</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="n">env_type</span><span class="p">]</span>
+        <span class="n">num_env</span> <span class="o">=</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;number&quot;</span><span class="p">)</span>
         <span class="n">compulsory_item</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_compulsory_items_check</span><span class="p">(</span>
-            <span class="n">collect_env_config</span><span class="p">,</span> <span class="n">compulsory_item</span><span class="p">,</span> <span class="s2">&quot;collect_environment&quot;</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_compulsory_items_check</span><span class="p">(</span>
-            <span class="n">eval_env_config</span><span class="p">,</span> <span class="n">compulsory_item</span><span class="p">,</span> <span class="s2">&quot;eval_environment&quot;</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_compulsory_items_check</span><span class="p">(</span><span class="n">env_config</span><span class="p">,</span> <span class="n">compulsory_item</span><span class="p">,</span> <span class="n">env_type</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="p">[</span><span class="n">env_type</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;params&quot;</span><span class="p">):</span>
+            <span class="n">config</span><span class="p">[</span><span class="n">env_type</span><span class="p">][</span><span class="s2">&quot;params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;collect_environment&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;params&quot;</span><span class="p">):</span>
-            <span class="n">config</span><span class="p">[</span><span class="s2">&quot;collect_environment&quot;</span><span class="p">][</span><span class="s2">&quot;params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_environment&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;params&quot;</span><span class="p">):</span>
-            <span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_environment&quot;</span><span class="p">][</span><span class="s2">&quot;params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">collect_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_batch_env</span><span class="p">(</span>
-                <span class="n">config</span><span class="p">[</span><span class="s2">&quot;collect_environment&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span><span class="p">,</span> <span class="n">collect_proc_num</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">new_api</span><span class="p">:</span>
+            <span class="n">num_parallel</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">num_env</span>
+                <span class="k">if</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_parallel&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_parallel&quot;</span><span class="p">)</span>
             <span class="p">)</span>
-            <span class="n">eval_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_batch_env</span><span class="p">(</span>
-                <span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_environment&quot;</span><span class="p">],</span> <span class="n">num_eval_env</span><span class="p">,</span> <span class="n">eval_proc_num</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">collect_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_instance</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;collect_environment&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">num_eval_env</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">collect_env</span> <span class="o">=</span> <span class="n">MultiEnvironmentWrapper</span><span class="p">([</span><span class="n">collect_env</span><span class="p">],</span> <span class="n">collect_proc_num</span><span class="p">)</span>
-                <span class="n">eval_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_batch_env</span><span class="p">(</span>
-                    <span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_environment&quot;</span><span class="p">],</span> <span class="n">num_eval_env</span><span class="p">,</span> <span class="n">eval_proc_num</span>
-                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">num_env</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_batch_env</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="n">env_type</span><span class="p">],</span> <span class="n">num_env</span><span class="p">,</span> <span class="n">num_parallel</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">eval_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_instance</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_environment&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="n">env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_instance</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="n">env_type</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">need_batched</span><span class="p">:</span>
+                    <span class="n">env</span> <span class="o">=</span> <span class="n">MultiEnvironmentWrapper</span><span class="p">([</span><span class="n">env</span><span class="p">],</span> <span class="n">num_parallel</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">num_parallel</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="mi">0</span>
+                <span class="k">if</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_parallel&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_parallel&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">wrappers</span> <span class="o">=</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;wrappers&quot;</span><span class="p">)</span>
+            <span class="n">env_creator</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="n">env_type</span><span class="p">][</span><span class="s2">&quot;type&quot;</span><span class="p">],</span> <span class="n">config</span><span class="p">[</span><span class="n">env_type</span><span class="p">][</span><span class="s2">&quot;params&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">wrappers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">wrapper</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">wrappers</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">wrapper</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;SyncParallelWrapper&quot;</span><span class="p">:</span>
+                        <span class="n">env_creator</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+                            <span class="n">wrapper</span><span class="p">,</span> <span class="p">[</span><span class="n">env_creator</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_env</span><span class="p">,</span> <span class="n">num_parallel</span>
+                        <span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">env_creator</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">wrapper</span><span class="p">,</span> <span class="n">env_creator</span><span class="p">)</span>
+            <span class="n">env</span> <span class="o">=</span> <span class="n">env_creator</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;seed&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">env</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="n">env_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;seed&quot;</span><span class="p">))</span>
 
-        <span class="k">return</span> <span class="n">collect_env</span><span class="p">,</span> <span class="n">eval_env</span>
+        <span class="k">return</span> <span class="n">env</span><span class="p">,</span> <span class="n">num_env</span>
 
     <span class="k">def</span> <span class="nf">__params_generate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -593,10 +574,23 @@
             <span class="k">if</span> <span class="s2">&quot;share_env&quot;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;actor&quot;</span><span class="p">]:</span>
                 <span class="n">share_env</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;actor&quot;</span><span class="p">][</span><span class="s2">&quot;share_env&quot;</span><span class="p">]</span>
             <span class="c1"># ---------------------- Environment ----------------------</span>
-            <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">collect_environment</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">eval_environment</span><span class="p">,</span>
-            <span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_environments</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+            <span class="n">collect_new_api</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;collect_environment&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;wrappers&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="n">eval_new_api</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_environment&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;wrappers&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">collect_environment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_environments</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span> <span class="s2">&quot;collect_environment&quot;</span><span class="p">,</span> <span class="n">new_api</span><span class="o">=</span><span class="n">collect_new_api</span>
+            <span class="p">)</span>
+            <span class="n">need_batched</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span> <span class="k">else</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eval_environment</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_environments</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span> <span class="s2">&quot;eval_environment&quot;</span><span class="p">,</span> <span class="n">need_batched</span><span class="p">,</span> <span class="n">new_api</span><span class="o">=</span><span class="n">eval_new_api</span>
+            <span class="p">)</span>
             <span class="c1"># ---------------------------------------------------------</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">distributed</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">policy_and_network</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_policy_and_network</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
@@ -621,7 +615,9 @@
                     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_actors</span><span class="p">):</span>
                         <span class="k">if</span> <span class="ow">not</span> <span class="n">share_env</span><span class="p">:</span>
                             <span class="bp">self</span><span class="o">.</span><span class="n">collect_environment</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">__create_environments</span><span class="p">(</span><span class="n">config</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">__create_environments</span><span class="p">(</span>
+                                    <span class="n">config</span><span class="p">,</span> <span class="s2">&quot;collect_environment&quot;</span>
+                                <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
                             <span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">policy_and_network</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_policy_and_network</span><span class="p">(</span>
                             <span class="n">config</span>
@@ -650,10 +646,23 @@
 
             <span class="n">config</span><span class="p">[</span><span class="s2">&quot;agent&quot;</span><span class="p">][</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="s2">&quot;num_agent&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_agent</span>
             <span class="c1"># ---------------------- Environment ----------------------</span>
-            <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">collect_environment</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">eval_environment</span><span class="p">,</span>
-            <span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_environments</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_agent</span><span class="p">)</span>
+            <span class="n">collect_new_api</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;collect_environment&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;wrappers&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="n">eval_new_api</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_environment&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;wrappers&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">collect_environment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_environments</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span> <span class="s2">&quot;collect_environment&quot;</span><span class="p">,</span> <span class="n">new_api</span><span class="o">=</span><span class="n">collect_new_api</span>
+            <span class="p">)</span>
+            <span class="n">need_batched</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_collect_env</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span> <span class="k">else</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eval_environment</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_environments</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span> <span class="s2">&quot;eval_environment&quot;</span><span class="p">,</span> <span class="n">need_batched</span><span class="p">,</span> <span class="n">new_api</span><span class="o">=</span><span class="n">eval_new_api</span>
+            <span class="p">)</span>
             <span class="c1"># ---------------------------------------------------------</span>
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_agent</span><span class="p">):</span>
                 <span class="n">policy_and_network</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_policy_and_network</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>

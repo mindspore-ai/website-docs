@@ -225,16 +225,14 @@
 <span class="c1"># limitations under the License.</span>
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;Hamiltonian module.&quot;&quot;&quot;</span>
-
+<span class="c1"># pylint: disable=too-many-instance-attributes,no-member</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">scipy.sparse</span> <span class="k">as</span> <span class="nn">sp</span>
 
+<span class="kn">import</span> <span class="nn">mindquantum</span> <span class="k">as</span> <span class="nn">mq</span>
 <span class="kn">from</span> <span class="nn">mindquantum</span> <span class="kn">import</span> <span class="n">mqbackend</span> <span class="k">as</span> <span class="n">mb</span>
-
-<span class="kn">from</span> <span class="nn">...config</span> <span class="kn">import</span> <span class="n">get_context</span>
-<span class="kn">from</span> <span class="nn">._term_value</span> <span class="kn">import</span> <span class="n">TermValue</span>
 
 
 <span class="k">class</span> <span class="nc">HowTo</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
@@ -250,7 +248,8 @@
 <span class="sd">    A QubitOperator hamiltonian wrapper.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        hamiltonian (QubitOperator): The pauli qubit operator.</span>
+<span class="sd">        hamiltonian (Union[QubitOperator, scipy.sparse]): The pauli qubit operator or a sparse matrix.</span>
+<span class="sd">        dtype (mindquantum.dtype): data type of hamiltonian. Default: ``None``.</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; from mindquantum.core.operators import QubitOperator, Hamiltonian</span>
@@ -259,7 +258,7 @@
 <span class="sd">        3/10 [Z0 Y1]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hamiltonian</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hamiltonian</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a Hamiltonian object.&quot;&quot;&quot;</span>
         <span class="c1"># pylint: disable=import-outside-toplevel</span>
         <span class="kn">from</span> <span class="nn">.qubit_operator</span> <span class="kn">import</span> <span class="n">QubitOperator</span> <span class="k">as</span> <span class="n">HiQOperator</span>
@@ -269,6 +268,12 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hamiltonian</span><span class="p">,</span> <span class="n">support_type</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Require a QubitOperator or a csr_matrix, but get </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">hamiltonian</span><span class="p">)</span><span class="si">}</span><span class="s2">!&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hamiltonian</span><span class="p">,</span> <span class="n">sp</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dtype</span> <span class="o">=</span> <span class="n">mq</span><span class="o">.</span><span class="n">to_mq_type</span><span class="p">(</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">dtype</span> <span class="o">!=</span> <span class="n">mq</span><span class="o">.</span><span class="n">to_mq_type</span><span class="p">(</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">dtype</span><span class="p">):</span>
+                    <span class="n">hamiltonian</span> <span class="o">=</span> <span class="n">hamiltonian</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">mq</span><span class="o">.</span><span class="n">to_np_type</span><span class="p">(</span><span class="n">dtype</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ham_dtype</span> <span class="o">=</span> <span class="n">dtype</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">hamiltonian</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">hamiltonian</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Hamiltonian requires a two dimension square csr_matrix, but get shape </span><span class="si">{</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -280,6 +285,13 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">how_to</span> <span class="o">=</span> <span class="n">HowTo</span><span class="o">.</span><span class="n">FRONTEND</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
         <span class="k">else</span><span class="p">:</span>
+            <span class="n">hamiltonian</span><span class="p">:</span> <span class="n">HiQOperator</span>
+            <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dtype</span> <span class="o">=</span> <span class="n">hamiltonian</span><span class="o">.</span><span class="n">dtype</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">dtype</span> <span class="o">!=</span> <span class="n">hamiltonian</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span>
+                    <span class="n">hamiltonian</span> <span class="o">=</span> <span class="n">hamiltonian</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ham_dtype</span> <span class="o">=</span> <span class="n">dtype</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">hamiltonian</span> <span class="o">=</span> <span class="n">hamiltonian</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex64</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">how_to</span> <span class="o">=</span> <span class="n">HowTo</span><span class="o">.</span><span class="n">ORIGIN</span>
@@ -288,7 +300,7 @@
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">terms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">j</span><span class="o">.</span><span class="n">is_const</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Hamiltonian cannot be parameterized.&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ham_termlist</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">tuple</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">TermValue</span><span class="p">[</span><span class="n">l</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">i</span><span class="p">),</span> <span class="n">j</span><span class="o">.</span><span class="n">const</span><span class="o">.</span><span class="n">real</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ham_termlist</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="o">.</span><span class="n">const</span><span class="o">.</span><span class="n">real</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">ham_cpp</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">herm_ham_cpp</span> <span class="o">=</span> <span class="kc">None</span>
@@ -311,7 +323,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            n_qubits (int): The total qubit of this hamiltonian, only need when mode is</span>
-<span class="sd">                &#39;frontend&#39;. Default: 1.</span>
+<span class="sd">                &#39;frontend&#39;. Default: ``1``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">how_to</span> <span class="o">!=</span> <span class="n">HowTo</span><span class="o">.</span><span class="n">ORIGIN</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Already a sparse hamiltonian.&#39;</span><span class="p">)</span>
@@ -321,6 +333,22 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">how_to</span> <span class="o">=</span> <span class="n">HowTo</span><span class="o">.</span><span class="n">BACKEND</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get hamiltonian data type.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ham_dtype</span>
+
+<div class="viewcode-block" id="Hamiltonian.astype"><a class="viewcode-back" href="../../../../mindquantum.core.operators.Hamiltonian.html#mindquantum.core.operators.Hamiltonian.astype">[文档]</a>    <span class="k">def</span> <span class="nf">astype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert hamiltonian to other type.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dtype (mindquantum.dtype): the new type of hamiltonian.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">how_to</span> <span class="o">==</span> <span class="n">HowTo</span><span class="o">.</span><span class="n">FRONTEND</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="Hamiltonian.get_cpp_obj"><a class="viewcode-back" href="../../../../mindquantum.core.operators.Hamiltonian.html#mindquantum.core.operators.Hamiltonian.get_cpp_obj">[文档]</a>    <span class="k">def</span> <span class="nf">get_cpp_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hermitian</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the underlying C++ object.</span>
@@ -328,19 +356,23 @@
 <span class="sd">        Args:</span>
 <span class="sd">            hermitian (bool): Whether to get the cpp object of this hamiltonian in hermitian version.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">mq</span><span class="o">.</span><span class="n">is_double_precision</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">):</span>
+            <span class="n">backend_module</span> <span class="o">=</span> <span class="n">mb</span><span class="o">.</span><span class="n">double</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">backend_module</span> <span class="o">=</span> <span class="n">mb</span><span class="o">.</span><span class="n">float</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">hermitian</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ham_cpp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">how_to</span> <span class="o">==</span> <span class="n">HowTo</span><span class="o">.</span><span class="n">ORIGIN</span><span class="p">:</span>
-                    <span class="n">ham</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mb</span><span class="p">,</span> <span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ham_termlist</span><span class="p">)</span>
+                    <span class="n">ham</span> <span class="o">=</span> <span class="n">backend_module</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ham_termlist</span><span class="p">)</span>
                 <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">how_to</span> <span class="o">==</span> <span class="n">HowTo</span><span class="o">.</span><span class="n">BACKEND</span><span class="p">:</span>
-                    <span class="n">ham</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mb</span><span class="p">,</span> <span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ham_termlist</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span>
+                    <span class="n">ham</span> <span class="o">=</span> <span class="n">backend_module</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ham_termlist</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                     <span class="n">nnz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span><span class="o">.</span><span class="n">nnz</span>
-                    <span class="n">csr_mat</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mb</span><span class="p">,</span> <span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">csr_hd_matrix</span><span class="p">(</span>
+                    <span class="n">csr_mat</span> <span class="o">=</span> <span class="n">backend_module</span><span class="o">.</span><span class="n">csr_hd_matrix</span><span class="p">(</span>
                         <span class="n">dim</span><span class="p">,</span> <span class="n">nnz</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span><span class="o">.</span><span class="n">indptr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span><span class="o">.</span><span class="n">data</span>
                     <span class="p">)</span>
-                    <span class="n">ham</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mb</span><span class="p">,</span> <span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">(</span><span class="n">csr_mat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span>
+                    <span class="n">ham</span> <span class="o">=</span> <span class="n">backend_module</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">(</span><span class="n">csr_mat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">ham_cpp</span> <span class="o">=</span> <span class="n">ham</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ham_cpp</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">how_to</span> <span class="ow">in</span> <span class="p">(</span><span class="n">HowTo</span><span class="o">.</span><span class="n">BACKEND</span><span class="p">,</span> <span class="n">HowTo</span><span class="o">.</span><span class="n">ORIGIN</span><span class="p">):</span>
@@ -349,10 +381,10 @@
             <span class="n">herm_sparse_mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_mat</span><span class="o">.</span><span class="n">conjugate</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
             <span class="n">dim</span> <span class="o">=</span> <span class="n">herm_sparse_mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">nnz</span> <span class="o">=</span> <span class="n">herm_sparse_mat</span><span class="o">.</span><span class="n">nnz</span>
-            <span class="n">csr_mat</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mb</span><span class="p">,</span> <span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">csr_hd_matrix</span><span class="p">(</span>
+            <span class="n">csr_mat</span> <span class="o">=</span> <span class="n">backend_module</span><span class="o">.</span><span class="n">csr_hd_matrix</span><span class="p">(</span>
                 <span class="n">dim</span><span class="p">,</span> <span class="n">nnz</span><span class="p">,</span> <span class="n">herm_sparse_mat</span><span class="o">.</span><span class="n">indptr</span><span class="p">,</span> <span class="n">herm_sparse_mat</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span> <span class="n">herm_sparse_mat</span><span class="o">.</span><span class="n">data</span>
             <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">herm_ham_cpp</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mb</span><span class="p">,</span> <span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">(</span><span class="n">csr_mat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">herm_ham_cpp</span> <span class="o">=</span> <span class="n">backend_module</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">(</span><span class="n">csr_mat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">herm_ham_cpp</span></div></div>
 
 

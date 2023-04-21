@@ -225,13 +225,10 @@
 <span class="c1"># limitations under the License.</span>
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;Simulator.&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
-
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">..config</span> <span class="kn">import</span> <span class="n">get_context</span><span class="p">,</span> <span class="n">set_context</span>
-<span class="kn">from</span> <span class="nn">..core.circuit</span> <span class="kn">import</span> <span class="n">Circuit</span>
+<span class="kn">from</span> <span class="nn">mindquantum.dtype</span> <span class="kn">import</span> <span class="n">to_mq_type</span>
+
 <span class="kn">from</span> <span class="nn">..core.operators</span> <span class="kn">import</span> <span class="n">Hamiltonian</span>
 <span class="kn">from</span> <span class="nn">..utils.type_value_check</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">_check_input_type</span><span class="p">,</span>
@@ -239,17 +236,10 @@
     <span class="n">_check_seed</span><span class="p">,</span>
     <span class="n">_check_value_should_not_less</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.available_simulator</span> <span class="kn">import</span> <span class="n">SUPPORTED_SIMULATOR</span>
 <span class="kn">from</span> <span class="nn">.backend_base</span> <span class="kn">import</span> <span class="n">BackendBase</span>
 <span class="kn">from</span> <span class="nn">.mq_blas</span> <span class="kn">import</span> <span class="n">MQBlas</span>
-<span class="kn">from</span> <span class="nn">.mqsim</span> <span class="kn">import</span> <span class="n">MQ_SIM_GPU_SUPPORTED</span><span class="p">,</span> <span class="n">MQSim</span>
-
-<span class="n">SUPPORTED_SIMULATOR</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;mqvector&#39;</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="n">MQSim</span><span class="p">,</span> <span class="s1">&#39;mqvector&#39;</span><span class="p">),</span>
-    <span class="s1">&#39;mqmatrix&#39;</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="n">MQSim</span><span class="p">,</span> <span class="s1">&#39;mqmatrix&#39;</span><span class="p">),</span>
-<span class="p">}</span>
-
-<span class="k">if</span> <span class="n">MQ_SIM_GPU_SUPPORTED</span><span class="p">:</span>
-    <span class="n">SUPPORTED_SIMULATOR</span><span class="p">[</span><span class="s1">&#39;mqvector_gpu&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">MQSim</span><span class="p">,</span> <span class="s1">&#39;mqvector_gpu&#39;</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.mqsim</span> <span class="kn">import</span> <span class="n">MQSim</span>
 
 
 <div class="viewcode-block" id="get_supported_simulator"><a class="viewcode-back" href="../../../mindquantum.simulator.get_supported_simulator.html#mindquantum.simulator.get_supported_simulator">[文档]</a><span class="k">def</span> <span class="nf">get_supported_simulator</span><span class="p">():</span>
@@ -270,8 +260,9 @@
 <span class="sd">        backend (str): which backend you want. The supported backend can be found</span>
 <span class="sd">            in SUPPORTED_SIMULATOR</span>
 <span class="sd">        n_qubits (int): number of quantum simulator.</span>
-<span class="sd">        seed (int): the random seed for this simulator, if None, seed will generate</span>
-<span class="sd">            by `numpy.random.randint`. Default: None.</span>
+<span class="sd">        seed (int): the random seed for this simulator, if ``None``, seed will generate</span>
+<span class="sd">            by `numpy.random.randint`. Default: ``None``.</span>
+<span class="sd">        dtype (mindquantum.dtype): the data type of simulator. Default: ``None``.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: if `backend` is not str.</span>
@@ -290,7 +281,7 @@
 <span class="sd">        array([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j])</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backend</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backend</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a Simulator object.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <span class="n">BackendBase</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">backend</span> <span class="o">=</span> <span class="n">backend</span>
@@ -301,22 +292,28 @@
             <span class="k">if</span> <span class="n">seed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">seed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">23</span><span class="p">)</span>
             <span class="n">_check_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;mqvector_gpu&#39;</span><span class="p">:</span>
-                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                        <span class="s2">&quot;&#39;mqvector_gpu&#39; is deprecated, please use &quot;</span>
-                        <span class="s2">&quot;&#39;mindquantum.set_context(device_target=</span><span class="se">\&quot;</span><span class="s2">GPU</span><span class="se">\&quot;</span><span class="s2">)&#39; to let mqvector simulator &quot;</span>
-                        <span class="s2">&quot;enable GPU backend.&quot;</span><span class="p">,</span>
-                        <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
-                        <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-                    <span class="p">)</span>
-                <span class="k">if</span> <span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;device_target&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;GPU&quot;</span> <span class="ow">and</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;mqvector&quot;</span><span class="p">:</span>
-                    <span class="n">backend</span> <span class="o">=</span> <span class="s2">&quot;mqvector_gpu&quot;</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">backend</span> <span class="o">=</span> <span class="n">SUPPORTED_SIMULATOR</span><span class="p">[</span><span class="n">backend</span><span class="p">](</span><span class="n">n_qubits</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;backend </span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2"> not supported, now we support: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">SUPPORTED_SIMULATOR</span><span class="p">)</span><span class="si">}</span><span class="s2">!&quot;</span>
-                <span class="p">)</span> <span class="kn">from</span> <span class="nn">err</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backend</span> <span class="o">=</span> <span class="n">SUPPORTED_SIMULATOR</span><span class="o">.</span><span class="n">py_class</span><span class="p">(</span><span class="n">backend</span><span class="p">)(</span><span class="n">backend</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Simulator.astype"><a class="viewcode-back" href="../../../mindquantum.simulator.Simulator.html#mindquantum.simulator.Simulator.astype">[文档]</a>    <span class="k">def</span> <span class="nf">astype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert simulator to other data type.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            The quantum state will copied from origin simulator.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dtype (mindquantum.dtype): the data type of new simulator.</span>
+<span class="sd">            seed (int): the seed of new simulator. Default: ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">seed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">23</span><span class="p">)</span>
+        <span class="n">_check_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Simulator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backend</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">to_mq_type</span><span class="p">(</span><span class="n">dtype</span><span class="p">),</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get data type of simulator.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">backend</span><span class="o">.</span><span class="n">dtype</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">n_qubits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -379,8 +376,8 @@
 <span class="sd">        Args:</span>
 <span class="sd">            gate (BasicGate): The gate you want to apply.</span>
 <span class="sd">            pr (Union[numbers.Number, numpy.ndarray, ParameterResolver, list]): The</span>
-<span class="sd">                parameter for parameterized gate. Default: None.</span>
-<span class="sd">            diff (bool): Whether to apply the derivative gate on this simulator. Default: False.</span>
+<span class="sd">                parameter for parameterized gate. Default: ``None``.</span>
+<span class="sd">            diff (bool): Whether to apply the derivative gate on this simulator. Default: ``False``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            int or None, if the gate if a measure gate, then return a collapsed state, Otherwise</span>
@@ -415,7 +412,7 @@
 <span class="sd">            circuit (Circuit): The quantum circuit you want to apply on this simulator.</span>
 <span class="sd">            pr (Union[ParameterResolver, dict, numpy.ndarray, list, numbers.Number]): The</span>
 <span class="sd">                parameter resolver for this circuit. If the circuit is not parameterized,</span>
-<span class="sd">                this arg should be None. Default: None.</span>
+<span class="sd">                this arg should be ``None``. Default: ``None``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            MeasureResult or None, if the circuit has measure gate, then return a MeasureResult,</span>
@@ -456,10 +453,10 @@
 <span class="sd">            circuit (Circuit): The circuit that you want to evolution and do sampling.</span>
 <span class="sd">            pr (Union[None, dict, ParameterResolver]): The parameter</span>
 <span class="sd">                resolver for this circuit, if this circuit is a parameterized circuit.</span>
-<span class="sd">                Default: None.</span>
-<span class="sd">            shots (int): How many shots you want to sampling this circuit. Default: 1</span>
-<span class="sd">            seed (int): Random seed for random sampling. If None, seed will be a random</span>
-<span class="sd">                int number. Default: None.</span>
+<span class="sd">                Default: ``None``.</span>
+<span class="sd">            shots (int): How many shots you want to sampling this circuit. Default: ``1``.</span>
+<span class="sd">            seed (int): Random seed for random sampling. If ``None``, seed will be a random</span>
+<span class="sd">                int number. Default: ``None``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            MeasureResult, the measure result of sampling.</span>
@@ -562,7 +559,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            ket (bool): Whether to return the quantum state in ket format or not.</span>
-<span class="sd">                Default: False.</span>
+<span class="sd">                Default: ``False``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            numpy.ndarray, the current quantum state.</span>
@@ -622,13 +619,13 @@
 <span class="sd">            hams (Hamiltonian): The hamiltonian that need to get expectation.</span>
 <span class="sd">            circ_right (Circuit): The :math:`U_r` circuit described above.</span>
 <span class="sd">            circ_left (Circuit): The :math:`U_l` circuit described above. By default, this circuit</span>
-<span class="sd">                will be none, and in this situation, :math:`U_l` will be equals to</span>
-<span class="sd">                :math:`U_r`. Default: None.</span>
+<span class="sd">                will be ``none``, and in this situation, :math:`U_l` will be equals to</span>
+<span class="sd">                :math:`U_r`. Default: ``None``.</span>
 <span class="sd">            simulator_left (Simulator): The simulator that contains :math:`\left|\varphi\right&gt;`. If</span>
-<span class="sd">                None, then :math:`\left|\varphi\right&gt;` is assumed to be equals to :math:`\left|\psi\right&gt;`.</span>
-<span class="sd">                Default: None.</span>
+<span class="sd">                ``None``, then :math:`\left|\varphi\right&gt;` is assumed to be equals to :math:`\left|\psi\right&gt;`.</span>
+<span class="sd">                Default: ``None``.</span>
 <span class="sd">            parallel_worker (int): The parallel worker numbers. The parallel workers can handle</span>
-<span class="sd">                batch in parallel threads. Default: None.</span>
+<span class="sd">                batch in parallel threads. Default: No``ne.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            GradOpsWrapper, a grad ops wrapper than contains information to generate this grad ops.</span>
@@ -702,30 +699,6 @@
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bra_simulator</span><span class="o">.</span><span class="n">backend</span><span class="p">,</span> <span class="n">MQSim</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">MQBlas</span><span class="o">.</span><span class="n">inner_product</span><span class="p">(</span><span class="n">bra_simulator</span><span class="o">.</span><span class="n">backend</span><span class="p">,</span> <span class="n">ket_simulator</span><span class="o">.</span><span class="n">backend</span><span class="p">)</span>
     <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;inner_product for backend </span><span class="si">{</span><span class="n">bra_simulator</span><span class="o">.</span><span class="n">backend</span><span class="si">}</span><span class="s2"> not implement.&quot;</span><span class="p">)</span></div>
-
-
-<span class="k">def</span> <span class="nf">available_backend</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Get available simulator.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Tuple(str, str, str), tuple of available (backend, dtype, device).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">backends</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;mqvector&#39;</span><span class="p">,</span> <span class="s1">&#39;mqmatrix&#39;</span><span class="p">]</span>
-    <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;float&#39;</span><span class="p">,</span> <span class="s1">&#39;double&#39;</span><span class="p">]</span>
-    <span class="n">devices</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GPU&#39;</span><span class="p">,</span> <span class="s1">&#39;CPU&#39;</span><span class="p">]</span>
-    <span class="n">available</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">backend</span> <span class="ow">in</span> <span class="n">backends</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">dtypes</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">devices</span><span class="p">:</span>
-                <span class="n">set_context</span><span class="p">(</span><span class="n">device_target</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">sim</span> <span class="o">=</span> <span class="n">Simulator</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-                    <span class="n">sim</span><span class="o">.</span><span class="n">apply_circuit</span><span class="p">(</span><span class="n">Circuit</span><span class="p">()</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
-                    <span class="n">available</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">backend</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="p">))</span>
-                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
-                    <span class="k">pass</span>
-    <span class="k">return</span> <span class="n">available</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Simulator&#39;</span><span class="p">,</span> <span class="s1">&#39;get_supported_simulator&#39;</span><span class="p">,</span> <span class="s1">&#39;inner_product&#39;</span><span class="p">]</span>

@@ -188,40 +188,27 @@
   <p><a href="https://gitee.com/mindspore/docs/blob/master/tutorials/source_en/advanced/dataset/python_objects.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source_en.png"></a></p>
 <div class="section" id="supporting-python-objects-in-dataset-pipeline">
 <h1>Supporting Python Objects in Dataset Pipeline<a class="headerlink" href="#supporting-python-objects-in-dataset-pipeline" title="Permalink to this headline">¶</a></h1>
-<p>Dataset pipeline accepts Python dictionaries as a distinct input type for some operations. The main difference compared to other types is that Python dictionaries will not be converted to a C++ equivalent, and instead a reference will be maintained in the pipeline.</p>
-<p>Note that while currently only <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects are supported and can be passed to the pipeline, you may wrap other Python types inside a dictionary and send them to Dataset pipeline to achieve the same behavior.</p>
-<div class="section" id="handling-python-dict-objects">
-<h2>Handling Python <code class="docutils literal notranslate"><span class="pre">dict</span></code> Objects<a class="headerlink" href="#handling-python-dict-objects" title="Permalink to this headline">¶</a></h2>
+<p>Dataset pipeline accepts any Python type as input for some operations(such as <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>、user defined <code class="docutils literal notranslate"><span class="pre">map</span></code> operation、<code class="docutils literal notranslate"><span class="pre">batch(per_batch_map=...)</span></code>). To achieve this feature, Dataset pipeline uses Python <code class="docutils literal notranslate"><span class="pre">dict</span></code> to manager different types. The main difference compared to other data types is that Python <code class="docutils literal notranslate"><span class="pre">dict</span></code> will not be converted to a C++ type, and instead a reference will be maintained in the pipeline.</p>
+<p>Note that while currently Dataset pipeline supports to recognize <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects, you can also wrap other Python types inside a dictionary and send them to Dataset pipeline to achieve the same behavior. This article describes how to construct dictionary type to Dataset pipeline and acquire through iterator.</p>
 <div class="section" id="sending-python-dict-to-dataset-pipeline">
-<h3>Sending Python <code class="docutils literal notranslate"><span class="pre">dict</span></code> to Dataset Pipeline<a class="headerlink" href="#sending-python-dict-to-dataset-pipeline" title="Permalink to this headline">¶</a></h3>
+<h2>Sending Python <code class="docutils literal notranslate"><span class="pre">dict</span></code> to Dataset Pipeline<a class="headerlink" href="#sending-python-dict-to-dataset-pipeline" title="Permalink to this headline">¶</a></h2>
 <p>Sending Python <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to the Dataset pipeline is possible through different methods:</p>
 <ol class="simple">
 <li><p>using a <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>, the user can customize it to return a <code class="docutils literal notranslate"><span class="pre">dict</span></code> object, or</p></li>
-<li><p>within a pyfunc used in a <code class="docutils literal notranslate"><span class="pre">map</span></code> operation, the user can customize it to return a <code class="docutils literal notranslate"><span class="pre">dict</span></code> object, or</p></li>
+<li><p>within a Python callable object used in a <code class="docutils literal notranslate"><span class="pre">map</span></code> operation, the user can customize it to return a <code class="docutils literal notranslate"><span class="pre">dict</span></code> object, or</p></li>
 <li><p>similarly, customize the <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> function of a <code class="docutils literal notranslate"><span class="pre">batch</span></code> operation to return a <code class="docutils literal notranslate"><span class="pre">dict</span></code> object.</p></li>
 </ol>
-</div>
-<div class="section" id="consuming-python-dict-from-dataset-pipeline">
-<h3>Consuming Python <code class="docutils literal notranslate"><span class="pre">dict</span></code> from Dataset Pipeline<a class="headerlink" href="#consuming-python-dict-from-dataset-pipeline" title="Permalink to this headline">¶</a></h3>
-<p>When sending data to the model (or using a standalone iterator), Dataset pipeline attempts to convert all <em>values</em> inside <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to NumPy arrays (and later to <code class="docutils literal notranslate"><span class="pre">Tensor</span></code> if <code class="docutils literal notranslate"><span class="pre">output_numpy</span></code> is set to <code class="docutils literal notranslate"><span class="pre">False</span></code>). This means that all numerical and string values will be converted to arrays.</p>
-<p>Note that this step will be applied recursively to all <em>values</em> inside nested dictionaries as well as all <em>elements</em> inside lists and tuples.</p>
-<p>For other types that cannot be converted to NumPy arrays (such as class objects), they are passed directly.</p>
-<blockquote>
-<div><p>This feature is currently only supported when <code class="docutils literal notranslate"><span class="pre">dataset_sink_mode</span></code> is set to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
-</div></blockquote>
-</div>
-</div>
-<div class="section" id="generatordataset">
-<h2>GeneratorDataset<a class="headerlink" href="#generatordataset" title="Permalink to this headline">¶</a></h2>
-<p>Each dictionary is considered as one column, whereas there is no limit on the internal items it stores (number and type of keys/values).
-Here is an example of sending <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to the Dataset pipeline using <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>:</p>
+<div class="section" id="process-dict-with-generatordataset">
+<h3>Process <code class="docutils literal notranslate"><span class="pre">dict</span></code> with GeneratorDataset<a class="headerlink" href="#process-dict-with-generatordataset" title="Permalink to this headline">¶</a></h3>
+<p>Here is an example of sending <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to the Dataset pipeline using <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>.</p>
+<p>In the example, <code class="docutils literal notranslate"><span class="pre">my_generator</span></code> returns 2 elements, corresponding to 2 data columns, where the dictionary is considered as <code class="docutils literal notranslate"><span class="pre">col1</span></code>. Specifically, the rules for data processing pipelines typically check whether the return value can be converted to a NumPy type, but no typecast check if the return value is a dictionary. Furthermore, there is no limit on the internal items it stores (number and type of keys/values).</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 
 <span class="k">def</span> <span class="nf">my_generator</span><span class="p">():</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
         <span class="n">col1</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;number&quot;</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span> <span class="s2">&quot;square&quot;</span><span class="p">:</span> <span class="n">i</span> <span class="o">**</span> <span class="mi">2</span><span class="p">}</span>
         <span class="n">col2</span> <span class="o">=</span> <span class="n">i</span>
-        <span class="k">yield</span> <span class="p">(</span><span class="n">col1</span><span class="p">,</span> <span class="n">col2</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">col1</span><span class="p">,</span> <span class="n">col2</span>
 
 <span class="n">data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">my_generator</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">,</span> <span class="s2">&quot;col2&quot;</span><span class="p">])</span>
 
@@ -238,13 +225,13 @@ Here is an example of sending <code class="docutils literal notranslate"><span c
 </pre></div>
 </div>
 </div>
-<div class="section" id="map-operation">
-<h2>Map Operation<a class="headerlink" href="#map-operation" title="Permalink to this headline">¶</a></h2>
-<p>Similar to <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>, each <code class="docutils literal notranslate"><span class="pre">dict</span></code> object is treated as one column and there is no limitation on its content.</p>
+<div class="section" id="process-dict-with-map-operation">
+<h3>Process <code class="docutils literal notranslate"><span class="pre">dict</span></code> with Map Operation<a class="headerlink" href="#process-dict-with-map-operation" title="Permalink to this headline">¶</a></h3>
+<p>Similar to <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>, each <code class="docutils literal notranslate"><span class="pre">dict</span></code> object is treated as one data column and there is no limitation on its content.</p>
 <blockquote>
-<div><p>Except for user-defined functions, none of the existing Dataset pipeline transforms (<code class="docutils literal notranslate"><span class="pre">mindspore.dataset.transforms</span></code>) support inputs of type <code class="docutils literal notranslate"><span class="pre">dict</span></code>.</p>
+<div><p>Except for user-defined functions, none of the existing Dataset pipeline transforms (<code class="docutils literal notranslate"><span class="pre">mindspore.dataset.transforms</span></code>, <code class="docutils literal notranslate"><span class="pre">mindspore.dataset.vision</span></code>, etc.) support inputs of type <code class="docutils literal notranslate"><span class="pre">dict</span></code>.</p>
 </div></blockquote>
-<p>Here is an example of adding <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to the Dataset pipeline using <code class="docutils literal notranslate"><span class="pre">map</span></code> operation and a pyfunc:</p>
+<p>Here is an example of adding <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to the Dataset pipeline using <code class="docutils literal notranslate"><span class="pre">map</span></code> operation and a user-defined function:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 
 <span class="k">def</span> <span class="nf">my_generator</span><span class="p">():</span>
@@ -271,38 +258,11 @@ Here is an example of sending <code class="docutils literal notranslate"><span c
 </pre></div>
 </div>
 </div>
-<div class="section" id="batch-operation">
-<h2>Batch Operation<a class="headerlink" href="#batch-operation" title="Permalink to this headline">¶</a></h2>
-<p>When Batch operation is invoked on a dataset with a column containing dictionary objects, Dataset pipeline attempts to group corresponding values inside the dictionaries together. Thus, it is necessary for all the dictionaries to have identical keys.</p>
-<p>If the user has provided a <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> function, corresponding items inside the dictionaries (with respect to each key) will be grouped into Python lists.</p>
-<p>If the user has not provided a <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> function, corresponding items inside the dictionaries will be grouped into a NumPy array and the result of the Batch operation (for that column) will be one dictionary where all values are NumPy arrays. If such conversion results in an array of type <code class="docutils literal notranslate"><span class="pre">np.object_</span></code>, due to limitations on the model training side, an error message will be shown to the user and the Dataset pipeline terminates.</p>
-<p>Also, note that if the <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> returns a single <code class="docutils literal notranslate"><span class="pre">dict</span></code> for a column, it must return dictionaries for other columns as well.</p>
-<p>Here is an example of adding <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to the Dataset pipeline using <code class="docutils literal notranslate"><span class="pre">batch</span></code> operation with a <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> function:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
-
-<span class="k">def</span> <span class="nf">my_generator</span><span class="p">():</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">15</span><span class="p">):</span>
-        <span class="k">yield</span> <span class="n">i</span>
-
-<span class="k">def</span> <span class="nf">my_per_batch_map</span><span class="p">(</span><span class="n">col1</span><span class="p">,</span> <span class="n">batch_info</span><span class="p">):</span>
-    <span class="n">new_col1</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;original_col1&quot;</span><span class="p">:</span> <span class="n">col1</span><span class="p">,</span> <span class="s2">&quot;index&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">)}</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">new_col1</span><span class="p">,)</span>
-
-<span class="n">data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">my_generator</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">])</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">per_batch_map</span><span class="o">=</span><span class="n">my_per_batch_map</span><span class="p">)</span>
-
-<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">(</span><span class="n">num_epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">output_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Output:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;col1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;original_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">4</span><span class="p">)],</span> <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])}}</span>
-<span class="p">{</span><span class="s1">&#39;col1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;original_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">7</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">8</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">9</span><span class="p">)],</span> <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])}}</span>
-<span class="p">{</span><span class="s1">&#39;col1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;original_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">11</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">12</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">13</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">14</span><span class="p">)],</span> <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])}}</span>
-</pre></div>
-</div>
-<p>The following is a complex example demonstrating how to use a Python dictionary object with <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>, <code class="docutils literal notranslate"><span class="pre">map</span></code> operation with a pyfunc and <code class="docutils literal notranslate"><span class="pre">batch</span></code> operation with no <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> function. Note that since there is no <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> in this code, a single NumPy array is returned for “powers” key.</p>
+<div class="section" id="process-dict-with-batch-operation">
+<h3>Process <code class="docutils literal notranslate"><span class="pre">dict</span></code> with Batch Operation<a class="headerlink" href="#process-dict-with-batch-operation" title="Permalink to this headline">¶</a></h3>
+<p>When <code class="docutils literal notranslate"><span class="pre">batch</span></code> operation is invoked on a dataset with a column containing dictionary objects, Dataset pipeline attempts to group corresponding values with the same keys inside the dictionaries together. Thus, it is necessary for all the dictionaries to have identical keys.</p>
+<p>The result of the <code class="docutils literal notranslate"><span class="pre">batch</span></code> operation (for that column) will be one dictionary where all values are NumPy arrays. If such conversion results in an array of type <code class="docutils literal notranslate"><span class="pre">np.object_</span></code>, due to limitations on the model training side, an error message will be shown to the user and the Dataset pipeline terminates.</p>
+<p>The following is a example demonstrating when dictionary object exists in dataset pipeline, how it batches the data of “power” key.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 
@@ -319,20 +279,133 @@ Here is an example of sending <code class="docutils literal notranslate"><span c
 
 <span class="n">data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">my_generator</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">,</span> <span class="s2">&quot;col2&quot;</span><span class="p">])</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="n">my_pyfunc</span><span class="p">,</span> <span class="n">input_columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&gt;&gt;&gt; before batch&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">(</span><span class="n">num_epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">output_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
 <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&gt;&gt;&gt; after batch&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">(</span><span class="n">num_epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">output_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Output:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">before</span> <span class="n">batch</span>
+<span class="go">{&#39;col1&#39;: {&#39;powers&#39;: array([0, 0, 0])}, &#39;col2&#39;: array(0, dtype=int64)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;powers&#39;: array([1, 1, 1])}, &#39;col2&#39;: array(1, dtype=int64)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;powers&#39;: array([2, 4, 8])}, &#39;col2&#39;: array(2, dtype=int64)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;powers&#39;: array([ 3,  9, 27])}, &#39;col2&#39;: array(3, dtype=int64)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;powers&#39;: array([ 4, 16, 64])}, &#39;col2&#39;: array(4, dtype=int64)}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">after</span> <span class="n">batch</span>
+<span class="go">{&#39;col1&#39;: {&#39;powers&#39;: array([[ 0,  0,  0],</span>
+<span class="go">                           [ 1,  1,  1],</span>
+<span class="go">                           [ 2,  4,  8],</span>
+<span class="go">                           [ 3,  9, 27],</span>
+<span class="go">                           [ 4, 16, 64]])},</span>
+<span class="go"> &#39;col2&#39;: array([0, 1, 2, 3, 4], dtype=int64)}</span>
+</pre></div>
+</div>
+<p>If the user has provided a <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> function, corresponding items inside the dictionaries (with respect to each key) will be grouped into Python lists. Here is an example of adding <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to the Dataset pipeline using <code class="docutils literal notranslate"><span class="pre">batch</span></code> operation with a <code class="docutils literal notranslate"><span class="pre">per_batch_map</span></code> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+
+<span class="k">def</span> <span class="nf">my_generator</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">9</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">i</span>
+
+<span class="k">def</span> <span class="nf">my_per_batch_map</span><span class="p">(</span><span class="n">col1</span><span class="p">,</span> <span class="n">batch_info</span><span class="p">):</span>
+    <span class="n">new_col1</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;original_col1&quot;</span><span class="p">:</span> <span class="n">col1</span><span class="p">,</span> <span class="s2">&quot;index&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)}</span>
+    <span class="n">new_col2</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;copied_col1&quot;</span><span class="p">:</span> <span class="n">col1</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">new_col1</span><span class="p">,</span> <span class="n">new_col2</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">my_generator</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">])</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">per_batch_map</span><span class="o">=</span><span class="n">my_per_batch_map</span><span class="p">,</span> <span class="n">output_columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">,</span> <span class="s2">&quot;col2&quot;</span><span class="p">])</span>
 
 <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">(</span><span class="n">num_epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">output_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Output:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;col1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;powers&#39;</span><span class="p">:</span> <span class="n">array</span><span class="p">([[</span> <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span>
-       <span class="p">[</span> <span class="mi">1</span><span class="p">,</span>  <span class="mi">1</span><span class="p">,</span>  <span class="mi">1</span><span class="p">],</span>
-       <span class="p">[</span> <span class="mi">2</span><span class="p">,</span>  <span class="mi">4</span><span class="p">,</span>  <span class="mi">8</span><span class="p">],</span>
-       <span class="p">[</span> <span class="mi">3</span><span class="p">,</span>  <span class="mi">9</span><span class="p">,</span> <span class="mi">27</span><span class="p">],</span>
-       <span class="p">[</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">64</span><span class="p">]])},</span> <span class="s1">&#39;col2&#39;</span><span class="p">:</span> <span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">int64</span><span class="p">)}</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;col1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;original_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">2</span><span class="p">)],</span> <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])},</span> <span class="s1">&#39;col2&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;copied_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">2</span><span class="p">)]}}</span>
+<span class="p">{</span><span class="s1">&#39;col1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;original_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">5</span><span class="p">)],</span> <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])},</span> <span class="s1">&#39;col2&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;copied_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">5</span><span class="p">)]}}</span>
+<span class="p">{</span><span class="s1">&#39;col1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;original_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">7</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">8</span><span class="p">)],</span> <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])},</span> <span class="s1">&#39;col2&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;copied_col1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">7</span><span class="p">),</span> <span class="n">array</span><span class="p">(</span><span class="mi">8</span><span class="p">)]}}</span>
 </pre></div>
 </div>
+</div>
+</div>
+<div class="section" id="getting-python-dict-from-dataset-pipeline">
+<h2>Getting Python <code class="docutils literal notranslate"><span class="pre">dict</span></code> from Dataset Pipeline<a class="headerlink" href="#getting-python-dict-from-dataset-pipeline" title="Permalink to this headline">¶</a></h2>
+<p>Directly iterating through the dataset object can obtain dictionary type data. When using an iterator to retrieve data, the data processing pipeline will attempt to convert all values inside <code class="docutils literal notranslate"><span class="pre">dict</span></code> objects to Tensor type (if <code class="docutils literal notranslate"><span class="pre">output_numpy</span></code> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, it will be converted to NumPy arrays).</p>
+<p>Note that this step will be applied recursively to all values inside nested dictionaries as well as all elements inside lists and tuples. For those types that cannot be converted to Tensor/NumPy arrays (such as class objects), they will be passed directly to model. If model can not recognize these types, error will be raised.</p>
+<p>Here is an example shows how to acquire <code class="docutils literal notranslate"><span class="pre">dict</span></code> data from pipeline.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+
+<span class="k">def</span> <span class="nf">my_generator</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+        <span class="n">col1</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;my_data&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">i</span><span class="p">)}</span>
+        <span class="n">col2</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="k">yield</span> <span class="n">col1</span><span class="p">,</span> <span class="n">col2</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">my_generator</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">,</span> <span class="s2">&quot;col2&quot;</span><span class="p">])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&gt;&gt;&gt; Iter dataset with converting all data to Tensor&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">(</span><span class="n">num_epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&gt;&gt;&gt; Iter dataset with converting all data to Numpy&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">(</span><span class="n">num_epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">output_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Output:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Iter</span> <span class="n">dataset</span> <span class="k">with</span> <span class="n">converting</span> <span class="nb">all</span> <span class="n">data</span> <span class="n">to</span> <span class="n">Tensor</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: Tensor(shape=[], dtype=Int64, value= 0)}, &#39;col2&#39;: Tensor(shape=[], dtype=Int64, value= 0)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: Tensor(shape=[], dtype=Int64, value= 1)}, &#39;col2&#39;: Tensor(shape=[], dtype=Int64, value= 1)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: Tensor(shape=[], dtype=Int64, value= 2)}, &#39;col2&#39;: Tensor(shape=[], dtype=Int64, value= 2)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: Tensor(shape=[], dtype=Int64, value= 3)}, &#39;col2&#39;: Tensor(shape=[], dtype=Int64, value= 3)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: Tensor(shape=[], dtype=Int64, value= 4)}, &#39;col2&#39;: Tensor(shape=[], dtype=Int64, value= 4)}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Iter</span> <span class="n">dataset</span> <span class="k">with</span> <span class="n">converting</span> <span class="nb">all</span> <span class="n">data</span> <span class="n">to</span> <span class="n">Numpy</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: array(0)}, &#39;col2&#39;: array(0, dtype=int64)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: array(1)}, &#39;col2&#39;: array(1, dtype=int64)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: array(2)}, &#39;col2&#39;: array(2, dtype=int64)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: array(3)}, &#39;col2&#39;: array(3, dtype=int64)}</span>
+<span class="go">{&#39;col1&#39;: {&#39;my_data&#39;: array(4)}, &#39;col2&#39;: array(4, dtype=int64)}</span>
+</pre></div>
+</div>
+<p>In the model training/inference scenario, there are the following constraints when obtaining <code class="docutils literal notranslate"><span class="pre">dict</span></code> data from the data pipeline.</p>
+<ul>
+<li><p>In <a class="reference external" href="https://mindspore.cn/tutorials/experts/en/master/optimize/execution_opt.html#data-sinking">data sink mode</a>, since the data sink channel currently cannot support dictionary type data, sending dictionary type data to it will cause errors. Therefore, it is suggested to consider turning off the data sink mode (<code class="docutils literal notranslate"><span class="pre">dataset_sink_mode=False</span></code>), or expanding dictionary type data into list or tuple type data at the last data processing node, for example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+
+<span class="k">def</span> <span class="nf">my_generator</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+        <span class="n">col1</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;my_data&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="s2">&quot;my_data2&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)}</span>
+        <span class="k">yield</span> <span class="n">col1</span><span class="p">,</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">my_generator</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&gt;&gt;&gt; get data in dict type&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">dict_to_tuple</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+  <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+
+<span class="c1"># flatten the dict object bedfore it passed into network</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">dict_to_tuple</span><span class="p">,</span> <span class="n">input_columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col1&quot;</span><span class="p">],</span> <span class="n">output_columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;my_data&quot;</span><span class="p">,</span> <span class="s2">&quot;my_data2&quot;</span><span class="p">])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&gt;&gt;&gt; get data in sequence type&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>In non data sink mode, there is no limit, just pay attention to whether the types stored in the dictionary can be recognized and processed by the model.</p></li>
+</ul>
 </div>
 </div>
 

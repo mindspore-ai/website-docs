@@ -345,7 +345,7 @@
         <span class="c1"># if cell is already in allowed_list, it means to_float(mindspore.float16) is set by amp.</span>
         <span class="c1"># if cell is not in allowed_list, but has to_float(mindspore.float16),</span>
         <span class="c1"># it means to_float(mindspore.float16) is set by user.</span>
-        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">to_float_fp16</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">(),</span> <span class="s2">&quot;to_float_fp16&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">to_float_fp16</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
     <span class="n">allowed_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">())</span>
     <span class="k">return</span> <span class="kc">True</span>
@@ -397,6 +397,10 @@
 <span class="k">def</span> <span class="nf">_insert_cast_operator_white_list</span><span class="p">(</span><span class="n">stree</span><span class="p">,</span> <span class="n">white_list</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;insert cast for operators in white_list.&quot;&quot;&quot;</span>
     <span class="n">allowed_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Ignore if net called &quot;.to_float(mindspore.float16)&quot;</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">stree</span><span class="o">.</span><span class="n">get_handler</span><span class="p">()</span><span class="o">.</span><span class="n">get_origin_network</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="s2">&quot;to_float_fp16&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">net</span><span class="o">.</span><span class="n">to_float_fp16</span><span class="p">:</span>
+        <span class="k">return</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">stree</span><span class="o">.</span><span class="n">nodes</span><span class="p">():</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">get_targets</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">continue</span>
@@ -428,6 +432,8 @@
         <span class="k">return</span> <span class="kc">False</span>
     <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">get_users</span><span class="p">():</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_instance</span><span class="p">(),</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_instance</span><span class="p">(),</span> <span class="s2">&quot;to_float_fp16&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">False</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">user</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">to_float_fp16</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">False</span>
         <span class="k">elif</span> <span class="n">user</span><span class="o">.</span><span class="n">get_instance_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">P</span><span class="o">.</span><span class="n">Cast</span><span class="p">:</span>

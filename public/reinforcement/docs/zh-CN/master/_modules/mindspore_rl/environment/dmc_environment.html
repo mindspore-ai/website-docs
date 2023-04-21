@@ -185,17 +185,23 @@
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;DeepMind Control Suite&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span>
+<span class="c1"># pylint: disable=W0223</span>
+<span class="c1"># pylint: disable=C0415</span>
 <span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span>
 
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
 
 <span class="kn">from</span> <span class="nn">mindspore_rl.environment.environment</span> <span class="kn">import</span> <span class="n">Environment</span>
 <span class="kn">from</span> <span class="nn">mindspore_rl.environment.space</span> <span class="kn">import</span> <span class="n">Space</span>
 
-<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;MUJOCO_GL&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;egl&#39;</span>
+<span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;GPU&quot;</span><span class="p">]:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;MUJOCO_GL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;egl&quot;</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;MUJOCO_GL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;osmesa&quot;</span>
 
 
 <div class="viewcode-block" id="DeepMindControlEnvironment"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.DeepMindControlEnvironment">[文档]</a><span class="k">class</span> <span class="nc">DeepMindControlEnvironment</span><span class="p">(</span><span class="n">Environment</span><span class="p">):</span>
@@ -239,18 +245,19 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">env_id</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="n">env_name</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;env_name&#39;</span><span class="p">]</span>
-        <span class="n">camera</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;camera&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_size</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;img_size&#39;</span><span class="p">]</span>
-        <span class="n">seed</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">env_id</span> <span class="o">*</span> <span class="mi">1000</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_action_repeat</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;action_repeat&#39;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_action</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;normalize_action&#39;</span><span class="p">]</span>
-        <span class="n">domain</span><span class="p">,</span> <span class="n">task</span> <span class="o">=</span> <span class="n">env_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">domain</span> <span class="o">==</span> <span class="s1">&#39;cup&#39;</span><span class="p">:</span>
-            <span class="n">domain</span> <span class="o">=</span> <span class="s1">&#39;ball_in_cup&#39;</span>
+        <span class="n">env_name</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;env_name&quot;</span><span class="p">]</span>
+        <span class="n">camera</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;camera&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_size</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;img_size&quot;</span><span class="p">]</span>
+        <span class="n">seed</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;seed&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">env_id</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_action_repeat</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;action_repeat&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_action</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;normalize_action&quot;</span><span class="p">]</span>
+        <span class="n">domain</span><span class="p">,</span> <span class="n">task</span> <span class="o">=</span> <span class="n">env_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">domain</span> <span class="o">==</span> <span class="s2">&quot;cup&quot;</span><span class="p">:</span>
+            <span class="n">domain</span> <span class="o">=</span> <span class="s2">&quot;ball_in_cup&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="kn">from</span> <span class="nn">dm_control</span> <span class="kn">import</span> <span class="n">suite</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_env</span> <span class="o">=</span> <span class="n">suite</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">task_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;random&#39;</span><span class="p">:</span> <span class="n">seed</span><span class="p">})</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_env</span> <span class="o">=</span> <span class="n">suite</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">task_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;random&quot;</span><span class="p">:</span> <span class="n">seed</span><span class="p">})</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_env</span> <span class="o">=</span> <span class="n">domain</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">camera</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -264,8 +271,12 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_action</span><span class="p">:</span>
             <span class="n">low</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mask</span><span class="p">,</span> <span class="n">low</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mask</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span> <span class="o">=</span> <span class="n">Space</span><span class="p">(</span><span class="n">action_spec</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dtype_adaptor</span><span class="p">(</span><span class="n">action_spec</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
-                                   <span class="n">low</span><span class="o">=</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="n">high</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span> <span class="o">=</span> <span class="n">Space</span><span class="p">(</span>
+            <span class="n">action_spec</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dtype_adaptor</span><span class="p">(</span><span class="n">action_spec</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
+            <span class="n">low</span><span class="o">=</span><span class="n">low</span><span class="p">,</span>
+            <span class="n">high</span><span class="o">=</span><span class="n">high</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pool</span> <span class="o">=</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="c1"># get img</span>
         <span class="n">demo_future</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_render</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="p">)</span>
@@ -277,20 +288,42 @@
         <span class="c1"># reset op</span>
         <span class="n">reset_input_type</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">reset_input_shape</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">reset_output_type</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,]</span>
-        <span class="n">reset_output_shape</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_op</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">PyFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reset</span><span class="p">,</span> <span class="n">reset_input_type</span><span class="p">,</span>
-                                  <span class="n">reset_input_shape</span><span class="p">,</span> <span class="n">reset_output_type</span><span class="p">,</span> <span class="n">reset_output_shape</span><span class="p">)</span>
+        <span class="n">reset_output_type</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="n">reset_output_shape</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_op</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">PyFunc</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset</span><span class="p">,</span>
+            <span class="n">reset_input_type</span><span class="p">,</span>
+            <span class="n">reset_input_shape</span><span class="p">,</span>
+            <span class="n">reset_output_type</span><span class="p">,</span>
+            <span class="n">reset_output_shape</span><span class="p">,</span>
+        <span class="p">)</span>
 
         <span class="c1"># step op</span>
         <span class="n">step_input_type</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,)</span>
         <span class="n">step_input_shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,)</span>
-        <span class="n">step_output_type</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="n">step_output_shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
-                             <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">step_output_type</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
+            <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">step_output_shape</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_step_op</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">PyFunc</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">,</span> <span class="n">step_input_type</span><span class="p">,</span> <span class="n">step_input_shape</span><span class="p">,</span> <span class="n">step_output_type</span><span class="p">,</span> <span class="n">step_output_shape</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">,</span>
+            <span class="n">step_input_type</span><span class="p">,</span>
+            <span class="n">step_input_shape</span><span class="p">,</span>
+            <span class="n">step_output_type</span><span class="p">,</span>
+            <span class="n">step_output_shape</span><span class="p">,</span>
+        <span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -387,8 +420,11 @@
     <span class="k">def</span> <span class="nf">_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Python implementation of step&quot;&quot;&quot;</span>
         <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">boundary</span>
-        <span class="n">action</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mask</span><span class="p">,</span> <span class="p">(</span><span class="n">action</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">high</span> <span class="o">-</span> <span class="n">low</span><span class="p">)</span> <span class="o">+</span>
-                          <span class="n">low</span><span class="p">,</span> <span class="n">action</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_action</span> <span class="k">else</span> <span class="n">action</span>
+        <span class="n">action</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mask</span><span class="p">,</span> <span class="p">(</span><span class="n">action</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">high</span> <span class="o">-</span> <span class="n">low</span><span class="p">)</span> <span class="o">+</span> <span class="n">low</span><span class="p">,</span> <span class="n">action</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_action</span>
+            <span class="k">else</span> <span class="n">action</span>
+        <span class="p">)</span>
         <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">total_reward</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
@@ -400,7 +436,12 @@
             <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">obs_future</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_render</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="p">)</span>
         <span class="n">obs</span> <span class="o">=</span> <span class="n">obs_future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">obs</span><span class="p">,</span> <span class="n">total_reward</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">done</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">time_step</span><span class="o">.</span><span class="n">discount</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">obs</span><span class="p">,</span>
+            <span class="n">total_reward</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">done</span><span class="p">),</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">time_step</span><span class="o">.</span><span class="n">discount</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Python implementation of reset&quot;&quot;&quot;</span>

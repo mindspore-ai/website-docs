@@ -236,9 +236,8 @@
 <p>为了对训练过程进行分析，用户需要感知训练过程中算子的输入和输出数据。</p>
 <ul class="simple">
 <li><p>对于静态图模式，MindSpore提供了Dump功能，用来将模型训练中的图以及算子的输入输出数据保存到磁盘文件。</p></li>
-<li><p>对于动态图模式，MindSpore提供了Dump功能和Python原生执行能力，用户可以在网络脚本运行过程中查看记录相应的输入输出，也可以将模型训练中的图以及算子的输入输出数据保存到磁盘文件。</p></li>
+<li><p>对于动态图模式，Dump功能仅支持Ascend后端的溢出检测能力。要想查看非溢出节点，可以使用Python原生执行能力，用户可以在网络脚本运行过程中查看记录相应的输入输出。</p></li>
 </ul>
-<p>本文针对静态图模式，介绍如何基于Dump功能对网络数据进行分析对比。</p>
 <div class="section" id="调试过程">
 <h3>调试过程<a class="headerlink" href="#调试过程" title="Permalink to this headline">¶</a></h3>
 <p>使用Dump来帮助调试分为两个步骤：1、数据准备；2、数据分析。</p>
@@ -294,7 +293,7 @@
 <ul class="simple">
 <li><p>在Ascend上开启同步Dump的时候，待Dump的算子会自动关闭内存复用。</p></li>
 <li><p>同步Dump目前支持Ascend、GPU和CPU上的图模式，暂不支持PyNative模式。</p></li>
-<li><p>异步Dump仅支持Ascend上的图模式，不支持PyNative模式。开启异步Dump的时候不会关闭内存复用。</p></li>
+<li><p>异步Dump全量功能只支持Ascend上的图模式，异步Dump溢出检测功能只支持Ascend上的图模式和PyNative模式。开启异步Dump的时候不会关闭内存复用。</p></li>
 <li><p>默认使用用异步Dump模式，如果要使用同步Dump模式，需要在配置文件中设置”e2e_dump_settings”。</p></li>
 <li><p>Dump暂不支持异构训练，如果在异构训练场景启用Dump，生成的Dump数据对象目录可能不符合预期的目录结构。</p></li>
 </ul>
@@ -592,10 +591,10 @@ x, w],    pri_format: NC1HWC0, pad: (0, 0, 0, 0), visited: true, pad_mod: same, 
 </pre></div>
 </div>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">dump_mode</span></code>：设置成0，表示Dump出该网络中的所有算子数据；设置成1，表示Dump<code class="docutils literal notranslate"><span class="pre">&quot;kernels&quot;</span></code>里面指定的算子数据或算子类型数据；设置成2，表示Dump脚本中通过<code class="docutils literal notranslate"><span class="pre">set_dump</span></code>指定的算子数据，<code class="docutils literal notranslate"><span class="pre">set_dump</span></code>的使用详见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/api_python/mindspore/mindspore.set_dump.html">mindspore.set_dump</a> 。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dump_mode</span></code>：设置成0，表示Dump出该网络中的所有算子数据；设置成1，表示Dump<code class="docutils literal notranslate"><span class="pre">&quot;kernels&quot;</span></code>里面指定的算子数据或算子类型数据；设置成2，表示Dump脚本中通过<code class="docutils literal notranslate"><span class="pre">set_dump</span></code>指定的算子数据，<code class="docutils literal notranslate"><span class="pre">set_dump</span></code>的使用详见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/api_python/mindspore/mindspore.set_dump.html">mindspore.set_dump</a> 。开启溢出检测时，此字段的设置失效，Dump只会保存溢出节点的数据。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">path</span></code>：Dump保存数据的绝对路径。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">net_name</span></code>：自定义的网络名称，例如：”ResNet50”。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">iteration</span></code>：指定需要Dump的迭代。类型为str，用“|”分离要保存的不同区间的step的数据。如”0|5-8|100-120”表示Dump第1个，第6个到第9个， 第101个到第121个step的数据。指定“all”，表示Dump所有迭代的数据。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iteration</span></code>：指定需要Dump的迭代。类型为str，用“|”分离要保存的不同区间的step的数据。如”0|5-8|100-120”表示Dump第1个，第6个到第9个， 第101个到第121个step的数据。指定“all”，表示Dump所有迭代的数据。PyNative模式开启溢出检测时，必须设置为”all”。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">saved_data</span></code>: 指定Dump的数据。类型为str，取值成”tensor”，表示Dump出完整张量数据；取值成”statistic”，表示只Dump张量的统计信息；取值”full”代表两种都要。异步Dump统计信息只有在<code class="docutils literal notranslate"><span class="pre">file_format</span></code>设置为<code class="docutils literal notranslate"><span class="pre">npy</span></code>时可以成功，若在<code class="docutils literal notranslate"><span class="pre">file_format</span></code>设置为<code class="docutils literal notranslate"><span class="pre">bin</span></code>时选”statistic”或”full”便会错误退出。默认取值为”tensor”。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">input_output</span></code>：设置成0，表示Dump出算子的输入和算子的输出；设置成1，表示Dump出算子的输入；设置成2，表示Dump出算子的输出。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">kernels</span></code>：该项可以配置两种格式：</p>
@@ -640,10 +639,40 @@ x, w],    pri_format: NC1HWC0, pad: (0, 0, 0, 0), visited: true, pad_mod: same, 
 <h3>异步Dump数据对象目录<a class="headerlink" href="#异步dump数据对象目录" title="Permalink to this headline">¶</a></h3>
 <p>若配置文件中<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值设置为<code class="docutils literal notranslate"><span class="pre">npy</span></code>，则数据对象目录参考<a class="reference external" href="#%E5%90%8C%E6%AD%A5dump%E6%95%B0%E6%8D%AE%E5%AF%B9%E8%B1%A1%E7%9B%AE%E5%BD%95">同步Dump数据对象目录</a> 。</p>
 <p>若未配置<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值或<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值为<code class="docutils literal notranslate"><span class="pre">bin</span></code>，数据对象目录为以下结构。</p>
-<p>异步Dump保存的数据对象包括了最终执行图（<code class="docutils literal notranslate"><span class="pre">ms_output_trace_code_graph_{graph_id}.ir</span></code>文件）以及图中算子的输入和输出数据，目录结构如下所示：</p>
+<p>异步Dump保存的数据对象包括了最终执行图（<code class="docutils literal notranslate"><span class="pre">ms_output_trace_code_graph_{graph_id}.ir</span></code>文件）以及图中算子的输入和输出数据。 如果开启溢出检测，还会在检测到溢出时保存溢出文件（<code class="docutils literal notranslate"><span class="pre">Opdebug.Node_OpDebug.{task_id}.{stream_id}.{timestamp}</span></code>文件）。</p>
+<p>图模式的Dump目录结构如下所示：</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>{path}/
     - rank_{rank_id}/
         - .dump_metadata/
+        - debug_files （仅在动态shape或者非任务下沉场景开启溢出检测时会有）/
+            - {iteration_id}/
+                Opdebug.Node_OpDebug.{task_id}.{stream_id}.{timestamp}
+                ...
+        - {net_name}/
+            - {graph_id}/
+                - {iteration_id}/
+                    statistic.csv
+                    {op_type}.{op_name}.{task_id}.{stream_id}.{timestamp}
+                    Opdebug.Node_OpDebug.{task_id}.{stream_id}.{timestamp} （仅在任务下沉场景开启溢出检测时会有）
+                    mapping.csv
+                - constants/
+                    Parameter.data-{data_id}.0.0.{timestamp}.output.0.DefaultFormat.npy
+            ...
+        - graphs/
+            ms_output_trace_code_graph_{graph_id}.pb
+            ms_output_trace_code_graph_{graph_id}.ir
+        - execution_order/
+            ms_execution_order_graph_{graph_id}.csv
+            ms_global_execution_order_graph_{graph_id}.csv
+</pre></div>
+</div>
+<p>PyNative模式的Dump目录结构如下所示：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>{path}/
+    - rank_{rank_id}/
+        - .dump_metadata/
+        - debug_files/
+            Opdebug.Node_OpDebug.{task_id}.{stream_id}.{timestamp}
+            ...
         - {net_name}/
             - {graph_id}/
                 - {iteration_id}/
@@ -677,12 +706,13 @@ x, w],    pri_format: NC1HWC0, pad: (0, 0, 0, 0), visited: true, pad_mod: same, 
 <p>由于存在控制流，某些子图可能不会被执行，Dump只保存执行过的节点，所以graphs目录下<code class="docutils literal notranslate"><span class="pre">.pb</span></code>文件名中的{graph_id}并不一定在{net_name}下存在对应的{graph_id}目录。</p>
 <p>对于多图网络，例如动态shape的场景，每张卡上所有计算图的轮次统一计数。</p>
 <p>如果按命名规则定义的张量文件名称长度超过了OS文件名称长度限制（一般是255个字符），则会将该张量文件重命名为一串随机数字，映射关系会保存在同目录下的“mapping.csv”。</p>
+<p>对于PyNative模式，由于没有前向图，只保存了反向图和优化图，可能出现溢出节点找不到对应的图文件的情况。</p>
 </div>
 <div class="section" id="异步dump数据文件介绍">
 <h3>异步Dump数据文件介绍<a class="headerlink" href="#异步dump数据文件介绍" title="Permalink to this headline">¶</a></h3>
 <p>若配置文件中<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值设置为<code class="docutils literal notranslate"><span class="pre">npy</span></code>，则数据文件介绍参考<a class="reference external" href="#%E5%90%8C%E6%AD%A5dump%E6%95%B0%E6%8D%AE%E6%96%87%E4%BB%B6%E4%BB%8B%E7%BB%8D">同步Dump数据文件介绍</a> 。</p>
-<p>若未配置<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值或<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值为<code class="docutils literal notranslate"><span class="pre">bin</span></code>，启动训练后，异步Dump生成的原始数据文件是protobuf格式的文件，需要用到海思Run包中自带的数据解析工具进行解析，详见<a class="reference external" href="https://support.huawei.com/enterprise/zh/doc/EDOC1100234052/c748fd92">如何查看dump数据文件</a> 。</p>
-<p>数据在Device侧的格式可能和Host侧计算图中的定义不同，异步Dump的数据格式为Device侧格式，如果想要转为Host侧格式，可以参考<a class="reference external" href="https://support.huawei.com/enterprise/zh/doc/EDOC1100234052/b04fcd04">如何进行dump数据文件Format转换</a> 。</p>
+<p>若未配置<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值或<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值为<code class="docutils literal notranslate"><span class="pre">bin</span></code>，启动训练后，异步Dump生成的原始数据文件或溢出检测生成的溢出文件是protobuf格式的文件，需要用到海思Run包中自带的数据解析工具进行解析，详见<a class="reference external" href="https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/63RC1alpha002/developmenttools/devtool/atlasaccuracy_16_0061.html">如何查看dump数据文件</a> 。</p>
+<p>数据在Device侧的格式可能和Host侧计算图中的定义不同，异步Dump的数据格式为Device侧格式，如果想要转为Host侧格式，可以参考<a class="reference external" href="https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/63RC1alpha002/developmenttools/devtool/atlasaccuracy_16_0060.html">如何进行dump数据文件Format转换</a> 。</p>
 <p>异步Dump生成的数据文件是<code class="docutils literal notranslate"><span class="pre">bin</span></code>文件时，文件命名格式为：</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>{op_type}.{op_name}.{task_id}.{stream_id}.{timestamp}
 </pre></div>
@@ -690,7 +720,7 @@ x, w],    pri_format: NC1HWC0, pad: (0, 0, 0, 0), visited: true, pad_mod: same, 
 <p>以AlexNet网络的Conv2D-op12为例：<code class="docutils literal notranslate"><span class="pre">Conv2D.Default_network-WithLossCell__backbone-AlexNet_conv3-Conv2d_Conv2D-op12.2.7.161243956333802</span></code>，其中<code class="docutils literal notranslate"><span class="pre">Conv2D</span></code>是<code class="docutils literal notranslate"><span class="pre">{op_type}</span></code>，<code class="docutils literal notranslate"><span class="pre">Default_network-WithLossCell__backbone-AlexNet_conv3-Conv2d_Conv2D-op12</span></code>是<code class="docutils literal notranslate"><span class="pre">{op_name}</span></code>，<code class="docutils literal notranslate"><span class="pre">2</span></code>是<code class="docutils literal notranslate"><span class="pre">{task_id}</span></code>，<code class="docutils literal notranslate"><span class="pre">7</span></code>是<code class="docutils literal notranslate"><span class="pre">{stream_id}</span></code>，<code class="docutils literal notranslate"><span class="pre">161243956333802</span></code>是<code class="docutils literal notranslate"><span class="pre">{timestamp}</span></code>。</p>
 <p>如果<code class="docutils literal notranslate"><span class="pre">op_type</span></code>和<code class="docutils literal notranslate"><span class="pre">op_name</span></code>中出现了“.”、“/”、“\”、空格时，会转换为下划线表示。</p>
 <p>Dump生成的原始数据文件也可以使用MindSpore Insight的数据解析工具DumpParser解析，DumpParser的使用方式详见<a class="reference external" href="https://gitee.com/mindspore/mindinsight/tree/master/mindinsight/parser">DumpParser介绍</a> 。MindSpore Insight解析出来的数据格式与同步dump的数据格式完全相同。</p>
-<p>若配置<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值为<code class="docutils literal notranslate"><span class="pre">npy</span></code>，则启用异步dump生成的数据文件命名规则与同步Dump相同，可以参考<a class="reference external" href="#%E5%90%8C%E6%AD%A5dump%E6%95%B0%E6%8D%AE%E6%96%87%E4%BB%B6%E4%BB%8B%E7%BB%8D">同步Dump数据文件介绍</a>。</p>
+<p>若配置<code class="docutils literal notranslate"><span class="pre">file_format</span></code>值为<code class="docutils literal notranslate"><span class="pre">npy</span></code>，则启用异步dump生成的数据文件命名规则与同步Dump相同，可以参考<a class="reference external" href="#%E5%90%8C%E6%AD%A5dump%E6%95%B0%E6%8D%AE%E6%96%87%E4%BB%B6%E4%BB%8B%E7%BB%8D">同步Dump数据文件介绍</a>，溢出检测生成的溢出文件是<code class="docutils literal notranslate"><span class="pre">json</span></code>格式，溢出文件内容解析可参考<a class="reference external" href="https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/63RC1alpha002/tfmoddevg/tfmigr1/atlasmprtg_13_9073.html">解析算子溢出数据文件</a> 。</p>
 <p>选项<code class="docutils literal notranslate"><span class="pre">saved_data</span></code>只有在<code class="docutils literal notranslate"><span class="pre">file_format</span></code>为”npy”的时候生效。如<code class="docutils literal notranslate"><span class="pre">saved_data</span></code>是”statistic”或者”full”。张量统计数据会落盘到<code class="docutils literal notranslate"><span class="pre">statistic.csv</span></code>。如<code class="docutils literal notranslate"><span class="pre">saved_data</span></code>是”tensor”或者”full”完整张量数据会落盘到<code class="docutils literal notranslate"><span class="pre">{op_type}.{op_name}.{task_id}.{stream_id}.{timestamp}.{input_output_index}.{slot}.{format}.npy</span></code>。<code class="docutils literal notranslate"><span class="pre">statistic.csv</span></code>的格式与同步Dump相同，可以参考<a class="reference external" href="#%E5%90%8C%E6%AD%A5dump%E6%95%B0%E6%8D%AE%E6%96%87%E4%BB%B6%E4%BB%8B%E7%BB%8D">同步Dump数据文件介绍</a>。</p>
 <p>异步Dump生成的常量数据文件，最终执行图文件和执行序文件命名规则与同步Dump相同，可以参考<a class="reference external" href="#%E5%90%8C%E6%AD%A5dump%E6%95%B0%E6%8D%AE%E6%96%87%E4%BB%B6%E4%BB%8B%E7%BB%8D">同步Dump数据文件介绍</a>。</p>
 </div>
@@ -712,7 +742,7 @@ x, w],    pri_format: NC1HWC0, pad: (0, 0, 0, 0), visited: true, pad_mod: same, 
 </pre></div>
 </div>
 <p>{file path of dump} 可以是单个<code class="docutils literal notranslate"><span class="pre">.bin</span></code>文件的路径，也可以是包含<code class="docutils literal notranslate"><span class="pre">.bin</span></code>文件的文件夹路径。</p>
-<p>若需要转换数据格式，可参考使用说明链接<a class="reference external" href="https://support.huawei.com/enterprise/zh/doc/EDOC1100234052/b04fcd04">https://support.huawei.com/enterprise/zh/doc/EDOC1100234052/b04fcd04</a> 。</p>
+<p>若需要转换数据格式，可参考使用说明链接<a class="reference external" href="https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/63RC1alpha002/developmenttools/devtool/atlasaccuracy_16_0060.html">https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/63RC1alpha002/developmenttools/devtool/atlasaccuracy_16_0060.html</a> 。</p>
 <p>如Dump生成的数据文件为：</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Conv2D.Default_network-WithLossCell__backbone-AlexNet_conv3-Conv2d_Conv2D-op12.2.7.161243956333802
 </pre></div>
