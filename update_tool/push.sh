@@ -87,9 +87,10 @@ if [ ${DO_BUILD} == "true" ];then
   if [ ${VERSION} == "master" ];then
     # shellcheck disable=SC2034
     BUILD_PATH="daily"
-    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}"
+    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --theme="root/website-docs/template"
   else
-    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}"
+    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}" --theme="root/website-docs/template"
+
   fi
 
   # shellcheck disable=SC2164
