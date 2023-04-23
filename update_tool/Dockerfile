@@ -39,9 +39,10 @@ RUN pip install -U sphinx_rtd_theme \
     && pip install lxml \
     && pip install astor
 
-ENV VERSION VERSION
-ENV WGETDIR WGETDIR
+ENV VERSION=VERSION
+ENV WGETDIR=WGETDIR
 ENV RELEASE_URL=RELEASE_URL
+ENV DO_BUILD=DO_BUILD
 
 COPY . /root/build-docs
 RUN cd /root/build-docs \
