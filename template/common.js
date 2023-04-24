@@ -452,7 +452,7 @@ function createScriptSensor() {
       let href = '';
       if(path ==='lite'){
         href = '/'+path;
-      }else if(path==='tutorials'|| path ==='docs'){
+      }else if(path.startsWith('tutorials')|| path ==='docs'){
         href = `/${path + lang + msHeader.headerPathVersion(path)}/index.html`;
       }else{
         href = `/${path+'/docs' + lang + msHeader.headerPathVersion(path)}/index.html`;
