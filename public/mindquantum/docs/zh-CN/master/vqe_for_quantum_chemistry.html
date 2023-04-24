@@ -392,8 +392,8 @@ E^p_q &amp;= a^{\dagger}_pa_q
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Hartree-Fock energy:  -7.8633576215351164 Ha
-CCSD energy:  -7.8823529091527007 Ha
+Hartree-Fock energy:  -7.8633576215351129 Ha
+CCSD energy:  -7.8823529091526972 Ha
 FCI energy:  -7.8823622867987213 Ha
 </pre></div></div>
 </div>
@@ -404,7 +404,7 @@ FCI energy:  -7.8823622867987213 Ha
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">molecule_of</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
 <span class="n">molecule_file</span> <span class="o">=</span> <span class="n">molecule_of</span><span class="o">.</span><span class="n">filename</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">molecule_file</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">molecule_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
 </pre></div>
 </div>
 </div>
@@ -413,7 +413,7 @@ FCI energy:  -7.8823622867987213 Ha
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-/home/xuxs/anaconda3/lib/python3.8/site-packages/openfermion/testing/data/H1-Li1_sto3g_singlet
+H1-Li1_sto3g_singlet
 </pre></div></div>
 </div>
 <p>量子化学计算的一大阻碍是计算量。随着体系大小（电子数、原子数）的增加，求解FCI波函数和基态能量的时间消耗大约以<span class="math notranslate nohighlight">\(2^{N}\)</span>增长，即使是较小的分子如乙烯分子等，进行FCI计算也并不容易。量子计算机的出现为此提供了一条可能的解决途径，已有的研究表明，量子计算机可以多项式的时间复杂度模拟哈密顿量的含时演化，在量子处理器上进行化学模拟相较于经典计算机有指数级的加速。本教程将介绍其中一类量子算法：量子变分求解器。</p>
@@ -489,7 +489,7 @@ doubles)拟设进行了量子计算机上的化学模拟实验。值得注意的
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-ccsd:-7.882352909152701.
+ccsd:-7.882352909152697.
 fci:-7.882362286798721.
 </pre></div></div>
 </div>
@@ -512,7 +512,8 @@ fci:-7.882362286798721.
 ============================Circuit Summary============================
 |Total number of gates  : 15172.                                      |
 |Parameter gates        : 640.                                        |
-|with 44 parameters are : p0, p8, p1, p9, p2, p10, p3, p11, p4, p12...|
+|with 44 parameters are :                                             |
+|p0, p8, p1, p9, p2, p10, p3, p11, p4, p12..                        . |
 |Number qubit of circuit: 12                                          |
 =======================================================================
 Number of parameters: 44
@@ -545,59 +546,95 @@ Number of parameters: 44
 </div>
 </div>
 <p>通过将参数的具体数值传入<code class="docutils literal notranslate"><span class="pre">molecule_pqc</span></code>，即可得到对应于此变分参数的能量<span class="math notranslate nohighlight">\(E(\theta)=\langle \Psi_{UCC}(\theta) | \hat{H} | \Psi_{UCC}(\theta) \rangle\)</span>以及关于每个变分参数的导数。</p>
-<p>接下来需要进行VQE优化的(5)~(7)步，即对变分量子线路进行优化。我们可以借助MindSpore Quantum框架，使用变分量子线路算子<code class="docutils literal notranslate"><span class="pre">molecule_pqc</span></code>构造一个神经网络模型，然后通过类似于训练神经网络的方法来优化变分参数：</p>
-<div class="nbinput nblast docutils container">
+<p>例如，我们可以利用下面的代码计算当变分量子线路中所有参数都为零时，哈密顿量的期望值和期望值关于梯度的导数。</p>
+<div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindquantum.framework</span> <span class="kn">import</span> <span class="n">MQAnsatzOnlyLayer</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="n">molecule_pqcnet</span> <span class="o">=</span> <span class="n">MQAnsatzOnlyLayer</span><span class="p">(</span><span class="n">molecule_pqc</span><span class="p">,</span> <span class="s1">&#39;Zeros&#39;</span><span class="p">)</span>
+<span class="n">n_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">total_circuit</span><span class="o">.</span><span class="n">params_name</span><span class="p">)</span>
+<span class="n">p0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_params</span><span class="p">)</span>
+<span class="n">f</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="n">molecule_pqc</span><span class="p">(</span><span class="n">p0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Energy: &quot;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">shape: &quot;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Gradient: &quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">shape: &quot;</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<p>此处我们构造了一个基本的<code class="docutils literal notranslate"><span class="pre">MQAnsatzOnlyLayer</span></code>作为模型示例，该模型可以和常规的机器学习模型类似使用，比如优化权重、计算导数等。</p>
-<p>构造的<code class="docutils literal notranslate"><span class="pre">MQAnsatzOnlyLayer</span></code>使用<code class="docutils literal notranslate"><span class="pre">&quot;Zeros&quot;</span></code>关键字，将所有的变分参数初始化为0。使用CCSD（耦合簇理论）或者MP2（二阶多体微扰论）的计算结果也可以作为幺正耦合簇变分参数的初始值。此时有 <span class="math notranslate nohighlight">\(E(\vec{0})=\langle \Psi_{UCC}(\vec{0}) | \hat{H} | \Psi_{UCC}(\vec{0}) \rangle = E_{HF}\)</span> ：</p>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Energy:  [[-7.86335762+0.j]]
+shape:  (1, 1)
+
+Gradient:  [[[-1.17000470e-10+0.j -8.60518140e-02+0.j  7.34841121e-09+0.j
+   -4.85545093e-02+0.j -4.27880918e-16+0.j -3.92769093e-02+0.j
+   -2.03178123e-14+0.j -9.59481736e-02+0.j -2.19963362e-15+0.j
+   -3.92769093e-02+0.j  2.01070916e-15+0.j -9.59481736e-02+0.j
+   -1.36457968e-10+0.j -2.89649669e-02+0.j  4.02404639e-10+0.j
+   -4.91813235e-01+0.j -9.35292655e-04+0.j -1.66209006e-16+0.j
+   -3.46620125e-17+0.j  1.54862629e-17+0.j  1.54555976e-16+0.j
+    2.53664212e-17+0.j -2.06994596e-17+0.j  5.06813144e-03+0.j
+    1.08542342e-02+0.j -1.28614257e-02+0.j -4.90653894e-17+0.j
+    1.10397120e-17+0.j  1.33973783e-01+0.j -3.03063678e-02+0.j
+    6.13317367e-19+0.j  6.13317367e-19+0.j  7.90297720e-29+0.j
+    5.24386349e-17+0.j -3.70848761e-17+0.j  3.33490478e-17+0.j
+    1.29095036e-28+0.j  1.15391966e-16+0.j -3.03063678e-02+0.j
+   -5.24386349e-17+0.j  4.89887785e-17+0.j -4.22508287e-17+0.j
+   -2.44510201e-17+0.j -1.68035030e-03+0.j]]]
+shape:  (1, 1, 44)
+</pre></div></div>
+</div>
+<p>通过上述计算，我们获得了能量值和梯度值，用户可以根据实际应用需求来提取这些值。 接下来需要进行VQE优化的(5)~(7)步，即对变分量子线路进行优化。我们可以借助scipy中的优化器来对线路参数进行优化。首先我们构造适用与scipy优化器的优化函数：</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">initial_energy</span> <span class="o">=</span> <span class="n">molecule_pqcnet</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Initial energy: </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">initial_energy</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()))</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">fun</span><span class="p">(</span><span class="n">p0</span><span class="p">,</span> <span class="n">molecule_pqc</span><span class="p">,</span> <span class="n">energy_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">f</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="n">molecule_pqc</span><span class="p">(</span><span class="n">p0</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">g</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">energy_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">energy_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">energy_list</span><span class="p">)</span> <span class="o">%</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">energy_list</span><span class="p">)</span><span class="si">}</span><span class="s2">,</span><span class="se">\t</span><span class="s2">energy: </span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">g</span>
+
+<span class="n">fun</span><span class="p">(</span><span class="n">p0</span><span class="p">,</span> <span class="n">molecule_pqc</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Initial energy:  -7.8633575439453125
+(-7.863357621536957,
+ array([-1.17000470e-10, -8.60518140e-02,  7.34841121e-09, -4.85545093e-02,
+        -4.27880918e-16, -3.92769093e-02, -2.03178123e-14, -9.59481736e-02,
+        -2.19963362e-15, -3.92769093e-02,  2.01070916e-15, -9.59481736e-02,
+        -1.36457968e-10, -2.89649669e-02,  4.02404639e-10, -4.91813235e-01,
+        -9.35292655e-04, -1.66209006e-16, -3.46620125e-17,  1.54862629e-17,
+         1.54555976e-16,  2.53664212e-17, -2.06994596e-17,  5.06813144e-03,
+         1.08542342e-02, -1.28614257e-02, -4.90653894e-17,  1.10397120e-17,
+         1.33973783e-01, -3.03063678e-02,  6.13317367e-19,  6.13317367e-19,
+         7.90297720e-29,  5.24386349e-17, -3.70848761e-17,  3.33490478e-17,
+         1.29095036e-28,  1.15391966e-16, -3.03063678e-02, -5.24386349e-17,
+         4.89887785e-17, -4.22508287e-17, -2.44510201e-17, -1.68035030e-03]))
 </pre></div></div>
 </div>
-<p>最后使用mindspore的Adam优化器进行优化，学习率设置为<span class="math notranslate nohighlight">\(1\times 10^{-2}\)</span>，优化终止标准设置为 <span class="math notranslate nohighlight">\(\left.|\epsilon|\right. = \left.|E^{k+1} - E^{k}|\right. \le 1\times 10^{-8}\)</span> 。</p>
+<p>此时，我们定义出来的 <code class="docutils literal notranslate"><span class="pre">fun</span></code> 函数能够正确返回符合要求的数据类型：一个实数格式的能量值，一个跟参数长度一直的梯度数组。接下来，我们利用 scipy 中的 <code class="docutils literal notranslate"><span class="pre">bfgs</span></code> 二阶优化器来进行优化。</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Adagrad</span><span class="p">(</span><span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">4e-2</span><span class="p">)</span>
-<span class="n">train_pqcnet</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">TrainOneStepCell</span><span class="p">(</span><span class="n">molecule_pqcnet</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">minimize</span>
 
-<span class="n">eps</span> <span class="o">=</span> <span class="mf">1.e-8</span>
-<span class="n">energy_diff</span> <span class="o">=</span> <span class="n">eps</span> <span class="o">*</span> <span class="mi">1000</span>
-<span class="n">energy_last</span> <span class="o">=</span> <span class="n">initial_energy</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span> <span class="o">+</span> <span class="n">energy_diff</span>
-<span class="n">iter_idx</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">while</span> <span class="nb">abs</span><span class="p">(</span><span class="n">energy_diff</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">eps</span><span class="p">:</span>
-    <span class="n">energy_i</span> <span class="o">=</span> <span class="n">train_pqcnet</span><span class="p">()</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">iter_idx</span> <span class="o">%</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step </span><span class="si">%3d</span><span class="s2"> energy </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">iter_idx</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">energy_i</span><span class="p">)))</span>
-    <span class="n">energy_diff</span> <span class="o">=</span> <span class="n">energy_last</span> <span class="o">-</span> <span class="n">energy_i</span>
-    <span class="n">energy_last</span> <span class="o">=</span> <span class="n">energy_i</span>
-    <span class="n">iter_idx</span> <span class="o">+=</span> <span class="mi">1</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimization completed at step </span><span class="si">%3d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">iter_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimized energy: </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">energy_i</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimized amplitudes: </span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+<span class="n">energy_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">p0</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">molecule_pqc</span><span class="p">,</span> <span class="n">energy_list</span><span class="p">),</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;bfgs&#39;</span><span class="p">,</span> <span class="n">jac</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -606,33 +643,59 @@ Initial energy:  -7.8633575439453125
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Step   0 energy  -7.8633575439453125
-Step   5 energy  -7.8726239204406738
-Step  10 energy  -7.8821778297424316
-Step  15 energy  -7.8822836875915527
-Step  20 energy  -7.8823199272155762
-Step  25 energy  -7.8823370933532715
-Step  30 energy  -7.8815641403198242
-Step  35 energy  -7.8786268234252930
-Step  40 energy  -7.8778734207153320
-Step  45 energy  -7.8808088302612305
-Step  50 energy  -7.8819031715393066
-Step  55 energy  -7.8821558952331543
-Step  60 energy  -7.8823504447937012
-Optimization completed at step  63
-Optimized energy:  -7.8823523521423340
+Step: 5,        energy: -7.880227726053225
+Step: 10,       energy: -7.881817123969861
+Step: 15,       energy: -7.882213242986122
+Step: 20,       energy: -7.882345337008459
+Step: 25,       energy: -7.882352494991635
+Step: 30,       energy: -7.882352691272213
+Step: 35,       energy: -7.882352707864624
+Step: 40,       energy: -7.882352708256735
+Step: 45,       energy: -7.882352708339958
+</pre></div></div>
+</div>
+<p>如上，我们便完成了变分量子线路的梯度优化。在这里 <code class="docutils literal notranslate"><span class="pre">energy_list</span></code> 用于存储收敛过程中的能量。这里我们对 <code class="docutils literal notranslate"><span class="pre">minimize</span></code> 函数做一个简单介绍：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fun</span></code>: 第一个参数表示想要优化的函数</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">p0</span></code>：第二个参数表示变量的初始值</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">args</span></code>：<code class="docutils literal notranslate"><span class="pre">fun</span></code> 函数中除了第一个参数以外的其他参数，根据我们的 <code class="docutils literal notranslate"><span class="pre">fun</span></code> 函数的定义，这里选择 <code class="docutils literal notranslate"><span class="pre">args=(molecule_pqc,</span> <span class="pre">energy_list)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">method</span></code>：所使用的优化算法，我们这里选择二阶优化算法 <code class="docutils literal notranslate"><span class="pre">bfgs</span></code>。更多优化算法请参考 <code class="docutils literal notranslate"><span class="pre">`scipy</span></code> 官方文档 &lt;<a class="reference external" href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html">https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html</a>&gt;`__</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jac</span></code>：<code class="docutils literal notranslate"><span class="pre">fun</span></code> 函数是否返回导数值，这里我们选择 <code class="docutils literal notranslate"><span class="pre">True</span></code>，因为 MindSpore Quantum 框架能够算出变分量子线路中参数的精确梯度值。如选 <code class="docutils literal notranslate"><span class="pre">False</span></code>，则 <code class="docutils literal notranslate"><span class="pre">minimize</span></code> 框架将在内部利用差分方法计算近似梯度值。</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">res</span></code> 为 <code class="docutils literal notranslate"><span class="pre">scipy</span></code> 中优化算法得到的优化结果，包括优化得到的参数，最优化函数值和迭代次数等。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ground state: </span><span class="se">\n</span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">fun</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;FCI: </span><span class="se">\n</span><span class="s2">-7.882362286798721</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Optimized amplitudes: </span><span class="se">\n</span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Ground state:
+-7.882352708347493
+
+FCI:
+-7.882362286798721
+
 Optimized amplitudes:
- [ 2.40339446e-04  1.89154677e-03  3.49554531e-02  1.59917790e-02
-  2.33248898e-07  9.09393420e-04 -1.79268172e-05  1.41595434e-02
-  6.28582342e-08  9.08669957e-04 -1.49387897e-05  1.41652254e-02
- -5.46666037e-04  4.26779327e-04  2.86067789e-03  5.38198128e-02
-  2.32545775e-04 -2.78862785e-07 -7.10907813e-08 -7.98562283e-08
-  7.00364581e-07 -9.21200325e-08 -6.73263187e-08  1.26236855e-05
- -1.04519488e-04  7.97090179e-04 -4.01437364e-06 -3.34858555e-06
- -5.49289174e-02  3.09006264e-03  7.01365061e-05 -1.36400865e-06
- -1.35536197e-06  4.63907739e-08  5.32547162e-08 -2.34681625e-08
-  3.92657455e-07  5.11744884e-06  3.09006032e-03 -2.05122589e-07
-  5.91138871e-08 -2.44064164e-08  4.26194856e-06  3.72134935e-04]
+[ 2.38712434e-04  1.89072212e-03  3.52371962e-02  1.60368062e-02
+  4.58341956e-09  9.09417397e-04  8.87731878e-10  1.41638572e-02
+  8.70408136e-10  9.08690861e-04  1.01871578e-09  1.41700430e-02
+ -5.47655818e-04  4.26823250e-04  2.87179882e-03  5.38109243e-02
+  2.34704374e-04 -1.53416806e-08  8.33679682e-08 -8.59399531e-08
+ -1.09241359e-08  8.69631759e-08 -8.85803852e-08  1.33003007e-05
+ -1.04125728e-04  7.99021032e-04 -6.16712752e-10 -5.09574759e-10
+ -5.50005269e-02  3.09114892e-03 -4.78658817e-11 -1.05874198e-07
+  1.05877675e-07  4.10043904e-07  2.63845620e-07 -2.76942779e-07
+ -1.69080845e-13  2.10388157e-09  3.09108797e-03  1.90755827e-08
+  1.86729203e-07 -1.76508410e-07  6.07581905e-10  3.72843789e-04]
 </pre></div></div>
 </div>
 <p>可以看到，幺正耦合簇给出的计算结果和FCI非常接近，具有良好的精度。</p>
@@ -642,20 +705,19 @@ Optimized amplitudes:
 <h2>分步构造幺正耦合簇拟设<a class="headerlink" href="#分步构造幺正耦合簇拟设" title="永久链接至标题">¶</a></h2>
 <p>在上文中，我们使用了<code class="docutils literal notranslate"><span class="pre">generate_uccsd</span></code>一步构造出了幺正耦合簇拟设所需要的所有内容，此处我们将步骤拆分，分别得到我们需要的耦合簇算符、对应的量子线路以及取自于经典CCSD计算结果的变分参数初猜值。 首先，导入部分额外依赖，主要包含mindquantum中hiqfermion模块的相关函数：</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindquantum.algorithm.nisq</span> <span class="kn">import</span> <span class="n">Transform</span>
 <span class="kn">from</span> <span class="nn">mindquantum.algorithm.nisq</span> <span class="kn">import</span> <span class="n">get_qubit_hamiltonian</span>
 <span class="kn">from</span> <span class="nn">mindquantum.algorithm.nisq</span> <span class="kn">import</span> <span class="n">uccsd_singlet_generator</span><span class="p">,</span> <span class="n">uccsd_singlet_get_packed_amplitudes</span>
 <span class="kn">from</span> <span class="nn">mindquantum.core.operators</span> <span class="kn">import</span> <span class="n">TimeEvolution</span>
-<span class="kn">from</span> <span class="nn">mindquantum.framework</span> <span class="kn">import</span> <span class="n">MQAnsatzOnlyLayer</span>
-</pre></div>
+<br/></pre></div>
 </div>
 </div>
 <p>分子哈密顿量使用<code class="docutils literal notranslate"><span class="pre">get_qubit_hamiltonian</span></code>，读取之前的计算结果得到：</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">hamiltonian_QubitOp</span> <span class="o">=</span> <span class="n">get_qubit_hamiltonian</span><span class="p">(</span><span class="n">molecule_of</span><span class="p">)</span>
@@ -664,7 +726,7 @@ Optimized amplitudes:
 </div>
 <p>对于幺正耦合簇算符 <span class="math notranslate nohighlight">\(\hat{T} - \hat{T}^{\dagger}\)</span> ，可以使用<code class="docutils literal notranslate"><span class="pre">uccsd_singlet_generator</span></code>进行构造。提供总量子比特数（总自旋轨道数）和总电子数，并设置参数<code class="docutils literal notranslate"><span class="pre">anti_hermitian=True</span></code>：</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ucc_fermion_ops</span> <span class="o">=</span> <span class="n">uccsd_singlet_generator</span><span class="p">(</span>
@@ -674,7 +736,7 @@ Optimized amplitudes:
 </div>
 <p>上一步构造的<code class="docutils literal notranslate"><span class="pre">ucc_fermion_ops</span></code>是参数化的。使用Jordan-Wigner变换将费米子激发算符映射为Pauli算符：</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ucc_qubit_ops</span> <span class="o">=</span> <span class="n">Transform</span><span class="p">(</span><span class="n">ucc_fermion_ops</span><span class="p">)</span><span class="o">.</span><span class="n">jordan_wigner</span><span class="p">()</span>
@@ -683,7 +745,7 @@ Optimized amplitudes:
 </div>
 <p>接下来，我们需要得到幺正算符 <span class="math notranslate nohighlight">\(\exp \left(\hat{T}-\hat{T}^{\dagger}\right)\)</span> 所对应的量子线路。<code class="docutils literal notranslate"><span class="pre">TimeEvolution</span></code>可生成 <span class="math notranslate nohighlight">\(\exp (-i \hat{H} t)\)</span> 所对应的线路，其中 <span class="math notranslate nohighlight">\(\hat{H}\)</span> 是一个厄米算符， <span class="math notranslate nohighlight">\(t\)</span> 是实数。需要注意的是，使用<code class="docutils literal notranslate"><span class="pre">TimeEvolution</span></code>时，<code class="docutils literal notranslate"><span class="pre">ucc_qubit_ops</span></code>中已经包含了复数因子 <span class="math notranslate nohighlight">\(i\)</span> ，所以我们需要将<code class="docutils literal notranslate"><span class="pre">ucc_qubit_ops</span></code>除以 <span class="math notranslate nohighlight">\(i\)</span> ，或者提取其虚部：</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ansatz_circuit</span> <span class="o">=</span> <span class="n">TimeEvolution</span><span class="p">(</span><span class="n">ucc_qubit_ops</span><span class="o">.</span><span class="n">imag</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">circuit</span>
@@ -693,7 +755,7 @@ Optimized amplitudes:
 </div>
 <p>我们使用<code class="docutils literal notranslate"><span class="pre">ansatz_parameter_names</span></code>记录该线路中的参数名。到目前为止，我们已经得到了VQE量子线路所需要内容，包括哈密顿量<code class="docutils literal notranslate"><span class="pre">hamiltonian_QubitOp</span></code>、参数化的波函数拟设线路<code class="docutils literal notranslate"><span class="pre">ansatz_circuit</span></code>，故可仿照前文，得到完整的态制备线路。其中Hartree-Fock参考态复用之前的<code class="docutils literal notranslate"><span class="pre">hartreefock_wfn_circuit</span></code>：</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">total_circuit</span> <span class="o">=</span> <span class="n">hartreefock_wfn_circuit</span> <span class="o">+</span> <span class="n">ansatz_circuit</span>
@@ -709,14 +771,15 @@ Optimized amplitudes:
 ==================================Circuit Summary==================================
 |Total number of gates  : 15172.                                                  |
 |Parameter gates        : 640.                                                    |
-|with 44 parameters are : s_0, d1_0, s_1, d1_1, s_2, d1_2, s_3, d1_3, s_4, d1_4...|
+|with 44 parameters are :                                                         |
+|s_0, d1_0, s_1, d1_1, s_2, d1_2, s_3, d1_3, s_4, d1_4..                        . |
 |Number qubit of circuit: 12                                                      |
 ===================================================================================
 </pre></div></div>
 </div>
-<p>下一步，需要为变分参数提供一个合理的初始值。前文构造的<code class="docutils literal notranslate"><span class="pre">PQCNet</span></code>默认使用0作为初猜，在大多数情况下是可行的。不过，使用CCSD的计算数据作为UCC的出发点，可能会有更好的结果。使用<code class="docutils literal notranslate"><span class="pre">uccsd_singlet_get_packed_amplitudes</span></code>函数从<code class="docutils literal notranslate"><span class="pre">molecule_of</span></code>提取CCSD的参数：</p>
+<p>下一步，需要为变分参数提供一个合理的初始值。前文构造的优化器默认使用0作为初猜，在大多数情况下是可行的。不过，使用CCSD的计算数据作为UCC的出发点，可能会有更好的结果。使用<code class="docutils literal notranslate"><span class="pre">uccsd_singlet_get_packed_amplitudes</span></code>函数从<code class="docutils literal notranslate"><span class="pre">molecule_of</span></code>提取CCSD的参数：</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">init_amplitudes_ccsd</span> <span class="o">=</span> <span class="n">uccsd_singlet_get_packed_amplitudes</span><span class="p">(</span>
@@ -725,61 +788,24 @@ Optimized amplitudes:
 </pre></div>
 </div>
 </div>
-<p>使用<code class="docutils literal notranslate"><span class="pre">MQAnsatzOnlyLayer</span></code>可以方便地由参数、量子线路获得以变分量子线路为基础的机器学习模型：</p>
+<p>根据之前类似的方式，我们可以利用 MindSpore Quantum 来得到梯度算子，并利用 scipy 来进行优化。</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">grad_ops</span> <span class="o">=</span> <span class="n">Simulator</span><span class="p">(</span><span class="s1">&#39;mqvector&#39;</span><span class="p">,</span> <span class="n">total_circuit</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span><span class="o">.</span><span class="n">get_expectation_with_grad</span><span class="p">(</span>
     <span class="n">Hamiltonian</span><span class="p">(</span><span class="n">hamiltonian_QubitOp</span><span class="o">.</span><span class="n">real</span><span class="p">),</span>
     <span class="n">total_circuit</span><span class="p">)</span>
-
-<span class="n">molecule_pqcnet</span> <span class="o">=</span> <span class="n">MQAnsatzOnlyLayer</span><span class="p">(</span><span class="n">grad_ops</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <p>使用<code class="docutils literal notranslate"><span class="pre">init_amplitudes_ccsd</span></code>（即CCSD计算的耦合簇系数）作为初始变分参数：</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">init_amplitudes_ccsd</span><span class="p">,</span> <span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
-<span class="n">initial_energy</span> <span class="o">=</span> <span class="n">molecule_pqcnet</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Initial energy: </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">initial_energy</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()))</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Initial energy:  -7.8173098564147949
-</pre></div></div>
-</div>
-<p>在这个例子中，CCSD初猜并没有提供一个更好的起点。读者可以对更多的分子、更多种类的初始值（如随机数初猜）等进行测试和探究。最后进行VQE的优化步骤，优化器依然使用Adam，收敛标准不变。优化所用的代码与前文基本一致，注意更新相应的变量即可：</p>
-<div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Adagrad</span><span class="p">(</span><span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">4e-2</span><span class="p">)</span>
-<span class="n">train_pqcnet</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">TrainOneStepCell</span><span class="p">(</span><span class="n">molecule_pqcnet</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;eps: &quot;</span><span class="p">,</span> <span class="n">eps</span><span class="p">)</span>
-<span class="n">energy_diff</span> <span class="o">=</span> <span class="n">eps</span> <span class="o">*</span> <span class="mi">1000</span>
-<span class="n">energy_last</span> <span class="o">=</span> <span class="n">initial_energy</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span> <span class="o">+</span> <span class="n">energy_diff</span>
-<span class="n">iter_idx</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">while</span> <span class="nb">abs</span><span class="p">(</span><span class="n">energy_diff</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">eps</span><span class="p">:</span>
-    <span class="n">energy_i</span> <span class="o">=</span> <span class="n">train_pqcnet</span><span class="p">()</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">iter_idx</span> <span class="o">%</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step </span><span class="si">%3d</span><span class="s2"> energy </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">iter_idx</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">energy_i</span><span class="p">)))</span>
-    <span class="n">energy_diff</span> <span class="o">=</span> <span class="n">energy_last</span> <span class="o">-</span> <span class="n">energy_i</span>
-    <span class="n">energy_last</span> <span class="o">=</span> <span class="n">energy_i</span>
-    <span class="n">iter_idx</span> <span class="o">+=</span> <span class="mi">1</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimization completed at step </span><span class="si">%3d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">iter_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimized energy: </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">energy_i</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimized amplitudes: </span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">energy_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">init_amplitudes_ccsd</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">grad_ops</span><span class="p">,</span> <span class="n">energy_list</span><span class="p">),</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;bfgs&#39;</span><span class="p">,</span> <span class="n">jac</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -788,40 +814,56 @@ Initial energy:  -7.8173098564147949
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-eps:  1e-08
-Step   0 energy  -7.8173098564147949
-Step   5 energy  -7.8740758895874023
-Step  10 energy  -7.8818783760070801
-Step  15 energy  -7.8821649551391602
-Step  20 energy  -7.8822622299194336
-Step  25 energy  -7.8823080062866211
-Step  30 energy  -7.8822288513183594
-Step  35 energy  -7.8758554458618164
-Step  40 energy  -7.8761253356933594
-Step  45 energy  -7.8807921409606934
-Step  50 energy  -7.8818383216857910
-Step  55 energy  -7.8821811676025391
-Step  60 energy  -7.8823504447937012
-Optimization completed at step  63
-Optimized energy:  -7.8823523521423340
+Step: 5,        energy: -7.878223282730547
+Step: 10,       energy: -7.880288481438961
+Step: 15,       energy: -7.882035668304055
+Step: 20,       energy: -7.882302370885741
+Step: 25,       energy: -7.882349803534313
+Step: 30,       energy: -7.882352702053751
+Step: 35,       energy: -7.8823527077335065
+Step: 40,       energy: -7.882352708347106
+</pre></div></div>
+</div>
+<p>最后，我们可以得到优化的结果如下：</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ground state: </span><span class="se">\n</span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">fun</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;FCI: </span><span class="se">\n</span><span class="s2">-7.882362286798721</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Optimized amplitudes: </span><span class="se">\n</span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Ground state:
+-7.882352708347106
+
+FCI:
+-7.882362286798721
+
 Optimized amplitudes:
- [-2.42472161e-04  1.89258391e-03 -3.46013680e-02  1.59353409e-02
- -8.40432079e-08  9.09362687e-04  2.01798011e-05  1.41534032e-02
- -2.81526667e-07  9.08639806e-04  2.00776722e-05  1.41590768e-02
-  5.45396935e-04  4.26715094e-04 -2.84755090e-03  5.38354851e-02
-  2.29954778e-04  9.55212727e-07 -1.24844689e-07 -9.20767249e-08
- -4.53033465e-07 -7.44455733e-08 -8.83169875e-08  1.17984437e-05
- -1.04996754e-04  7.94677646e-04 -4.50417019e-06 -4.49753043e-06
- -5.48430867e-02  3.08870710e-03 -6.50319926e-05  1.26427835e-06
-  1.25660222e-06 -2.82077963e-07  7.96948143e-08 -3.28978906e-08
- -3.63568660e-07  5.76087541e-06  3.08870478e-03  8.82309266e-08
-  5.73797401e-08 -2.53652850e-08  5.72846511e-06  3.71275470e-04]
+[-2.38716797e-04  1.89072948e-03 -3.52373113e-02  1.60368505e-02
+ -1.65211897e-08  9.09419406e-04  6.97535496e-10  1.41633024e-02
+ -6.40543396e-09  9.08685812e-04  3.62517408e-10  1.41706530e-02
+  5.47788025e-04  4.26824061e-04 -2.87153659e-03  5.38109309e-02
+  2.34736444e-04 -2.07143981e-07  1.78941118e-07 -1.62503048e-07
+ -8.80911165e-08  4.07521713e-08 -3.40755199e-08  1.32909026e-05
+  7.99087755e-04 -1.04066519e-04 -1.07974132e-09 -3.40797600e-10
+ -5.50004943e-02  3.09140289e-03 -2.51213790e-09 -2.71345445e-11
+  1.93711194e-10 -1.81505812e-07 -1.08665216e-07  1.19335275e-07
+ -7.25358274e-12 -9.25316075e-10  3.09081391e-03 -4.66785554e-08
+ -5.15818095e-08  5.28564624e-08 -3.02691203e-10  3.72803168e-04]
 </pre></div></div>
 </div>
 </div>
 <div class="section" id="总结">
 <h2>总结<a class="headerlink" href="#总结" title="永久链接至标题">¶</a></h2>
-<p>在本案例中，我们通过两种方法，利用量子神经网络得到了LiH分子的基态能量。在第一种方法中，我们利用MindSpore Quantum打包好的<code class="docutils literal notranslate"><span class="pre">generate_uccsd</span></code>函数生成了能够解决该问题的量子神经网络，而在第二种方法中，我们一步一步的构造出了类似的量子神经网络。最终得到的结果是一致的。</p>
+<p>在本案例中，我们通过两种方法，利用 <code class="docutils literal notranslate"><span class="pre">scipy</span></code> 中的优化器，得到了LiH分子的基态能量。在第一种方法中，我们利用MindSpore Quantum打包好的<code class="docutils literal notranslate"><span class="pre">generate_uccsd</span></code>函数生成了能够解决该问题的量子神经网络，而在第二种方法中，我们一步一步的构造出了类似的梯度算子。最终得到的结果是一致的。</p>
 </div>
 </div>
 

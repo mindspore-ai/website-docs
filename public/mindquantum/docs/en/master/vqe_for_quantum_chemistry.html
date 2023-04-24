@@ -388,7 +388,7 @@ FCI<span class="w"> </span>energy:<span class="w">  </span>-7.8823622867987249<s
 <p>In the preceding example, HF, CCSD, and FCI are used to compute the total energy. If you collect statistics on the runtime, you will find that <span class="math notranslate nohighlight">\(T_{HF}&lt;T_{CCSD}\ll T_{FCI}\)</span>. It is more obvious if you use the system with larger calculation amount, such as ethylene molecule. In addition, for the total computed energy, you will find that <span class="math notranslate nohighlight">\(E_{HF}&gt;E_{CCSD}&gt;E_{FCI}\)</span>. After the computing is complete, save the result to the <code class="docutils literal notranslate"><span class="pre">molecule_file</span></code> file (<code class="docutils literal notranslate"><span class="pre">molecule_of.filename</span></code>).</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">molecule_of</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
 <span class="n">molecule_file</span> <span class="o">=</span> <span class="n">molecule_of</span><span class="o">.</span><span class="n">filename</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">molecule_file</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">molecule_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
 </pre></div>
 </div>
 <p>One of the major obstacles to quantum chemistry is the volume of computation. As the system size (electron number and atomic number) increases, the time required for solving the FCI wave function and ground state energy increases by about <span class="math notranslate nohighlight">\(2^{N}\)</span>. Even for small molecules such as ethylene molecules, FCI computing is not easy. Quantum computers provide a possible solution to this problem. Research shows that quantum computers can simulate the time-dependent evolution of Hamiltonian in terms of polynomial time complexity. Compared with classical computers, quantum computers exponentially accelerate the chemical simulation on quantum processors. This tutorial introduces one of the quantum algorithms: VQE.</p>
@@ -492,65 +492,116 @@ Number<span class="w"> </span>of<span class="w"> </span>parameters:<span class="
 </pre></div>
 </div>
 <p>You can obtain the energy <span class="math notranslate nohighlight">\(E(\theta)=\langle \Psi_{UCC}(\theta) | \hat{H} | \Psi_{UCC}(\theta) \rangle\)</span> corresponding to the variational parameter and the derivative of each variational parameter by transferring a specific value of the parameter to <code class="docutils literal notranslate"><span class="pre">molecule_pqc</span></code>.</p>
-<p>Next, steps 5 to 7 in VQE optimization need to be performed, that is, parameterized quantum circuits need to be optimized. Based on the MindSpore framework, you can use the parameterized quantum circuit operator <code class="docutils literal notranslate"><span class="pre">molecule_pqc</span></code> to build a neural network model, and then optimize the variational parameters by using a method similar to training the neural network.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindquantum.framework</span> <span class="kn">import</span> <span class="n">MQAnsatzOnlyLayer</span>
+<p>For example, we can use the following code to get the expectation of hamiltonian and the corresponding gradient when initial parameters of variational quantum circuit is zero.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="n">molecule_pqcnet</span> <span class="o">=</span> <span class="n">MQAnsatzOnlyLayer</span><span class="p">(</span><span class="n">molecule_pqc</span><span class="p">,</span> <span class="s1">&#39;Zeros&#39;</span><span class="p">)</span>
+<span class="n">n_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">total_circuit</span><span class="o">.</span><span class="n">params_name</span><span class="p">)</span>
+<span class="n">p0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_params</span><span class="p">)</span>
+<span class="n">f</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="n">molecule_pqc</span><span class="p">(</span><span class="n">p0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Energy: &quot;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">shape: &quot;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Gradient: &quot;</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">shape: &quot;</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Here, we manually build a basic <code class="docutils literal notranslate"><span class="pre">MQAnsatzOnlyLayer</span></code> as a model example. This model can be used similar to a conventional machine learning model, for example, optimizing weights and calculating derivatives.</p>
-<p>The built <code class="docutils literal notranslate"><span class="pre">MQAnsatzOnlyLayer</span></code> uses the <code class="docutils literal notranslate"><span class="pre">&quot;Zeros&quot;</span></code> keyword to initialize all variational parameters to 0. The computing result of CCSD or second order Møller-Plesset perturbation theory (MP2) can also be used as the initial value of the variational parameters of unitary coupled-clusters. In this case, <span class="math notranslate nohighlight">\(E(\vec{0})=\langle \Psi_{UCC}(\vec{0}) | \hat{H} | \Psi_{UCC}(\vec{0}) \rangle = E_{HF}\)</span>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">initial_energy</span> <span class="o">=</span> <span class="n">molecule_pqcnet</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Initial energy: </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">initial_energy</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()))</span>
-</pre></div>
-</div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Initial<span class="w"> </span>energy:<span class="w">  </span>-7.8633575439453125
-</pre></div>
-</div>
-<p>Finally, the Adam optimizer of MindSpore is used for optimization. The learning rate is set to <span class="math notranslate nohighlight">\(1\times 10^{-2}\)</span>, and the optimization termination standard is set to <span class="math notranslate nohighlight">\(\left.|\epsilon|\right. = \left.|E^{k+1} - E^{k}|\right. \le 1\times 10^{-8}\)</span>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Adagrad</span><span class="p">(</span><span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">4e-2</span><span class="p">)</span>
-<span class="n">train_pqcnet</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">TrainOneStepCell</span><span class="p">(</span><span class="n">molecule_pqcnet</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Energy:<span class="w">  </span><span class="o">[[</span>-7.86335762+0.j<span class="o">]]</span>
+shape:<span class="w">  </span><span class="o">(</span><span class="m">1</span>,<span class="w"> </span><span class="m">1</span><span class="o">)</span>
 
-<span class="n">eps</span> <span class="o">=</span> <span class="mf">1.e-8</span>
-<span class="n">energy_diff</span> <span class="o">=</span> <span class="n">eps</span> <span class="o">*</span> <span class="mi">1000</span>
-<span class="n">energy_last</span> <span class="o">=</span> <span class="n">initial_energy</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span> <span class="o">+</span> <span class="n">energy_diff</span>
-<span class="n">iter_idx</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">while</span> <span class="nb">abs</span><span class="p">(</span><span class="n">energy_diff</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">eps</span><span class="p">:</span>
-    <span class="n">energy_i</span> <span class="o">=</span> <span class="n">train_pqcnet</span><span class="p">()</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">iter_idx</span> <span class="o">%</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step </span><span class="si">%3d</span><span class="s2"> energy </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">iter_idx</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">energy_i</span><span class="p">)))</span>
-    <span class="n">energy_diff</span> <span class="o">=</span> <span class="n">energy_last</span> <span class="o">-</span> <span class="n">energy_i</span>
-    <span class="n">energy_last</span> <span class="o">=</span> <span class="n">energy_i</span>
-    <span class="n">iter_idx</span> <span class="o">+=</span> <span class="mi">1</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimization completed at step </span><span class="si">%3d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">iter_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimized energy: </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">energy_i</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimized amplitudes: </span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+Gradient:<span class="w">  </span><span class="o">[[[</span>-1.16994143e-10+0.j<span class="w"> </span>-8.60518140e-02+0.j<span class="w">  </span><span class="m">7</span>.34833530e-09+0.j
+<span class="w">   </span>-4.85545093e-02+0.j<span class="w"> </span>-1.36967588e-14+0.j<span class="w"> </span>-3.92769093e-02+0.j
+<span class="w">   </span>-1.09638025e-14+0.j<span class="w"> </span>-9.59481736e-02+0.j<span class="w">  </span><span class="m">4</span>.52856423e-15+0.j
+<span class="w">   </span>-3.92769093e-02+0.j<span class="w">  </span><span class="m">1</span>.10350609e-14+0.j<span class="w"> </span>-9.59481736e-02+0.j
+<span class="w">   </span>-1.36448855e-10+0.j<span class="w"> </span>-2.89649669e-02+0.j<span class="w">  </span><span class="m">4</span>.02379782e-10+0.j
+<span class="w">   </span>-4.91813235e-01+0.j<span class="w"> </span>-9.35292655e-04+0.j<span class="w"> </span>-1.64675713e-16+0.j
+<span class="w">   </span>-3.54669942e-17+0.j<span class="w">  </span><span class="m">1</span>.57545914e-17+0.j<span class="w">  </span><span class="m">1</span>.57929222e-16+0.j
+<span class="w">    </span><span class="m">2</span>.47722711e-17+0.j<span class="w"> </span>-2.16194380e-17+0.j<span class="w">  </span><span class="m">5</span>.06813144e-03+0.j
+<span class="w">    </span><span class="m">1</span>.08542342e-02+0.j<span class="w"> </span>-1.28614257e-02+0.j<span class="w"> </span>-5.02920246e-17+0.j
+<span class="w">    </span><span class="m">7</span>.35980769e-18+0.j<span class="w">  </span><span class="m">1</span>.33973783e-01+0.j<span class="w"> </span>-3.03063678e-02+0.j
+<span class="w">   </span>-6.13317366e-19+0.j<span class="w"> </span>-1.53329342e-18+0.j<span class="w">  </span><span class="m">4</span>.01043916e-29+0.j
+<span class="w">    </span><span class="m">5</span>.36652696e-17+0.j<span class="w"> </span>-3.74490333e-17+0.j<span class="w">  </span><span class="m">3</span>.33490478e-17+0.j
+<span class="w">    </span><span class="m">2</span>.14562992e-28+0.j<span class="w">  </span><span class="m">1</span>.15391966e-16+0.j<span class="w"> </span>-3.03063678e-02+0.j
+<span class="w">   </span>-5.42785870e-17+0.j<span class="w">  </span><span class="m">4</span>.61905181e-17+0.j<span class="w"> </span>-4.22508288e-17+0.j
+<span class="w">   </span>-2.44510200e-17+0.j<span class="w"> </span>-1.68035030e-03+0.j<span class="o">]]]</span>
+shape:<span class="w">  </span><span class="o">(</span><span class="m">1</span>,<span class="w"> </span><span class="m">1</span>,<span class="w"> </span><span class="m">44</span><span class="o">)</span>
 </pre></div>
 </div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Step<span class="w">   </span><span class="m">0</span><span class="w"> </span>energy<span class="w">  </span>-7.8633575439453125
-Step<span class="w">   </span><span class="m">5</span><span class="w"> </span>energy<span class="w">  </span>-7.8726239204406738
-Step<span class="w">  </span><span class="m">10</span><span class="w"> </span>energy<span class="w">  </span>-7.8821778297424316
-Step<span class="w">  </span><span class="m">15</span><span class="w"> </span>energy<span class="w">  </span>-7.8822836875915527
-Step<span class="w">  </span><span class="m">20</span><span class="w"> </span>energy<span class="w">  </span>-7.8823199272155762
-Step<span class="w">  </span><span class="m">25</span><span class="w"> </span>energy<span class="w">  </span>-7.8823370933532715
-Optimization<span class="w"> </span>completed<span class="w"> </span>at<span class="w"> </span>step<span class="w">  </span><span class="m">27</span>
-Optimized<span class="w"> </span>energy:<span class="w">  </span>-7.8823390007019043
+<p>Throw the above calculation, we get the energy and gradient value and the user can use these data according their practical needs. Now we following the step of (5)~(7) of optimization of VQE, to optimize of variational quantum circuit. Here we use the optimizer in scipy to optimize our quantum circuit. First, we need to define the optimization function that scipy required:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">fun</span><span class="p">(</span><span class="n">p0</span><span class="p">,</span> <span class="n">molecule_pqc</span><span class="p">,</span> <span class="n">energy_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">f</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="n">molecule_pqc</span><span class="p">(</span><span class="n">p0</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">g</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">energy_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">energy_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">energy_list</span><span class="p">)</span> <span class="o">%</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">energy_list</span><span class="p">)</span><span class="si">}</span><span class="s2">,</span><span class="se">\t</span><span class="s2">energy: </span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">g</span>
+
+<span class="n">fun</span><span class="p">(</span><span class="n">p0</span><span class="p">,</span> <span class="n">molecule_pqc</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>-7.8633576215369505,
+<span class="w"> </span>array<span class="o">([</span>-1.16994143e-10,<span class="w"> </span>-8.60518140e-02,<span class="w">  </span><span class="m">7</span>.34833530e-09,<span class="w"> </span>-4.85545093e-02,
+<span class="w">        </span>-1.36967588e-14,<span class="w"> </span>-3.92769093e-02,<span class="w"> </span>-1.09638025e-14,<span class="w"> </span>-9.59481736e-02,
+<span class="w">         </span><span class="m">4</span>.52856423e-15,<span class="w"> </span>-3.92769093e-02,<span class="w">  </span><span class="m">1</span>.10350609e-14,<span class="w"> </span>-9.59481736e-02,
+<span class="w">        </span>-1.36448855e-10,<span class="w"> </span>-2.89649669e-02,<span class="w">  </span><span class="m">4</span>.02379782e-10,<span class="w"> </span>-4.91813235e-01,
+<span class="w">        </span>-9.35292655e-04,<span class="w"> </span>-1.64675713e-16,<span class="w"> </span>-3.54669942e-17,<span class="w">  </span><span class="m">1</span>.57545914e-17,
+<span class="w">         </span><span class="m">1</span>.57929222e-16,<span class="w">  </span><span class="m">2</span>.47722711e-17,<span class="w"> </span>-2.16194380e-17,<span class="w">  </span><span class="m">5</span>.06813144e-03,
+<span class="w">         </span><span class="m">1</span>.08542342e-02,<span class="w"> </span>-1.28614257e-02,<span class="w"> </span>-5.02920246e-17,<span class="w">  </span><span class="m">7</span>.35980769e-18,
+<span class="w">         </span><span class="m">1</span>.33973783e-01,<span class="w"> </span>-3.03063678e-02,<span class="w"> </span>-6.13317366e-19,<span class="w"> </span>-1.53329342e-18,
+<span class="w">         </span><span class="m">4</span>.01043916e-29,<span class="w">  </span><span class="m">5</span>.36652696e-17,<span class="w"> </span>-3.74490333e-17,<span class="w">  </span><span class="m">3</span>.33490478e-17,
+<span class="w">         </span><span class="m">2</span>.14562992e-28,<span class="w">  </span><span class="m">1</span>.15391966e-16,<span class="w"> </span>-3.03063678e-02,<span class="w"> </span>-5.42785870e-17,
+<span class="w">         </span><span class="m">4</span>.61905181e-17,<span class="w"> </span>-4.22508288e-17,<span class="w"> </span>-2.44510200e-17,<span class="w"> </span>-1.68035030e-03<span class="o">]))</span>
+</pre></div>
+</div>
+<p>Here, the <code class="docutils literal notranslate"><span class="pre">fun</span></code> that we define can correctly to return the data that we need: a real energy value, and a array of gradient value with the same size of parameters. Now, we use <code class="docutils literal notranslate"><span class="pre">bfgs</span></code> optimizer in scipy to finish the optimization.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">minimize</span>
+
+<span class="n">energy_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">p0</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">molecule_pqc</span><span class="p">,</span> <span class="n">energy_list</span> <span class="p">),</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;bfgs&#39;</span><span class="p">,</span> <span class="n">jac</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Step:<span class="w"> </span><span class="m">5</span>,<span class="w">    </span>energy:<span class="w"> </span>-7.880227726053251
+Step:<span class="w"> </span><span class="m">10</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.88181712396991
+Step:<span class="w"> </span><span class="m">15</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882213242985563
+Step:<span class="w"> </span><span class="m">20</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882345337008383
+Step:<span class="w"> </span><span class="m">25</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882352494991607
+Step:<span class="w"> </span><span class="m">30</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882352691272302
+Step:<span class="w"> </span><span class="m">35</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882352697922093
+</pre></div>
+</div>
+<p>So, we finished the gradient optimization of variational quantum circuit. Here, <code class="docutils literal notranslate"><span class="pre">energy_list</span></code> is going to store the energy during optimization. Here, we briefly introduce the usage of <code class="docutils literal notranslate"><span class="pre">minimize</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fun</span></code>: The first arg is the function you want to optimize.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">p0</span></code>: The second arg is the initial value of variables.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">args</span></code>: The other argument of <code class="docutils literal notranslate"><span class="pre">fun</span></code> except the first argument. According the definition of <code class="docutils literal notranslate"><span class="pre">fun</span></code>, we choose <code class="docutils literal notranslate"><span class="pre">args=(molecule_pqc,</span> <span class="pre">energy_list)</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">method</span></code>: The optimization algorithm. Here we use a second order optimization algorithm <code class="docutils literal notranslate"><span class="pre">bfgs</span></code>. For more optimization algorithm, please refer: <a class="reference external" href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html">scipy tutorial</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jac</span></code>: To info that whether <code class="docutils literal notranslate"><span class="pre">fun</span></code> return gradient. Here we use <code class="docutils literal notranslate"><span class="pre">True</span></code>, because MindSpore Quantum can calculate the accuracy gradient value of variational quantum circuit. If use <code class="docutils literal notranslate"><span class="pre">False</span></code>, <code class="docutils literal notranslate"><span class="pre">minimize</span></code> framework will calculate the approximated gradient value base on difference method.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">res</span></code> is the optimization result of <code class="docutils literal notranslate"><span class="pre">scipy</span></code>, including optimized parameters, the optimized value and evolution steps.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ground state: </span><span class="se">\n</span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">fun</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;FCI: </span><span class="se">\n</span><span class="s2">-7.882362286798721</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Optimized amplitudes: </span><span class="se">\n</span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Ground<span class="w"> </span>state:
+-7.882352708353374
+
+FCI:
+-7.882362286798721
+
 Optimized<span class="w"> </span>amplitudes:
-<span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="m">2</span>.7273933e-04<span class="w">  </span><span class="m">1</span>.9072455e-03<span class="w">  </span><span class="m">2</span>.9598266e-02<span class="w">  </span><span class="m">1</span>.5151843e-02
-<span class="w">  </span><span class="m">1</span>.5533751e-06<span class="w">  </span><span class="m">9</span>.0890197e-04<span class="w"> </span>-5.1002303e-07<span class="w">  </span><span class="m">1</span>.4072354e-02
-<span class="w"> </span>-1.2779084e-05<span class="w">  </span><span class="m">9</span>.0818782e-04<span class="w">  </span><span class="m">4</span>.1782801e-06<span class="w">  </span><span class="m">1</span>.4077923e-02
-<span class="w"> </span>-5.2711589e-04<span class="w">  </span><span class="m">4</span>.2598479e-04<span class="w">  </span><span class="m">2</span>.6523003e-03<span class="w">  </span><span class="m">5</span>.3988658e-02
-<span class="w">  </span><span class="m">1</span>.9281749e-04<span class="w"> </span>-1.2321149e-07<span class="w"> </span>-3.1405324e-07<span class="w">  </span><span class="m">1</span>.9214883e-06
-<span class="w">  </span><span class="m">1</span>.0062347e-06<span class="w">  </span><span class="m">1</span>.0903094e-06<span class="w"> </span>-1.4285328e-05<span class="w"> </span>-7.8342858e-08
-<span class="w">  </span><span class="m">7</span>.5983076e-04<span class="w"> </span>-1.1218661e-04<span class="w">  </span><span class="m">8</span>.8862755e-08<span class="w"> </span>-7.2354385e-07
-<span class="w"> </span>-5.3567935e-02<span class="w">  </span><span class="m">3</span>.0693393e-03<span class="w"> </span>-1.3467404e-10<span class="w"> </span>-4.6068820e-09
-<span class="w">  </span><span class="m">4</span>.5405173e-09<span class="w">  </span><span class="m">1</span>.1786257e-06<span class="w">  </span><span class="m">8</span>.9121182e-05<span class="w"> </span>-9.4004070e-05
-<span class="w"> </span>-1.0432483e-10<span class="w"> </span>-2.8091000e-07<span class="w">  </span><span class="m">3</span>.0693379e-03<span class="w"> </span>-9.6705053e-06
-<span class="w">  </span><span class="m">7</span>.7026058e-04<span class="w"> </span>-7.3031953e-04<span class="w">  </span><span class="m">2</span>.3029093e-06<span class="w">  </span><span class="m">3</span>.5888454e-04<span class="o">]</span>
+<span class="o">[</span><span class="w"> </span><span class="m">2</span>.38617266e-04<span class="w">  </span><span class="m">1</span>.89071997e-03<span class="w">  </span><span class="m">3</span>.52371725e-02<span class="w">  </span><span class="m">1</span>.60368287e-02
+<span class="w"> </span>-3.88585413e-09<span class="w">  </span><span class="m">9</span>.09450204e-04<span class="w"> </span>-1.31960456e-10<span class="w">  </span><span class="m">1</span>.41641358e-02
+<span class="w"> </span>-2.77241824e-09<span class="w">  </span><span class="m">9</span>.08722622e-04<span class="w">  </span><span class="m">1</span>.50885283e-10<span class="w">  </span><span class="m">1</span>.41698519e-02
+<span class="w"> </span>-5.47736126e-04<span class="w">  </span><span class="m">4</span>.26814173e-04<span class="w">  </span><span class="m">2</span>.87162290e-03<span class="w">  </span><span class="m">5</span>.38110124e-02
+<span class="w">  </span><span class="m">2</span>.34666985e-04<span class="w"> </span>-4.31273238e-10<span class="w"> </span>-1.05864122e-07<span class="w">  </span><span class="m">1</span>.04891423e-07
+<span class="w">  </span><span class="m">2</span>.04861474e-08<span class="w"> </span>-3.59771636e-08<span class="w">  </span><span class="m">3</span>.39882867e-08<span class="w">  </span><span class="m">1</span>.32744726e-05
+<span class="w"> </span>-1.04141351e-04<span class="w">  </span><span class="m">7</span>.99026270e-04<span class="w">  </span><span class="m">3</span>.53881973e-10<span class="w">  </span><span class="m">1</span>.60036086e-10
+<span class="w"> </span>-5.50005590e-02<span class="w">  </span><span class="m">3</span>.09114423e-03<span class="w"> </span>-2.85746198e-10<span class="w">  </span><span class="m">7</span>.60919677e-09
+<span class="w"> </span>-7.59032177e-09<span class="w">  </span><span class="m">5</span>.62150158e-09<span class="w"> </span>-6.40411683e-09<span class="w">  </span><span class="m">3</span>.10490502e-09
+<span class="w"> </span>-8.38905987e-13<span class="w">  </span><span class="m">2</span>.81089918e-11<span class="w">  </span><span class="m">3</span>.09113690e-03<span class="w"> </span>-2.10016387e-08
+<span class="w">  </span><span class="m">1</span>.83862009e-08<span class="w"> </span>-1.68153439e-08<span class="w"> </span>-6.09114800e-12<span class="w">  </span><span class="m">3</span>.72796434e-04<span class="o">]</span>
 </pre></div>
 </div>
-<p>It can be seen that the computing result of unitary coupled-cluster is very close to that of FCI, and has good accuracy.</p>
+<p>We can see here the result of ucc method is very close to FCI method with very good accuracy.</p>
 </div>
 </div>
 <div class="section" id="building-a-unitary-coupled-cluster-ansatz-step-by-step">
@@ -602,71 +653,57 @@ First, import some extra dependencies, including the related functions of the Hi
 <span class="n">init_amplitudes_ccsd</span> <span class="o">=</span> <span class="p">[</span><span class="n">init_amplitudes_ccsd</span><span class="p">[</span><span class="n">param_i</span><span class="p">]</span> <span class="k">for</span> <span class="n">param_i</span> <span class="ow">in</span> <span class="n">ansatz_parameter_names</span><span class="p">]</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">MQAnsatzOnlyLayer</span></code> can be used to easily obtain a machine learning model based on a variational quantum circuit by using a parameter and a quantum circuit:</p>
+<p>Just like the previous method, we can get the <code class="docutils literal notranslate"><span class="pre">grad_ops</span></code> with MindSpore Quantum, and optimize it with scipy.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">grad_ops</span> <span class="o">=</span> <span class="n">Simulator</span><span class="p">(</span><span class="s1">&#39;mqvector&#39;</span><span class="p">,</span> <span class="n">total_circuit</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">)</span><span class="o">.</span><span class="n">get_expectation_with_grad</span><span class="p">(</span>
     <span class="n">Hamiltonian</span><span class="p">(</span><span class="n">hamiltonian_QubitOp</span><span class="o">.</span><span class="n">real</span><span class="p">),</span>
     <span class="n">total_circuit</span><span class="p">)</span>
-
-<span class="n">molecule_pqcnet</span> <span class="o">=</span> <span class="n">MQAnsatzOnlyLayer</span><span class="p">(</span><span class="n">grad_ops</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">init_amplitudes_ccsd</span></code> (coupled-cluster coefficient computed by CCSD) is used as an initial variational parameter:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">init_amplitudes_ccsd</span><span class="p">,</span> <span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
-<span class="n">initial_energy</span> <span class="o">=</span> <span class="n">molecule_pqcnet</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Initial energy: </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">initial_energy</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()))</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">energy_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">init_amplitudes_ccsd</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">grad_ops</span><span class="p">,</span> <span class="n">energy_list</span><span class="p">),</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;bfgs&#39;</span><span class="p">,</span> <span class="n">jac</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Initial<span class="w"> </span>energy:<span class="w">  </span>-7.8173098564147949
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Step:<span class="w"> </span><span class="m">5</span>,<span class="w">    </span>energy:<span class="w"> </span>-7.878223282730576
+Step:<span class="w"> </span><span class="m">10</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.880288481438869
+Step:<span class="w"> </span><span class="m">15</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.88203566830419
+Step:<span class="w"> </span><span class="m">20</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882302370885842
+Step:<span class="w"> </span><span class="m">25</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882349803534311
+Step:<span class="w"> </span><span class="m">30</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882352702053698
+Step:<span class="w"> </span><span class="m">35</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882352707981867
+Step:<span class="w"> </span><span class="m">40</span>,<span class="w">   </span>energy:<span class="w"> </span>-7.882352708341503
 </pre></div>
 </div>
-<p>In this example, CCSD’s initial guess does not provide a better starting point. You can test and explore more molecules and more types of initial values (such as initial guesses of random numbers). Finally, the VQE is optimized. The optimizer still uses Adam, and the convergence standard remains unchanged. The code used for optimization is basically the same as that described in the preceding sections. You only need to update the corresponding variables.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Adagrad</span><span class="p">(</span><span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">4e-2</span><span class="p">)</span>
-<span class="n">train_pqcnet</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">TrainOneStepCell</span><span class="p">(</span><span class="n">molecule_pqcnet</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
+<p>The final optimized result is shown as below.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ground state: </span><span class="se">\n</span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">fun</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;FCI: </span><span class="se">\n</span><span class="s2">-7.882362286798721</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Optimized amplitudes: </span><span class="se">\n</span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Ground<span class="w"> </span>state:
+-7.882352708341503
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;eps: &quot;</span><span class="p">,</span> <span class="n">eps</span><span class="p">)</span>
-<span class="n">energy_diff</span> <span class="o">=</span> <span class="n">eps</span> <span class="o">*</span> <span class="mi">1000</span>
-<span class="n">energy_last</span> <span class="o">=</span> <span class="n">initial_energy</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span> <span class="o">+</span> <span class="n">energy_diff</span>
-<span class="n">iter_idx</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">while</span> <span class="nb">abs</span><span class="p">(</span><span class="n">energy_diff</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">eps</span><span class="p">:</span>
-    <span class="n">energy_i</span> <span class="o">=</span> <span class="n">train_pqcnet</span><span class="p">()</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">iter_idx</span> <span class="o">%</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step </span><span class="si">%3d</span><span class="s2"> energy </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">iter_idx</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">energy_i</span><span class="p">)))</span>
-    <span class="n">energy_diff</span> <span class="o">=</span> <span class="n">energy_last</span> <span class="o">-</span> <span class="n">energy_i</span>
-    <span class="n">energy_last</span> <span class="o">=</span> <span class="n">energy_i</span>
-    <span class="n">iter_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+FCI:
+-7.882362286798721
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimization completed at step </span><span class="si">%3d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">iter_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimized energy: </span><span class="si">%20.16f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">energy_i</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Optimized amplitudes: </span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">molecule_pqcnet</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
-</pre></div>
-</div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>eps:<span class="w">  </span>1e-08
-Step<span class="w">   </span><span class="m">0</span><span class="w"> </span>energy<span class="w">  </span>-7.8173098564147949
-Step<span class="w">   </span><span class="m">5</span><span class="w"> </span>energy<span class="w">  </span>-7.8740758895874023
-Step<span class="w">  </span><span class="m">10</span><span class="w"> </span>energy<span class="w">  </span>-7.8818783760070801
-Step<span class="w">  </span><span class="m">15</span><span class="w"> </span>energy<span class="w">  </span>-7.8821649551391602
-Step<span class="w">  </span><span class="m">20</span><span class="w"> </span>energy<span class="w">  </span>-7.8822622299194336
-Step<span class="w">  </span><span class="m">25</span><span class="w"> </span>energy<span class="w">  </span>-7.8823080062866211
-Optimization<span class="w"> </span>completed<span class="w"> </span>at<span class="w"> </span>step<span class="w">  </span><span class="m">28</span>
-Optimized<span class="w"> </span>energy:<span class="w">  </span>-7.8823189735412598
 Optimized<span class="w"> </span>amplitudes:
-<span class="w"> </span><span class="o">[</span>-2.92540470e-04<span class="w">  </span><span class="m">1</span>.91678782e-03<span class="w"> </span>-2.62904949e-02<span class="w">  </span><span class="m">1</span>.46486172e-02
-<span class="w"> </span>-1.80548541e-05<span class="w">  </span><span class="m">9</span>.08615650e-04<span class="w">  </span><span class="m">6</span>.06753974e-06<span class="w">  </span><span class="m">1</span>.40150227e-02
-<span class="w"> </span>-7.58499027e-06<span class="w">  </span><span class="m">9</span>.07906622e-04<span class="w">  </span><span class="m">2</span>.58140676e-06<span class="w">  </span><span class="m">1</span>.40205137e-02
-<span class="w">  </span><span class="m">5</span>.15393389e-04<span class="w">  </span><span class="m">4</span>.25452046e-04<span class="w"> </span>-2.52626487e-03<span class="w">  </span><span class="m">5</span>.41330352e-02
-<span class="w">  </span><span class="m">1</span>.68450730e-04<span class="w"> </span>-1.45874014e-06<span class="w">  </span><span class="m">2</span>.46176114e-05<span class="w"> </span>-5.74097339e-06
-<span class="w"> </span>-6.37176697e-07<span class="w">  </span><span class="m">1</span>.41116643e-05<span class="w"> </span>-6.13132488e-06<span class="w"> </span>-7.78824597e-06
-<span class="w">  </span><span class="m">7</span>.36984774e-04<span class="w"> </span>-1.16545329e-04<span class="w">  </span><span class="m">1</span>.00961029e-06<span class="w">  </span><span class="m">4</span>.41450794e-07
-<span class="w"> </span>-5.27810790e-02<span class="w">  </span><span class="m">3</span>.05663864e-03<span class="w">  </span><span class="m">5</span>.34516487e-10<span class="w"> </span>-1.11836842e-08
-<span class="w">  </span><span class="m">1</span>.16560805e-08<span class="w">  </span><span class="m">1</span>.39018812e-05<span class="w">  </span><span class="m">1</span>.05607708e-03<span class="w"> </span>-1.11408660e-03
-<span class="w">  </span><span class="m">7</span>.64744101e-10<span class="w"> </span>-3.32643208e-06<span class="w">  </span><span class="m">3</span>.05663352e-03<span class="w">  </span><span class="m">5</span>.93083496e-06
-<span class="w">  </span><span class="m">4</span>.49250219e-04<span class="w"> </span>-4.74061235e-04<span class="w"> </span>-1.41295470e-06<span class="w">  </span><span class="m">3</span>.50885763e-04<span class="o">]</span>
+<span class="o">[</span>-2.38195252e-04<span class="w">  </span><span class="m">1</span>.89063643e-03<span class="w"> </span>-3.52375909e-02<span class="w">  </span><span class="m">1</span>.60366971e-02
+<span class="w"> </span>-1.65614925e-08<span class="w">  </span><span class="m">9</span>.09491908e-04<span class="w">  </span><span class="m">2</span>.38186936e-10<span class="w">  </span><span class="m">1</span>.41647347e-02
+<span class="w">  </span><span class="m">9</span>.24467076e-09<span class="w">  </span><span class="m">9</span>.08692183e-04<span class="w"> </span>-6.16653740e-10<span class="w">  </span><span class="m">1</span>.41689929e-02
+<span class="w">  </span><span class="m">5</span>.47235936e-04<span class="w">  </span><span class="m">4</span>.26809292e-04<span class="w"> </span>-2.87276305e-03<span class="w">  </span><span class="m">5</span>.38108290e-02
+<span class="w">  </span><span class="m">2</span>.34388089e-04<span class="w"> </span>-2.72175513e-07<span class="w">  </span><span class="m">1</span>.94745388e-07<span class="w"> </span>-1.75983096e-07
+<span class="w">  </span><span class="m">2</span>.40304213e-07<span class="w">  </span><span class="m">2</span>.96373905e-08<span class="w"> </span>-4.42183121e-08<span class="w">  </span><span class="m">1</span>.32992416e-05
+<span class="w">  </span><span class="m">7</span>.98572575e-04<span class="w"> </span>-1.04555876e-04<span class="w"> </span>-1.41365735e-09<span class="w">  </span><span class="m">5</span>.97733807e-10
+<span class="w"> </span>-5.50009283e-02<span class="w">  </span><span class="m">3</span>.09145849e-03<span class="w"> </span>-2.11953953e-08<span class="w">  </span><span class="m">4</span>.90939781e-09
+<span class="w"> </span>-3.50933024e-09<span class="w"> </span>-1.34832630e-07<span class="w">  </span><span class="m">1</span>.12110269e-08<span class="w">  </span><span class="m">2</span>.70076674e-09
+<span class="w"> </span>-6.16084033e-11<span class="w"> </span>-4.20721078e-10<span class="w">  </span><span class="m">3</span>.09116851e-03<span class="w"> </span>-8.60550220e-08
+<span class="w"> </span>-1.26395082e-08<span class="w">  </span><span class="m">1</span>.94093958e-08<span class="w"> </span>-3.50865290e-10<span class="w">  </span><span class="m">3</span>.72983611e-04<span class="o">]</span>
 </pre></div>
 </div>
 </div>
 <div class="section" id="summary">
 <h2>Summary<a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h2>
-<p>In this case, the ground state energy of the LiH molecule is obtained by using the quantum neural network in two methods. In the first method, we use the <code class="docutils literal notranslate"><span class="pre">generate_uccsd</span></code> function packaged by MindSpore Quantum to generate a quantum neural network that can solve this problem. In the second method, we build a similar quantum neural network step by step. The final results are the same.</p>
+<p>In this case, the ground state energy of the LiH molecule is obtained by using scipy in two methods. In the first method, we use the <code class="docutils literal notranslate"><span class="pre">generate_uccsd</span></code> function packaged by MindSpore Quantum to generate a quantum neural network that can solve this problem. In the second method, we build a similar gradient operator step by step. The final results are the same.</p>
 </div>
 </div>
 
