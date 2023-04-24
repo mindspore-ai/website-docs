@@ -5,11 +5,8 @@ import re
 import json
 import shutil
 
-def main(arg_version, docs_path):
-    if not docs_path:
-        print("请提供docs仓的路径： --docs_path=xxx")
-        raise ValueError
-    theme_path = os.path.join(docs_path,"resource/api_generate_theme")
+def main(arg_version):
+    theme_path = os.path.join(os.path.dirname(__file__),"../template")
     version_dir = os.path.join(os.path.dirname(__file__), "version")
     public_path = os.path.join(os.path.dirname(__file__),"../public")
     for f_name in os.listdir(theme_path):
@@ -112,6 +109,5 @@ def main(arg_version, docs_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', type=str, default="r1.3") # release as r1.3 or r1.5 or r1.7
-    parser.add_argument('--docs_path', type=str, default="") # docs repo path
     args = parser.parse_args()
-    main(arg_version=args.version, docs_path = args.docs_path)
+    main(arg_version=args.version)
