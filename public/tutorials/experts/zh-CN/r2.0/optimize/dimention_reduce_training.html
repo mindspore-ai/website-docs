@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>降维训练算法 &mdash; MindSpore master 文档</title>
+  <title>降维训练算法 &mdash; MindSpore master documentation</title>
   
 
   
@@ -48,8 +48,8 @@
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
-    <link rel="index" title="索引" href="../genindex.html" />
-    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="二阶优化" href="thor.html" />
     <link rel="prev" title="自适应梯度求和算法" href="adaptive_summation.html" /> 
 </head>
@@ -249,22 +249,22 @@
            <div itemprop="articleBody">
             
   <div class="section" id="降维训练算法">
-<h1>降维训练算法<a class="headerlink" href="#降维训练算法" title="永久链接至标题">¶</a></h1>
+<h1>降维训练算法<a class="headerlink" href="#降维训练算法" title="Permalink to this headline">¶</a></h1>
 <p><a href="https://gitee.com/mindspore/docs/blob/r2.0/tutorials/experts/source_zh_cn/optimize/dimention_reduce_training.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.0/resource/_static/logo_source.png"></a></p>
 <div class="section" id="概述">
-<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题">¶</a></h2>
+<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline">¶</a></h2>
 <p>本教程介绍降维训练的训练方式，目的是为了解决网络在训练后期收敛缓慢的问题。</p>
 <p>一般网络训练，前期收敛比较快，后期收敛进入稳定阶段，收敛较慢。为了提升后期的收敛速度，降维训练将网络训练分为两个阶段。第一阶段，以传统的方式训练网络，保留N（N&gt;32）个权重文件，建议放弃比较初期的权重文件，比如第一阶段训练50个epoch，从第21个epoch开始保存权重文件，每个epoch保存2个权重文件，则第一阶段结束有60个权重文件。第二阶段，加载第一阶段得到的权重文件，做PCA（Principal Component Analysis）降维，将权重从高维（M）降到低维（32），在低维上搜索权重的梯度下降方向和长度，然后反投影到高维，更新权重。</p>
 <p>鉴于单卡训练比较耗时，本篇教程将在Ascend 910 AI处理器硬件平台上，利用数据并行模式，以ResNet-50在ImageNet 2012上的训练过程为例，介绍第一阶段的常规训练，以及在Boost模式下如何实现第二阶段的降维训练。</p>
 </div>
 <div class="section" id="准备环节">
-<h2>准备环节<a class="headerlink" href="#准备环节" title="永久链接至标题">¶</a></h2>
+<h2>准备环节<a class="headerlink" href="#准备环节" title="Permalink to this headline">¶</a></h2>
 <blockquote>
 <div><p>下载完整的样例代码 <a class="reference external" href="https://gitee.com/mindspore/docs/tree/r2.0/docs/sample_code/dimension_reduce_training">dimension_reduce_training</a>。</p>
 <p>代码中引用到的 <a class="reference external" href="https://gitee.com/mindspore/models">models</a>库。</p>
 </div></blockquote>
 <div class="section" id="配置分布式环境变量">
-<h3>配置分布式环境变量<a class="headerlink" href="#配置分布式环境变量" title="永久链接至标题">¶</a></h3>
+<h3>配置分布式环境变量<a class="headerlink" href="#配置分布式环境变量" title="Permalink to this headline">¶</a></h3>
 <p>在本地Ascend处理器上进行分布式训练时，需要配置当前多卡环境的组网信息文件，1个8卡环境的json文件配置如下，本样例将该配置文件命名为rank_table_8pcs.json。rank_table可以使用models下面的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r2.0/utils/hccl_tools/hccl_tools.py">hccl_tools.py</a>生成。</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0&quot;</span><span class="p">,</span>
@@ -290,7 +290,7 @@
 </div>
 </div>
 <div class="section" id="数据集准备">
-<h3>数据集准备<a class="headerlink" href="#数据集准备" title="永久链接至标题">¶</a></h3>
+<h3>数据集准备<a class="headerlink" href="#数据集准备" title="Permalink to this headline">¶</a></h3>
 <p>使用的数据集：<a class="reference external" href="http://www.image-net.org/">ImageNet2012</a></p>
 <ul class="simple">
 <li><p>数据集大小：共1000个类、224*224彩色图像</p>
@@ -310,12 +310,12 @@
 </div>
 </div>
 <div class="section" id="第一阶段-常规训练">
-<h2>第一阶段：常规训练<a class="headerlink" href="#第一阶段-常规训练" title="永久链接至标题">¶</a></h2>
+<h2>第一阶段：常规训练<a class="headerlink" href="#第一阶段-常规训练" title="Permalink to this headline">¶</a></h2>
 <blockquote>
 <div><p>第一阶段主要的训练样例代码请参考 <a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.0/docs/sample_code/dimension_reduce_training/train_stage_1.py">train_stage_1.py</a>。</p>
 </div></blockquote>
 <div class="section" id="运行模式和后端设备设置">
-<h3>运行模式和后端设备设置<a class="headerlink" href="#运行模式和后端设备设置" title="永久链接至标题">¶</a></h3>
+<h3>运行模式和后端设备设置<a class="headerlink" href="#运行模式和后端设备设置" title="Permalink to this headline">¶</a></h3>
 <p>通过MindSpore提供的context接口指定运行模式、运行卡号、并行模式等，通过init初始化HCCL通信。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">device_target</span><span class="p">)</span>
 <span class="n">device_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;DEVICE_ID&#39;</span><span class="p">))</span>
@@ -328,7 +328,7 @@
 </div>
 </div>
 <div class="section" id="加载数据集">
-<h3>加载数据集<a class="headerlink" href="#加载数据集" title="永久链接至标题">¶</a></h3>
+<h3>加载数据集<a class="headerlink" href="#加载数据集" title="Permalink to this headline">¶</a></h3>
 <p>利用MindSpore提供图片加载接口ImageFolderDataset加载ImageNet 2012数据集，同时通过MindSpore提供的数据增强接口对数据集进行处理，此部分代码由models中<code class="docutils literal notranslate"><span class="pre">resnet</span></code>目录下的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r2.0/official/cv/ResNet/src/dataset.py">dataset.py</a>导入。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define train dataset</span>
 <span class="n">train_data_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">)</span>
@@ -339,7 +339,7 @@
 </div>
 </div>
 <div class="section" id="定义网络">
-<h3>定义网络<a class="headerlink" href="#定义网络" title="永久链接至标题">¶</a></h3>
+<h3>定义网络<a class="headerlink" href="#定义网络" title="Permalink to this headline">¶</a></h3>
 <p>ResNet-50网络的构建代码由<a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.0/docs/sample_code/dimension_reduce_training/resnet.py">resnet.py</a>导入。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define net</span>
 <span class="n">net</span> <span class="o">=</span> <span class="n">resnet</span><span class="p">(</span><span class="n">class_num</span><span class="o">=</span><span class="mi">1001</span><span class="p">)</span>
@@ -348,7 +348,7 @@
 </div>
 </div>
 <div class="section" id="定义训练模型">
-<h3>定义训练模型<a class="headerlink" href="#定义训练模型" title="永久链接至标题">¶</a></h3>
+<h3>定义训练模型<a class="headerlink" href="#定义训练模型" title="Permalink to this headline">¶</a></h3>
 <p>定义模型所需的损失函数loss、optimizer等。</p>
 <p>loss使用CrossEntropySmooth，由ModelZoo中<code class="docutils literal notranslate"><span class="pre">resnet</span></code>目录下的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r2.0/official/cv/ResNet/src/CrossEntropySmooth.py">CrossEntropySmooth.py</a>导入。</p>
 <p>学习率lr的构建代码由models中<code class="docutils literal notranslate"><span class="pre">resnet</span></code>目录下的<a class="reference external" href="https://gitee.com/mindspore/models/blob/r2.0/official/cv/ResNet/src/lr_generator.py">lr_generator.py</a>导入。</p>
@@ -373,7 +373,7 @@
 </div>
 </div>
 <div class="section" id="训练模型">
-<h3>训练模型<a class="headerlink" href="#训练模型" title="永久链接至标题">¶</a></h3>
+<h3>训练模型<a class="headerlink" href="#训练模型" title="Permalink to this headline">¶</a></h3>
 <p>训练开始前，定义回调函数callback，添加训练时间信息输出、loss信息输出，权重保存等，其中模型权重只在0卡上保存。</p>
 <p>callback_1保存网络的所有权重和优化器的状态，callback_2仅保存网络中参加更新的权重，用于第二阶段的PCA。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define callback_1</span>
@@ -396,7 +396,7 @@
 </div>
 </div>
 <div class="section" id="测试模型">
-<h3>测试模型<a class="headerlink" href="#测试模型" title="永久链接至标题">¶</a></h3>
+<h3>测试模型<a class="headerlink" href="#测试模型" title="Permalink to this headline">¶</a></h3>
 <p>首先定义测试模型，然后加载测试数据集，测试模型的精度。通过rank_id的判断，只在0卡上测试模型。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">get_rank_id</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;============== Starting Testing ==============&quot;</span><span class="p">)</span>
@@ -411,7 +411,7 @@
 </div>
 </div>
 <div class="section" id="实验结果">
-<h3>实验结果<a class="headerlink" href="#实验结果" title="永久链接至标题">¶</a></h3>
+<h3>实验结果<a class="headerlink" href="#实验结果" title="Permalink to this headline">¶</a></h3>
 <p>在经历了70轮epoch之后，在测试集上的精度约为66.05%。</p>
 <ol>
 <li><p>调用运行脚本<a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.0/docs/sample_code/dimension_reduce_training/run_stage_1.sh">run_stage_1.sh</a>，查看运行结果。运行脚本需要给定数据集路径，模型默认保存在device0_stage_1/checkpoint_stage_1下。</p>
@@ -441,14 +441,14 @@ epoch: 70 step: 625 loss is  2.3120291
 </div>
 </div>
 <div class="section" id="第二阶段-boost模式">
-<h2>第二阶段：boost模式<a class="headerlink" href="#第二阶段-boost模式" title="永久链接至标题">¶</a></h2>
+<h2>第二阶段：boost模式<a class="headerlink" href="#第二阶段-boost模式" title="Permalink to this headline">¶</a></h2>
 <p>基于第一阶段得到的权重文件，在Boost模式下，我们只要简单调用mindspore.boost的降维训练接口，即可实现降维训练的功能。</p>
 <blockquote>
 <div><p>第二阶段主要的训练样例代码请参考 <a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.0/docs/sample_code/dimension_reduce_training/train_boost_stage_2.py">train_boost_stage_2.py</a>。</p>
 </div></blockquote>
 <p>第二阶段和第一阶段的代码基本相同，下面仅说明不一致的地方。</p>
 <div class="section" id="定义网络并加载初始化权重">
-<h3>定义网络并加载初始化权重<a class="headerlink" href="#定义网络并加载初始化权重" title="永久链接至标题">¶</a></h3>
+<h3>定义网络并加载初始化权重<a class="headerlink" href="#定义网络并加载初始化权重" title="Permalink to this headline">¶</a></h3>
 <p>构建网络后，加载第一阶段训练结束时的权重文件，在此基础上进行第二阶段的训练。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define net</span>
 <span class="n">net</span> <span class="o">=</span> <span class="n">resnet</span><span class="p">(</span><span class="n">class_num</span><span class="o">=</span><span class="mi">1001</span><span class="p">)</span>
@@ -459,7 +459,7 @@ epoch: 70 step: 625 loss is  2.3120291
 </div>
 </div>
 <div class="section" id="定义训练模型-1">
-<h3>定义训练模型<a class="headerlink" href="#定义训练模型-1" title="永久链接至标题">¶</a></h3>
+<h3>定义训练模型<a class="headerlink" href="#定义训练模型-1" title="Permalink to this headline">¶</a></h3>
 <p>和第一阶段不同的是，第二阶段使用SGD优化器来更新网络权重。除此之外，还需要配置降维训练所需的参数，该配置以字典的形式构建。首先需要将boost的类型设置为人工（manual）设置，同时打开降维训练（dim_reduce），然后配置每个服务器节点使用的卡数，最后配置降维训练的一些超参数。除此之外，在定义模型的时候，还需要打开boost_level（设置为”O1”或者”O2“）。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define loss</span>
 <span class="n">loss</span> <span class="o">=</span> <span class="n">CrossEntropySmooth</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">smooth_factor</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="mi">1001</span><span class="p">)</span>
@@ -498,7 +498,7 @@ epoch: 70 step: 625 loss is  2.3120291
 </div>
 </div>
 <div class="section" id="训练模型-1">
-<h3>训练模型<a class="headerlink" href="#训练模型-1" title="永久链接至标题">¶</a></h3>
+<h3>训练模型<a class="headerlink" href="#训练模型-1" title="Permalink to this headline">¶</a></h3>
 <p>第二阶段，我们设置epoch为2。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define callback</span>
 <span class="n">cb</span> <span class="o">=</span> <span class="p">[</span><span class="n">TimeMonitor</span><span class="p">(</span><span class="n">data_size</span><span class="o">=</span><span class="n">step_size</span><span class="p">),</span> <span class="n">LossMonitor</span><span class="p">()]</span>
@@ -513,7 +513,7 @@ epoch: 70 step: 625 loss is  2.3120291
 </div>
 </div>
 <div class="section" id="实验结果-1">
-<h3>实验结果<a class="headerlink" href="#实验结果-1" title="永久链接至标题">¶</a></h3>
+<h3>实验结果<a class="headerlink" href="#实验结果-1" title="Permalink to this headline">¶</a></h3>
 <p>在经历了2轮epoch之后，在测试集上的精度约为74.31%。</p>
 <ol>
 <li><p>调用运行脚本<a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.0/docs/sample_code/dimension_reduce_training/run_stage_2.sh">run_stage_2.sh</a>，查看运行结果。运行脚本需要给定数据集路径，第一阶段训练结束时的权重文件，第二阶段保存的权重文件默认保存在device0_stage_2/checkpoint_stage_2下。</p>
@@ -556,7 +556,7 @@ epoch: 2 step: 625 loss is  2.1641185
 
   <div role="contentinfo">
     <p>
-        &#169; 版权所有 2022, MindSpore.
+        &#169; Copyright 2022, MindSpore.
 
     </p>
   </div>

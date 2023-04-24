@@ -93,7 +93,7 @@ $(function () {
             return {
               version: curVersion(subitem.version),
               url: subitem.url !=='' ? subitem.url : pagePath.replace(currentVersion, subitem.version)+'/index.html',
-              versionAlias: curVersion(subitem.versionAlias)
+              versionAlias: (subitem.version===msVersionInfo.version)?curVersion(msVersionInfo.versionAlias):''
             };
           });
           versionDropdownList = versionDropdownList.slice(0, 3);
