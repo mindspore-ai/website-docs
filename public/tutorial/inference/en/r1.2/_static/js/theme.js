@@ -95,7 +95,8 @@ $(function () {
       const pageSubMenu = isEn ? msVersionInfo.submenu.en  || []: msVersionInfo.submenu.zh  || [];
 
       let theme2Nav = '';
-      msDocsVersion.forEach(function (item) { 
+      msDocsVersion.forEach(function (item) {
+        if (pathname.startsWith('/' + item.name)) {
               versionDropdownList = item.versions.slice(0,3);
               // 格式化版本拉下菜单
               pageSubMenu.forEach((item) => {
@@ -125,7 +126,7 @@ $(function () {
                   })
                   .join('')}
         </div></nav>`;
-           
+        }
       });
 
       // 教程首页中间导航点击在本页打开

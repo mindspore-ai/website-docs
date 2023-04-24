@@ -88,14 +88,16 @@ $(function () {
       pageTitle = isEn ? msVersionInfo.label.en  || '': msVersionInfo.label.zh || '';
 
       msDocsVersion.forEach(function (item) { 
-              versionDropdownList = item.versions.map((subitem) => {
-                return {
-                  version: curVersion(subitem.version),
-                  url: subitem.url !=='' ? subitem.url : pagePath.replace(currentVersion, subitem.version)+'/index.html',
-                  versionAlias: curVersion(subitem.versionAlias)
-                };
-              });
-              versionDropdownList = versionDropdownList.slice(0, 3);
+        if (pathname.startsWith('/' + item.name)) {
+          versionDropdownList = item.versions.map((subitem) => {
+            return {
+              version: curVersion(subitem.version),
+              url: subitem.url !=='' ? subitem.url : pagePath.replace(currentVersion, subitem.version)+'/index.html',
+              versionAlias: curVersion(subitem.versionAlias)
+            };
+          });
+          versionDropdownList = versionDropdownList.slice(0, 3);
+        }
       });
       setTimeout(() => {
           // 版本选择

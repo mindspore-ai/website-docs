@@ -79,7 +79,7 @@ $(function () {
 
       let liteSubMenu = '';
       msDocsVersion.forEach(function (item) {
-           
+        if (pathname.startsWith('/' + item.name)) {
               versionDropdownList = item.versions.slice(0, 3);
               // 格式化版本拉下菜单
               pageSubMenu.forEach((item) => {
@@ -128,7 +128,8 @@ $(function () {
                         `;
                     })
                     .join('')}
-              </div></nav>`; 
+              </div></nav>`;
+        }
       });
 
       setTimeout(() => {
