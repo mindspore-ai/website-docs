@@ -309,8 +309,25 @@
     <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">status</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="all_finite"><a class="viewcode-back" href="../../api_python/amp/mindspore.amp.all_finite.html#mindspore.amp.all_finite">[文档]</a><span class="nd">@jit</span>
-<span class="k">def</span> <span class="nf">all_finite</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+<span class="nd">@jit</span>
+<span class="k">def</span> <span class="nf">_all_finite</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;all finite check&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">_ascend_target</span><span class="p">():</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+        <span class="n">get_status</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NPUGetFloatStatusV2</span><span class="p">)()(</span><span class="n">status</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">get_status</span><span class="p">)</span>
+        <span class="n">clear_status</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NPUClearFloatStatusV2</span><span class="p">)()(</span><span class="n">status</span><span class="p">)</span>
+        <span class="n">get_status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">get_status</span><span class="p">,</span> <span class="n">clear_status</span><span class="p">)</span>
+        <span class="n">status_finite</span> <span class="o">=</span> <span class="n">get_status</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">status_finite</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">_hypermap</span><span class="p">(</span><span class="n">_partial</span><span class="p">(</span><span class="n">_overflow</span><span class="p">),</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="n">flag_sum</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">addn</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(())</span>
+    <span class="n">status_finite</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">less</span><span class="p">(</span><span class="n">flag_sum</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">status_finite</span>
+
+
+<div class="viewcode-block" id="all_finite"><a class="viewcode-back" href="../../api_python/amp/mindspore.amp.all_finite.html#mindspore.amp.all_finite">[文档]</a><span class="k">def</span> <span class="nf">all_finite</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns a scalar Tensor indicating whether the inputs are finite.</span>
 
@@ -338,19 +355,8 @@
 <span class="sd">        - `Automatic Mix Precision - Loss Scaling</span>
 <span class="sd">          &lt;https://mindspore.cn/tutorials/en/master/advanced/mixed_precision.html#loss-scaling&gt;`_</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">_ascend_target</span><span class="p">():</span>
-        <span class="n">status</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
-        <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
-        <span class="n">get_status</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NPUGetFloatStatusV2</span><span class="p">)()(</span><span class="n">status</span><span class="p">)</span>
-        <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">get_status</span><span class="p">)</span>
-        <span class="n">clear_status</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NPUClearFloatStatusV2</span><span class="p">)()(</span><span class="n">status</span><span class="p">)</span>
-        <span class="n">get_status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">get_status</span><span class="p">,</span> <span class="n">clear_status</span><span class="p">)</span>
-        <span class="n">status_finite</span> <span class="o">=</span> <span class="n">get_status</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">status_finite</span>
-    <span class="n">outputs</span> <span class="o">=</span> <span class="n">_hypermap</span><span class="p">(</span><span class="n">_partial</span><span class="p">(</span><span class="n">_overflow</span><span class="p">),</span> <span class="n">inputs</span><span class="p">)</span>
-    <span class="n">flag_sum</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">addn</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(())</span>
-    <span class="n">_all_finite</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">less</span><span class="p">(</span><span class="n">flag_sum</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">_all_finite</span></div>
+    <span class="n">inputs</span> <span class="o">=</span> <span class="n">mutable</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_all_finite</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LossScaler"><a class="viewcode-back" href="../../api_python/amp/mindspore.amp.LossScaler.html#mindspore.amp.LossScaler">[文档]</a><span class="nd">@jit_class</span>
