@@ -232,10 +232,9 @@
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>The input and output of the operator can be saved for debugging through the data dump when the training result deviates from the expectation.</p>
 <ul class="simple">
-<li><p>For the dynamic graph mode, MindSpore provides the Dump function and native Python execution capabilities. Users can view and record the corresponding input and output during the running of the network script, it’s also can save the graph and the input and output data of the operator during model training to a disk file.</p></li>
+<li><p>For the dynamic graph mode, the Dump function only support overflow detection ability on Ascend. To view those nodes which are not overflow, please use the native Python execution capabilities. Users can view and record the corresponding input and output during the running of the network script.</p></li>
 <li><p>For the static graph mode, MindSpore provides the Dump function to save the graph and the input and output data of the operator during model training to a disk file.</p></li>
 </ul>
-<p>Aiming at the static graph mode, this tutorial introduces how to analyze and compare network data based on the Dump function.</p>
 <div class="section" id="debugging-process">
 <h3>Debugging Process<a class="headerlink" href="#debugging-process" title="Permalink to this headline">¶</a></h3>
 <p>Using dump to help debugging is divided into two steps: 1. Data preparation; 2. Data analysis.</p>
@@ -291,7 +290,7 @@
 <ul class="simple">
 <li><p>When Dump is enabled on Ascend, the operator to be dumped will automatically close memory reuse.</p></li>
 <li><p>Synchronous Dump supports the graph mode on Ascend, GPU and CPU, and currently does not support PyNative mode.</p></li>
-<li><p>Asynchronous Dump only supports graph mode on Ascend, not PyNative mode. Memory reuse will not be turned off when asynchronous Dump is enabled.</p></li>
+<li><p>Asynchronous Dump full ability only supports graph mode on Ascend, overflow detection ability only support graph mode and PyNative mode on Ascend. Memory reuse will not be turned off when asynchronous Dump is enabled.</p></li>
 <li><p>Default is Asynchronous Dump mode. If synchronous Dump mode is needed, “e2e_dump_settings” should be set in configuration file.</p></li>
 <li><p>Dump does not support heterogeneous training. If Dump is enabled for heterogeneous training scenario, the generated Dump data object directory maybe not in the expected directory structure.</p></li>
 </ul>
@@ -591,10 +590,10 @@ x, w],    pri_format: NC1HWC0, pad: (0, 0, 0, 0), visited: true, pad_mod: same, 
 </pre></div>
 </div>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">dump_mode</span></code>: 0: all operator data in the network dumped out; 1: dump kernels data in kernels list, 2: dump the kernels data specified by <code class="docutils literal notranslate"><span class="pre">set_dump</span></code> in the scripts, see <a class="reference external" href="https://www.mindspore.cn/docs/en/r2.0/api_python/mindspore/mindspore.set_dump.html">mindspore.dump</a> for the usage of <code class="docutils literal notranslate"><span class="pre">set_dump</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dump_mode</span></code>: 0: all operator data in the network dumped out; 1: dump kernels data in kernels list, 2: dump the kernels data specified by <code class="docutils literal notranslate"><span class="pre">set_dump</span></code> in the scripts, see <a class="reference external" href="https://www.mindspore.cn/docs/en/r2.0/api_python/mindspore/mindspore.set_dump.html">mindspore.dump</a> for the usage of <code class="docutils literal notranslate"><span class="pre">set_dump</span></code>. When overflow detection is enabled, the setting of this field becomes invalid, and Dump only saves the data of the overflow node.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">path</span></code>: The absolute path to save Dump data.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">net_name</span></code>: The customized net name: “ResNet50”.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">iteration</span></code>: Specify the iterations to dump, type is string. Use “|” to separate the step data of different intervals to be saved. For example, “0 | 5-8 | 100-120” represents dump the data of the 1st, 6th to 9th, and 101st to 121st steps. If iteration set to “all”, data of every iteration will be dumped.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iteration</span></code>: Specify the iterations to dump, type is string. Use “|” to separate the step data of different intervals to be saved. For example, “0 | 5-8 | 100-120” represents dump the data of the 1st, 6th to 9th, and 101st to 121st steps. If iteration set to “all”, data of every iteration will be dumped. When overflow detection is enabled for PyNative mode, it must be set to “all”.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">saved_data</span></code>: Specify what data is to be dumped, type is string. Use “tensor” to dump tensor data, use “statistic” to dump tensor statistics, use “full” to dump both tensor data and statistics. Default setting is “tensor”. Asynchronous statistics dump is only supported when <code class="docutils literal notranslate"><span class="pre">file_format</span></code> is set to <code class="docutils literal notranslate"><span class="pre">npy</span></code>, using “statistic” or “full” when <code class="docutils literal notranslate"><span class="pre">file_format</span></code> is set to <code class="docutils literal notranslate"><span class="pre">bin</span></code> will result in exception.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">input_output</span></code>: When set to 0, it means to Dump the operator’s input and output; when set to 1, it means to Dump the operator’s input; setting it to 2 means to Dump the output of the operator.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">kernels</span></code>: This item can be configured in two formats:</p>
@@ -642,10 +641,40 @@ For example, “conv” can match operators “Conv2D-op1234” and “Conv3D-op
 <h3>Asynchronous Dump Data Object Directory<a class="headerlink" href="#asynchronous-dump-data-object-directory" title="Permalink to this headline">¶</a></h3>
 <p>If set <code class="docutils literal notranslate"><span class="pre">file_format</span></code> to <code class="docutils literal notranslate"><span class="pre">npy</span></code>, see <a class="reference external" href="#synchronous-dump-data-object-directory">Synchronous Dump Data Object Directory</a> for the dump data object directory.</p>
 <p>If the <code class="docutils literal notranslate"><span class="pre">file_format</span></code> value or the <code class="docutils literal notranslate"><span class="pre">file_format</span></code> value is <code class="docutils literal notranslate"><span class="pre">bin</span></code> is not configured, the data object directory is structured as follows.</p>
-<p>The data objects saved by asynchronous Dump include the final execution graph (<code class="docutils literal notranslate"><span class="pre">ms_output_trace_code_graph_{graph_id}.ir</span></code> file) and the input and output data of the operators in the graph. The directory structure is as follows:</p>
+<p>The data objects saved by asynchronous Dump include the final execution graph (<code class="docutils literal notranslate"><span class="pre">ms_output_trace_code_graph_{graph_id}.ir</span></code> file) and the input and output data of the operators in the graph. If overflow detection is enabled, the overflow file (file <code class="docutils literal notranslate"><span class="pre">Opdebug.Node_OpDebug.{task_id}.{stream_id}.{timestamp}</span></code>) will also be saved when overflow is detected.</p>
+<p>The directory structure of graph mode is as follows:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>{path}/
     - rank_{rank_id}/
         - .dump_metadata/
+        - debug_files (Only be saved when overflow detection is enabled in dynamic shapes or non task sinking scenarios)/
+            - {iteration_id}/
+                Opdebug.Node_OpDebug.{task_id}.{stream_id}.{timestamp}
+                ...
+        - {net_name}/
+            - {graph_id}/
+                - {iteration_id}/
+                    statistic.csv
+                    {op_type}.{op_name}.{task_id}.{stream_id}.{timestamp}
+                    Opdebug.Node_OpDebug.{task_id}.{stream_id}.{timestamp} (Only be saved when overflow detection is enabled in task sinking scenarios)
+                    mapping.csv
+                - constants/
+                    Parameter.data-{data_id}.0.0.{timestamp}.output.0.DefaultFormat.npy
+            ...
+        - graphs/
+            ms_output_trace_code_graph_{graph_id}.pb
+            ms_output_trace_code_graph_{graph_id}.ir
+        - execution_order/
+            ms_execution_order_graph_{graph_id}.csv
+            ms_global_execution_order_graph_{graph_id}.csv
+</pre></div>
+</div>
+<p>The directory structure of Pynative mode is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>{path}/
+    - rank_{rank_id}/
+        - .dump_metadata/
+        - debug_files/
+            Opdebug.Node_OpDebug.{task_id}.{stream_id}.{timestamp}
+            ...
         - {net_name}/
             - {graph_id}/
                 - {iteration_id}/
@@ -679,12 +708,13 @@ For example, “conv” can match operators “Conv2D-op1234” and “Conv3D-op
 <p>Due to the control flow, some sub-graphs may not be executed, but Dump only saves the executed nodes, so the {graph_id} in the <code class="docutils literal notranslate"><span class="pre">.pb</span></code> file name in the graphs directory does not necessarily exist in the {graph_id} directory under {net_name}.</p>
 <p>For multi-graph networks, such as dynamic shape scenario, the iterations of all graphs on each device are counted uniformly.</p>
 <p>If the length of the tensor file name defined according to the naming rules exceeds the OS file name length limit (usually 255 characters), the tensor file will be renamed to a string of random numbers. The mapping relationship will be written to the file ‘mapping.csv’ in the same directory.</p>
+<p>For PyNative mode, since there is no forward graph and only the backward graph and optimization graph are saved, there may be situations where overflow nodes cannot find corresponding graph files.</p>
 </div>
 <div class="section" id="introduction-to-asynchronous-dump-data-file">
 <h3>Introduction to Asynchronous Dump Data File<a class="headerlink" href="#introduction-to-asynchronous-dump-data-file" title="Permalink to this headline">¶</a></h3>
 <p>If set <code class="docutils literal notranslate"><span class="pre">file_format</span></code> to <code class="docutils literal notranslate"><span class="pre">npy</span></code>, see <a class="reference external" href="#introduction-to-synchronous-dump-data-file">Introduction to Synchronous Dump Data File</a> for the introduction to dump data file.</p>
-<p>If not configured <code class="docutils literal notranslate"><span class="pre">file_format</span></code> or set <code class="docutils literal notranslate"><span class="pre">file_format</span></code> to <code class="docutils literal notranslate"><span class="pre">bin</span></code>, after the training is started, the original data file generated by asynchronous Dump is in protobuf format. It needs to be parsed using the data analysis tool that comes with the HiSilicon Run package. For details, please refer to <a class="reference external" href="https://support.huawei.com/enterprise/en/doc/EDOC1100234058/c748fd92/how-do-i-view-a-dump-file">How to view dump data files</a>.</p>
-<p>The data format on the Device side may be different from the definition in the calculation diagram on the Host side. The data format of the asynchronous dump is the Device side format. If you want to convert to the Host side format, you can refer to <a class="reference external" href="https://support.huawei.com/enterprise/en/doc/EDOC1100234058/b04fcd04/how-do-i-convert-the-format-of-a-dump-file">How to convert dump data file format</a>.</p>
+<p>If not configured <code class="docutils literal notranslate"><span class="pre">file_format</span></code> or set <code class="docutils literal notranslate"><span class="pre">file_format</span></code> to <code class="docutils literal notranslate"><span class="pre">bin</span></code>, after the training is started, the original data file generated by asynchronous Dump or overflow files generated by overflow detection are in protobuf format. They need to be parsed using the data analysis tool that comes with the HiSilicon Run package. For details, please refer to <a class="reference external" href="https://www.hiascend.com/document/detail/en/CANNCommunityEdition/600alphaX/developmenttools/devtool/atlasaccuracy_16_0078.html">How to view dump data files</a>.</p>
+<p>The data format on the Device side may be different from the definition in the calculation diagram on the Host side. The data format of the asynchronous dump is the Device side format. If you want to convert to the Host side format, you can refer to <a class="reference external" href="https://www.hiascend.com/document/detail/en/CANNCommunityEdition/600alphaX/developmenttools/devtool/atlasaccuracy_16_0077.html">How to convert dump data file format</a>.</p>
 <p>If the file is saved in <code class="docutils literal notranslate"><span class="pre">bin</span></code> format, the file naming format is:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>{op_type}.{op_name}.{task_id}.{stream_id}.{timestamp}
 </pre></div>
@@ -693,7 +723,7 @@ For example, “conv” can match operators “Conv2D-op1234” and “Conv3D-op
 <p>If “.”, “/”, “”, and spaces appear in <code class="docutils literal notranslate"><span class="pre">op_type</span></code> and <code class="docutils literal notranslate"><span class="pre">op_name</span></code>, they will be converted to underscores.</p>
 <p>The original data file generated by dump can also be parsed by using the data parsing tool DumpParser of MindSpore Insight. Please refer to <a class="reference external" href="https://gitee.com/mindspore/mindinsight/blob/r2.0/mindinsight/parser/README.md">DumpParser Introduction</a> for the usage of DumpParser.
 The data format parsed by MindSpore Insight is exactly the same as that of synchronous dump.</p>
-<p>If setting <code class="docutils literal notranslate"><span class="pre">file_format</span></code> to <code class="docutils literal notranslate"><span class="pre">npy</span></code>, the naming convention of data files generated by asynchronous dump is the same as those of synchronous dump. Please refer to <a class="reference external" href="#introduction-to-synchronous-dump-data-file">Introduction to Synchronous Dump Data File</a>.</p>
+<p>If setting <code class="docutils literal notranslate"><span class="pre">file_format</span></code> to <code class="docutils literal notranslate"><span class="pre">npy</span></code>, the naming convention of data files generated by asynchronous dump is the same as those of synchronous dump. Please refer to <a class="reference external" href="#introduction-to-synchronous-dump-data-file">Introduction to Synchronous Dump Data File</a>. The overflow file generated by overflow detection is in the <code class="docutils literal notranslate"><span class="pre">json</span></code> format, and the content analysis of the overflow file can refer to the <a class="reference external" href="https://www.hiascend.com/document/detail/en/CANNCommunityEdition/600alphaX/infacldevg/aclcppdevg/aclcppdevg_000160.html">Analyzing the Data File of an Overflow/Underflow Operator</a> .</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">saved_data</span></code> option only takes effect when <code class="docutils literal notranslate"><span class="pre">file_format</span></code> is “npy”. If <code class="docutils literal notranslate"><span class="pre">saved_data</span></code> is “statistic” or “full”, tensor statistics will be dumped in <code class="docutils literal notranslate"><span class="pre">statistic.csv</span></code>. When <code class="docutils literal notranslate"><span class="pre">saved_data</span></code> is “tensor” or “full”, full tensor data will be dumped in <code class="docutils literal notranslate"><span class="pre">{op_type}.{op_name}.{task_id}.{stream_id}.{timestamp}.{input_output_index}.{slot}.{format}.npy</span></code>. The format of the statistic file will be the same as that of synchonous dump. Please refer to <a class="reference external" href="#introduction-to-synchronous-dump-data-file">Introduction to Synchronous Dump Data File</a>.</p>
 <p>The constant dump file, final execution graph file and execution order file naming rules generated by asynchronous Dump are the same as that of synchronous Dump. You can refer to <a class="reference external" href="#introduction-to-synchronous-dump-data-file">Introduction to Synchronous Dump Data File</a>.</p>
 </div>
@@ -715,7 +745,7 @@ The data format parsed by MindSpore Insight is exactly the same as that of synch
 </pre></div>
 </div>
 <p>The {file path of dump} can be path to a single <code class="docutils literal notranslate"><span class="pre">.bin</span></code> file, or the folder that include the <code class="docutils literal notranslate"><span class="pre">.bin</span></code> files.</p>
-<p>If you need to convert the data format, please refer to the user instructions link <a class="reference external" href="https://support.huawei.com/enterprise/en/doc/EDOC1100234058/b04fcd04/how-do-i-convert-the-format-of-a-dump-file">https://support.huawei.com/enterprise/en/doc/EDOC1100234058/b04fcd04/how-do-i-convert-the-format-of-a-dump-file</a>.</p>
+<p>If you need to convert the data format, please refer to the user instructions link <a class="reference external" href="https://www.hiascend.com/document/detail/en/CANNCommunityEdition/600alphaX/developmenttools/devtool/atlasaccuracy_16_0077.html">https://www.hiascend.com/document/detail/en/CANNCommunityEdition/600alphaX/developmenttools/devtool/atlasaccuracy_16_0077.html</a>.</p>
 <p>For example, the data file generated by Dump is:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Conv2D.Default_network-WithLossCell__backbone-AlexNet_conv3-Conv2d_Conv2D-op12.2.7.161243956333802
 </pre></div>

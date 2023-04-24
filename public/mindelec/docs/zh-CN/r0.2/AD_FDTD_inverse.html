@@ -1,0 +1,692 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>端到端可微分FDTD求解电磁逆散射问题 &mdash; MindSpore master 文档</title>
+  
+
+  
+   
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script src="_static/translations.js"></script>
+        
+        
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+    <link rel="next" title="电磁仿真结果可视化" href="visualization.html" />
+    <link rel="prev" title="基于可微分FDTD的贴片天线S参数仿真" href="AD_FDTD_forward.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> MindSpore
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">安装部署</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro_and_install.html">MindSpore Elec介绍和安装</a></li>
+</ul>
+<p class="caption"><span class="caption-text">应用实践</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="physics_driven.html">物理驱动的AI电磁仿真方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_driven.html">数据驱动的AI电磁仿真方法</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="AD_FDTD.html">端到端可微分的FDTD方法</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="AD_FDTD_forward.html">基于可微分FDTD的贴片天线S参数仿真</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">端到端可微分FDTD求解电磁逆散射问题</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#麦克斯韦方程组">麦克斯韦方程组</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#问题描述">问题描述</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#导入依赖">导入依赖</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#加载数据集">加载数据集</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#定义激励源位置观察点位置以及求解区域">定义激励源位置、观察点位置以及求解区域</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#定义激励源时域波形">定义激励源时域波形</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#构建可微分fdtd网络">构建可微分FDTD网络</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#模型训练">模型训练</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#评估求解结果">评估求解结果</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="visualization.html">电磁仿真结果可视化</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mindelec.architecture.html">mindelec.architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindelec.common.html">mindelec.common</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindelec.data.html">mindelec.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindelec.geometry.html">mindelec.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindelec.loss.html">mindelec.loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindelec.operators.html">mindelec.operators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindelec.solver.html">mindelec.solver</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mindelec.vision.html">mindelec.vision</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">MindSpore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="AD_FDTD.html">端到端可微分的FDTD方法</a> &raquo;</li>
+        
+      <li>端到端可微分FDTD求解电磁逆散射问题</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/AD_FDTD_inverse.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="端到端可微分fdtd求解电磁逆散射问题">
+<h1>端到端可微分FDTD求解电磁逆散射问题<a class="headerlink" href="#端到端可微分fdtd求解电磁逆散射问题" title="永久链接至标题">¶</a></h1>
+<p><a href="https://gitee.com/mindspore/docs/blob/r2.0/docs/mindelec/docs/source_zh_cn/AD_FDTD_inverse.md" target="_blank"><img src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.0/resource/_static/logo_source.png"></a>  </p>
+<div class="section" id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题">¶</a></h2>
+<p>本教程介绍MindSpore Elec提供的基于端到端可微分FDTD求解电磁逆问题的方法。时域有限差分（FDTD）方法求解麦克斯韦方程组的过程等价于一个循环卷积网络（RCNN）。利用MindSpore的可微分算子重写更新流程，便可得到端到端可微分FDTD。相比于数据驱动的黑盒模型，可微分FDTD方法的求解流程严格满足麦克斯韦方程组的约束。利用MindSpore的基于梯度的优化器，可微分FDTD可求解各种电磁逆问题。</p>
+<blockquote>
+<div><p>本例面向GPU处理器，你可以在这里下载完整的样例代码：
+<a class="reference external" href="https://gitee.com/mindspore/mindscience/tree/r0.2.0/MindElec/examples/AD_FDTD/fdtd_inverse">https://gitee.com/mindspore/mindscience/tree/r0.2.0/MindElec/examples/AD_FDTD/fdtd_inverse</a></p>
+</div></blockquote>
+</div>
+<div class="section" id="麦克斯韦方程组">
+<h2>麦克斯韦方程组<a class="headerlink" href="#麦克斯韦方程组" title="永久链接至标题">¶</a></h2>
+<p>有源麦克斯韦方程是电磁仿真的经典控制方程，它是一组描述电场、磁场与电荷密度、电流密度之间关系的偏微分方程组，具体形式如下：</p>
+<div class="math notranslate nohighlight">
+\[
+\nabla\times E=-\mu \dfrac{\partial H}{\partial t},
+\]</div>
+<div class="math notranslate nohighlight">
+\[
+\nabla\times H=\epsilon \dfrac{\partial E}{\partial t} + J(x, t)
+\]</div>
+<p>其中<span class="math notranslate nohighlight">\(\epsilon,\mu\)</span>分别是介质的绝对介电常数、绝对磁导率。<span class="math notranslate nohighlight">\(J(x, t)\)</span>是电磁仿真过程中的激励源，通常表现为端口脉冲的形式。这在数学意义上近似为狄拉克函数形式所表示的点源，可以表示为：</p>
+<div class="math notranslate nohighlight">
+\[
+J(x, t)=\delta(x - x_0)g(t)
+\]</div>
+<p>其中<span class="math notranslate nohighlight">\(x_0\)</span>为激励源位置，<span class="math notranslate nohighlight">\(g(t)\)</span>为脉冲信号的函数表达形式。</p>
+</div>
+<div class="section" id="问题描述">
+<h2>问题描述<a class="headerlink" href="#问题描述" title="永久链接至标题">¶</a></h2>
+<p>本案例求解二维TM模式的电磁逆散射问题。两个介质体位于矩形区域内。在求解区域外侧设置4个激励源（红色三角）和8个观察点（绿色圆点），具体情况如下图所示：</p>
+<p><img alt="求解区域设置" src="_images/inversion_problem_setup.png" /></p>
+<p>MindSpore Elec求解该问题的具体流程如下：</p>
+<ol class="simple">
+<li><p>用传统数值方法获得观察点处的时域电场值，创建训练数据集和评估数据。</p></li>
+<li><p>定义激励源位置、观察点位置以及求解区域。</p></li>
+<li><p>定义激励源的时域波形。</p></li>
+<li><p>构建可微分FDTD网络。</p></li>
+<li><p>网络训练并评估求解结果。</p></li>
+</ol>
+</div>
+<div class="section" id="导入依赖">
+<h2>导入依赖<a class="headerlink" href="#导入依赖" title="永久链接至标题">¶</a></h2>
+<p>导入本教程所依赖模块与接口：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">src</span> <span class="kn">import</span> <span class="n">transverse_magnetic</span><span class="p">,</span> <span class="n">EMInverseSolver</span>
+<span class="kn">from</span> <span class="nn">src</span> <span class="kn">import</span> <span class="n">zeros</span><span class="p">,</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">vstack</span><span class="p">,</span> <span class="n">elu</span>
+<span class="kn">from</span> <span class="nn">src</span> <span class="kn">import</span> <span class="n">Gaussian</span><span class="p">,</span> <span class="n">CFSParameters</span><span class="p">,</span> <span class="n">estimate_time_interval</span>
+<span class="kn">from</span> <span class="nn">src</span> <span class="kn">import</span> <span class="n">BaseTopologyDesigner</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="加载数据集">
+<h2>加载数据集<a class="headerlink" href="#加载数据集" title="永久链接至标题">¶</a></h2>
+<p>加载用传统数值方法（如FDTD）计算得到的各个观察点处的时域电场值，以及相对介电常数真值。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">load_labels</span><span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="n">dataset_dir</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load labels of Ez fields and epsr.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        nt (int): Number of time steps.</span>
+<span class="sd">        dataset_dir (str): Dataset directory.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        field_labels (Tensor, shape=(nt, ns, nr)): Ez at receivers.</span>
+<span class="sd">        epsr_labels (Tensor, shape=(nx, ny)): Ground truth for epsr.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">field_label_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s1">&#39;ez_labels.npy&#39;</span><span class="p">)</span>
+    <span class="n">field_labels</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">field_label_path</span><span class="p">))[:</span><span class="n">nt</span><span class="p">]</span>
+
+    <span class="n">epsr_label_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s1">&#39;epsr_labels.npy&#39;</span><span class="p">)</span>
+    <span class="n">epsr_labels</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">epsr_label_path</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">field_labels</span><span class="p">,</span> <span class="n">epsr_labels</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="定义激励源位置观察点位置以及求解区域">
+<h2>定义激励源位置、观察点位置以及求解区域<a class="headerlink" href="#定义激励源位置观察点位置以及求解区域" title="永久链接至标题">¶</a></h2>
+<p>继承<code class="docutils literal notranslate"><span class="pre">BaseTopologyDesiger</span></code>类，用户可以快速定义电磁逆散射问题。用户可在成员函数<code class="docutils literal notranslate"><span class="pre">generate_object</span></code>、<code class="docutils literal notranslate"><span class="pre">update_sources</span></code>和<code class="docutils literal notranslate"><span class="pre">get_outputs_at_each_step</span></code>中分别设置求解区域、激励源位置和观察点位置。以该问题为例，我们定义的电磁逆散射问题如下。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">InverseDomain</span><span class="p">(</span><span class="n">BaseTopologyDesigner</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    InverseDomain with customized mapping and source locations for user-defined problems.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">generate_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rho</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate material tensors.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            rho (Parameter): Parameters to be optimized in the inversion domain.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            epsr (Tensor, shape=(self.cell_nunbers)): Relative permittivity in the whole domain.</span>
+<span class="sd">            sige (Tensor, shape=(self.cell_nunbers)): Conductivity in the whole domain.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># generate background material tensors</span>
+        <span class="n">epsr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_epsr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid</span>
+        <span class="n">sige</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_sige</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid</span>
+        <span class="c1"># ---------------------------------------------</span>
+        <span class="c1"># Customized Differentiable Mapping</span>
+        <span class="c1"># ---------------------------------------------</span>
+        <span class="n">epsr</span><span class="p">[</span><span class="mi">30</span><span class="p">:</span><span class="mi">70</span><span class="p">,</span> <span class="mi">30</span><span class="p">:</span><span class="mi">70</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_epsr</span> <span class="o">+</span> <span class="n">elu</span><span class="p">(</span><span class="n">rho</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">epsr</span><span class="p">,</span> <span class="n">sige</span>
+
+    <span class="k">def</span> <span class="nf">update_sources</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set locations of sources.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *args: arguments</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            jz (Tensor, shape=(ns, 1, nx+1, ny+1)): Jz tensor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sources</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">waveform</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="n">jz</span> <span class="o">=</span> <span class="n">sources</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">jz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">50</span><span class="p">]</span> <span class="o">=</span> <span class="n">waveform</span>
+        <span class="n">jz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">20</span><span class="p">]</span> <span class="o">=</span> <span class="n">waveform</span>
+        <span class="n">jz</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">80</span><span class="p">,</span> <span class="mi">50</span><span class="p">]</span> <span class="o">=</span> <span class="n">waveform</span>
+        <span class="n">jz</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span> <span class="o">=</span> <span class="n">waveform</span>
+        <span class="k">return</span> <span class="n">jz</span>
+
+    <span class="k">def</span> <span class="nf">get_outputs_at_each_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute output each step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *args: arguments</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            rx (Tensor, shape=(ns, nr)): Ez fields at receivers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ez</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">rx</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ez</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">25</span><span class="p">],</span>
+            <span class="n">ez</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">50</span><span class="p">],</span>
+            <span class="n">ez</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">75</span><span class="p">],</span>
+            <span class="n">ez</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">25</span><span class="p">],</span>
+            <span class="n">ez</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">75</span><span class="p">],</span>
+            <span class="n">ez</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="mi">25</span><span class="p">],</span>
+            <span class="n">ez</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="mi">50</span><span class="p">],</span>
+            <span class="n">ez</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="mi">75</span><span class="p">],</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">vstack</span><span class="p">(</span><span class="n">rx</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>值得注意的是，在<code class="docutils literal notranslate"><span class="pre">generate_object</span></code>中将待优化变量<code class="docutils literal notranslate"><span class="pre">rho</span></code>映射为相对介电常数<code class="docutils literal notranslate"><span class="pre">epsr</span></code>时，选取合适的映射关系可以大大加快求解器收敛速度。本案例采用的映射关系为<code class="docutils literal notranslate"><span class="pre">background_epsr</span> <span class="pre">+</span> <span class="pre">elu(rho,</span> <span class="pre">alpha=1e-2)</span></code>，保证求解过程中不会出现非物理的介电常数。</p>
+</div>
+<div class="section" id="定义激励源时域波形">
+<h2>定义激励源时域波形<a class="headerlink" href="#定义激励源时域波形" title="永久链接至标题">¶</a></h2>
+<p>本案例的激励源时域波形为高斯脉冲。FDTD采用蛙跳格式分别更新电场和磁场，而本案例的激励源为电流源，因此应计算半时间步上的激励源时域波形值。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_waveform_t</span><span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">fmax</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute waveforms at time t.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        nt (int): Number of time steps.</span>
+<span class="sd">        dt (float): Time interval.</span>
+<span class="sd">        fmax (float): Maximum freuqency of Gaussian wave</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        waveform_t (Tensor, shape=(nt, ns, nr)): Waveforms.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">nt</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">dt</span>
+    <span class="n">waveform</span> <span class="o">=</span> <span class="n">Gaussian</span><span class="p">(</span><span class="n">fmax</span><span class="p">)</span>
+    <span class="n">waveform_t</span> <span class="o">=</span> <span class="n">waveform</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">waveform_t</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="构建可微分fdtd网络">
+<h2>构建可微分FDTD网络<a class="headerlink" href="#构建可微分fdtd网络" title="永久链接至标题">¶</a></h2>
+<p>本案例求解二维TM模式的电磁逆散射问题。时域有限差分（FDTD）方法求解麦克斯韦方程组的过程等价于一个循环卷积网络（RCNN）。当采用CFS-PML对无限大区域进行截断时，TM模式的二维FDTD的第<span class="math notranslate nohighlight">\(n\)</span>个时间步的更新过程如下：</p>
+<p><img alt="FDTD时间步更新流程" src="_images/FDTD_RCNN_Update_TM_Mode.png" /></p>
+<p>利用MindSpore的可微分算子重写FDTD的更新流程，便可得到端到端可微分FDTD。每个时间步内的计算过程如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">FDTDLayer</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    One-step 2D TM-Mode FDTD.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cell_lengths (tuple): Lengths of Yee cells.</span>
+<span class="sd">        cpmlx_e (Tensor): Updating coefficients for electric fields in the x-direction CPML.</span>
+<span class="sd">        cpmlx_m (Tensor): Updating coefficients for magnetic fields in the x-direction CPML.</span>
+<span class="sd">        cpmly_e (Tensor): Updating coefficients for electric fields in the y-direction CPML.</span>
+<span class="sd">        cpmly_m (Tensor): Updating coefficients for magnetic fields in the y-direction CPML.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">cell_lengths</span><span class="p">,</span>
+                 <span class="n">cpmlx_e</span><span class="p">,</span> <span class="n">cpmlx_m</span><span class="p">,</span>
+                 <span class="n">cpmly_e</span><span class="p">,</span> <span class="n">cpmly_m</span><span class="p">,</span>
+                 <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FDTDLayer</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">cell_lengths</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">cell_lengths</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpmlx_e</span> <span class="o">=</span> <span class="n">cpmlx_e</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpmlx_m</span> <span class="o">=</span> <span class="n">cpmlx_m</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpmly_e</span> <span class="o">=</span> <span class="n">cpmly_e</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpmly_m</span> <span class="o">=</span> <span class="n">cpmly_m</span>
+        <span class="c1"># operators</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dx_oper</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Conv2D</span><span class="p">(</span><span class="n">out_channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dy_oper</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Conv2D</span><span class="p">(</span><span class="n">out_channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dx_wghts</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">([</span><span class="o">-</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="n">dx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dy_wghts</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">([</span><span class="o">-</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="n">dy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pad_x</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(</span><span class="n">paddings</span><span class="o">=</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pad_y</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(</span><span class="n">paddings</span><span class="o">=</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jz_t</span><span class="p">,</span> <span class="n">ez</span><span class="p">,</span> <span class="n">hx</span><span class="p">,</span> <span class="n">hy</span><span class="p">,</span> <span class="n">pezx</span><span class="p">,</span> <span class="n">pezy</span><span class="p">,</span> <span class="n">phxy</span><span class="p">,</span> <span class="n">phyx</span><span class="p">,</span>
+                  <span class="n">ceze</span><span class="p">,</span> <span class="n">cezh</span><span class="p">,</span> <span class="n">chxh</span><span class="p">,</span> <span class="n">chxe</span><span class="p">,</span> <span class="n">chyh</span><span class="p">,</span> <span class="n">chye</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;One-step forward propagation</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            jz_t (Tensor): Source at time t + 0.5 * dt.</span>
+<span class="sd">            ez, hx, hy (Tensor): Ez, Hx, Hy fields.</span>
+<span class="sd">            pezx, pezy, phxy, phyx (Tensor): CPML auxiliary fields.</span>
+<span class="sd">            ceze, cezh (Tensor): Updating coefficients for Ez fields.</span>
+<span class="sd">            chxh, chxe (Tensor): Updating coefficients for Hx fields.</span>
+<span class="sd">            chyh, chye (Tensor): Updating coefficients for Hy fields.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            hidden_states (tuple)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># -------------------------------------------------</span>
+        <span class="c1"># Step 1: Update H&#39;s at n+1/2 step</span>
+        <span class="c1"># -------------------------------------------------</span>
+        <span class="c1"># compute curl E</span>
+        <span class="n">dezdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dx_oper</span><span class="p">(</span><span class="n">ez</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dx_wghts</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmlx_m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">dezdy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dy_oper</span><span class="p">(</span><span class="n">ez</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dy_wghts</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmly_m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># update auxiliary fields</span>
+        <span class="n">phyx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmlx_m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">phyx</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmlx_m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">dezdx</span>
+        <span class="n">phxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmly_m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">phxy</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmly_m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">dezdy</span>
+
+        <span class="c1"># update H</span>
+        <span class="n">hx</span> <span class="o">=</span> <span class="n">chxh</span> <span class="o">*</span> <span class="n">hx</span> <span class="o">-</span> <span class="n">chxe</span> <span class="o">*</span> <span class="p">(</span><span class="n">dezdy</span> <span class="o">+</span> <span class="n">phxy</span><span class="p">)</span>
+        <span class="n">hy</span> <span class="o">=</span> <span class="n">chyh</span> <span class="o">*</span> <span class="n">hy</span> <span class="o">+</span> <span class="n">chye</span> <span class="o">*</span> <span class="p">(</span><span class="n">dezdx</span> <span class="o">+</span> <span class="n">phyx</span><span class="p">)</span>
+
+        <span class="c1"># -------------------------------------------------</span>
+        <span class="c1"># Step 2: Update E&#39;s at n+1 step</span>
+        <span class="c1"># -------------------------------------------------</span>
+        <span class="c1"># compute curl H</span>
+        <span class="n">dhydx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pad_x</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dx_oper</span><span class="p">(</span><span class="n">hy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dx_wghts</span><span class="p">))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmlx_e</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">dhxdy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pad_y</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dy_oper</span><span class="p">(</span><span class="n">hx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dy_wghts</span><span class="p">))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmly_e</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># update auxiliary fields</span>
+        <span class="n">pezx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmlx_e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">pezx</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmlx_e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">dhydx</span>
+        <span class="n">pezy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmly_e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">pezy</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpmly_e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">dhxdy</span>
+
+        <span class="c1"># update E</span>
+        <span class="n">ez</span> <span class="o">=</span> <span class="n">ceze</span> <span class="o">*</span> <span class="n">ez</span> <span class="o">+</span> <span class="n">cezh</span> <span class="o">*</span> <span class="p">((</span><span class="n">dhydx</span> <span class="o">+</span> <span class="n">pezx</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">dhxdy</span> <span class="o">+</span> <span class="n">pezy</span><span class="p">)</span> <span class="o">-</span> <span class="n">jz_t</span><span class="p">)</span>
+
+        <span class="n">hidden_states</span> <span class="o">=</span> <span class="p">(</span><span class="n">ez</span><span class="p">,</span> <span class="n">hx</span><span class="p">,</span> <span class="n">hy</span><span class="p">,</span> <span class="n">pezx</span><span class="p">,</span> <span class="n">pezy</span><span class="p">,</span> <span class="n">phxy</span><span class="p">,</span> <span class="n">phyx</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">hidden_states</span>
+</pre></div>
+</div>
+<p>端到端可微分FDTD网络如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">ADFDTD</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;2D TM-Mode Differentiable FDTD Network.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cell_numbers (tuple): Number of Yee cells in (x, y) directions.</span>
+<span class="sd">        cell_lengths (tuple): Lengths of Yee cells.</span>
+<span class="sd">        nt (int): Number of time steps.</span>
+<span class="sd">        dt (float): Time interval.</span>
+<span class="sd">        ns (int): Number of sources.</span>
+<span class="sd">        designer (BaseTopologyDesigner): Customized Topology designer.</span>
+<span class="sd">        cfs_pml (CFSParameters): CFS parameter class.</span>
+<span class="sd">        init_weights (Tensor): Initial weights.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        outputs (Tensor): Customized outputs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">cell_numbers</span><span class="p">,</span>
+                 <span class="n">cell_lengths</span><span class="p">,</span>
+                 <span class="n">nt</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span>
+                 <span class="n">ns</span><span class="p">,</span>
+                 <span class="n">designer</span><span class="p">,</span>
+                 <span class="n">cfs_pml</span><span class="p">,</span>
+                 <span class="n">init_weights</span><span class="p">,</span>
+                 <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ADFDTD</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nx</span> <span class="o">=</span> <span class="n">cell_numbers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ny</span> <span class="o">=</span> <span class="n">cell_numbers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dx</span> <span class="o">=</span> <span class="n">cell_lengths</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dy</span> <span class="o">=</span> <span class="n">cell_lengths</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nt</span> <span class="o">=</span> <span class="n">nt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ns</span> <span class="o">=</span> <span class="n">ns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">designer</span> <span class="o">=</span> <span class="n">designer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfs_pml</span> <span class="o">=</span> <span class="n">cfs_pml</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+            <span class="n">init_weights</span><span class="p">)</span> <span class="k">if</span> <span class="n">init_weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mur</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="mf">1.</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigm</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfs_pml</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># CFS-PML Coefficients</span>
+            <span class="n">cpmlx_e</span><span class="p">,</span> <span class="n">cpmlx_m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfs_pml</span><span class="o">.</span><span class="n">get_update_coefficients</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">nx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">designer</span><span class="o">.</span><span class="n">background_epsr</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+            <span class="n">cpmly_e</span><span class="p">,</span> <span class="n">cpmly_m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfs_pml</span><span class="o">.</span><span class="n">get_update_coefficients</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ny</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">designer</span><span class="o">.</span><span class="n">background_epsr</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+
+            <span class="n">cpmlx_e</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">cpmlx_e</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+            <span class="n">cpmlx_m</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">cpmlx_m</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+            <span class="n">cpmly_e</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">cpmly_e</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
+            <span class="n">cpmly_m</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">cpmly_m</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># PEC boundary</span>
+            <span class="n">cpmlx_e</span> <span class="o">=</span> <span class="n">cpmlx_m</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">([</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">cpmly_e</span> <span class="o">=</span> <span class="n">cpmly_m</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">([</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="c1"># FDTD layer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fdtd_layer</span> <span class="o">=</span> <span class="n">FDTDLayer</span><span class="p">(</span>
+            <span class="n">cell_lengths</span><span class="p">,</span> <span class="n">cpmlx_e</span><span class="p">,</span> <span class="n">cpmlx_m</span><span class="p">,</span> <span class="n">cpmly_e</span><span class="p">,</span> <span class="n">cpmly_m</span><span class="p">)</span>
+
+        <span class="c1"># auxiliary variables</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dte</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">dt</span> <span class="o">/</span> <span class="n">epsilon0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtm</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">dt</span> <span class="o">/</span> <span class="n">mu0</span><span class="p">)</span>
+
+        <span class="c1"># material parameters smoother</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smooth_kernel</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smooth_oper</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Conv2D</span><span class="p">(</span>
+            <span class="n">out_channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">waveform_t</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ADFDTD-based forward propagation.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            waveform_t (Tensor, shape=(nt,)): Time-domain waveforms.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            outputs (Tensor): Customized outputs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># ----------------------------------------</span>
+        <span class="c1"># Initialization</span>
+        <span class="c1"># ----------------------------------------</span>
+        <span class="c1"># constants</span>
+        <span class="n">ns</span><span class="p">,</span> <span class="n">nt</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ns</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ny</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span>
+
+        <span class="c1"># material grid</span>
+        <span class="n">epsr</span><span class="p">,</span> <span class="n">sige</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">designer</span><span class="o">.</span><span class="n">generate_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rho</span><span class="p">)</span>
+
+        <span class="c1"># delectric smoothing</span>
+        <span class="n">epsrz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_oper</span><span class="p">(</span><span class="n">epsr</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_kernel</span><span class="p">)</span>
+        <span class="n">sigez</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_oper</span><span class="p">(</span><span class="n">sige</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_kernel</span><span class="p">)</span>
+
+        <span class="c1"># set materials on the interfaces</span>
+        <span class="p">(</span><span class="n">epsrz</span><span class="p">,</span> <span class="n">sigez</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">designer</span><span class="o">.</span><span class="n">modify_object</span><span class="p">(</span><span class="n">epsrz</span><span class="p">,</span> <span class="n">sigez</span><span class="p">)</span>
+
+        <span class="c1"># non-magnetic &amp; magnetically lossless material</span>
+        <span class="n">murx</span> <span class="o">=</span> <span class="n">mury</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mur</span>
+        <span class="n">sigmx</span> <span class="o">=</span> <span class="n">sigmy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigm</span>
+
+        <span class="c1"># updating coefficients</span>
+        <span class="n">ceze</span><span class="p">,</span> <span class="n">cezh</span> <span class="o">=</span> <span class="n">fcmpt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dte</span><span class="p">,</span> <span class="n">epsrz</span><span class="p">,</span> <span class="n">sigez</span><span class="p">)</span>
+        <span class="n">chxh</span><span class="p">,</span> <span class="n">chxe</span> <span class="o">=</span> <span class="n">fcmpt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtm</span><span class="p">,</span> <span class="n">murx</span><span class="p">,</span> <span class="n">sigmx</span><span class="p">)</span>
+        <span class="n">chyh</span><span class="p">,</span> <span class="n">chye</span> <span class="o">=</span> <span class="n">fcmpt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtm</span><span class="p">,</span> <span class="n">mury</span><span class="p">,</span> <span class="n">sigmy</span><span class="p">)</span>
+
+        <span class="c1"># hidden states</span>
+        <span class="n">ez</span> <span class="o">=</span> <span class="n">create_zero_tensor</span><span class="p">((</span><span class="n">ns</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">nx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ny</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">hx</span> <span class="o">=</span> <span class="n">create_zero_tensor</span><span class="p">((</span><span class="n">ns</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">nx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ny</span><span class="p">))</span>
+        <span class="n">hy</span> <span class="o">=</span> <span class="n">create_zero_tensor</span><span class="p">((</span><span class="n">ns</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="c1"># CFS-PML auxiliary fields</span>
+        <span class="n">pezx</span> <span class="o">=</span> <span class="n">zeros_like</span><span class="p">(</span><span class="n">ez</span><span class="p">)</span>
+        <span class="n">pezy</span> <span class="o">=</span> <span class="n">zeros_like</span><span class="p">(</span><span class="n">ez</span><span class="p">)</span>
+        <span class="n">phxy</span> <span class="o">=</span> <span class="n">zeros_like</span><span class="p">(</span><span class="n">hx</span><span class="p">)</span>
+        <span class="n">phyx</span> <span class="o">=</span> <span class="n">zeros_like</span><span class="p">(</span><span class="n">hy</span><span class="p">)</span>
+
+        <span class="c1"># set source location</span>
+        <span class="n">jz_t</span> <span class="o">=</span> <span class="n">zeros_like</span><span class="p">(</span><span class="n">ez</span><span class="p">)</span>
+
+        <span class="c1"># ----------------------------------------</span>
+        <span class="c1"># Update</span>
+        <span class="c1"># ----------------------------------------</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">t</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">while</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">nt</span><span class="p">:</span>
+
+            <span class="n">jz_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">designer</span><span class="o">.</span><span class="n">update_sources</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">jz_t</span><span class="p">,),</span> <span class="p">(</span><span class="n">ez</span><span class="p">,),</span> <span class="n">waveform_t</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="n">dt</span><span class="p">)</span>
+
+            <span class="c1"># RNN-Style Update</span>
+            <span class="p">(</span><span class="n">ez</span><span class="p">,</span> <span class="n">hx</span><span class="p">,</span> <span class="n">hy</span><span class="p">,</span> <span class="n">pezx</span><span class="p">,</span> <span class="n">pezy</span><span class="p">,</span> <span class="n">phxy</span><span class="p">,</span> <span class="n">phyx</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fdtd_layer</span><span class="p">(</span>
+                <span class="n">jz_t</span><span class="p">,</span> <span class="n">ez</span><span class="p">,</span> <span class="n">hx</span><span class="p">,</span> <span class="n">hy</span><span class="p">,</span> <span class="n">pezx</span><span class="p">,</span> <span class="n">pezy</span><span class="p">,</span> <span class="n">phxy</span><span class="p">,</span> <span class="n">phyx</span><span class="p">,</span>
+                <span class="n">ceze</span><span class="p">,</span> <span class="n">cezh</span><span class="p">,</span> <span class="n">chxh</span><span class="p">,</span> <span class="n">chxe</span><span class="p">,</span> <span class="n">chyh</span><span class="p">,</span> <span class="n">chye</span><span class="p">)</span>
+
+            <span class="c1"># Compute outputs</span>
+            <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">designer</span><span class="o">.</span><span class="n">get_outputs_at_each_step</span><span class="p">((</span><span class="n">ez</span><span class="p">,</span> <span class="n">hx</span><span class="p">,</span> <span class="n">hy</span><span class="p">)))</span>
+
+            <span class="n">t</span> <span class="o">=</span> <span class="n">t</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="n">outputs</span> <span class="o">=</span> <span class="n">hstack</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">outputs</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="模型训练">
+<h2>模型训练<a class="headerlink" href="#模型训练" title="永久链接至标题">¶</a></h2>
+<p>定义可微分FDTD网络、损失函数、优化器、迭代步数和学习率，然后定义电磁逆散射求解器对象<code class="docutils literal notranslate"><span class="pre">solver</span></code>，调用<code class="docutils literal notranslate"><span class="pre">solve</span></code>接口进行求解。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># define fdtd network</span>
+<span class="n">fdtd_net</span> <span class="o">=</span> <span class="n">transverse_magnetic</span><span class="o">.</span><span class="n">ADFDTD</span><span class="p">(</span>
+    <span class="n">cell_numbers</span><span class="p">,</span> <span class="n">cell_lengths</span><span class="p">,</span> <span class="n">nt</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">ns</span><span class="p">,</span>
+    <span class="n">inverse_domain</span><span class="p">,</span> <span class="n">cpml</span><span class="p">,</span> <span class="n">rho_init</span><span class="p">)</span>
+
+<span class="c1"># define sovler for inverse problem</span>
+<span class="n">epochs</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">epochs</span>
+<span class="n">lr</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">lr</span>
+<span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;sum&#39;</span><span class="p">)</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">fdtd_net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+<span class="n">solver</span> <span class="o">=</span> <span class="n">EMInverseSolver</span><span class="p">(</span><span class="n">fdtd_net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
+
+<span class="c1"># solve</span>
+<span class="n">solver</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">epochs</span><span class="p">,</span> <span class="n">waveform_t</span><span class="p">,</span> <span class="n">field_labels</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="评估求解结果">
+<h2>评估求解结果<a class="headerlink" href="#评估求解结果" title="永久链接至标题">¶</a></h2>
+<p>求解结束后，调用<code class="docutils literal notranslate"><span class="pre">eval</span></code>接口评估反演结果的<code class="docutils literal notranslate"><span class="pre">PSNR</span></code>和<code class="docutils literal notranslate"><span class="pre">SSIM</span></code>。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">epsr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">epsr_labels</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>基于上述方法反演得到的相对介电常数的<code class="docutils literal notranslate"><span class="pre">PSNR</span></code>和<code class="docutils literal notranslate"><span class="pre">SSIM</span></code>分别为：</p>
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[epsr] PSNR: 27.835317 dB, SSIM: 0.963564
+</pre></div>
+</div>
+<p>反演得到的相对介电常数分布如下图所示。</p>
+<p><img alt="反演结果" src="_images/epsr_reconstructed.png" /></p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="visualization.html" class="btn btn-neutral float-right" title="电磁仿真结果可视化" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="AD_FDTD_forward.html" class="btn btn-neutral float-left" title="基于可微分FDTD的贴片天线S参数仿真" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; 版权所有 2022, MindSpore.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+	<script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>
