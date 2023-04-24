@@ -88,7 +88,7 @@ $(function () {
                         return {
                             version: curVersion(sub.version),
                             url: sub.url !=='' ? sub.url:item.url.replace(currentVersion, sub.version),
-                            versionAlias:sub.versionAlias
+                            versionAlias:(sub.version===msVersionInfo.version)?curVersion(msVersionInfo.versionAlias):''
                         };
                     });
                   }
