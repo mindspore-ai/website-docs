@@ -107,7 +107,7 @@ fi
 
 if [ ${REPLACE_BUILD} == "true" ];then
     cd /root/website-docs/scripts
-    python distrib_theme.py --verison="${VERSION}"
+    python distrib_theme.py --version="${VERSION}"
 fi
 
 # shellcheck disable=SC2164
