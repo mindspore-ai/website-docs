@@ -204,7 +204,6 @@ function createScriptSensor() {
                                                     <div class="docsNew-column-title">${sub.title || ''}</div>
                                                 <div class="bottom" style="line-height: initial;">
                                                     ${sub.children.map(function (subitem) {
-  
                                                         return `
                                                         <div class="docsVersion"><a class="versionM" href="${msHeader.headerNavLinks(subitem.id)}">${subitem.name}</a></div>
                                                         `;
@@ -450,8 +449,8 @@ function createScriptSensor() {
     },
     headerNavLinks:function(path){
       let href = '';
-      if(path ==='lite'){
-        href = '/'+path;
+      if(path ==='lite'){ 
+        href = '/'+path+(isEn?'/en':'');
       }else if(path.startsWith('tutorials')|| path ==='docs'){
         href = `/${path + lang + msHeader.headerPathVersion(path)}/index.html`;
       }else{
@@ -937,14 +936,14 @@ function createScriptSensor() {
                               h3[i].parentNode.querySelectorAll('h4');
                           for (let k = 0; k < navLi4Array.length; k++) {
                               navLi4 +=
-                                  '<li><a href=\'#' +
+                                  '<li><a title="'+ navLi4Array[k].innerText +'" href=\'#' +
                                   navLi4Array[k].parentNode.id +
                                   '\'>' +
                                   navLi4Array[k].innerText +
                                   '</a></li>';
                           }
                           navLi3 +=
-                              '<li><a href=\'#' +
+                              '<li><a title="'+ h3[i].innerText +'" href=\'#' +
                               h3[i].parentNode.id +
                               '\'>' +
                               h3[i].innerText +
@@ -953,7 +952,7 @@ function createScriptSensor() {
                               '</ul></li>';
                       } else {
                           navLi3 +=
-                              '<li><a href=\'#' +
+                              '<li><a title="'+ h3[i].innerText +'" href=\'#' +
                               h3[i].parentNode.id +
                               '\'>' +
                               h3[i].innerText +
@@ -961,7 +960,7 @@ function createScriptSensor() {
                       }
                   }
                   navLi2 =
-                      '<li><a href="#' +
+                      '<li><a title="'+ h2List[i].innerText +'" href="#' +
                       h2List[i].parentNode.id +
                       '">' +
                       h2List[i].innerText +
@@ -995,14 +994,14 @@ function createScriptSensor() {
                                   );
                               for (let k = 0; k < navLi4Array.length; k++) {
                                   navLi4 +=
-                                      '<li><a href=\'#' +
+                                      '<li><a title="'+ navLi4Array[k].innerText +'" href=\'#' +
                                       navLi4Array[k].parentNode.id +
                                       '\'>' +
                                       navLi4Array[k].innerText +
                                       '</a></li>';
                               }
                               navLi3 +=
-                                  '<li><a href=\'#' +
+                                  '<li><a title="'+ navLi3Array[j].innerText +'" href=\'#' +
                                   navLi3Array[j].parentNode.id +
                                   '\'>' +
                                   navLi3Array[j].innerText +
@@ -1011,7 +1010,7 @@ function createScriptSensor() {
                                   '</ul></li>';
                           } else {
                               navLi3 +=
-                                  '<li><a href=\'#' +
+                                  '<li><a title="'+ navLi3Array[j].innerText +'" href=\'#' +
                                   navLi3Array[j].parentNode.id +
                                   '\'>' +
                                   navLi3Array[j].innerText +
@@ -1019,14 +1018,14 @@ function createScriptSensor() {
                           }
                       }
                       navLi2 =
-                          '<li><a href="#' +
+                          '<li><a title="'+ h2List[i].innerText +'" href="#' +
                           h2List[i].parentNode.id +
                           '">' +
                           h2List[i].innerText +
                           '</a><ul class="navList3"></ul></li>';
                   } else {
                       navLi2 =
-                          '<li><a href="#' +
+                          '<li><a title="'+ h2List[i].innerText +'" href="#' +
                           h2List[i].parentNode.id +
                           '">' +
                           h2List[i].innerText +
@@ -1043,7 +1042,7 @@ function createScriptSensor() {
           navLi3 = '';
           for (let i = 0; i < codeList.length; i++) {
               var codeLi2 =
-                  '<li><a href="#' +
+                  '<li><a title="'+codeList[i].innerText+'" href="#' +
                   codeList[i].parentNode.id +
                   '">' +
                   codeList[i].innerText +
