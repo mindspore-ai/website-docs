@@ -187,21 +187,22 @@
 <span class="sd">The GymEnvironment base class.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">itemgetter</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+
 <span class="c1"># pylint: disable=W0223</span>
 <span class="c1"># pylint: disable=W0707</span>
 <span class="kn">import</span> <span class="nn">gym</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">gym</span> <span class="kn">import</span> <span class="n">spaces</span>
-<span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
 <span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
 
-<span class="kn">from</span> <span class="nn">mindspore_rl.environment.environment</span> <span class="kn">import</span> <span class="n">Environment</span>
-<span class="kn">from</span> <span class="nn">mindspore_rl.environment.space</span> <span class="kn">import</span> <span class="n">Space</span>
+<span class="kn">from</span> <span class="nn">mindspore_rl.environment.python_environment</span> <span class="kn">import</span> <span class="n">PythonEnvironment</span>
+<span class="kn">from</span> <span class="nn">mindspore_rl.environment.space_adapter</span> <span class="kn">import</span> <span class="n">gym2ms_adapter</span>
 
 <span class="n">is_old_gym</span> <span class="o">=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">gym</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s2">&quot;0.26.0&quot;</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="GymEnvironment"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.GymEnvironment">[文档]</a><span class="k">class</span> <span class="nc">GymEnvironment</span><span class="p">(</span><span class="n">Environment</span><span class="p">):</span>
+<div class="viewcode-block" id="GymEnvironment"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.GymEnvironment">[文档]</a><span class="k">class</span> <span class="nc">GymEnvironment</span><span class="p">(</span><span class="n">PythonEnvironment</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The GymEnvironment class is a wrapper that encapsulates `Gym &lt;https://gym.openai.com/&gt;`_ to</span>
 <span class="sd">    provide the ability to interact with Gym environments in MindSpore Graph Mode.</span>
@@ -230,110 +231,24 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">env_id</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+        <span class="c1"># Obtain parameters</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;seed&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_env_id</span> <span class="o">=</span> <span class="n">env_id</span>
-        <span class="k">if</span> <span class="n">is_old_gym</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env_id</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_space_adapter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_space_adapter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">action_space</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span> <span class="o">=</span> <span class="n">Space</span><span class="p">((</span><span class="mi">1</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span> <span class="o">=</span> <span class="n">Space</span><span class="p">((</span><span class="mi">1</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">,</span> <span class="n">low</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_info_key</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;info_key&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_render_mode</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;render_mode&quot;</span><span class="p">,</span> <span class="s2">&quot;rgb_array&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_render_kwargs</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;render_kwargs&quot;</span><span class="p">,</span> <span class="p">{})</span>
 
-        <span class="c1"># reset op</span>
-        <span class="n">reset_input_type</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">reset_input_shape</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">reset_output_type</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
-        <span class="p">]</span>
-        <span class="n">reset_output_shape</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
-        <span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_op</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">PyFunc</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_reset</span><span class="p">,</span>
-            <span class="n">reset_input_type</span><span class="p">,</span>
-            <span class="n">reset_input_shape</span><span class="p">,</span>
-            <span class="n">reset_output_type</span><span class="p">,</span>
-            <span class="n">reset_output_shape</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="c1"># step op</span>
-        <span class="n">step_input_type</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,)</span>
-        <span class="n">step_input_shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,)</span>
-        <span class="n">step_output_type</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="o">.</span><span class="n">ms_dtype</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">step_output_shape</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_step_op</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">PyFunc</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">,</span>
-            <span class="n">step_input_type</span><span class="p">,</span>
-            <span class="n">step_input_shape</span><span class="p">,</span>
-            <span class="n">step_output_type</span><span class="p">,</span>
-            <span class="n">step_output_shape</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">action_dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span><span class="o">.</span><span class="n">ms_dtype</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cast</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Cast</span><span class="p">()</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">observation_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the state space of the environment.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            The state space of environment.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_observation_space</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">action_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the action space of the environment.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            The action space of environment.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_action_space</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">reward_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the reward space of the environment.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            The reward space of environment.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reward_space</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">done_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the done space of the environment.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            The done space of environment.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_done_space</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the config of environment.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            A dictionary which contains environment&#39;s info.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">{}</span>
+        <span class="c1"># Create environment instance and adapt gym space to mindspore space</span>
+        <span class="k">if</span> <span class="n">is_old_gym</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">,</span> <span class="n">render_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_render_mode</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;seed&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">+</span> <span class="n">env_id</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="n">observation_space</span> <span class="o">=</span> <span class="n">gym2ms_adapter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">)</span>
+        <span class="n">action_space</span> <span class="o">=</span> <span class="n">gym2ms_adapter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">action_space</span><span class="p">)</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="vm">__dict__</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">action_space</span><span class="p">,</span> <span class="n">observation_space</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
 
 <div class="viewcode-block" id="GymEnvironment.close"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.GymEnvironment.close">[文档]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -345,45 +260,20 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="k">return</span> <span class="kc">True</span></div>
 
-<div class="viewcode-block" id="GymEnvironment.render"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.GymEnvironment.render">[文档]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_render</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Render the game. Only support on PyNative mode.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">is_old_gym</span><span class="p">:</span>
+                <span class="n">img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_render_mode</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_render_kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_render_kwargs</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                 <span class="s2">&quot;Failed to render, run in PyNative mode and comment the ms_function.&quot;</span>
-            <span class="p">)</span></div>
-
-<div class="viewcode-block" id="GymEnvironment.reset"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.GymEnvironment.reset">[文档]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Reset the environment to the initial state. It is always used at the beginning of each</span>
-<span class="sd">        episode. It will return the value of initial state.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            A tensor which states for the initial state of environment.</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reset_op</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span></div>
-
-<div class="viewcode-block" id="GymEnvironment.step"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.environment.GymEnvironment.step">[文档]</a>    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Execute the environment step, which means that interact with environment once.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            action (Tensor): A tensor that contains the action information.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            - state (Tensor), the environment state after performing the action.</span>
-<span class="sd">            - reward (Tensor), the reward after performing the action.</span>
-<span class="sd">            - done (Tensor), whether the simulation finishes or not.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="c1"># Add cast ops for mixed precision case. Redundant cast ops will be eliminated automatically.</span>
-        <span class="n">action</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">action</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_dtype</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step_op</span><span class="p">(</span><span class="n">action</span><span class="p">)</span></div>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">img</span>
 
     <span class="k">def</span> <span class="nf">_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -394,15 +284,17 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            A numpy array which states for the initial state of environment.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="n">is_old_gym</span><span class="p">:</span>
             <span class="n">s0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env_id</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span>
-            <span class="n">s0</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span><span class="p">)</span>
-        <span class="c1"># In some gym version, the obvervation space is announced to be float32, but get float64 from reset and step.</span>
-        <span class="n">s0</span> <span class="o">=</span> <span class="n">s0</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span><span class="o">.</span><span class="n">np_dtype</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">s0</span>
+            <span class="n">s0</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_info_key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_old_gym</span><span class="p">:</span>
+            <span class="n">reset_out</span> <span class="o">=</span> <span class="n">s0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">info_value</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">itemgetter</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_info_key</span><span class="p">)(</span><span class="n">info</span><span class="p">))</span>
+            <span class="n">reset_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">s0</span><span class="p">,</span> <span class="o">*</span><span class="n">info_value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">reset_out</span>
 
     <span class="k">def</span> <span class="nf">_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -420,33 +312,18 @@
 <span class="sd">            - done (boolean), whether the simulation finishes or not.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">is_old_gym</span><span class="p">:</span>
-            <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">term</span><span class="p">,</span> <span class="n">trunc</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">term</span><span class="p">,</span> <span class="n">trunc</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
             <span class="n">done</span> <span class="o">=</span> <span class="n">term</span> <span class="ow">or</span> <span class="n">trunc</span>
-        <span class="c1"># In some gym version, the obvervation space is announced to be float32, but get float64 from reset and step.</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span><span class="o">.</span><span class="n">np_dtype</span><span class="p">)</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">r</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="n">done</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">done</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span>
-
-    <span class="k">def</span> <span class="nf">_space_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gym_space</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transfer gym dtype to the dtype that is suitable for MindSpore&quot;&quot;&quot;</span>
-        <span class="n">shape</span> <span class="o">=</span> <span class="n">gym_space</span><span class="o">.</span><span class="n">shape</span>
-        <span class="n">gym_type</span> <span class="o">=</span> <span class="n">gym_space</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span>
-        <span class="c1"># The dtype get from gym.space is np.int64, but step() accept np.int32 actually.</span>
-        <span class="k">if</span> <span class="n">gym_type</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">:</span>
-            <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span>
-        <span class="c1"># The float64 is not supported, cast to float32</span>
-        <span class="k">elif</span> <span class="n">gym_type</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">:</span>
-            <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">done</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info_key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">step_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">dtype</span> <span class="o">=</span> <span class="n">gym_type</span>
-
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gym_space</span><span class="p">,</span> <span class="n">spaces</span><span class="o">.</span><span class="n">Discrete</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">Space</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">low</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="n">gym_space</span><span class="o">.</span><span class="n">n</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">Space</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">low</span><span class="o">=</span><span class="n">gym_space</span><span class="o">.</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="n">gym_space</span><span class="o">.</span><span class="n">high</span><span class="p">)</span></div>
+            <span class="n">info_value</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">itemgetter</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_info_key</span><span class="p">)(</span><span class="n">info</span><span class="p">))</span>
+            <span class="n">step_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="o">*</span><span class="n">info_value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">step_out</span></div>
 </pre></div>
 
            </div>

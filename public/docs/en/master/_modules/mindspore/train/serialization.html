@@ -446,16 +446,18 @@
                     <span class="n">plain_data</span> <span class="o">=</span> <span class="n">BytesIO</span><span class="p">()</span>
 
                 <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data_list</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;random_op&quot;</span><span class="p">:</span>
+                        <span class="n">_write_random_seed</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+                        <span class="k">continue</span>
                     <span class="k">if</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;mapparameter&quot;</span><span class="p">:</span>
                         <span class="n">_write_mapparameter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
                         <span class="k">continue</span>
-                    <span class="k">elif</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;offload_parameter&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;offload_parameter&quot;</span><span class="p">:</span>
                         <span class="n">new_value</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
                         <span class="n">new_value</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
                         <span class="n">_write_parameter_data</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">new_value</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">enc_key</span><span class="p">,</span> <span class="n">plain_data</span><span class="p">)</span>
                         <span class="n">_offload_if_config</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
                         <span class="k">continue</span>
-
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">Tensor</span><span class="p">):</span>
                         <span class="n">_write_hugeparameter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
                         <span class="k">continue</span>
@@ -476,6 +478,18 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Failed to save the checkpoint file </span><span class="si">%s</span><span class="s2">. Maybe don&#39;t have the permission to write files, &quot;</span>
                         <span class="s2">&quot;or the disk space is insufficient and so on.&quot;</span><span class="p">,</span> <span class="n">ckpt_file_name</span><span class="p">)</span>
         <span class="k">raise</span> <span class="n">e</span>
+
+
+<span class="k">def</span> <span class="nf">_write_random_seed</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write random op into protobuf file.&quot;&quot;&quot;</span>
+    <span class="n">checkpoint_list</span> <span class="o">=</span> <span class="n">Checkpoint</span><span class="p">()</span>
+    <span class="n">param_value</span> <span class="o">=</span> <span class="n">checkpoint_list</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">param_value</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="n">param_tensor</span> <span class="o">=</span> <span class="n">param_value</span><span class="o">.</span><span class="n">tensor</span>
+    <span class="n">param_tensor</span><span class="o">.</span><span class="n">dims</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">param_tensor</span><span class="o">.</span><span class="n">tensor_type</span> <span class="o">=</span> <span class="s2">&quot;random_op&quot;</span>
+    <span class="n">param_tensor</span><span class="o">.</span><span class="n">tensor_content</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">checkpoint_list</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">())</span>
 
 
 <span class="k">def</span> <span class="nf">_write_parameter_data</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">enc_key</span><span class="p">,</span> <span class="n">plain_data</span><span class="p">):</span>
@@ -608,6 +622,12 @@
         <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">():</span>
             <span class="n">param_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span>
         <span class="n">param_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">append_dict</span> <span class="ow">and</span> <span class="s2">&quot;random_op&quot;</span> <span class="ow">in</span> <span class="n">append_dict</span><span class="p">:</span>
+            <span class="n">phase</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">save_obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">save_obj</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">arguments_key</span>
+            <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">compile_cache</span> <span class="ow">and</span> <span class="n">_executor</span><span class="o">.</span><span class="n">has_compiled</span><span class="p">(</span><span class="n">phase</span><span class="p">):</span>
+                <span class="n">random_byte</span> <span class="o">=</span> <span class="n">_executor</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">get_random_status</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
+                <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;random_op&quot;</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">random_byte</span><span class="p">})</span>
+            <span class="n">append_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;random_op&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">param_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">each_param</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">key</span><span class="p">}</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">MapParameter</span><span class="p">):</span>
@@ -660,6 +680,9 @@
     <span class="n">data_list</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
     <span class="k">with</span> <span class="n">_ckpt_mutex</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">param</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;random_op&quot;</span><span class="p">:</span>
+                <span class="n">data_list</span><span class="p">[</span><span class="s2">&quot;random_op&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span>
+                <span class="k">continue</span>
             <span class="n">key</span> <span class="o">=</span> <span class="n">param</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
             <span class="n">data_list</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
@@ -1107,6 +1130,9 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;For load_checkpoint, this parameter `filter_prefix` will be deprecated, &quot;</span>
                            <span class="s2">&quot;please use `choice_func` instead.&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">element_id</span><span class="p">,</span> <span class="n">element</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">checkpoint_list</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;random_op&quot;</span><span class="p">:</span>
+                <span class="n">parameter_dict</span><span class="p">[</span><span class="s2">&quot;random_op&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">tensor_content</span>
+                <span class="k">continue</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">_whether_load_param</span><span class="p">(</span><span class="n">specify_prefix</span><span class="p">,</span> <span class="n">filter_prefix</span><span class="p">,</span> <span class="n">element</span><span class="o">.</span><span class="n">tag</span><span class="p">):</span>
                 <span class="k">continue</span>
             <span class="k">if</span> <span class="n">specify_prefix</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">filter_prefix</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> \
@@ -1293,12 +1319,14 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Failed to combine the net and the parameters.&quot;</span><span class="p">)</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;For &#39;load_param_into_net&#39;, the argument &#39;net&#39; should be a Cell, but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">net</span><span class="p">)))</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Failed to combine the net and the parameters.&quot;</span><span class="p">)</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;For &#39;load_param_into_net&#39;, the argument &#39;parameter_dict&#39; should be a dict, &quot;</span>
                <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">)))</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;random_op&quot;</span> <span class="ow">in</span> <span class="n">parameter_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">net</span><span class="o">.</span><span class="n">_add_attr</span><span class="p">(</span><span class="s2">&quot;random_op_snapshot&quot;</span><span class="p">,</span> <span class="n">parameter_dict</span><span class="p">[</span><span class="s2">&quot;random_op&quot;</span><span class="p">])</span>
+        <span class="n">parameter_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;random_op&quot;</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parameter_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="n">Parameter</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Load parameters into net failed.&quot;</span><span class="p">)</span>
