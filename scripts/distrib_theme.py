@@ -25,9 +25,7 @@ def main(arg_version):
     elif arg_version != "all":
         json_name_list = [arg_version + ".json"]
     else:
-        json_name_list = ["0.1.0-alpha.json", "0.2.0-alpha.json", "0.3.0-alpha.json", "r0.5.json",
-                          "r0.6.json", "r0.7.json", "r1.0.json", "r1.1.json", "r1.2.json", "r1.3.json",
-                          "r1.5.json", "r1.6.json", "r1.7.json", "r1.8.json", "r1.9.json", "r1.10.json", "r2.0.0-alpha.json"]
+        json_name_list = [file for file in os.listdir(version_dir)]
     for json_name in json_name_list:
         with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
             data = json.load(f)
@@ -100,13 +98,7 @@ def main(arg_version):
                 if os.path.exists(os.path.join(css_path_en[num], "theme.css")):
                     os.remove(os.path.join(css_path_en[num], "theme.css"))
                 shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_en[num], "theme.css"))
-                write_content = copy.deepcopy(data[i])
-                write_content.pop("repo_name", None)
-                with open(os.path.join(js_path_zh[num], f"version.json"), 'w+', encoding='utf-8') as g:
-                    json.dump(write_content, g, indent=4)
-                with open(os.path.join(js_path_en[num], f"version.json"), 'w+', encoding='utf-8') as h:
-                    json.dump(write_content, h, indent=4)
-        print(f"{'.'.join(json_name.split('.')[:-1])}版本各组件json文件生成完成！已分配至对应文件夹内！样式文件也已替换完成！")
+        print(f"{'.'.join(json_name.split('.')[:-1])}版本样式文件也已替换完成！")
     if error_dir:
         print('error_dir', error_dir)
 
