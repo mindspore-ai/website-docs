@@ -105,6 +105,11 @@ if [ ${DO_BUILD} == "true" ];then
   delete_old
 fi
 
+if [ ${REPLACE_BUILD} == "true" ];then
+    cd /root/website-docs/scripts
+    python distrib_theme.py --verison="${VERSION}"
+fi
+
 # shellcheck disable=SC2164
 cd /root/website-docs
 
