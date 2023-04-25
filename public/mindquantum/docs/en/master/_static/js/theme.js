@@ -24,30 +24,21 @@ $(function () {
   const currentVersion = pathPrefix[1].split('/')[0];
   const pagePath = pathPrefix[0] +lang + currentVersion;
   
-  let msDocsVersion = [],
+  let msVersionData = [],
       versionDropdownList = [],
-      msVersionInfo = [],
+      componentVersionData = [],
+      componentVersionTitle = '',
       pageTitle = '';
 
   // 获取当前版本 不带R
   function curVersion(version) {
-      return version === 'master'
+    let title = '';
+    if(version){
+      title = version === 'master'
           ? 'master'
           : version.startsWith('r') ? version.slice(1):version;
-  }
-
-  // 版本名称显示
-  function pageVersionName (){
-    let versionName= '';
-    versionDropdownList.forEach((subitem) => {
-      if(currentVersion.endsWith(subitem.version)){
-        versionName= subitem.versionAlias !==''?subitem.versionAlias:subitem.version;
       }
-    });
-    if (versionName === '') {
-      versionName = currentVersion;
-    }
-    return curVersion(versionName);
+      return title;
   }
 
   // 请求数据
@@ -69,7 +60,7 @@ $(function () {
   // 切换版本下拉菜单
   function versionDropdown(obj) {
       return `<div class='version-select-wrap'><div class="version-select-dom">
-      <span class="versionText">${pageVersionName()}</span> <img src="/pic/down.svg" />
+      <span class="versionText">${curVersion(componentVersionTitle)}</span> <img src="/pic/down.svg" />
           <ul>
               ${obj
                   .map(function (item) {
@@ -82,21 +73,23 @@ $(function () {
   }
 
   const initPage = async function () {
-      msDocsVersion = await getHeaderData('/msVersion.json');
-      msVersionInfo = await getHeaderData(`${pagePath}/_static/js/version.json`);
+      msVersionData = await getHeaderData('/msVersion.json');
+      componentVersionData = await getHeaderData(`${pagePath}/_static/js/version.json`);
 
-      pageTitle = isEn ? msVersionInfo.label.en  || '': msVersionInfo.label.zh || '';
+      pageTitle = isEn ? componentVersionData.label.en  || '': componentVersionData.label.zh || '';
 
-      msDocsVersion.forEach(function (item) { 
+      componentVersionTitle = componentVersionData.versionAlias?componentVersionData.versionAlias:componentVersionData.version;
+
+      msVersionData.forEach(function (item) { 
         if (pathname.startsWith('/' + item.name)) {
-          versionDropdownList = item.versions.map((subitem) => {
+          versionDropdownList = item.versions.map((sub) => {
             return {
-              version: curVersion(subitem.version),
-              url: subitem.url !=='' ? subitem.url : pagePath.replace(currentVersion, subitem.version)+'/index.html',
-              versionAlias: curVersion(subitem.versionAlias)
+              version: curVersion(sub.version),
+              url: sub.url !=='' ? sub.url : pagePath.replace(currentVersion, sub.version)+'/index.html',
+              versionAlias: curVersion(sub.versionAlias)
             };
           });
-          versionDropdownList = versionDropdownList.slice(0, 3);
+          versionDropdownList = versionDropdownList.slice(0, 4);
         }
       });
       setTimeout(() => {
@@ -112,7 +105,7 @@ $(function () {
                   .addClass('side-fix')
                   .prepend(versionDropdown(versionDropdownList));
           }
-          $('.wy-breadcrumbs>li:first-of-type')[0].innerText = pageTitle + ' (' + pageVersionName() + ')';
+          $('.wy-breadcrumbs>li:first-of-type')[0].innerText = pageTitle + ' (' + curVersion(componentVersionTitle) + ')';
           let welcomeText = isEn ? `${pageTitle} Documentation`: `欢迎查看${pageTitle}文档`;
           $('.wy-menu-vertical').before(
             `<div class="docsHome"><a  href="#" class="welcome">${welcomeText}</a></div>`
