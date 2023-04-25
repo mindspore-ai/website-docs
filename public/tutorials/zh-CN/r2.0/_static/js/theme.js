@@ -90,7 +90,7 @@ $(function () {
       let theme2Nav = '';
       msVersionData.forEach(function (item) {
         if (pathname.startsWith('/' + item.name)) {
-              versionDropdownList = item.versions.slice(0,3);
+              versionDropdownList = item.versions.slice(0,4);
               // 格式化版本拉下菜单
               pageSubMenu.forEach((item) => {
                   item.versions = versionDropdownList.map((sub) => {
@@ -153,9 +153,6 @@ $(function () {
                   .addClass('side-fix')
                   .prepend(versionDropdown(pageSubMenu));
           }
-          if (pathname.indexOf('/index.html') !== -1) {
-            $('.welcome').addClass('selected');
-          }
       }, 100);
 
       // 左侧菜单控制
@@ -167,7 +164,6 @@ $(function () {
               aList[i].parentNode.parentNode.parentNode.className = aList[i].parentNode.parentNode.parentNode.className + ' ' + 'navNoPlus';
           }
       }
-      
   };
 
   initPage();
