@@ -158,7 +158,7 @@ function createScriptSensor() {
   const body = $('body');
   
   let headerMenuData = [],
-  msDocsVersion = [];
+  msVersionData = [];
   // 获取导航菜单
   function getHeaderData(url){
     return new Promise((resolve,reject) => {
@@ -437,7 +437,7 @@ function createScriptSensor() {
     },
     headerPathVersion:function(path) {
       let version = 'master';
-       msDocsVersion&&msDocsVersion.forEach((item) => {
+       msVersionData&&msVersionData.forEach((item) => {
         if(path.includes(item.name)){
           if(typeof item.versions[1] === 'string'){
             version = item.versions.length >1 ? item.versions[1] : item.versions[0];
@@ -1119,7 +1119,7 @@ function createScriptSensor() {
   
     //获取导航菜单json
     headerMenuData = await getHeaderData(`/menu_${isEn?'en':'zh-CN'}.json`);
-    msDocsVersion = await getHeaderData('/msVersion.json');
+    msVersionData = await getHeaderData('/msVersion.json');
   
     body.prepend(msHeader.pcHeader);
     msHeader.headerMethods();
