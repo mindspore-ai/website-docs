@@ -46,6 +46,8 @@ def main(arg_version):
             elif data[i]["repo_name"] == "tutorial" or data[i]["repo_name"] == "tutorials":
                 first_name = data[i]["repo_name"]
                 theme_class = theme_tutorials
+                if "submenu" not in data[i]:
+                    theme_class = theme_docs
             else:
                 first_name = data[i]["repo_name"] + "/docs"
                 theme_class = theme_docs
