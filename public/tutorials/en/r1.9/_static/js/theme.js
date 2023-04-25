@@ -26,16 +26,21 @@ $(function () {
   const currentVersion = pathPrefix[1].split('/')[0];
   const pagePath = pathPrefix[0] +lang + currentVersion;
 
-  let msDocsVersion = [],
+  let msVersionData = [],
       versionDropdownList = [],
-      msVersionInfo = [],
+      componentVersionData = [],
+      componentVersionTitle = '',
       pageTitle ='';
   
   // 获取当前版本 不带R
   function curVersion(version) {
-      return version === 'master'
+    let title = '';
+    if(version){
+      title = version === 'master'
           ? 'master'
           : version.startsWith('r') ? version.slice(1):version;
+      }
+      return title;
   }
 
   // 请求数据
@@ -55,25 +60,10 @@ $(function () {
       });
   }
 
-  // 版本名称显示
-  function pageVersionName (){
-    let versionName= '';
-    versionDropdownList.forEach((subitem) => {
-      if(currentVersion.endsWith(subitem.version)){
-        versionName= subitem.versionAlias !==''?subitem.versionAlias:subitem.version;
-      }
-    });
-    if (versionName === '') {
-      versionName = currentVersion;
-    }
-    return curVersion(versionName);
-  }
-
-
   // 切换版本下拉菜单
   function versionDropdown(obj) {
       return `<div class='version-select-wrap'><div class="version-select-dom">
-        <span class="versionText">${pageVersionName()}</span> <img src="/pic/down.svg" />
+        <span class="versionText">${curVersion(componentVersionTitle)}</span> <img src="/pic/down.svg" />
             <ul>
                 ${obj.map(function (item) {
                   if(item.active){
@@ -88,14 +78,17 @@ $(function () {
   }
 
   const initPage = async function () {
-      msDocsVersion = await getHeaderData('/msVersion.json');
-      msVersionInfo = await getHeaderData(`${pagePath}/_static/js/version.json`);
+      msVersionData = await getHeaderData('/msVersion.json');
+      componentVersionData = await getHeaderData(`${pagePath}/_static/js/version.json`);
 
-      pageTitle = isEn ? msVersionInfo.label.en || '': msVersionInfo.label.zh || '';
-      const pageSubMenu = isEn ? msVersionInfo.submenu.en  || []: msVersionInfo.submenu.zh  || [];
+      pageTitle = isEn ? componentVersionData.label.en || '': componentVersionData.label.zh || '';
+      const pageSubMenu = isEn ? componentVersionData.submenu.en  || []: componentVersionData.submenu.zh  || [];
+
+      componentVersionTitle = componentVersionData.versionAlias !==''?componentVersionData.versionAlias:componentVersionData.version;
+
 
       let theme2Nav = '';
-      msDocsVersion.forEach(function (item) {
+      msVersionData.forEach(function (item) {
         if (pathname.startsWith('/' + item.name)) {
               versionDropdownList = item.versions.slice(0,3);
               // 格式化版本拉下菜单
@@ -107,7 +100,7 @@ $(function () {
                     return{
                         version: curVersion(sub.version),
                         url: sub.url !=='' ? sub.url:item.url.replace(currentVersion, sub.version),
-                        versionAlias: sub.versionAlias
+                        versionAlias: curVersion(sub.versionAlias)
                     };
                 });
               });
@@ -138,7 +131,7 @@ $(function () {
       setTimeout(() => {
           $('.header').append(theme2Nav);
           $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
-              pageTitle + ' (' + pageVersionName() + ')';
+              pageTitle + ' (' + curVersion(componentVersionTitle) + ')';
           $('#rtd-search-form input').attr(
               'placeholder',
               isEn ? 'Search in Tutorials' : '"教程" 内搜索'
