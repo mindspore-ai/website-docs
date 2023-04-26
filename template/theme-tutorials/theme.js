@@ -33,14 +33,8 @@ $(function () {
       pageTitle ='';
   
   // 获取当前版本 不带R
-  function curVersion(version) {
-    let title = '';
-    if(version){
-      title = version === 'master'
-          ? 'master'
-          : version.startsWith('r') ? version.slice(1):version;
-      }
-      return title;
+  function curVersion(version = '') {
+      return version.startsWith('r') ? version.slice(1):version;
   }
 
   // 请求数据
@@ -84,7 +78,7 @@ $(function () {
       pageTitle = isEn ? componentVersionData.label.en || '': componentVersionData.label.zh || '';
       const pageSubMenu = isEn ? componentVersionData.submenu.en  || []: componentVersionData.submenu.zh  || [];
 
-      componentVersionTitle = componentVersionData.versionAlias !==''?componentVersionData.versionAlias:componentVersionData.version;
+      componentVersionTitle = componentVersionData.versionAlias?componentVersionData.versionAlias:componentVersionData.version;
 
 
       let theme2Nav = '';
