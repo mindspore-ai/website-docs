@@ -378,6 +378,10 @@
 <span class="sd">              - &quot;enforce_origin&quot;: ACL option is must_keep_origin_dtype, force use original type.</span>
 <span class="sd">              - &quot;preferred_optimal&quot;: ACL option is allow_mix_precision, prefer to use fp16+ mix precision mode.</span>
 
+<span class="sd">            - **provider** (str) - The provider that supports the inference capability of the target device,</span>
+<span class="sd">              can be &quot;&quot; or &quot;ge&quot;. The default is &quot;&quot;.</span>
+<span class="sd">            - **rank_id** (int) - The ID of the current device in the cluster, which starts from 0.</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            list[str], the target device information of context.</span>
 
@@ -423,10 +427,14 @@
 <span class="sd">            [&#39;ascend&#39;]</span>
 <span class="sd">            &gt;&gt;&gt; context.ascend.precision_mode = &quot;enforce_fp32&quot;</span>
 <span class="sd">            &gt;&gt;&gt; context.ascend.device_id = 2</span>
+<span class="sd">            &gt;&gt;&gt; context.ascend.provider = &quot;ge&quot;</span>
+<span class="sd">            &gt;&gt;&gt; context.ascend.rank_id = 0</span>
 <span class="sd">            &gt;&gt;&gt; print(context.ascend)</span>
 <span class="sd">            device_type: DeviceType.kAscend,</span>
 <span class="sd">            precision_mode: enforce_fp32,</span>
-<span class="sd">            device_id: 2.</span>
+<span class="sd">            device_id: 2,</span>
+<span class="sd">            provider: ge,</span>
+<span class="sd">            rank_id: 0.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span>
 
@@ -797,7 +805,8 @@
         <span class="n">res</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;device_type: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_device_info</span><span class="o">.</span><span class="n">get_device_type</span><span class="p">()</span><span class="si">}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span> \
               <span class="sa">f</span><span class="s2">&quot;precision_mode: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">precision_mode</span><span class="si">}</span><span class="s2">,</span><span class="se">\n</span><span class="s2">&quot;</span> \
               <span class="sa">f</span><span class="s2">&quot;device_id: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_id</span><span class="si">}</span><span class="s2">.&quot;</span> \
-              <span class="sa">f</span><span class="s2">&quot;provider: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">provider</span><span class="si">}</span><span class="s2">.&quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;provider: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">provider</span><span class="si">}</span><span class="s2">.&quot;</span> \
+              <span class="sa">f</span><span class="s2">&quot;rank_id: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rank_id</span><span class="si">}</span><span class="s2">.&quot;</span>
         <span class="k">return</span> <span class="n">res</span>
 
     <span class="nd">@property</span>
@@ -853,6 +862,33 @@
         <span class="k">if</span> <span class="n">ascend_device_id</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ascend_device_id must be a non-negative int.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_device_info</span><span class="o">.</span><span class="n">set_device_id</span><span class="p">(</span><span class="n">ascend_device_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rank_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the ID of the current device in the cluster from context.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int, the ID of the current device in the cluster, which starts from 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_info</span><span class="o">.</span><span class="n">get_rank_id</span><span class="p">()</span>
+
+    <span class="nd">@rank_id</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">rank_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ascend_rank_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the ID of the current device in the cluster from context.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            ascend_rank_id(int): The rank id.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: `ascend_rank_id` is not an int.</span>
+<span class="sd">            ValueError: `ascend_rank_id` is less than 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">check_isinstance</span><span class="p">(</span><span class="s2">&quot;ascend_rank_id&quot;</span><span class="p">,</span> <span class="n">ascend_rank_id</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ascend_rank_id</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ascend_rank_id must be a non-negative int.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_device_info</span><span class="o">.</span><span class="n">set_rank_id</span><span class="p">(</span><span class="n">ascend_rank_id</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">provider</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
