@@ -89,7 +89,7 @@ $(function () {
               versionAlias: curVersion(sub.versionAlias)
             };
           });
-          versionDropdownList = versionDropdownList.slice(0, 3);
+          versionDropdownList = versionDropdownList.slice(0, 4);
         }
       });
       setTimeout(() => {

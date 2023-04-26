@@ -74,7 +74,7 @@ $(function () {
       let liteSubMenu = '';
       msVersionData.forEach(function (item) {
         if (pathname.startsWith('/' + item.name)) {
-              versionDropdownList = item.versions.slice(0, 3);
+              versionDropdownList = item.versions.slice(0, 4);
               // 格式化版本拉下菜单
               pageSubMenu.forEach((item) => {
                   if(item.url.includes(pagePath) && !item.url.includes('use/downloads')){
