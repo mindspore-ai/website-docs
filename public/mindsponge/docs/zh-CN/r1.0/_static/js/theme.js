@@ -31,15 +31,9 @@ $(function () {
       pageTitle = '';
 
   // 获取当前版本 不带R
-  function curVersion(version) {
-    let title = '';
-    if(version){
-      title = version === 'master'
-          ? 'master'
-          : version.startsWith('r') ? version.slice(1):version;
-      }
-      return title;
-  }
+  function curVersion(version = '') {
+    return version.startsWith('r') ? version.slice(1):version;
+}
 
   // 请求数据
   function getHeaderData(url) {
@@ -108,7 +102,7 @@ $(function () {
           $('.wy-breadcrumbs>li:first-of-type')[0].innerText = pageTitle + ' (' + curVersion(componentVersionTitle) + ')';
           let welcomeText = isEn ? `${pageTitle} Documentation`: `欢迎查看${pageTitle}文档`;
           $('.wy-menu-vertical').before(
-            `<div class="docsHome"><a  href="#" class="welcome">${welcomeText}</a></div>`
+            `<div class="docsHome"><a  href="${pagePath}/index.html" class="welcome">${welcomeText}</a></div>`
           );
 
           // 默认展开API  docs

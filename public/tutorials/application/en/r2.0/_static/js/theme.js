@@ -132,7 +132,7 @@ $(function () {
           );
           let welcomeText = isEn ? 'MindSpore Tutorials': '欢迎查看MindSpore教程';
           $('.wy-menu-vertical').before(
-            `<div class="docsHome"><a  href="#" class="welcome">${welcomeText}</a></div>`
+            `<div class="docsHome"><a  href="${pagePath}/index.html" class="welcome">${welcomeText}</a></div>`
           );
 
           // 版本选择
