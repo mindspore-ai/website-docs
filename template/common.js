@@ -757,6 +757,53 @@ function createScriptSensor() {
       });
     }
   };
+  // 复制代码
+  function codeClipboard(){
+    // 实现复制粘贴功能
+      $('pre>span:first-of-type').append('<button class="btn1" data-clipboard-action="copy"><img src="/pic/copy.png"/></button><button class="btn3" data-clipboard-action="copy"><img src="/pic/copySuc.png"/></button><span class="copybg">Copy</span>');
+      $('.btn1').click(function () {
+        var Url2 = $(this).parent().parent()[0].innerText.replace('Copy', '');
+        Url2 = Url2.split(/[\n]/);
+        let flag = false
+        for (let i = 0; i < Url2.length; i++) {
+          if(Url2[i].indexOf('>>>') > -1 || Url2[i].indexOf('...') == 0) {
+            flag = true
+          } else {
+            flag = false
+          }
+          if(flag) {
+            if(Url2[i].indexOf('>>>') > -1 || Url2[i].indexOf('...') == 0) {
+              Url2[i] = Url2[i].slice(4);
+            } else {
+              Url2[i] = ''
+            }
+          }
+        }
+        Url2 = Url2.join('\n').replace(/>>> /g, '').replace(/>>>/g, '');
+        var oInput = document.createElement('textarea');
+        oInput.value = Url2;
+        document.body.appendChild(oInput);
+        oInput.select(); // 选择对象
+        document.execCommand("Copy"); // 执行浏览器复制命令
+        oInput.class = 'oInput';
+        oInput.style.display = 'none';
+        $(this).css('display', 'none');
+        $(this).next().css('display', 'block');
+        $(".copybg").css('display', 'none');
+        setTimeout(function () {
+          $('.btn3').css('display', 'none');
+          $('.btn1').css('display', 'block');
+        }, 1000)
+      })
+      $('.btn1').mouseenter(function (e) {
+        e.currentTarget.childNodes[0].attributes[0].value = '/pic/copyHover.png';
+        e.currentTarget.nextSibling.nextSibling.className = 'copybg showCopyBg';
+      })
+      $('.btn1').mouseleave(function (e) {
+        e.currentTarget.childNodes[0].attributes[0].value = '/pic/copy.png';
+        e.currentTarget.nextSibling.nextSibling.className = 'copybg'
+      })
+  }
   
   function isH5Show(){
     $('.wy-nav-content').append(msFotter.h5FootHTML).append('<div id="mask"></div>');
@@ -1115,6 +1162,7 @@ function createScriptSensor() {
   
     watchWinResize();
     docsformatter();
+    codeClipboard();
   
     //获取导航菜单json
     headerMenuData = await getHeaderData(`/menu_${isEn?'en':'zh-CN'}.json`);
