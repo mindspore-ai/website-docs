@@ -249,6 +249,7 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">import</span> <span class="nn">mindspore</span>
@@ -459,6 +460,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">enable_recovery</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_backbone_is_train</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">need_load_ckpt</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lite_predictor</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mindspore_lite</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">_check_for_graph_cell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check for graph cell&quot;&quot;&quot;</span>
@@ -1705,7 +1708,48 @@
 
         <span class="k">return</span> <span class="n">eval_result</span></div>
 
-<div class="viewcode-block" id="Model.predict"><a class="viewcode-back" href="../../../api_python/train/mindspore.train.Model.html#mindspore.train.Model.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">predict_data</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_predict_lite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">predict_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate output predictions for the input samples using backend &#39;lite&#39;.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            predict_data (Union[Tensor, list[Tensor], tuple[Tensor]], optional):</span>
+<span class="sd">                The predict data, can be a single tensor,</span>
+<span class="sd">                a list of tensor, or a tuple of tensor.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tensor, array(s) of predictions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">_get_lite_context</span><span class="p">(</span><span class="n">lite_context_input</span><span class="p">):</span>
+            <span class="n">lite_context_input</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="p">[</span><span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)]</span>
+            <span class="n">lite_context_input</span><span class="o">.</span><span class="n">cpu</span><span class="o">.</span><span class="n">thread_num</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">lite_context_input</span><span class="o">.</span><span class="n">cpu</span><span class="o">.</span><span class="n">thread_affinity_mode</span> <span class="o">=</span> <span class="mi">2</span>
+            <span class="k">return</span> <span class="n">lite_context_input</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mindspore_lite</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mindspore_lite</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;mindspore_lite&#39;</span><span class="p">)</span>
+
+        <span class="n">check_input_data</span><span class="p">(</span><span class="o">*</span><span class="n">predict_data</span><span class="p">,</span> <span class="n">data_class</span><span class="o">=</span><span class="n">Tensor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lite_predictor</span><span class="p">:</span>
+            <span class="n">lite_context</span> <span class="o">=</span> <span class="n">_get_lite_context</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mindspore_lite</span><span class="o">.</span><span class="n">Context</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lite_predictor</span> <span class="o">=</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mindspore_lite</span><span class="o">.</span><span class="n">lite_infer</span><span class="o">.</span><span class="n">LiteInfer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">predict_data</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">lite_context</span><span class="p">)</span>
+
+        <span class="n">inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lite_predictor</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">predict_data</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;Model.predict&#39;, numbers of predict_data </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">predict_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;is not equal to numbers of net input </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">single_data</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">predict_data</span><span class="p">):</span>
+            <span class="n">inputs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_data_from_numpy</span><span class="p">(</span><span class="n">single_data</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+        <span class="n">outputs</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lite_predictor</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">outputs</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_data_to_numpy</span><span class="p">())</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">Tensor</span><span class="p">(</span><span class="n">single_output</span><span class="o">.</span><span class="n">get_data_to_numpy</span><span class="p">())</span> <span class="k">for</span> <span class="n">single_output</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Model.predict"><a class="viewcode-back" href="../../../api_python/train/mindspore.train.Model.html#mindspore.train.Model.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">predict_data</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate output predictions for the input samples.</span>
 
@@ -1727,6 +1771,17 @@
 <span class="sd">            &gt;&gt;&gt; model = Model(Net())</span>
 <span class="sd">            &gt;&gt;&gt; result = model.predict(input_data)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;lite&quot;</span><span class="p">:</span>
+            <span class="c1"># pylint: disable=broad-except</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_lite</span><span class="p">(</span><span class="o">*</span><span class="n">predict_data</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Lite inference failed, fallback to original inference!&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Import mindspore_lite failed, fallback to original inference!&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Lite inference failed, </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="fm">__str__</span><span class="p">()</span><span class="si">}</span><span class="s2">, fallback to original inference!&quot;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_network_mode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_predict_network</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="n">check_input_data</span><span class="p">(</span><span class="o">*</span><span class="n">predict_data</span><span class="p">,</span> <span class="n">data_class</span><span class="o">=</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">))</span>
         <span class="n">_parallel_predict_check</span><span class="p">()</span>
