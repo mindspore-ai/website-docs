@@ -761,25 +761,36 @@ function createScriptSensor() {
   function codeClipboard(){
     // 实现复制粘贴功能
       $('pre>span:first-of-type').append('<button class="btn1" data-clipboard-action="copy"><img src="/pic/copy.png"/></button><button class="btn3" data-clipboard-action="copy"><img src="/pic/copySuc.png"/></button><span class="copybg">Copy</span>');
+
+      
       $('.btn1').click(function () {
-        var Url2 = $(this).parent().parent()[0].innerText.replace('Copy', '');
+        let domTemp=$(this).parent().parent()[0].cloneNode(true)
+        domTemp.querySelectorAll(".go").forEach(item=>item.remove())
+        let Url2=domTemp.innerText.replace('Copy', '');
         Url2 = Url2.split(/[\n]/);
-        let flag = false
-        for (let i = 0; i < Url2.length; i++) {
-          if(Url2[i].indexOf('>>>') > -1 || Url2[i].indexOf('...') == 0) {
-            flag = true
-          } else {
-            flag = false
-          }
-          if(flag) {
+        // 只有python才需要去掉>>>和...
+        if($(this).parent().parent()[0].parentElement.parentElement.className.includes('highlight-cpp')
+          ||$(this).parent().parent()[0].parentElement.parentElement.className.includes('highlight-c++')
+          ||$(this).parent().parent()[0].parentElement.parentElement.className.includes('highlight-java')){
+            Url2 = Url2.join('\n');
+        }else{
+          let flag = false
+          for (let i = 0; i < Url2.length; i++) {
             if(Url2[i].indexOf('>>>') > -1 || Url2[i].indexOf('...') == 0) {
-              Url2[i] = Url2[i].slice(4);
+              flag = true
             } else {
-              Url2[i] = ''
+              flag = false
+            }
+            if(flag) {
+              if(Url2[i].indexOf('>>>') > -1 || Url2[i].indexOf('...') == 0) {
+                Url2[i] = Url2[i].slice(4);
+              } else {
+                Url2[i] = ''
+              }
             }
           }
+          Url2 = Url2.join('\n').replace(/>>> /g, '').replace(/>>>/g, '');
         }
-        Url2 = Url2.join('\n').replace(/>>> /g, '').replace(/>>>/g, '');
         var oInput = document.createElement('textarea');
         oInput.value = Url2;
         document.body.appendChild(oInput);
