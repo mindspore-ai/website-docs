@@ -1,8 +1,19 @@
 FROM ubuntu:22.04
 
+
+ENV TZ=Asia/Shanghai \
+    DEBIAN_FRONTEND=noninteractive
+
+RUN apt update \
+    && apt install -y tzdata \
+    && ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && echo ${TZ} > /etc/timezone \
+    && dpkg-reconfigure --frontend noninteractive tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install tools
 RUN apt update \
-	&& apt install -y wget curl git subversion
+        && apt install -y wget curl git subversion
 
 # Install python, pip and doxygen
 RUN apt install -y software-properties-common \
@@ -50,4 +61,5 @@ RUN cd /root/build-docs \
     && chmod 777 -R push.sh
 
 WORKDIR /root/build-docs
-CMD ./push.sh
+RUN mkdir /log
+CMD ./push.sh | tee /log/"$(date +%Y-%m-%d_%H:%M:%S)".log 2>&1
