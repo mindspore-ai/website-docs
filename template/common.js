@@ -489,7 +489,6 @@ function createScriptSensor() {
   // 初始化footer
   const msFotter = {
     fontmatter: {
-      askQuestionHref:'',
       askQuestion3:isEn?'Document Feedback':'文档反馈',
       helpforyou:isEn?'Was this helpful?':'这个对你有帮助吗 ?',
       askQuestion2:isEn?'Quick Feedback':'快速反馈问题',
@@ -523,7 +522,7 @@ function createScriptSensor() {
       }else {
           url = 'https://gitee.com/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0';
       }
-      msFotter.fontmatter.askQuestionHref = url;
+      return url;
     },
     // PC footer
     pcFootHTML: function (){
@@ -539,7 +538,7 @@ function createScriptSensor() {
                     </a>
                 </div>
                 <div class="askQuestion-box">
-                    <a class="askQuestion" href="${msFotter.fontmatter.askQuestionHref}" target="_blank">
+                    <a class="askQuestion" href="${msFotter.getQuestionHref()}" target="_blank">
                         <img class="btn-img" src="/pic/docs/ask.png"/>
                         <div class="btn-label">${msFotter.fontmatter.askQuestion3}</div>
                     </a>
