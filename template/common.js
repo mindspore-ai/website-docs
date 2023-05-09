@@ -438,11 +438,7 @@ function createScriptSensor() {
       let version = 'master';
        msVersionData&&msVersionData.forEach((item) => {
         if(path.includes(item.name)){
-          if(typeof item.versions[1] === 'string'){
-            version = item.versions.length >1 ? item.versions[1] : item.versions[0];
-          }else{
-            version =item.versions[1].version;
-          }
+          version = item.versions.length < 2 ? item.versions[0].version : item.versions[1].version;
         }
       });
       return version;
