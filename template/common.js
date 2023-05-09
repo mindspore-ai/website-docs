@@ -437,7 +437,7 @@ function createScriptSensor() {
     headerPathVersion:function(path) {
       let version = 'master';
        msVersionData&&msVersionData.forEach((item) => {
-        if(path.includes(item.name)){
+        if(path === item.name){
           version = item.versions.length < 2 ? item.versions[0].version : item.versions[1].version;
         }
       });
