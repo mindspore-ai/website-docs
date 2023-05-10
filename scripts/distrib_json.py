@@ -25,9 +25,7 @@ def main(arg_version):
     elif arg_version != "all":
         json_name_list = [arg_version + ".json"]
     else:
-        json_name_list = ["0.1.0-alpha.json", "0.2.0-alpha.json", "0.3.0-alpha.json", "r0.5.json",
-                          "r0.6.json", "r0.7.json", "r1.0.json", "r1.1.json", "r1.2.json", "r1.3.json",
-                          "r1.5.json", "r1.6.json", "r1.7.json", "r1.8.json", "r1.9.json", "r1.10.json", "r2.0.0-alpha.json"]
+        json_name_list = [file for file in os.listdir(version_dir)]
     for json_name in json_name_list:
         with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
             data = json.load(f)
@@ -37,24 +35,42 @@ def main(arg_version):
             css_path_zh = []
             css_path_en = []
             version = data[i]["version"]
+            theme_class = ''
+            if "theme" in data[i] and data[i]["theme"]:
+                theme_class = os.path.join(theme_path, data[i]["theme"])
             if data[i]["repo_name"] == "mindspore":
                 first_name = "docs"
-                theme_class = theme_docs
-                if "submenu" in data[i]:
-                    theme_class = theme_lite
+                if not theme_class:
+                    theme_class = theme_docs
+                    if "submenu" in data[i]:
+                        theme_class = theme_lite
+                        data[i]["theme"] = "theme-lite"
+                    else:
+                        data[i]["theme"] = "theme-docs"
             elif data[i]["repo_name"] == "lite":
-                theme_class = theme_lite
                 first_name = data[i]["repo_name"]
+                if not theme_class:
+                    theme_class = theme_lite
+                    data[i]["theme"] = "theme-lite"
             elif data[i]["repo_name"] == "tutorial" or data[i]["repo_name"] == "tutorials":
                 first_name = data[i]["repo_name"]
-                theme_class = theme_tutorials
-                if "submenu" not in data[i]:
-                    theme_class = theme_docs
+                if not theme_class:
+                    theme_class = theme_tutorials
+                    if "submenu" not in data[i]:
+                        theme_class = theme_docs
+                        data[i]["theme"] = "theme-docs"
+                    else:
+                        data[i]["theme"] = "theme-tutorials"
             else:
                 first_name = data[i]["repo_name"] + "/docs"
-                theme_class = theme_docs
-                if "submenu" in data[i]:
-                    theme_class = theme_lite
+                if not theme_class:
+                    theme_class = theme_docs
+                    if "submenu" in data[i]:
+                        theme_class = theme_lite
+                        data[i]["theme"] = "theme-lite"
+                    else:
+                        data[i]["theme"] = "theme-docs"
+
             if "submenu" not in data[i]:
 
                 js_path_zh.append(os.path.join(public_path, first_name, 'zh-CN', version, "_static/js"))
@@ -106,6 +122,12 @@ def main(arg_version):
                     json.dump(write_content, g, indent=4)
                 with open(os.path.join(js_path_en[num], f"version.json"), 'w+', encoding='utf-8') as h:
                     json.dump(write_content, h, indent=4)
+        with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
+            data_old = json.load(f)
+        if data_old != data:
+            with open(os.path.join(version_dir, json_name), "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+            print('theme标签有变，json文件已重写')
         print(f"{'.'.join(json_name.split('.')[:-1])}版本各组件json文件生成完成！已分配至对应文件夹内！样式文件也已替换完成！")
     if error_dir:
         print('error_dir', error_dir)
