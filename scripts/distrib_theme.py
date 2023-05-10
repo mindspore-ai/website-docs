@@ -35,24 +35,42 @@ def main(arg_version):
             css_path_zh = []
             css_path_en = []
             version = data[i]["version"]
+            theme_class = ''
+            if "theme" in data[i] and data[i]["theme"]:
+                theme_class = os.path.join(theme_path, data[i]["theme"])
             if data[i]["repo_name"] == "mindspore":
                 first_name = "docs"
-                theme_class = theme_docs
-                if "submenu" in data[i]:
-                    theme_class = theme_lite
+                if not theme_class:
+                    theme_class = theme_docs
+                    if "submenu" in data[i]:
+                        theme_class = theme_lite
+                        data[i]["theme"] = "theme-lite"
+                    else:
+                        data[i]["theme"] = "theme-docs"
             elif data[i]["repo_name"] == "lite":
-                theme_class = theme_lite
                 first_name = data[i]["repo_name"]
+                if not theme_class:
+                    theme_class = theme_lite
+                    data[i]["theme"] = "theme-lite"
             elif data[i]["repo_name"] == "tutorial" or data[i]["repo_name"] == "tutorials":
                 first_name = data[i]["repo_name"]
-                theme_class = theme_tutorials
-                if "submenu" not in data[i]:
-                    theme_class = theme_docs
+                if not theme_class:
+                    theme_class = theme_tutorials
+                    if "submenu" not in data[i]:
+                        theme_class = theme_docs
+                        data[i]["theme"] = "theme-docs"
+                    else:
+                        data[i]["theme"] = "theme-tutorials"
             else:
                 first_name = data[i]["repo_name"] + "/docs"
-                theme_class = theme_docs
-                if "submenu" in data[i]:
-                    theme_class = theme_lite
+                if not theme_class:
+                    theme_class = theme_docs
+                    if "submenu" in data[i]:
+                        theme_class = theme_lite
+                        data[i]["theme"] = "theme-lite"
+                    else:
+                        data[i]["theme"] = "theme-docs"
+
             if "submenu" not in data[i]:
 
                 js_path_zh.append(os.path.join(public_path, first_name, 'zh-CN', version, "_static/js"))
@@ -98,7 +116,7 @@ def main(arg_version):
                 if os.path.exists(os.path.join(css_path_en[num], "theme.css")):
                     os.remove(os.path.join(css_path_en[num], "theme.css"))
                 shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_en[num], "theme.css"))
-        print(f"{'.'.join(json_name.split('.')[:-1])}版本样式文件也已替换完成！")
+        print(f"{'.'.join(json_name.split('.')[:-1])}版本样式文件已替换完成！")
     if error_dir:
         print('error_dir', error_dir)
 
