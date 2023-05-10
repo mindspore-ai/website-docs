@@ -66,9 +66,6 @@ $(function () {
       </div></div>`;
   }
 
-  // 老组件 不显示其他版本切换
-  const oldComponent = ['doc','api','tutorial','vision'];
-
   const initPage = async function () {
       msVersionData = await getHeaderData('/msVersion.json');
       componentVersionData = await getHeaderData(`${pagePath}/_static/js/version.json`);
@@ -78,8 +75,7 @@ $(function () {
       componentVersionTitle = componentVersionData.versionAlias?componentVersionData.versionAlias:componentVersionData.version;
 
       msVersionData.forEach(function (item) { 
-        if (pathname.startsWith('/' + item.name)) {
-          if(oldComponent.includes(item.name)) return;
+        if (pathname.startsWith('/' + item.name+'/')) {
           versionDropdownList = item.versions.map((sub) => {
             return {
               version: curVersion(sub.version),

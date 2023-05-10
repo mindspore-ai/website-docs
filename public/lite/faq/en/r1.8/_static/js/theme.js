@@ -53,9 +53,6 @@ $(function () {
   }
 
 
-  // 老组件 不显示其他版本切换
-  const oldComponent = ['doc','api','tutorial','vision'];
-
   const initLite = async function () {
       msVersionData = await getHeaderData('/msVersion.json');
       componentVersionData = await getHeaderData(`${pagePath}/_static/js/version.json`);
@@ -68,9 +65,8 @@ $(function () {
 
       let liteSubMenu = '';
       msVersionData.forEach(function (item) {
-        if (pathname.startsWith('/' + item.name)) {
-            if(oldComponent.includes(item.name)) return;
-              versionDropdownList = item.versions.slice(0, 4);
+        if (pathname.startsWith('/' + item.name +'/')) {
+              versionDropdownList = item.versions.slice(0,4);
               // 格式化版本拉下菜单
               pageSubMenu.forEach((item) => {
                   if(item.url.includes(pagePath) && !item.url.includes('use/downloads')){
