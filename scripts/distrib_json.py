@@ -122,12 +122,12 @@ def main(arg_version):
                     json.dump(write_content, g, indent=4)
                 with open(os.path.join(js_path_en[num], "version.json"), 'w+', encoding='utf-8') as h:
                     json.dump(write_content, h, indent=4)
-        with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
-            data_old = json.load(f)
-        if data_old != data:
-            with open(os.path.join(version_dir, json_name), "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-            print('theme标签有变，json文件已重写')
+        # with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
+        #     data_old = json.load(f)
+        # if data_old != data:
+        #     with open(os.path.join(version_dir, json_name), "w", encoding="utf-8") as f:
+        #         json.dump(data, f, indent=4, ensure_ascii=False)
+        #     print('theme标签有变，json文件已重写')
         print(f"{'.'.join(json_name.split('.')[:-1])}版本各组件json文件生成完成！已分配至对应文件夹内！样式文件也已替换完成！")
     if error_dir:
         print('error_dir', error_dir)
