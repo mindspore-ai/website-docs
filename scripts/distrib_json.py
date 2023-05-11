@@ -118,9 +118,9 @@ def main(arg_version):
                 shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_en[num], "theme.css"))
                 write_content = copy.deepcopy(data[i])
                 write_content.pop("repo_name", None)
-                with open(os.path.join(js_path_zh[num], f"version.json"), 'w+', encoding='utf-8') as g:
+                with open(os.path.join(js_path_zh[num], "version.json"), 'w+', encoding='utf-8') as g:
                     json.dump(write_content, g, indent=4)
-                with open(os.path.join(js_path_en[num], f"version.json"), 'w+', encoding='utf-8') as h:
+                with open(os.path.join(js_path_en[num], "version.json"), 'w+', encoding='utf-8') as h:
                     json.dump(write_content, h, indent=4)
         with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
             data_old = json.load(f)
