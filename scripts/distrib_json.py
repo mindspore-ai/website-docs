@@ -1,3 +1,4 @@
+#coding: UTF-8
 import argparse
 import copy
 import os
@@ -127,8 +128,8 @@ def main(arg_version):
         # if data_old != data:
         #     with open(os.path.join(version_dir, json_name), "w", encoding="utf-8") as f:
         #         json.dump(data, f, indent=4, ensure_ascii=False)
-        #     print('theme标签有变，json文件已重写')
-        print(f"{'.'.join(json_name.split('.')[:-1])}版本各组件json文件生成完成！已分配至对应文件夹内！样式文件也已替换完成！")
+        #     print('The theme tag has changed, and the JSON file has been rewritten')
+        print(f"{'.'.join(json_name.split('.')[:-1])}Finished generating JSON files for each component of the version! Assigned to the corresponding folder! The style file has also been replaced!")
     if error_dir:
         print('error_dir', error_dir)
 
