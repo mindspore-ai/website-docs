@@ -69,7 +69,7 @@ $(function () {
               versionDropdownList = item.versions.slice(0,4);
               // 格式化版本拉下菜单
               pageSubMenu.forEach((item) => {
-                  if(item.url.includes(pagePath) && !item.url.includes('use/downloads')){
+                  if(item.url.startsWith(pagePath) && !item.url.includes('use/downloads')){
                     item.versions = versionDropdownList.map((sub) => {
                         return {
                             version: curVersion(sub.version),
@@ -84,7 +84,7 @@ $(function () {
                 <div class="top">
                   <p>${pageTitle}</p>
                   ${pageSubMenu.map(function (subitem) {
-                    if(subitem.url.includes(pagePath) && !subitem.url.includes('use/downloads')){
+                    if(subitem.url.startsWith(pagePath) && !subitem.url.includes('use/downloads')){
                         return `<div class="version-select">
                             ${curVersion(componentVersionTitle)}
                             <img src="/pic/select-down.svg" />
@@ -102,7 +102,7 @@ $(function () {
                 <div class="bottom" style="line-height: initial;">
                 ${pageSubMenu
                     .map(function (item) {
-                      if(item.url.includes(pagePath) && !item.url.includes('use/downloads')){
+                      if(item.url.startsWith(pagePath) && !item.url.includes('use/downloads')){
                             item.active = 1;
                         }
                         return `<div class="header-nav-link">
