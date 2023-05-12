@@ -245,6 +245,7 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
 <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">pi</span><span class="p">,</span> <span class="n">log</span>
 
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">constexpr</span><span class="p">,</span> <span class="n">_primexpr</span>
@@ -780,6 +781,12 @@
 
 
 <span class="nd">@constexpr</span>
+<span class="k">def</span> <span class="nf">is_ascend_backend</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if the Ascend is used&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;device_target&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Ascend&#39;</span>
+
+
+<span class="nd">@constexpr</span>
 <span class="k">def</span> <span class="nf">_check_adaptive_max_pool1d_output_size</span><span class="p">(</span><span class="n">output_size</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check the output_size value in adaptive_max_pool1d op.&quot;&quot;&quot;</span>
     <span class="n">validator</span><span class="o">.</span><span class="n">check_int</span><span class="p">(</span><span class="n">output_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">GE</span><span class="p">,</span> <span class="s2">&quot;output_size&quot;</span><span class="p">,</span> <span class="s1">&#39;adaptive_max_pool1d&#39;</span><span class="p">)</span>
@@ -796,7 +803,8 @@
 <span class="sd">    shape :math:`(N, C, L_{out})`, where :math:`L_{out}` is defined by `output_size`.</span>
 
 <span class="sd">    Note:</span>
-<span class="sd">        :math:`L_{in}` must be divisible by `output_size`.</span>
+<span class="sd">        - :math:`L_{in}` must be divisible by `output_size`.</span>
+<span class="sd">        - Ascend platform only supports float16 type for input.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        input (Tensor): Tensor of shape :math:`(N, C, L_{in})`, with float16 or float32 data type.</span>
@@ -839,16 +847,31 @@
     <span class="k">if</span> <span class="n">x_in_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">%</span> <span class="n">output_size</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;For adaptive_max_pool1d input&#39;s last dimension must be divisible by &quot;</span>
                          <span class="s2">&quot;output size </span><span class="si">{}</span><span class="s2">, but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_size</span><span class="p">,</span> <span class="n">x_in_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
-    <span class="k">if</span> <span class="n">x_dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For adaptive_max_pool1d, the input dtype must be float16 or float32, &quot;</span>
-                        <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x_dtype</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">is_ascend_backend</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">x_dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For adaptive_max_pool1d in Ascend platform, the input dtype must be float16, &quot;</span>
+                            <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x_dtype</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">x_dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For adaptive_max_pool1d, the input dtype must be float16 or float32, &quot;</span>
+                            <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x_dtype</span><span class="p">))</span>
 
     <span class="n">expand_</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">ExpandDims</span><span class="p">)()</span>
     <span class="n">squeeze_</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">Squeeze</span><span class="p">)(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">width</span> <span class="o">=</span> <span class="n">x_in_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">stride</span> <span class="o">=</span> <span class="n">width</span> <span class="o">//</span> <span class="n">output_size</span>
+    <span class="n">kernel_size</span> <span class="o">=</span> <span class="n">width</span> <span class="o">-</span> <span class="p">(</span><span class="n">output_size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">stride</span>
+    <span class="n">stride</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span> <span class="o">//</span> <span class="n">output_size</span><span class="p">)</span>
+    <span class="n">kernel_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">)</span>
+
+    <span class="n">max_pool_</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NN_OPS</span><span class="o">.</span><span class="n">MaxPool</span><span class="p">)(</span><span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span> <span class="n">strides</span><span class="o">=</span><span class="n">stride</span><span class="p">)</span>
+
     <span class="nb">input</span> <span class="o">=</span> <span class="n">expand_</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-    <span class="n">output</span> <span class="o">=</span> <span class="n">adaptive_avg_pool2d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">output_size</span><span class="p">))</span>
-    <span class="n">output</span> <span class="o">=</span> <span class="n">squeeze_</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">output</span></div>
+    <span class="nb">input</span> <span class="o">=</span> <span class="n">max_pool_</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+    <span class="nb">input</span> <span class="o">=</span> <span class="n">squeeze_</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">input</span></div>
 
 
 <span class="nd">@constexpr</span>
@@ -2197,7 +2220,7 @@
 <span class="sd">        input (Tensor): The input Tensor.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Bool. If the dtype of `input` is a floating point data type, return True. Otherwise, return False.</span>
+<span class="sd">        Bool. If the dtype of `input` is a floating point data type, return ``True`` . Otherwise, return ``False`` .</span>
 
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
