@@ -123,13 +123,6 @@ def main(arg_version):
                     json.dump(write_content, g, indent=4)
                 with open(os.path.join(js_path_en[num], "version.json"), 'w+', encoding='utf-8') as h:
                     json.dump(write_content, h, indent=4)
-        # with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
-        #     data_old = json.load(f)
-        # if data_old != data:
-        #     with open(os.path.join(version_dir, json_name), "w", encoding="utf-8") as f:
-        #         json.dump(data, f, indent=4, ensure_ascii=False)
-        #     print('The theme tag has changed, and the JSON file has been rewritten')
-        print(f"{'.'.join(json_name.split('.')[:-1])}Finished generating JSON files for each component of the version! Assigned to the corresponding folder! The style file has also been replaced!")
     if error_dir:
         print('error_dir', error_dir)
 
