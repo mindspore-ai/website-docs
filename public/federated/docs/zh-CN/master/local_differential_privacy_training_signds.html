@@ -113,8 +113,19 @@
 <li class="toctree-l1"><a class="reference internal" href="local_differential_privacy_training_noise.html">横向联邦-局部差分隐私加噪训练</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">横向联邦-局部差分隐私SignDS训练</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#隐私保护背景">隐私保护背景</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#算法流程介绍">算法流程介绍</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#隐私保护证明">隐私保护证明</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#算法流程介绍">算法流程介绍</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#signds">SignDS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#magrr">MagRR</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#隐私保护证明">隐私保护证明</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#基于指数机制的维度选择机制">基于指数机制的维度选择机制</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#局部差分隐私-随机响应机制">局部差分隐私-随机响应机制</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#基于随机响应机制的频率统计">基于随机响应机制的频率统计</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#准备工作">准备工作</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#算法开启脚本">算法开启脚本</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#lenet实验结果">LeNet实验结果</a></li>
@@ -232,7 +243,8 @@
 <div class="section" id="算法流程介绍">
 <h2>算法流程介绍<a class="headerlink" href="#算法流程介绍" title="永久链接至标题">¶</a></h2>
 <p>SignDS[2]是Sign Dimension Select的缩写，处理对象是客户端Client的<code class="docutils literal notranslate"><span class="pre">update</span></code>。准备工作：把<code class="docutils literal notranslate"><span class="pre">update</span></code>的每一层Tensor拉平展开成一维向量，连接在一起，拼接向量维度数量记为<span class="math notranslate nohighlight">\(d\)</span>。</p>
-<p>一句话概括算法：<strong>选择<code class="docutils literal notranslate"><span class="pre">update</span></code>的<span class="math notranslate nohighlight">\(h(h&lt;d)\)</span>个维度，用sign值（符号值：正负1）代替所选维度原始的update值，未选中的用0代替。</strong></p>
+<p>一句话概括算法：每个参与方仅上传重要维度的信息，信息包括它们的梯度方向和隐私保护的步长。分别对应下图中的SignDS和MagRR（Magnitude Random Response）模块。</p>
+<p><img alt="signds" src="_images/signds_framework.png" /></p>
 <p>下面举例来说明：现有3个客户端Client1，2，3，其<code class="docutils literal notranslate"><span class="pre">update</span></code>拉平展开后为<span class="math notranslate nohighlight">\(d=8\)</span>维向量，服务端Server计算这3个客户端Client的<code class="docutils literal notranslate"><span class="pre">avg</span></code>，并用该值更新全局模型，即完成一轮联邦学习。</p>
 <table border="1" class="docutils">
 <thead>
@@ -295,10 +307,12 @@
 </tr>
 </tbody>
 </table>
+<div class="section" id="signds">
+<h3>SignDS<a class="headerlink" href="#signds" title="永久链接至标题">¶</a></h3>
 <p>应选择重要性较高的维度，重要性衡量标准是<strong>取值的大小</strong>，需要对update进行排序。update取值正负代表不同的更新方向，故每轮联邦学习中，客户端Client的sign值各有<strong>0.5的概率</strong>取<code class="docutils literal notranslate"><span class="pre">1</span></code>或<code class="docutils literal notranslate"><span class="pre">-1</span></code>。如果sign=1，则将最大的<span class="math notranslate nohighlight">\(k\)</span>个<code class="docutils literal notranslate"><span class="pre">update</span></code>维度记为<code class="docutils literal notranslate"><span class="pre">topk</span></code>集合，剩余的记为<code class="docutils literal notranslate"><span class="pre">non-topk</span></code>集合；如果sign=-1，则将最小的<span class="math notranslate nohighlight">\(k\)</span>个记为<code class="docutils literal notranslate"><span class="pre">topk</span></code>集合。</p>
 <p>如果服务端Server指定总共选择的维度数量<code class="docutils literal notranslate"><span class="pre">h</span></code>，客户端Client会直接使用该值，否则各客户端Client会本地计算出最优的输出维度<code class="docutils literal notranslate"><span class="pre">h</span></code>。</p>
 <p>随后SignDS算法会输出应从<code class="docutils literal notranslate"><span class="pre">topk</span></code>集合和<code class="docutils literal notranslate"><span class="pre">non-topk</span></code>集合中选择的维度数量（记为<span class="math notranslate nohighlight">\(v\)</span>），如下表中示例，两个集合总共挑选维度h=3。</p>
-<p>客户端Client按照SignDS算法输出的维度数量，均匀随机挑选维度，将维度序号和sign值发送至服务端Server即可，维度序号如果按照先从<code class="docutils literal notranslate"><span class="pre">topk</span></code>挑选，再从<code class="docutils literal notranslate"><span class="pre">non-topk</span></code>挑选的顺序输出，则需要对维度序号列表<code class="docutils literal notranslate"><span class="pre">index</span></code>进行洗牌打乱操作，下表为该算法各客户端Client最终传输至服务端Server的信息：</p>
+<p>客户端Client按照SignDS算法输出的维度数量，均匀随机挑选维度，将维度序号和sign值发送至服务端Server，维度序号如果按照先从<code class="docutils literal notranslate"><span class="pre">topk</span></code>挑选，再从<code class="docutils literal notranslate"><span class="pre">non-topk</span></code>挑选的顺序输出，则需要对维度序号列表<code class="docutils literal notranslate"><span class="pre">index</span></code>进行洗牌打乱操作，下表为该算法各客户端Client最终传输至服务端Server的部分信息：</p>
 <table border="1" class="docutils">
 <thead>
 <tr>
@@ -325,7 +339,46 @@
 </tr>
 </tbody>
 </table>
-<p>服务端Server根据各客户端Client上传的维度序号和sign值，构建带隐私保护的<code class="docutils literal notranslate"><span class="pre">update</span></code>，对所有<code class="docutils literal notranslate"><span class="pre">update</span></code>进行聚合平均并更新当前<code class="docutils literal notranslate"><span class="pre">oldModel</span></code>即完成一轮联邦学习。</p>
+</div>
+<div class="section" id="magrr">
+<h3>MagRR<a class="headerlink" href="#magrr" title="永久链接至标题">¶</a></h3>
+<p>服务端Server收到客户端发来的维度方向，但不清楚在该方向要更新的步长是多少。通常来讲，在训练初期，步长往往很大，随着训练逐渐收敛，步长缩小。步长变化的大致趋势如下图所示：</p>
+<p><img alt="step_length" src="_images/signds_step_length.png" /></p>
+<p>服务端Server希望估计一个针对实际步长<span class="math notranslate nohighlight">\(r\)</span>的动态范围<span class="math notranslate nohighlight">\([0,2∗r_{est}]\)</span>，进而计算全局学习率<span class="math notranslate nohighlight">\(lr_{global}=2∗r_{est}*num_{clients}\)</span>。</p>
+<p><span class="math notranslate nohighlight">\(r\)</span>的调整采用类似二分法思路。具体流程如下：</p>
+<ol class="simple">
+<li><p>训练开始前，服务端初始化一个较小的<span class="math notranslate nohighlight">\(r_{est}\)</span>(不会对模型收敛方向造成过大影响）；</p></li>
+<li><p>每轮本地训练后，参与方计算真实幅值<span class="math notranslate nohighlight">\(r\)</span>（topk维度的均值），并根据当前云侧下发的<span class="math notranslate nohighlight">\(r_{est}\)</span>将<span class="math notranslate nohighlight">\(r\)</span>以一定规则转换为<span class="math notranslate nohighlight">\(b\)</span>；</p></li>
+<li><p>参与方对<span class="math notranslate nohighlight">\(b\)</span>进行本地差分Binary Randomized Response(BRR)扰动，并将结果上传。</p></li>
+</ol>
+<p>整个训练过程分为两个阶段，即<strong>快增长</strong>阶段和<strong>收缩</strong>阶段。参与方在两个阶段进行<span class="math notranslate nohighlight">\(r \rightarrow b\)</span>转换和服务端更新<span class="math notranslate nohighlight">\(r_{est}\)</span>的规则略有不同：</p>
+<ul>
+<li><p>快增长阶段，选取一个较小的<span class="math notranslate nohighlight">\(r_{est}\)</span>，如<span class="math notranslate nohighlight">\(e^{−5}\)</span>。此时，需要以一定倍数扩大<span class="math notranslate nohighlight">\(r_{est}\)</span>。
+因此定义：</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+  b = \begin{cases}
+    0 &amp; r \in [2*r_{est}, \infty] \\
+    1 &amp; r \in [0,2*r_{est})]
+    \end{cases}
+  \end{split}\]</div>
+<p>服务端聚合所有端侧随机响应结果进行频率统计，计算众数<span class="math notranslate nohighlight">\(B\)</span>，
+若<span class="math notranslate nohighlight">\(B=0\)</span>，则认为目前<span class="math notranslate nohighlight">\(r_{est}\)</span>未到达𝑟的范围，需继续增大<span class="math notranslate nohighlight">\(r_{est}\)</span>；
+若<span class="math notranslate nohighlight">\(B=1\)</span>，则认为<span class="math notranslate nohighlight">\(r_{est}\)</span>已到达𝑟的范围，保持<span class="math notranslate nohighlight">\(r_{est}\)</span>不变。</p>
+</li>
+<li><p>收缩阶段，需要根据<span class="math notranslate nohighlight">\(r\)</span>的变化微调<span class="math notranslate nohighlight">\(r_{est}\)</span>。因此定义：</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+  b = \begin{cases}
+    0 &amp; r \in [r_{est}, \infty] \\
+    1 &amp; r \in [0,r_{est})]
+    \end{cases}
+  \end{split}\]</div>
+<p>计算<span class="math notranslate nohighlight">\(B\)</span>，若<span class="math notranslate nohighlight">\(B=0\)</span> ，则认为目前<span class="math notranslate nohighlight">\(r_{est}\)</span>和<span class="math notranslate nohighlight">\(r\)</span>较为接近，保持<span class="math notranslate nohighlight">\(r_{est}\)</span>不变；
+若<span class="math notranslate nohighlight">\(B=1\)</span>，则认为<span class="math notranslate nohighlight">\(r\)</span>普遍小于<span class="math notranslate nohighlight">\(r_{est}\)</span>，则将<span class="math notranslate nohighlight">\(r_{est}\)</span>减半。</p>
+</li>
+</ul>
+<p>服务端Server根据各客户端Client上传的维度序号，sign值和<span class="math notranslate nohighlight">\(r_{est}\)</span>，构建带隐私保护的<code class="docutils literal notranslate"><span class="pre">update</span></code>，对所有<code class="docutils literal notranslate"><span class="pre">update</span></code>进行聚合平均并更新当前<code class="docutils literal notranslate"><span class="pre">oldModel</span></code>即完成一轮联邦学习。下表展示了<span class="math notranslate nohighlight">\(2∗r_{est}*num_{clients}=1\)</span>时的聚合情况。</p>
 <table border="1" class="docutils">
 <thead>
 <tr>
@@ -387,17 +440,44 @@
 </tr>
 </tbody>
 </table>
-<p>优化后的SignDS方案已实现端侧client只上传算法输出的int类型维度序号列表和一个布尔类型的随机Sign值到云侧，相比普通场景中上传数万float级别的完整模型权重或梯度，通讯开销显著降低。从实际重构攻击的角度来看，云侧仅获得维度序号和代表梯度更新方向的一个Sign值，攻击更加难以实现。云侧接收到端侧传来的维度序号和Sign值，要模拟重构出用户原始权重，即利用<code class="docutils literal notranslate"><span class="pre">sign_global_lr</span></code>和Sign值，后者代表更新的方向，前者代表步长，这也是该方案精度损失的地方。云侧只能重构模拟出每个client<strong>部分</strong>梯度更新，数量等于序号数目，且因为维度选择都是随机的，所以参与聚合的client用户数量越多，激活的模型权重也会越多。如果重构出的<code class="docutils literal notranslate"><span class="pre">update</span></code>大多聚焦在某个位置，则说明该位置真实权重更新较大，反之说明原始该位置update更新较小。云侧通过重构<code class="docutils literal notranslate"><span class="pre">update</span></code>再加上本轮初始模型权重，便可聚合更新此轮最终模型。</p>
+<p>SignDS方案使端侧client只上传算法输出的int类型维度序号列表，一个布尔类型的随机Sign值和对估计值的反馈结果到云侧，相比普通场景中上传数万float级别的完整模型权重或梯度，通讯开销显著降低。从实际重构攻击的角度来看，云侧仅获得维度序号、代表梯度更新方向的一个Sign值和隐私保护的步长估计反馈值，攻击更加难以实现。整体方案的数据流字段如下图所示：</p>
+<p><img alt="flow" src="_images/signds_flow.png" /></p>
+</div>
 </div>
 <div class="section" id="隐私保护证明">
 <h2>隐私保护证明<a class="headerlink" href="#隐私保护证明" title="永久链接至标题">¶</a></h2>
 <p>差分隐私噪声方案通过加噪的方式，让攻击者无法确定原始信息，从而实现隐私保护；而差分隐私SignDS方案只激活部分维度，且用sign值代替原始值，很大程度上保护了用户隐私。进一步的，利用差分隐私指数机制让攻击者无法确认激活的维度是否是重要（来自<code class="docutils literal notranslate"><span class="pre">topk</span></code>集合），且无法确认输出维度中来自<code class="docutils literal notranslate"><span class="pre">topk</span></code>的维度数量是否超过给定阈值。</p>
+<div class="section" id="基于指数机制的维度选择机制">
+<h3>基于指数机制的维度选择机制<a class="headerlink" href="#基于指数机制的维度选择机制" title="永久链接至标题">¶</a></h3>
 <p>对于每个客户端Client的任意两个update <span class="math notranslate nohighlight">\(\Delta\)</span> 和 <span class="math notranslate nohighlight">\(\Delta'\)</span>  ，其<code class="docutils literal notranslate"><span class="pre">topk</span></code>维度集合分别是 <span class="math notranslate nohighlight">\(S_{topk}\)</span> ， <span class="math notranslate nohighlight">\({S'}_{topk}\)</span> ，该算法任意可能的输出维度集合是 <span class="math notranslate nohighlight">\({J}\in {\mathcal{J}}\)</span> ，记 <span class="math notranslate nohighlight">\(\nu=|{S}_{topk}\cap {J}|\)</span> ， <span class="math notranslate nohighlight">\(\nu'=|{S'}_{topk}\cap {J}|\)</span> 是 <span class="math notranslate nohighlight">\({J}\)</span> 和<code class="docutils literal notranslate"><span class="pre">topk</span></code> 集合交集的数量，算法使得以下不等式成立：</p>
 <div class="math notranslate nohighlight">
 \[\begin{split}
 \frac{{Pr}[{J}|\Delta]}{{Pr}[{J}|\Delta']}=\frac{{Pr}[{J}|{S}_{topk}]}{{Pr}[{J}|{S'}_{topk}]}=\frac{\frac{{exp}(\frac{\epsilon}{\phi_u}\cdot u({S}_{topk},{J}))}{\sum_{{J'}\in {\mathcal{J}}}{exp}(\frac{\epsilon}{\phi_u}\cdot u({S}_{topk}, {J'}))}}{\frac{{exp}(\frac{\epsilon}{\phi_u}\cdot u({S'}_{topk}, {J}))}{\sum_{ {J'}\in {\mathcal{J}}}{exp}(\frac{\epsilon}{\phi_u}\cdot u( {S'}_{topk},{J'}))}}=\frac{\frac{{exp}(\epsilon\cdot \unicode{x1D7D9}(\nu \geq \nu_{th}))}{\sum_{\tau=0}^{\tau=\nu_{th}-1}\omega_{\tau} + \sum_{\tau=\nu_{th}}^{\tau=h}\omega_{\tau}\cdot {exp}(\epsilon)}}{\frac{ {exp}(\epsilon\cdot \unicode{x1D7D9}(\nu' \geq\nu_{th}))}{\sum_{\tau=0}^{\tau=\nu_{th}-1}\omega_{\tau}+\sum_{\tau=\nu_{th}}^{\tau=h}\omega_{\tau}\cdot {exp}(\epsilon)}}\\= \frac{{exp}(\epsilon\cdot \unicode{x1D7D9} (\nu \geq \nu_{th}))}{ {exp}(\epsilon\cdot \unicode{x1D7D9} (\nu' \geq \nu_{th}))} \leq \frac{{exp}(\epsilon\cdot 1)}{{exp}(\epsilon\cdot 0)} = {exp}(\epsilon),
 \end{split}\]</div>
 <p>证明该算法满足局部差分隐私。</p>
+</div>
+<div class="section" id="局部差分隐私-随机响应机制">
+<h3>局部差分隐私-随机响应机制<a class="headerlink" href="#局部差分隐私-随机响应机制" title="永久链接至标题">¶</a></h3>
+<p>参与方收到服务端下发的估计值，在本地训练完成后，计算真实update的topk维度权重均值，根据magRR策略输出0或1，我们认为0或1仍然带有权重均值范围信息，则需要进一步保护。</p>
+<p>随机响应机制的输入为待保护数据（<span class="math notranslate nohighlight">\(b\in \{0,1\}\)</span>）和隐私参数<span class="math notranslate nohighlight">\(\epsilon\)</span>，按照一定的概率对数据进行翻转，输出<span class="math notranslate nohighlight">\(\hat{b} \in \{0,1\}\)</span>，规则如下：</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+\hat{b} = \begin{cases}
+b &amp; with \quad probability \quad P \\
+1-b &amp; with \quad probability \quad 1-P
+\end{cases}
+\end{split}\]</div>
+<p>其中<span class="math notranslate nohighlight">\(P=\frac{e^\epsilon}{1+e^\epsilon}\)</span>。</p>
+<div class="section" id="基于随机响应机制的频率统计">
+<h4>基于随机响应机制的频率统计<a class="headerlink" href="#基于随机响应机制的频率统计" title="永久链接至标题">¶</a></h4>
+<p>通过随机响应的方式使敌手很难区分真实数据和扰动数据，来达到以假乱真的效果，但也会影响云侧统计任务的可用性。服务端可通过降噪的方式近似的真实统计频率值，但很难逆向推断出用户的真实输入。记<span class="math notranslate nohighlight">\(N\)</span>为一轮参与方总数，<span class="math notranslate nohighlight">\(N^T\)</span>为原始为1的总数，<span class="math notranslate nohighlight">\(N^C\)</span>为服务端收集到的1的总数，则有：</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+N^T*P+(N-N^T)*(1-P)=N^C \\
+N^T=\frac{N^C-N+NP}{2P-1}
+\end{split}\]</div>
+</div>
+</div>
 </div>
 <div class="section" id="准备工作">
 <h2>准备工作<a class="headerlink" href="#准备工作" title="永久链接至标题">¶</a></h2>
@@ -423,7 +503,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">sign_k</span></code>：(0,0.25]，k*inputDim&gt;50. default=0.01，<code class="docutils literal notranslate"><span class="pre">inputDim</span></code>是模型或update的拉平长度，若不满足，端侧警告。排序update，占比前k（%）的组成<code class="docutils literal notranslate"><span class="pre">topk</span></code>集合。减少k，则意味着要从更重要的维度中以较大概率挑选，输出的维度会减少，但维度更重要，无法确定收敛性的变化，用户需观察模型update稀疏度来确定该值，当比较稀疏时（update有很多0），则应取小一点。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">sign_eps</span></code>：(0,100]，default=100。隐私保护预算，数序符号为<span class="math notranslate nohighlight">\(\epsilon\)</span>，简写为eps。eps减少，挑选不重要的维度概率会增大，隐私保护力度增强，输出维度减少，占比不变，精度降低。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">sign_thr_ratio</span></code>：[0.5,1]，default=0.6。激活的维度中来自<code class="docutils literal notranslate"><span class="pre">topk</span></code>的维度占比阈值下界。增大会减少输出维度，但输出维度中来自<code class="docutils literal notranslate"><span class="pre">topk</span></code>的占比会增加，当过度增大该值，要求输出中更多的来自<code class="docutils literal notranslate"><span class="pre">topk</span></code>，为了满足要求只能减少总的输出维度，当client用户数量不够多时，精度下降。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">sign_global_lr</span></code>：(0,)，default=1。该值乘上sign来代替update，直接影响收敛快慢与精度，适度增大该值会提高收敛速度，但有可能让模型震荡，梯度爆炸。如果每个client用户本地跑更多的epoch，且增大本地训练使用的学习率，那么需要相应提高该值；如果参与聚合的client用户数目增多，那么也需要提高该值，因为重构时需要把该值聚合再除以用户数目，只有增大该值，结果才保持不变。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sign_global_lr</span></code>：(0,)，default=1。该值乘上sign来代替update，直接影响收敛快慢与精度，适度增大该值会提高收敛速度，但有可能让模型震荡，梯度爆炸。如果每个client用户本地跑更多的epoch，且增大本地训练使用的学习率，那么需要相应提高该值；如果参与聚合的client用户数目增多，那么也需要提高该值，因为重构时需要把该值聚合再除以用户数目，只有增大该值，结果才保持不变。若参与聚合的新版本（r0.2）参与方占比不足5%，则MagRR算法的<span class="math notranslate nohighlight">\(lr_{global}\)</span>直接调整为该入参。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">sign_dim_out</span></code>：[0,50]，default=0。若给出非0值，client端直接使用该值，增大该值输出的维度增多，但来自<code class="docutils literal notranslate"><span class="pre">topk</span></code>的维度占比会减少；若为0，client用户要计算出最优的输出参数。eps不够大时，若增大该值，则会输出很多<code class="docutils literal notranslate"><span class="pre">non-topk</span></code>的不重要维度导致影响模型收敛，精度下降；当eps足够大时，增大该值会让更多的用户重要的维度信息离开本地，精度提升。</p></li>
 </ul>
 </div>
