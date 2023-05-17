@@ -133,7 +133,7 @@ cd /root/website-log
 
 cp /log/* ./log
 
-find ./log -mtime +10 -name "*.*" -exec rm -Rf {} \;
+find ./log -name "`date -d "1 month ago" +%Y-%m`*.*" -exec rm -Rf {} \;
 
 git add -A
 
