@@ -509,7 +509,7 @@ function createScriptSensor() {
       knowledgeMap:isEn?'Knowledge Map':'知识地图',
       forumText:isEn?'Ask questions in Ascend Forum':'到论坛去提问',
       forumPath:isEn?'https://forum.huawei.com/enterprise/en/forum-100504.html':'https://www.hiascend.com/forum/forum-0106101385921175002-1.html',
-      copyRight:isEn?'Copyright©MindSpore 2022':'版权所有©MindSpore 2022',
+      copyRight:isEn?'Copyright©MindSpore 2023':'版权所有©MindSpore 2023',
       terms:isEn?'Terms of Use':'法律声明',
       privacy:isEn?'Privacy Policy':'个人信息保护政策',
       license:isEn?'The content of this page is licensed under the<a target=\'_blank\' href=\'https://creativecommons.org/licenses/by/4.0/\'> Creative Commons Attribution 4.0 License</a>, and code samples are licensed under the <a target=\'_blank\' href=\'https://www.apache.org/licenses/LICENSE-2.0\'>Apache 2.0 License</a>.':'本页面的内容根据<a target=\'_blank\' href=\'https://creativecommons.org/licenses/by/4.0/\'>Creative Commons Attribution 4.0</a>许可证获得许可，代码示例根据<a target=\'_blank\' href=\'https://www.apache.org/licenses/LICENSE-2.0\'>Apache 2.0</a>许可证获得许可。'
