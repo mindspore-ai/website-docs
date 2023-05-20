@@ -228,6 +228,7 @@
 <span class="c1"># pylint: disable=abstract-method,no-member</span>
 <span class="sd">&quot;&quot;&quot;Quantum channel.&quot;&quot;&quot;</span>
 
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">mindquantum</span> <span class="kn">import</span> <span class="n">mqbackend</span> <span class="k">as</span> <span class="n">mb</span>
@@ -490,22 +491,31 @@
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;BPF(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="si">}</span><span class="s2">)&quot;</span></div>
 
 
-<div class="viewcode-block" id="DepolarizingChannel"><a class="viewcode-back" href="../../../../mindquantum.core.gates.DepolarizingChannel.html#mindquantum.core.gates.DepolarizingChannel">[文档]</a><span class="k">class</span> <span class="nc">DepolarizingChannel</span><span class="p">(</span><span class="n">PauliChannel</span><span class="p">):</span>
+<div class="viewcode-block" id="DepolarizingChannel"><a class="viewcode-back" href="../../../../mindquantum.core.gates.DepolarizingChannel.html#mindquantum.core.gates.DepolarizingChannel">[文档]</a><span class="k">class</span> <span class="nc">DepolarizingChannel</span><span class="p">(</span><span class="n">NoiseGate</span><span class="p">,</span> <span class="n">SelfHermitianGate</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A depolarizing channel.</span>
 
 <span class="sd">    Depolarizing channel express errors that have probability :math:`P` to turn qubit&#39;s quantum state into</span>
-<span class="sd">    maximally mixed state, by randomly applying one of the pauli gate(X,Y,Z) with same probability :math:`P/3`.</span>
-<span class="sd">    And it has probability :math:`1-P` to change nothing (applies I gate).</span>
+<span class="sd">    maximally mixed state, by randomly applying one of the pauli gate(I,X,Y,Z) with same probability :math:`P/4`.</span>
+<span class="sd">    And it has probability :math:`1-P` to change nothing.</span>
 
-<span class="sd">    Depolarizing channel applies noise as:</span>
+<span class="sd">    In one qubit case, depolarizing channel applies noise as:</span>
 
 <span class="sd">    .. math::</span>
 
-<span class="sd">        \epsilon(\rho) = (1 - P)\rho + P/3( X \rho X + Y \rho Y + Z \rho Z)</span>
+<span class="sd">        \epsilon(\rho) = (1 - P)\rho + P/4( I \rho I + X \rho X + Y \rho Y + Z \rho Z)</span>
 
-<span class="sd">    where :math:`\rho` is quantum state as density matrix type; :math:`P` is the</span>
-<span class="sd">    probability of occurred the depolarizing error.</span>
+<span class="sd">    where :math:`\rho` is quantum state as density matrix type; :math:`P` is the probability of occurred the</span>
+<span class="sd">    depolarizing error.</span>
+
+<span class="sd">    This channel supports many object qubits. In :math:`N` qubit case, depolarizing channel applies noise as:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \epsilon(\rho) = (1 - P)\rho + \frac{P}{4^N} \sum_j U_j \rho U_j</span>
+
+<span class="sd">    where :math:`N` is the number of object qubits;</span>
+<span class="sd">    :math:`U_j \in \left\{ I, X, Y, Z \right\} ^{\otimes N}` is many qubit pauli operator.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        p (int, float): probability of occurred error.</span>
@@ -515,9 +525,9 @@
 <span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit</span>
 <span class="sd">        &gt;&gt;&gt; circ = Circuit()</span>
 <span class="sd">        &gt;&gt;&gt; circ += DepolarizingChannel(0.02).on(0)</span>
-<span class="sd">        &gt;&gt;&gt; circ += DepolarizingChannel(0.01).on(1, 0)</span>
+<span class="sd">        &gt;&gt;&gt; circ += DepolarizingChannel(0.01).on([1, 2])</span>
 <span class="sd">        &gt;&gt;&gt; print(circ)</span>
-<span class="sd">        q0: ──Dep(0.02)────────●──────</span>
+<span class="sd">        q0: ──Dep(0.02)────Dep(0.01)──</span>
 <span class="sd">                               │</span>
 <span class="sd">        q1: ───────────────Dep(0.01)──</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -528,17 +538,36 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a DepolarizingChannel object.&quot;&quot;&quot;</span>
         <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;DC&#39;</span>
         <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;n_qubits&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;px&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span> <span class="o">/</span> <span class="mi">3</span>
-        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;py&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span> <span class="o">/</span> <span class="mi">3</span>
-        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;pz&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span> <span class="o">/</span> <span class="mi">3</span>
-        <span class="n">PauliChannel</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">p</span>
+        <span class="n">NoiseGate</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">SelfHermitianGate</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectq_gate</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported type for probability p, get </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">p</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">p</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Required probability p ∈ [0,1], but get p = </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">on</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_qubits</span><span class="p">,</span> <span class="n">ctrl_qubits</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj_qubits</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj_qubits</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="n">obj_qubits</span><span class="p">,</span> <span class="n">ctrl_qubits</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_cpp_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get underlying C++ object.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">mb</span><span class="o">.</span><span class="n">gate</span><span class="o">.</span><span class="n">DepolarizingChannel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj_qubits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ctrl_qubits</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">define_projectq_gate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Define the corresponded projectq gate.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectq_gate</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Equality comparison operator.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">p</span>
 
     <span class="k">def</span> <span class="nf">__extra_prop__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Extra prop magic method.&quot;&quot;&quot;</span>
-        <span class="n">prop</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__extra_prop__</span><span class="p">()</span>
-        <span class="n">prop</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span>
-        <span class="k">return</span> <span class="n">prop</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">__str_in_circ__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a string representation of the object in a quantum circuit.&quot;&quot;&quot;</span>

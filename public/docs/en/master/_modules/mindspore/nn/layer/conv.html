@@ -243,6 +243,7 @@
 <span class="sd">&quot;&quot;&quot;conv&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
 
+<span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
@@ -250,7 +251,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">_primexpr</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span>
-<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span><span class="p">,</span> <span class="n">HeUniform</span><span class="p">,</span> <span class="n">Uniform</span><span class="p">,</span> <span class="n">_calculate_fan_in_and_fan_out</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.tensor</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">Validator</span>
 <span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">twice</span><span class="p">,</span> <span class="n">_check_3d_int_or_tuple</span>
@@ -287,7 +288,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">stride</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pad_mode</span> <span class="o">=</span> <span class="n">pad_mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">weight_init</span> <span class="o">=</span> <span class="n">weight_init</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">bias_init</span> <span class="o">=</span> <span class="n">bias_init</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data_format</span> <span class="o">=</span> <span class="n">Validator</span><span class="o">.</span><span class="n">check_string</span><span class="p">(</span><span class="n">data_format</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;NCHW&#39;</span><span class="p">,</span> <span class="s1">&#39;NHWC&#39;</span><span class="p">,</span> <span class="s1">&#39;NCDHW&#39;</span><span class="p">],</span> <span class="s1">&#39;format&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;GPU&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_format</span> <span class="o">==</span> <span class="s2">&quot;NHWC&quot;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="si">}</span><span class="s2">&#39;, the </span><span class="se">\&quot;</span><span class="s2">NHWC</span><span class="se">\&quot;</span><span class="s2"> format only support in GPU target, &quot;</span>
@@ -326,10 +326,19 @@
                 <span class="p">[</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">in_channels</span> <span class="o">//</span> <span class="n">group</span><span class="p">,</span> <span class="o">*</span><span class="n">kernel_size</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight_init</span><span class="p">,</span> <span class="n">shape</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;weight&#39;</span><span class="p">)</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias_init</span> <span class="o">=</span> <span class="n">bias_init</span>
         <span class="k">if</span> <span class="n">Validator</span><span class="o">.</span><span class="n">check_bool</span><span class="p">(</span><span class="n">has_bias</span><span class="p">,</span> <span class="s2">&quot;has_bias&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">bias_init</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">fan_in</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">fan_in</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">bound</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">fan_in</span><span class="p">)</span>
+                    <span class="n">bias_init</span> <span class="o">=</span> <span class="n">Uniform</span><span class="p">(</span><span class="n">bound</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">bias_init</span> <span class="o">=</span> <span class="s1">&#39;zeros&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bias_init</span> <span class="o">=</span> <span class="n">bias_init</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_init</span><span class="p">,</span> <span class="p">[</span><span class="n">out_channels</span><span class="p">]),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;bias&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_init</span> <span class="o">!=</span> <span class="s1">&#39;zeros&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Value of &#39;has_bias&#39; is False, value of &#39;bias_init&#39; will be ignored.&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -505,8 +514,8 @@
                  <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">group</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span>
-                 <span class="n">bias_init</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">,</span>
+                 <span class="n">weight_init</span><span class="o">=</span><span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span>
+                 <span class="n">bias_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">data_format</span><span class="o">=</span><span class="s1">&#39;NCHW&#39;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize Conv2d.&quot;&quot;&quot;</span>
         <span class="n">kernel_size</span> <span class="o">=</span> <span class="n">twice</span><span class="p">(</span><span class="n">kernel_size</span><span class="p">)</span>
@@ -662,8 +671,8 @@
                  <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">group</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span>
-                 <span class="n">bias_init</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">):</span>
+                 <span class="n">weight_init</span><span class="o">=</span><span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span>
+                 <span class="n">bias_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize Conv1d.&quot;&quot;&quot;</span>
         <span class="n">Validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s2">&quot;kernel_size&quot;</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">Validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s2">&quot;stride&quot;</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
@@ -883,8 +892,8 @@
                  <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">group</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span>
-                 <span class="n">bias_init</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">,</span>
+                 <span class="n">weight_init</span><span class="o">=</span><span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span>
+                 <span class="n">bias_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">data_format</span><span class="o">=</span><span class="s1">&#39;NCDHW&#39;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize Conv3d.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">in_channels</span> <span class="o">%</span> <span class="n">group</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">out_channels</span> <span class="o">%</span> <span class="n">group</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -1094,8 +1103,8 @@
                  <span class="n">group</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">output_padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                  <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span>
-                 <span class="n">bias_init</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">,</span>
+                 <span class="n">weight_init</span><span class="o">=</span><span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span>
+                 <span class="n">bias_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">data_format</span><span class="o">=</span><span class="s1">&#39;NCDHW&#39;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize Conv3dTranspose.&quot;&quot;&quot;</span>
         <span class="n">kernel_size</span> <span class="o">=</span> <span class="n">_check_3d_int_or_tuple</span><span class="p">(</span><span class="s2">&quot;kernel_size&quot;</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
@@ -1294,8 +1303,8 @@
                  <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">group</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span>
-                 <span class="n">bias_init</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">):</span>
+                 <span class="n">weight_init</span><span class="o">=</span><span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span>
+                 <span class="n">bias_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize Conv2dTranspose.&quot;&quot;&quot;</span>
         <span class="n">kernel_size</span> <span class="o">=</span> <span class="n">twice</span><span class="p">(</span><span class="n">kernel_size</span><span class="p">)</span>
         <span class="n">stride</span> <span class="o">=</span> <span class="n">twice</span><span class="p">(</span><span class="n">stride</span><span class="p">)</span>
@@ -1478,8 +1487,8 @@
                  <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">group</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span>
-                 <span class="n">bias_init</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">):</span>
+                 <span class="n">weight_init</span><span class="o">=</span><span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span>
+                 <span class="n">bias_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize Conv1dTranspose.&quot;&quot;&quot;</span>
         <span class="n">Validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s2">&quot;kernel_size&quot;</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">Validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s2">&quot;stride&quot;</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
