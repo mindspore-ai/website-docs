@@ -647,6 +647,81 @@
 </div>
 </div>
 </div>
+<div class="section" id="differences-with-pytorch-optimizer-module">
+<h2>Differences with PyTorch Optimizer Module<a class="headerlink" href="#differences-with-pytorch-optimizer-module" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="single-step-execution-optimizer">
+<h3>Single-step Execution Optimizer<a class="headerlink" href="#single-step-execution-optimizer" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="fixed-learning-rate">
+<h4>Fixed Learning Rate<a class="headerlink" href="#fixed-learning-rate" title="Permalink to this headline">¶</a></h4>
+<p>In the fixed learning rate scenario, when PyTorch executes the optimizer in a single step, you need to manually execute the <code class="docutils literal notranslate"><span class="pre">zero_grad()</span></code> method to set the historical gradient to 0 (or None), then use <code class="docutils literal notranslate"><span class="pre">loss.backward()</span></code> to calculate the gradient of the current training step, and finally call the <code class="docutils literal notranslate"><span class="pre">step()</span></code> method of the optimizer to update the network weights. The use of the optimizer in MindSpore requires only a direct calculation of the gradients, and then you can use <code class="docutils literal notranslate"><span class="pre">optimizer(grads)</span></code> to perform the update of the network weights.</p>
+<p>PyTorch:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">torch.nn</span> <span class="kn">import</span> <span class="n">optim</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+    <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>MindSpore:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">group_params</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="dynamic-learning-rate">
+<h4>Dynamic Learning Rate<a class="headerlink" href="#dynamic-learning-rate" title="Permalink to this headline">¶</a></h4>
+<p>In the dynamic learning rate scenario, the <code class="docutils literal notranslate"><span class="pre">LRScheduler</span></code> class is defined in PyTorch to manage the learning rate. When using the dynamic learning rate, the users pass the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> instance in the <code class="docutils literal notranslate"><span class="pre">LRScheduler</span></code> subclass, and by calling <code class="docutils literal notranslate"><span class="pre">scheduler.step()</span></code> in a loop, the learning rate is calculated according to the update logic of the current dynamic learning rate, and the changes are synchronized to the optimizer.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+<span class="n">scheduler</span> <span class="o">=</span> <span class="n">ExponentialLR</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">):</span>
+    <span class="k">for</span> <span class="nb">input</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
+        <span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+        <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+    <span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The dynamic learning rate in MindSpore is implemented in <code class="docutils literal notranslate"><span class="pre">Cell</span></code> and <code class="docutils literal notranslate"><span class="pre">list</span></code>. Please refer to <a class="reference external" href="https://mindspore.cn/docs/en/r2.0/api_python/mindspore.nn.html#dynamic-learning-rate">https://mindspore.cn/docs/en/r2.0/api_python/mindspore.nn.html#dynamic-learning-rate</a>. The former computes the learning rate at each step in the internal <code class="docutils literal notranslate"><span class="pre">construct</span></code>, while the latter pre-generates the list of learning rates directly according to the computational logic. Both types of dynamic learning rates are used in the same way, and are passed in the optimizer after instantiation. The learning rate update is implemented internally during the training process:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">polynomial_decay_lr</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">PolynomialDecayLR</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">end_learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">decay_steps</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">power</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">optim</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="n">polynomial_decay_lr</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="obatining-the-learning-rate">
+<h3>Obatining the Learning Rate<a class="headerlink" href="#obatining-the-learning-rate" title="Permalink to this headline">¶</a></h3>
+<p>PyTorch:</p>
+<ul class="simple">
+<li><p>In the fixed learning rate scenario, the learning rate is usually viewed and printed by <code class="docutils literal notranslate"><span class="pre">optimizer.state_dict()</span></code>. For example, when parameters are grouped, use <code class="docutils literal notranslate"><span class="pre">optimizer.state_dict()['param_groups'][n]['lr']</span></code> for the nth parameter group, and use <code class="docutils literal notranslate"><span class="pre">optimizer.state_dict()['param_groups'][0]['lr']</span></code> when the parameters are not grouped;</p></li>
+<li><p>In the dynamic learning rate scenario, you can use the <code class="docutils literal notranslate"><span class="pre">get_lr</span></code> method of the <code class="docutils literal notranslate"><span class="pre">LRScheduler</span></code> to get the current learning rate or the <code class="docutils literal notranslate"><span class="pre">print_lr</span></code> method to print the learning rate.</p></li>
+</ul>
+<p>MindSpore:</p>
+<ul class="simple">
+<li><p>In the fixed learning rate  , i.e., the input <code class="docutils literal notranslate"><span class="pre">learning_rate</span></code> is of type int/float/scalar Tensor, when the parameters are not grouped, the learning rate Parameter can be obtained by using <code class="docutils literal notranslate"><span class="pre">optimizer.get_lr()</span></code> and viewed by using <code class="docutils literal notranslate"><span class="pre">optimizer.get_lr().value()</span></code>;</p></li>
+<li><p>In the dynamic learning rate scenario, the interface to view the learning rate directly is not provided at present, and the problem will be fixed in the subsequent version.</p></li>
+</ul>
+</div>
+</div>
 </div>
 
 
