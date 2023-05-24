@@ -912,6 +912,42 @@ mindspore.load_param_into_net(opt, param_dict)
 </div>
 </div>
 </div>
+<div class="section" id="differences-between-random-generators">
+<h2>Differences between random generators<a class="headerlink" href="#differences-between-random-generators" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="api-names">
+<h3>API names<a class="headerlink" href="#api-names" title="Permalink to this headline">¶</a></h3>
+<p>There is no difference between the APIs, except that MindSpore is missing <code class="docutils literal notranslate"><span class="pre">Tensor.random_</span></code>, because MindSpore does not support in-place manipulations.</p>
+</div>
+<div class="section" id="seed-generator">
+<h3>seed &amp; generator<a class="headerlink" href="#seed-generator" title="Permalink to this headline">¶</a></h3>
+<p>MindSpore uses <code class="docutils literal notranslate"><span class="pre">seed</span></code> to control the generation of a random number while PyTorch uses <code class="docutils literal notranslate"><span class="pre">torch.generator</span></code>.</p>
+<ol>
+<li><p>There are 2 levels of random seed, graph-level and op-level. Graph-level seed is used as a global variable, and in most cases, users do not have to set the graph-level seed, they only care about the op-level seed (the parameter <code class="docutils literal notranslate"><span class="pre">seed</span></code> in the APIs, are all op-level seeds). If a program uses a random generator algorithm twice, the results are different even thought they are using the same seed. Nevertheless, if the user runs the script again, the same results should be obtained. For example:</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="c1"># If a random op is called twice within one program, the two results will be different:</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">ops</span>
+
+<span class="n">minval</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">maxval</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># generates &#39;A1&#39;</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># generates &#39;A2&#39;</span>
+<span class="c1"># If the same program runs again, it repeat the results:</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># generates &#39;A1&#39;</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># generates &#39;A2&#39;</span>
+</pre></div>
+</div>
+</li>
+<li><p>torch.Generator is often used as a key argument. A default generator will be used (torch.default_generator), when the user does not assign one to the function. torch.Generator.seed could be set with the following code:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">G</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Generator</span><span class="p">()</span>
+<span class="n">G</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It is the same as using the default generator with seed=1. e.g.: torch.manual_seed(1).</p>
+<p>The state of a generator in PyTorch is a Tensor of 5056 elements with dtype=uint8. When using the same generator in the script, the state of the generator will be changed. With 2 or more generators, i.e. g1 and g2, user can set g2.set_state(g1.get_state()) to make g2 have the exact same state as g1. In other words, using g2 is the same as using the g1 of that state. If g1 and g2 have the same seed and state, the random number generated by those generator are the same.</p>
+</li>
+</ol>
+</div>
+</div>
 </div>
 
 

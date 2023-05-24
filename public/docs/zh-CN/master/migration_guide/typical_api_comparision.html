@@ -975,6 +975,44 @@ torch.Size([4, 3, 2, 1])
 </div>
 </div>
 </div>
+<div class="section" id="与pytorch随机数策略的区别">
+<h2>与PyTorch随机数策略的区别<a class="headerlink" href="#与pytorch随机数策略的区别" title="永久链接至标题">¶</a></h2>
+<div class="section" id="api名称">
+<h3>API名称<a class="headerlink" href="#api名称" title="永久链接至标题">¶</a></h3>
+<p>PyTorch与MindSpore在接口名称上无差异，MindSpore由于不支持原地修改，所以缺少Tensor.random_接口。其余接口均可和PyTorch一一对应。</p>
+</div>
+<div class="section" id="随机种子和生成器">
+<h3>随机种子和生成器<a class="headerlink" href="#随机种子和生成器" title="永久链接至标题">¶</a></h3>
+<p>MindSpore使用seed控制随机数的生成，而PyTorch使用torch.Generator进行随机数的控制。</p>
+<ol class="arabic">
+<li><p>MindSpore的seed分为两个等级，graph-level和op-level。graph-level下seed作为全局变量，绝大多数情况下无需用户设置，用户只需调整op-level seed。（API中涉及的seed参数，均为op-level） 如果一段程序中两次使用了同一个随机数算法，那么两次的结果是不同的（尽管设置了相同的随机种子）；如果重新运行脚本，那么第二次运行的结果应该与第一次保持一致。示例如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># If a random op is called twice within one program, the two results will be different:</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">ops</span>
+
+<span class="n">minval</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">maxval</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># generates &#39;A1&#39;</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># generates &#39;A2&#39;</span>
+<span class="c1"># If the same program runs again, it repeat the results:</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># generates &#39;A1&#39;</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">minval</span><span class="p">,</span> <span class="n">maxval</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># generates &#39;A2&#39;</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<ol class="arabic" start="2">
+<li><p>torch.Generator常在函数中作为关键字参数传入。在未指定/实例化Generator时，会使用默认Generator (torch.default_generator)。可以使用以下代码设置指定的torch.Generator的seed：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">G</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Generator</span><span class="p">()</span>
+<span class="n">G</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>此时和使用default_generator并将seed设置为1的结果相同。例如torch.manual_seed(1)。</p>
+<p>PyTorch的Generator中的state表示的是此Generator的状态，长度为5056，dtype为uint8的Tensor。在同一个脚本中，多次使用同一个Generator，Generator的state会发生改变。在有两个/多个Generator的情况下，如g1，g2，可以设置 g2.set_state(g1.get_state()) 使得g2达到和g1相同的状态。即使用g2相当于使用当时状态的g1。如果g1和g2具有相同的seed和state，则二者生成的随机数相同。</p>
+</li>
+</ol>
+</div>
+</div>
 </div>
 
 
