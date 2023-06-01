@@ -103,19 +103,20 @@
 <li class="toctree-l1"><a class="reference internal" href="pluggable_device.html">三方硬件对接</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">分布式并行</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#背景">背景</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#概念">概念</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#集合通信">集合通信</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#同步模式">同步模式</a></li>
-</ul>
-</li>
 <li class="toctree-l2"><a class="reference internal" href="#数据并行">数据并行</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#数据并行原理">数据并行原理</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#数据并行代码">数据并行代码</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#自动并行">自动并行</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#自动并行原理">自动并行原理</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#自动并行代码">自动并行代码</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#半自动并行">半自动并行</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#半自动并行原理">半自动并行原理</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#半自动并行代码">半自动并行代码</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#全自动并行">全自动并行</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#特性设计">特性设计</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#三种搜索算法">三种搜索算法</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#全自动并行代码">全自动并行代码</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#异构并行">异构并行</a><ul>
@@ -132,12 +133,14 @@
 <li class="toctree-l1"><a class="reference internal" href="data_engine.html">高性能数据处理引擎</a></li>
 <li class="toctree-l1"><a class="reference internal" href="glossary.html">术语</a></li>
 </ul>
-<p class="caption"><span class="caption-text">规格</span></p>
+<p class="caption"><span class="caption-text">模型库</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../note/benchmark.html">基准性能</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://gitee.com/mindspore/models/blob/master/README_CN.md#目录">网络支持↗</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../note/operator_list.html">API支持</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../note/syntax_list.html">语法支持</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/official_models.html">官方模型库</a></li>
+</ul>
+<p class="caption"><span class="caption-text">语法支持</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../note/static_graph_syntax_support.html">静态图语法支持</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/index_support.html">Tensor索引支持</a></li>
 </ul>
 <p class="caption"><span class="caption-text">API</span></p>
 <ul>
@@ -263,18 +266,10 @@
 <p><a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/master/zh_cn/design/mindspore_distributed_training_design.ipynb"><img alt="下载Notebook" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_notebook.png" /></a> <a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/master/zh_cn/design/mindspore_distributed_training_design.py"><img alt="下载样例代码" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_download_code.png" /></a> <a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/mindspore/source_zh_cn/design/distributed_training_design.ipynb"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source.png" /></a></p>
 <div class="section" id="背景">
 <h2>背景<a class="headerlink" href="#背景" title="永久链接至标题">¶</a></h2>
-<p>随着深度学习的快速发展，为了提升神经网络的精度和泛化能力，数据集和参数量都在呈指数级向上攀升。分布式并行训练成为一种解决超大规模网络性能瓶颈的发展趋势。MindSpore支持了当前主流的分布式训练范式并开发了一套自动混合并行解决方案。本篇设计文档将会集中介绍几种并行训练方式的设计原理，同时指导用户进行自定义开发。</p>
-</div>
-<div class="section" id="概念">
-<h2>概念<a class="headerlink" href="#概念" title="永久链接至标题">¶</a></h2>
-<div class="section" id="集合通信">
-<h3>集合通信<a class="headerlink" href="#集合通信" title="永久链接至标题">¶</a></h3>
-<p>集合通信指在一组进程间通信，组内所有进程满足一定规则的发送和接收数据。MindSpore通过集合通信的方式进行并行训练过程中的数据传输工作，在Ascend芯片上它依赖于华为集合通信库<code class="docutils literal notranslate"><span class="pre">HCCL</span></code>完成，在GPU上它依赖于英伟达集合通信库<code class="docutils literal notranslate"><span class="pre">NCCL</span></code>完成。</p>
-</div>
-<div class="section" id="同步模式">
-<h3>同步模式<a class="headerlink" href="#同步模式" title="永久链接至标题">¶</a></h3>
-<p>在同步模式下，所有的设备同时开始训练，并且当反向传播算法完成之后同步更新参数的取值。MindSpore目前采用的是同步训练模式。</p>
-</div>
+<p>随着深度学习的快速发展，为了提升神经网络的精度和泛化能力，数据集和参数量都在呈指数级向上攀升。分布式并行训练成为一种解决超大规模网络性能瓶颈的发展趋势。</p>
+<p>为了应对数据集过大的问题，MindSpore引入了数据并行模式，利用多个设备的计算资源，同时处理更多的训练数据，加快模型训练速度。同时当数据过大或模型过大无法在单个计算节点上加载训练时，需要引入模型并行，每个计算节点只需要加载部分模型和数据，这样可以减少内存占用，提高训练效率。在分布式并行编程范式的演进中，传统的手动并行中，用户需要基于通信原语通过编码，手动把模型切分到多个节点上并行，用户需要感知图切分、算子切分、集群拓扑，才能实现最优性能。此种编程范式对于工程师存在一定的门槛要求，于是演进出了半自动并行：并行逻辑和算法逻辑解耦，用户按单卡串行的方式写算法代码，并行逻辑作为算法配置。用户只需要配置并行策略实现自动并行切分，无需额外编写代码；用户无需感知模型切片的调度及集群拓扑。全自动并行训练编程范式则更进一步，用户只需要写单卡串行算法，通过搜索算法来自动生成较优的切分策略。</p>
+<p>MindSpore通过集合通信的方式来实现并行训练过程中的数据通信和同步操作，在Ascend芯片上它依赖于华为集合通信库HCCL，在GPU上它依赖于英伟达集合通信库NCCL。MindSpore目前采用的是同步训练模式，同步模式能够保证所有设备上的参数保持一致，在每个训练迭代开始前所有设备上的参数都被同步。</p>
+<p>本篇设计文档将会集中介绍几种并行训练方式的设计原理，同时指导用户进行自定义开发。</p>
 </div>
 <div class="section" id="数据并行">
 <h2>数据并行<a class="headerlink" href="#数据并行" title="永久链接至标题">¶</a></h2>
@@ -318,12 +313,12 @@ Propagation）过程中各卡的模型间是独立执行的，只是保持了相
 </ol>
 </div>
 </div>
-<div class="section" id="自动并行">
-<h2>自动并行<a class="headerlink" href="#自动并行" title="永久链接至标题">¶</a></h2>
-<p>自动并行作为MindSpore的关键特性，用于实现自动的数据并行加模型并行的混合并行训练方式，旨在帮助用户以单机的脚本表达并行算法逻辑，降低分布式训练难度，提高算法研发效率，同时又能保持训练的高性能。这个小节介绍了在MindSpore中<code class="docutils literal notranslate"><span class="pre">ParallelMode.AUTO_PARALLEL</span></code>自动并行模式及<code class="docutils literal notranslate"><span class="pre">ParallelMode.SEMI_AUTO_PARALLEL</span></code>半自动并行模式是如何工作的。</p>
-<div class="section" id="自动并行原理">
-<h3>自动并行原理<a class="headerlink" href="#自动并行原理" title="永久链接至标题">¶</a></h3>
-<p><img alt="自动并行图解" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/docs/mindspore/source_zh_cn/design/images/auto_parallel.png" /></p>
+<div class="section" id="半自动并行">
+<h2>半自动并行<a class="headerlink" href="#半自动并行" title="永久链接至标题">¶</a></h2>
+<p>这个小节介绍了在MindSpore中<code class="docutils literal notranslate"><span class="pre">ParallelMode.SEMI_AUTO_PARALLEL</span></code>半自动并行模式是如何工作的。</p>
+<div class="section" id="半自动并行原理">
+<h3>半自动并行原理<a class="headerlink" href="#半自动并行原理" title="永久链接至标题">¶</a></h3>
+<p><img alt="自动并行图解" src="../_images/auto_parallel.png" /></p>
 <ol class="arabic">
 <li><p>分布式算子和张量排布模型</p>
 <p>在上面的架构图中，自动并行流程会对单机的正向计算图（ANF Graph）进行遍历，以分布式算子（Distributed Operator）为单位对张量进行切分建模，表示一个算子的输入输出张量如何分布到集群各个卡上（Tensor Layout）。这种模型充分地表达了张量和设备间的映射关系，用户无需感知模型各切片放到哪个设备上运行，框架会自动调度分配。</p>
@@ -341,19 +336,23 @@ Strategy），它表示算子的各个输入在相应维度的切分情况。通
 <p><img alt="tensor-redistribution3" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/docs/mindspore/source_zh_cn/design/images/tensor_redistribution3.png" /></p>
 <p>综上，1、2两点是自动并行实现的基础，总体来说这种分布式表达打破了数据并行和模型并行的边界，轻松实现混合并行。从脚本层面上，用户仅需构造单机网络，即可表达并行算法逻辑，框架将自动实现对整图切分。</p>
 </li>
-<li><p>切分策略搜索算法</p>
-<p>当用户熟悉了算子的切分表达，并手动对算子配置切分策略，这就是<code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code>半自动并行模式。这种方式对手动调优有帮助，但还是具有一定的调试难度，用户需要掌握并行原理，并根据网络结构、集群拓扑等计算分析得到高性能的并行方案。为了帮助用户加速并行网络训练过程，在半自动并行模式的基础上，<code class="docutils literal notranslate"><span class="pre">AUTO_PARALLEL</span></code>自动并行模式支持并行策略传播（Sharding
-Propagation），能够有效地降低用户手配算子切分策略的工作量，算法将切分策略由用户配置的算子向未配置的算子传播。为进一步降低用户手配算子切分策略的工作量，支持切分策略完全自动搜索。为此，围绕硬件平台构建相应的代价函数模型（Cost Model），计算出一定数据量、一定算子在不同切分策略下的计算开销（Computation Cost），内存开销（Memory Cost）及通信开销（Communication Cost）。然后通过动态规划算法（Dynamic Programming）或者递归规划算法（Recursive
-Programming），以单卡的内存上限为约束条件，高效地搜索出性能较优的切分策略。</p>
-<p>策略搜索这一步骤代替了用户手动指定模型切分，在短时间内可以得到较高性能的切分方案，极大降低了并行训练的使用门槛。</p>
-</li>
 <li><p>分布式自动微分</p>
 <p>传统的手动模型切分除了需要关注正向网络通信还需要考虑网络反向的并行运算，MindSpore通过将通信操作包装为算子，并利用框架原有的自动微分操作自动生成通信算子反向，所以即便在进行分布式训练时，用户同样只需关注网络的前向传播，真正实现训练的全自动并行。</p>
 </li>
+<li><p>支持多维混合并行</p>
+<p>半自动并行支持多种并行模式的自动混合使用，分别有：</p>
+<p><strong>算子级并行</strong>：算子级并行以神经网络中的算子为单位，将输入张量切分到多个设备上进行计算。通过这种方式，可以实现数据样本和模型参数在不同设备之间的分配，从而训练大规模的深度学习模型，并利用集群资源进行并行计算，提高整体速度。用户可以设置每个算子的切分策略，框架会根据算子的切分策略对每个算子及其输入张量进行切分建模，以保持数学等价性。这种方法可以有效地减少单个设备的负载，提高计算效率，适用于大规模深度神经网络的训练。详情参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/operator_parallel.html">算子级并行</a></p>
+<p><strong>流水线并行</strong>：当集群设备数很多时，如果仅采用算子级并行的方式，则需要在整个集群的通信域上进行通信，这可能使得通信效率低，从而降低整体性能。而流水线并行能将神经网络结构切分成多个stage，每个stage跑在一部分设备内，将集合通信的通信域限定在这部分设备范围内，而stage间采用点对点通信。流水线并行的优点在于：能提升通信效率、能方便的处理按层堆叠的神经网络结构。缺点在于：同一时刻内，有些节点可能处于空闲状态。详情参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/pipeline_parallel.html">流水线并行</a></p>
+<p><strong>MoE并行</strong>：MoE是将专家分布到不同的worker上，并且每个worker承担不同批次的训练数据。对于非MoE层来说，专家并行和数据并行一样。在MoE层中，序列中的token通过all-to-all通信被发送到它们相匹配的专家所对应的worker。在完成对应专家的计算后，再通过all-to-all重新传回到原来的worker，组织成原始序列，用于下一层的计算。由于MoE模型通常有大量的专家，专家并行度比模型并行度更能随模型规模的增大而增大。</p>
+<p><img alt="MoE并行" src="../_images/MoE.png" /></p>
+<p><strong>多副本并行</strong>：将输入模型的数据按照batchsize维度进行切分，从而将现有的单副本形式修改成多副本的形式，使其底层在通信的时候，另一副本进行计算操作，无需等待，这样就能保证多副本的计算和通信的时间相互互补，提升模型性能，同时将数据拆成多副本的形式还能减少算子输入的参数量，从而减少单个算子的计算时间，对提升模型性能有很大帮助。</p>
+<p><img alt="多副本并行" src="../_images/multi_copy.png" /></p>
+<p><strong>优化器并行</strong>：在数据并行或算子级并行训练时，模型的参数可能在多个设备上存在同一份副本。这使得优化器在更新该权重之时，在多个设备间存在冗余计算。在此情况下，可以通过优化器并行将优化器的计算量分散到多个设备上。它的优点在于：能减少静态内存消耗、减少优化器内的计算量。缺点在于：增加了通信开销。详情参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/optimizer_parallel.html">优化器并行</a></p>
+</li>
 </ol>
 </div>
-<div class="section" id="自动并行代码">
-<h3>自动并行代码<a class="headerlink" href="#自动并行代码" title="永久链接至标题">¶</a></h3>
+<div class="section" id="半自动并行代码">
+<h3>半自动并行代码<a class="headerlink" href="#半自动并行代码" title="永久链接至标题">¶</a></h3>
 <ol class="arabic simple">
 <li><p>张量排布模型</p>
 <ul class="simple">
@@ -364,11 +363,6 @@ Programming），以单卡的内存上限为约束条件，高效地搜索出性
 <li><p>分布式算子</p>
 <ul class="simple">
 <li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/master/mindspore/ccsrc/frontend/parallel/ops_info">ops_info</a>：这个目录下包含了分布式算子的具体实现。在<code class="docutils literal notranslate"><span class="pre">operator_info.h</span></code>中定义了分布式算子实现的基类<code class="docutils literal notranslate"><span class="pre">OperatorInfo</span></code>，开发一个分布式算子需要继承于这个基类并显式实现相关的虚函数。其中<code class="docutils literal notranslate"><span class="pre">InferTensorInfo</span></code>，<code class="docutils literal notranslate"><span class="pre">InferTensorMap</span></code>和<code class="docutils literal notranslate"><span class="pre">InferDevMatrixShape</span></code>函数定义了推导该算子输入、输出张量排布模型的算法。<code class="docutils literal notranslate"><span class="pre">InferForwardCommunication</span></code>，<code class="docutils literal notranslate"><span class="pre">InferMirrorOps</span></code>等函数定义了切分该算子需要插入的额外计算、通信操作。<code class="docutils literal notranslate"><span class="pre">CheckStrategy</span></code>和<code class="docutils literal notranslate"><span class="pre">GenerateStrategies</span></code>函数定义了算子切分策略校验和生成。根据切分策略<code class="docutils literal notranslate"><span class="pre">SetCostUnderStrategy</span></code>将会产生该策略下分布式算子的并行开销值<code class="docutils literal notranslate"><span class="pre">operator_cost_</span></code>。</p></li>
-</ul>
-</li>
-<li><p>策略搜索算法</p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/master/mindspore/ccsrc/frontend/parallel/auto_parallel">auto_parallel</a>：这个目录下实现了切分策略搜索的算法。<code class="docutils literal notranslate"><span class="pre">graph_costmodel.h</span></code>定义了构图信息，其中每个点表示一个算子<code class="docutils literal notranslate"><span class="pre">OperatorInfo</span></code>，有向边<code class="docutils literal notranslate"><span class="pre">edge_costmodel.h</span></code>表示算子的输入输出关系及重排布的代价。<code class="docutils literal notranslate"><span class="pre">operator_costmodel.h</span></code>中定义了每个算子的代价模型，包括计算代价、通信代价和内存代价。<code class="docutils literal notranslate"><span class="pre">dp_algorithm_costmodel.h</span></code>主要描述了动态规划算法的主要流程，由一系列图操作组成。在<code class="docutils literal notranslate"><span class="pre">costmodel.h</span></code>中定义了cost和图操作的数据结构。</p></li>
 </ul>
 </li>
 <li><p>设备管理</p>
@@ -387,6 +381,36 @@ Programming），以单卡的内存上限为约束条件，高效地搜索出性
 </ul>
 </li>
 </ol>
+</div>
+</div>
+<div class="section" id="全自动并行">
+<h2>全自动并行<a class="headerlink" href="#全自动并行" title="永久链接至标题">¶</a></h2>
+<p>半自动并行将用户从复杂的分布式代码开发中解放出来，大大减轻了用户开发分布式AI大模型的难度。尽管用户不再需要考虑设备间的数据存储和通信，但是仍然需要用户为每个算子指定合适的切分策略，因为不同的切分策略的训练性能相差很大。用户仍然需要具备相应的并行知识并根据网络结构、集群拓扑等计算分析，才能在巨大的搜索空间中定义合适的并行策略。而现实情况是AI框架的主要用户是AI研究员和工程师，恰恰不一定具备专业的并行知识。另一方面，面对巨大的搜索空间，为大模型找到合适的并行策略需要月级人工调优成本，且仍然不能保证策略最优。例如DeepSpeed、Megatron等针对transformer类的网络的专家定制策略，仍然需要用户定义dp、mp、pp等配置，更何况网络模型的结构不止transformer一种。基于以上两个原因，MindSpore提供了多种自动混合并行策略生成方案，尽量减轻用户对于并行配置的感知，让用户能够快速、高效、容易地训练大模型。</p>
+<p>这个小节介绍了在MindSpore中<code class="docutils literal notranslate"><span class="pre">ParallelMode.AUTO_PARALLEL</span></code>全自动并行模式是如何工作的。</p>
+<div class="section" id="特性设计">
+<h3>特性设计<a class="headerlink" href="#特性设计" title="永久链接至标题">¶</a></h3>
+<p>全自动并行是基于MindSpore半自动框架，以自动混合并行策略生成算法代替专家配置并行策略。下图展示了使用MindSpore分布式训练或推理一个神经网络的过程，用户使用Python语言开发自己的神经网络模型（或MindIR导入），经MindSpore解析成计算图（ANF图），自动混合并行策略生成模块通过算法搜索到较优的策略，传递给半自动并行模块，经过半自动模块分析张量排布，分布式算子分析，设备管理以及进行整图切分等操作，传递给后端进行计算。</p>
+<p>实际上，混合并行策略生成模块负责在给定神经网络模型和集群配置下，来找到适合的并行切分策略。所采用的关键技术是基于代价模型的策略搜索算法，即构建代价模型（Cost Model）来描述在分布式训练场景下所产生的计算代价(Computation Cost)与通信代价(Communication Cost)，以内存开销（Memory Cost）为约束条件，通过计算图搜索算法，高效地搜索出性能较优地并行策略。</p>
+<p><img alt="全自动并行" src="../_images/auto.png" /></p>
+</div>
+<div class="section" id="三种搜索算法">
+<h3>三种搜索算法<a class="headerlink" href="#三种搜索算法" title="永久链接至标题">¶</a></h3>
+<p>全自动并行的实现难度非常大，MindSpore根据需要用户介入的程度，将提供的策略生成算法分成了L1级别和L2级别（此处我们假设手工配置全图策略SEMI_AUTO为L0级别，完全不需要用户参与的方案为L3级别）。</p>
+<p>L1级别的策略生成算法叫做策略广播（Sharding Propagation），在该种模式下，用户仅需要手工定义几个关键算子的策略，计算图中其余算子的策略由算法自动生成。因为关键算子的策略已被定义，该算法的cost model主要描述的算子之间的重排布代价(Redistribution
+Cost)，优化目标为全图重排代价最小。因为已经定义了主要算子策略，相当于认为压缩了搜索空间，这种方案的搜索时间较短，其策略性能依赖于关键算子策略的定义，因此仍然要求用户具备分析定义策略的能力。详情参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/sharding_propagation.html">切分策略传播</a></p>
+<p>L2级别的策略生成算法有两种，分别是动态规划算法(Dynamic Programming)和符号化自动策略生成(Symbolic Automatic Parallel Planner 缩写SAPP)。两种方法各有优劣，动态规划算法能够搜索出代价模型刻画的最优策略，但是在搜索巨大网络的并行策略时耗时较长。而SAPP算法能够对于巨大网络以及大规模切分瞬间生成最优策略。
+动态规划算法的核心思路是建立全图的代价模型，包括计算代价和通信代价，来描述分布式训练过程中的绝对时延，使用边消除和点消除等等价方法压缩搜索时间，但是搜索空间随着设备数和算子数的增加实际上是指数级增长的，因此对于大模型大集群来说效率不高。
+SAPP基于并行原理建模，通过建立抽象机来描述硬件集群拓扑，通过符号化简优化代价模型。其代价模型比较的不是预估的绝对时延，而是不同并行策略的相对代价，因此能够大大压缩搜索空间，对于百卡集群能够保证分钟级的搜索时间。详情参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/introduction.html">分布式并行总览</a></p>
+<p>Sharding Propagation和SAPP目前支持手工定义Pipeline＋自动算子级并行，且可与重计算、优化器并行等优化共同使用。Dynamic Programming算法仅支持算子级自动并行。</p>
+</div>
+<div class="section" id="全自动并行代码">
+<h3>全自动并行代码<a class="headerlink" href="#全自动并行代码" title="永久链接至标题">¶</a></h3>
+<p><strong>策略搜索算法</strong>：<a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/master/mindspore/ccsrc/frontend/parallel/auto_parallel">auto_parallel</a>目录下实现了策略搜索的算法。<code class="docutils literal notranslate"><span class="pre">graph_costmodel.h</span></code>定义了构图信息，其中每个点表示一个算子<code class="docutils literal notranslate"><span class="pre">OperatorInfo</span></code>，有向边<code class="docutils literal notranslate"><span class="pre">edge_costmodel.h</span></code>表示算子的输入输出关系及重排布的代价。<code class="docutils literal notranslate"><span class="pre">operator_costmodel.h</span></code>中定义了每个算子的代价模型，包括计算代价、通信代价和内存代价。在<code class="docutils literal notranslate"><span class="pre">costmodel.h</span></code>中定义了cost和图操作的数据结构。</p>
+<ul class="simple">
+<li><p><strong>dynamic_programming</strong>：<a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/master/mindspore/ccsrc/frontend/parallel/auto_parallel/dp_algo_costmodel.cc">dp_algo_costmodel.cc</a>这个文件主要描述了动态规划算法的主要流程，由一系列图操作组成。</p></li>
+<li><p><strong>sharding_propagation</strong>：<a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/master/mindspore/ccsrc/frontend/parallel/auto_parallel/graph_costmodel.cc">graph_costmodel.cc</a>这个文件实现了策略广播（Sharding Propagation），主要用BFS的遍历方法从点到面，将若干个点的策略，传播到整个图。</p></li>
+<li><p><strong>symbolic_automatic_parallel_planner</strong>：<a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/master/mindspore/ccsrc/frontend/parallel/auto_parallel/rec_core">rec_core</a>目录下实现了符号化自动策略生成算法(Symbolic Automatic Parallel Planner)。</p></li>
+</ul>
 </div>
 </div>
 <div class="section" id="异构并行">
@@ -584,11 +608,6 @@ Programming），以单卡的内存上限为约束条件，高效地搜索出性
         <span class="bp">self</span><span class="o">.</span><span class="n">vocab_size</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">check_positive_int</span><span class="p">(</span><span class="n">vocab_size</span><span class="p">,</span> <span class="s1">&#39;vocab_size&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="n">sparse</span>
-        <span class="k">if</span> <span class="n">target</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;CPU&#39;</span><span class="p">,</span> <span class="s1">&#39;DEVICE&#39;</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Attr </span><span class="se">\&#39;</span><span class="s1">target</span><span class="se">\&#39;</span><span class="s1"> of </span><span class="se">\&#39;</span><span class="s1">EmbeddingLookup</span><span class="se">\&#39;</span><span class="s1"> Op passed &#39;</span>
-                             <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;, should be one of values in </span><span class="se">\&#39;</span><span class="s1">CPU</span><span class="se">\&#39;</span><span class="s1">, </span><span class="se">\&#39;</span><span class="s1">DEVICE</span><span class="se">\&#39;</span><span class="s1">.&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">sparse</span> <span class="ow">and</span> <span class="n">target</span> <span class="o">==</span> <span class="s1">&#39;CPU&#39;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;When target is CPU, embedding_lookup must be sparse.&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">sparse</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">gatherv2</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">SparseGatherV2</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
