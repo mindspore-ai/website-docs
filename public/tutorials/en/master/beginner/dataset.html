@@ -105,8 +105,9 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#customizing-dataset">Customizing Dataset</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#iterable-objects">Iterable Objects</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#iterator">Iterator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#random-accessible-dataset">Random-accessible Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#iterable-dataset">Iterable Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generator">Generator</a></li>
 </ul>
 </li>
 </ul>
@@ -313,16 +314,17 @@ Successfully downloaded / unzipped to ./
 </div>
 <div class="section" id="customizing-dataset">
 <h2>Customizing Dataset<a class="headerlink" href="#customizing-dataset" title="Permalink to this headline">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">mindspore.dataset</span></code> provides the loading interface for some common datasets and standard format datasets. For those datasets that MindSpore does not support directly, you can generate datasets by constructing customized dataset classes or customized dataset generator functions, and then implement customized dataset loading through the <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code> interface.</p>
-<p><code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code> supports constructing customized datasets from iterable objects, iterators and generator functions, which are explained in detail below.</p>
-<div class="section" id="iterable-objects">
-<h3>Iterable Objects<a class="headerlink" href="#iterable-objects" title="Permalink to this headline">¶</a></h3>
-<p>Iterable object means that Python can use a for loop to traverse over all elements and we can construct an iterable object by implementing the <code class="docutils literal notranslate"><span class="pre">__getitem__</span></code> method and loading it into the <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Iterable object as input source</span>
-<span class="k">class</span> <span class="nc">Iterable</span><span class="p">:</span>
+<p><code class="docutils literal notranslate"><span class="pre">mindspore.dataset</span></code> provides the loading APIs for some common datasets and standard format datasets. For those datasets that MindSpore does not support yet, it is suggested to load data by constructing customized classes or customized generators. <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code> can help to load dataset based on the logic inside these classes/functions.</p>
+<p><code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code> supports constructing customized datasets from random-accessible objects, iterable objects and Python generator, which are explained in detail below.</p>
+<div class="section" id="random-accessible-dataset">
+<h3>Random-accessible Dataset<a class="headerlink" href="#random-accessible-dataset" title="Permalink to this headline">¶</a></h3>
+<p>A Random-accessible dataset is one that implements the <code class="docutils literal notranslate"><span class="pre">__getitem__</span></code> and <code class="docutils literal notranslate"><span class="pre">__len__</span></code> methods, which represents a map from indices/keys to data samples.</p>
+<p>For example, when access a dataset with <code class="docutils literal notranslate"><span class="pre">dataset[idx]</span></code>, it should read the idx-th data inside the dataset content.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Random-accessible object as input source</span>
+<span class="k">class</span> <span class="nc">RandomAccessDataset</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
@@ -331,43 +333,87 @@ Successfully downloaded / unzipped to ./
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">Iterable</span><span class="p">()</span>
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">])</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">loader</span> <span class="o">=</span> <span class="n">RandomAccessDataset</span><span class="p">()</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">loader</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># list, dict, tuple are also iterable object.</span>
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="p">[(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">0</span><span class="p">),),</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">),),</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">2</span><span class="p">),)],</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;col&quot;</span><span class="p">])</span>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[Tensor(shape=[2], dtype=Float64, value= [ 1.00000000e+00,  1.00000000e+00]), Tensor(shape=[1], dtype=Float64, value= [ 0.00000000e+00])]
+[Tensor(shape=[2], dtype=Float64, value= [ 1.00000000e+00,  1.00000000e+00]), Tensor(shape=[1], dtype=Float64, value= [ 0.00000000e+00])]
+[Tensor(shape=[2], dtype=Float64, value= [ 1.00000000e+00,  1.00000000e+00]), Tensor(shape=[1], dtype=Float64, value= [ 0.00000000e+00])]
+[Tensor(shape=[2], dtype=Float64, value= [ 1.00000000e+00,  1.00000000e+00]), Tensor(shape=[1], dtype=Float64, value= [ 0.00000000e+00])]
+[Tensor(shape=[2], dtype=Float64, value= [ 1.00000000e+00,  1.00000000e+00]), Tensor(shape=[1], dtype=Float64, value= [ 0.00000000e+00])]
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># list, tuple are also supported.</span>
+<span class="n">loader</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">2</span><span class="p">)]</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">loader</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[Tensor(shape=[], dtype=Int64, value= 2)]
+[Tensor(shape=[], dtype=Int64, value= 0)]
+[Tensor(shape=[], dtype=Int64, value= 1)]
 </pre></div>
 </div>
 </div>
-<div class="section" id="iterator">
-<h3>Iterator<a class="headerlink" href="#iterator" title="Permalink to this headline">¶</a></h3>
-<p>Objects in Python that have <code class="docutils literal notranslate"><span class="pre">__iter__</span></code> and <code class="docutils literal notranslate"><span class="pre">__next__</span></code> methods built in are called iterators (Iterators). The following constructs a simple iterator and loads it into <code class="docutils literal notranslate"><span class="pre">GeneratorDataset</span></code>.</p>
+<div class="section" id="iterable-dataset">
+<h3>Iterable Dataset<a class="headerlink" href="#iterable-dataset" title="Permalink to this headline">¶</a></h3>
+<p>An iterable dataset is one that implements the <code class="docutils literal notranslate"><span class="pre">__iter__</span></code> and <code class="docutils literal notranslate"><span class="pre">__next__</span></code> methods, which represents an iterator to return data samples gradually. This type of datasets is suitable for cases where random access are expensive or forbidden.</p>
+<p>For example, when access a dataset with <code class="docutils literal notranslate"><span class="pre">iter(dataset)</span></code>, it should return a stream of data from a database or a remote server.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Iterator as input source</span>
-<span class="k">class</span> <span class="nc">Iterator</span><span class="p">:</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_index</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-
+<span class="k">class</span> <span class="nc">IterableDataset</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;init the class object to hold the data&#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">start</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">end</span>
     <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">StopIteration</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">item</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">])</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_index</span> <span class="o">+=</span> <span class="mi">1</span>
-            <span class="k">return</span> <span class="n">item</span>
-
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;iter one data and return&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
     <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_index</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;reset the iter&#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">))</span>
         <span class="k">return</span> <span class="bp">self</span>
-
-    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">Iterator</span><span class="p">()</span>
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">])</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">loader</span> <span class="o">=</span> <span class="n">IterableDataset</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">loader</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[Tensor(shape=[], dtype=Int64, value= 1)]
+[Tensor(shape=[], dtype=Int64, value= 2)]
+[Tensor(shape=[], dtype=Int64, value= 3)]
+[Tensor(shape=[], dtype=Int64, value= 4)]
+</pre></div>
+</div>
+</div>
+<div class="section" id="generator">
+<h3>Generator<a class="headerlink" href="#generator" title="Permalink to this headline">¶</a></h3>
+<p>Generator also belongs to iterable dataset types, and it can be a Python’s generator to return data until the generator throws a <code class="docutils literal notranslate"><span class="pre">StopIteration</span></code> exception.</p>
+<p>Example constructs a generator and loads it into the ‘GeneratorDataset’.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Generator</span>
+<span class="k">def</span> <span class="nf">my_generator</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">i</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># since a generator instance can be only itered once, we need to wrapper it by lambda to generate multiple instances</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">my_generator</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[Tensor(shape=[], dtype=Int64, value= 3)]
+[Tensor(shape=[], dtype=Int64, value= 4)]
+[Tensor(shape=[], dtype=Int64, value= 5)]
 </pre></div>
 </div>
 </div>

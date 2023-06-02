@@ -290,7 +290,8 @@
 <span class="kn">from</span> <span class="nn">mindspore.parallel._parallel_serialization</span> <span class="kn">import</span> <span class="n">_convert_to_list</span><span class="p">,</span> <span class="n">_convert_to_layout</span><span class="p">,</span> <span class="n">_build_searched_strategy</span><span class="p">,</span> \
     <span class="n">_restore_group_info_list</span>
 <span class="kn">from</span> <span class="nn">mindspore.train._utils</span> <span class="kn">import</span> <span class="n">read_proto</span>
-<span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">load_mindir</span><span class="p">,</span> <span class="n">_encrypt</span><span class="p">,</span> <span class="n">_decrypt</span><span class="p">,</span> <span class="n">_is_cipher_file</span><span class="p">,</span> <span class="n">dynamic_obfuscate_mindir</span>
+<span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">load_mindir</span><span class="p">,</span> <span class="n">_encrypt</span><span class="p">,</span> <span class="n">_decrypt</span><span class="p">,</span> <span class="n">_is_cipher_file</span><span class="p">,</span> <span class="n">dynamic_obfuscate_mindir</span><span class="p">,</span> \
+    <span class="n">split_mindir</span>
 <span class="kn">from</span> <span class="nn">..ops.operations._opaque_predicate_registry</span> <span class="kn">import</span> <span class="n">add_opaque_predicate</span><span class="p">,</span> <span class="n">clean_funcs</span>
 
 <span class="n">tensor_to_ms_type</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Int8&quot;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int8</span><span class="p">,</span> <span class="s2">&quot;UInt8&quot;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span> <span class="s2">&quot;Int16&quot;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int16</span><span class="p">,</span> <span class="s2">&quot;UInt16&quot;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">uint16</span><span class="p">,</span>
@@ -869,6 +870,52 @@
                                <span class="s2">&quot; are the same as when exported MindIR file, or check the file integrity.&quot;</span><span class="p">)</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Load MindIR failed.&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">graph</span></div>
+
+
+<span class="k">def</span> <span class="nf">export_split_mindir</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Auto Split MindIR.</span>
+
+<span class="sd">    The returned object can be executed by a `GraphCell`, see class :class:`mindspore.nn.GraphCell` for more details.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        file_name (str): MindIR file name.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: MindIR file does not exist or `file_name` is not a string.</span>
+<span class="sd">        RuntimeError: Failed to split MindIR file.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.communication import init</span>
+<span class="sd">        &gt;&gt;&gt; context.set_context(mode=context.GRAPH_MODE)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; init(backend_name=&quot;hccl&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; ms.export_split_mindir(&quot;net.mindir&quot;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;For &#39;Split MindIR&#39;, the argument &#39;file_name&#39; must be string, but &quot;</span>
+                         <span class="s2">&quot;got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">file_name</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">file_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.mindir&quot;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;For &#39;Split MindIR&#39;, the argument &#39;file_name&#39;(MindIR file) should end with &#39;.mindir&#39;, &quot;</span>
+                         <span class="s2">&quot;please input the correct &#39;file_name&#39;.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;For &#39;Split MindIR&#39;, the argument &#39;file_name&#39;(MindIR file) does not exist, &quot;</span>
+                         <span class="s2">&quot;please check whether the &#39;file_name&#39; is correct.&quot;</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Execute the process of export and split mindir.&quot;</span><span class="p">)</span>
+
+    <span class="n">graph</span> <span class="o">=</span> <span class="n">split_mindir</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">graph</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">_is_cipher_file</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Export and split MindIR failed. The file may be encrypted and decrypt failed, you &quot;</span>
+                               <span class="s2">&quot;can check whether the values of the arguments &#39;dec_key&#39; and &#39;dec_mode&#39;&quot;</span>
+                               <span class="s2">&quot; are the same as when exported MindIR file, or check the file integrity.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Export and split MindIR failed.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">graph</span>
 
 
 <span class="k">def</span> <span class="nf">_check_param_type</span><span class="p">(</span><span class="n">param_config</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">target_type</span><span class="p">,</span> <span class="n">requested</span><span class="p">):</span>
