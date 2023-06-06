@@ -16,10 +16,6 @@
   <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
   <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
   <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
    
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -576,6 +572,58 @@
 </div>
 </li>
 </ul>
+<br/>
+<p><font size=3><strong>Q: 如何根据数据预处理退出状态判断GetNext超时原因？</strong></font></p>
+<p>A: 在使用数据下沉模式（此时 <code class="docutils literal notranslate"><span class="pre">数据预处理</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">发送队列</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">网络计算</span></code> 三者构成Pipeline模式）进行训练时，当出现GetNext超时报错，数据预处理模块会输出状态信息，帮助用户分析出错原因。用户可以在日志中看到如下几种情况，具体原因及改进方法可参考：</p>
+<ol>
+<li><p>当日志输出类似如下时，表示数据预处理没有产生任何可用于训练的数据。</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">preprocess_batch</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+<span class="n">batch_queue</span><span class="p">:</span> <span class="p">;</span>
+            <span class="n">push_start_time</span> <span class="o">-&gt;</span> <span class="n">push_end_time</span>
+</pre></div>
+</div>
+<p>改进方法：可以先循环数据集对象，确认数据集预处理是否正常。</p>
+</li>
+<li><p>当日志输出类似如下时，表示数据预处理产生了一条数据，但是仍未发送到设备侧。</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">preprocess_batch</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+<span class="n">batch_queue</span><span class="p">:</span> <span class="mi">1</span><span class="p">;</span>
+            <span class="n">push_start_time</span> <span class="o">-&gt;</span> <span class="n">push_end_time</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">11</span><span class="p">:</span><span class="mi">36</span><span class="p">:</span><span class="mf">00.521.386</span> <span class="o">-&gt;</span>
+</pre></div>
+</div>
+<p>改进方法：可以查看设备plog是否有报错信息。</p>
+</li>
+<li><p>当日志输出类似如下时，表示数据预处理产生了三条数据，并且都已经发送到设备侧，同时正在预处理第4条数据。</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">preprocess_batch</span><span class="p">:</span> <span class="mi">3</span><span class="p">;</span>
+<span class="n">batch_queue</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">;</span>
+            <span class="n">push_start_time</span> <span class="o">-&gt;</span> <span class="n">push_end_time</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">11</span><span class="p">:</span><span class="mi">36</span><span class="p">:</span><span class="mf">00.521.386</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">11</span><span class="p">:</span><span class="mi">36</span><span class="p">:</span><span class="mf">00.782.215</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">11</span><span class="p">:</span><span class="mi">36</span><span class="p">:</span><span class="mf">01.212.621</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">11</span><span class="p">:</span><span class="mi">36</span><span class="p">:</span><span class="mf">01.490.139</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">11</span><span class="p">:</span><span class="mi">36</span><span class="p">:</span><span class="mf">01.893.412</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">11</span><span class="p">:</span><span class="mi">36</span><span class="p">:</span><span class="mf">02.006.771</span>
+</pre></div>
+</div>
+<p>改进方法：查看最后一条 <code class="docutils literal notranslate"><span class="pre">push_end_time</span></code> 时间 与 GetNext报错时间，如果超过默认GetNext超时时间（默认：1900s，且可通过 <code class="docutils literal notranslate"><span class="pre">mindspore.set_context(op_timeout=xx)</span></code> 来进行修改），说明数据预处理性能差，可参考 <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/dataset/optimize.html">数据处理性能优化</a> 对数据预处理部分进行优化。</p>
+</li>
+<li><p>当日志输出类似如下时，表示数据预处理产生了182条数据，正在向设备发送第183条数据。</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">preprocess_batch</span><span class="p">:</span> <span class="mi">182</span><span class="p">;</span>
+<span class="n">batch_queue</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="n">push_start_time</span> <span class="o">-&gt;</span> <span class="n">push_end_time</span>
+                            <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">00.603.866</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">00.621.146</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">01.018.964</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">01.043.705</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">01.396.650</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">01.421.501</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">01.807.671</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">01.828.931</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">02.179.945</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">02.201.960</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">02.555.941</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">02.584.413</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">02.943.839</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">02.969.583</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">03.309.299</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">03.337.607</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">03.684.034</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">03.717.230</span> <span class="o">-&gt;</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">04.038.521</span>
+<span class="mi">2022</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">14</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mf">04.064.571</span> <span class="o">-&gt;</span>
+</pre></div>
+</div>
+<p>改进方法：可以查看设备plog是否有报错信息。</p>
+</li>
+</ol>
 <br/>
 </div>
 

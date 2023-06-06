@@ -15,10 +15,6 @@
   <link rel="stylesheet" href="../_static/css/training.css" type="text/css" />
   <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
   <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
    
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -322,7 +318,7 @@ Propagation）过程中各卡的模型间是独立执行的，只是保持了相
 <p>这个小节介绍了在MindSpore中<code class="docutils literal notranslate"><span class="pre">ParallelMode.SEMI_AUTO_PARALLEL</span></code>半自动并行模式是如何工作的。</p>
 <div class="section" id="半自动并行原理">
 <h3>半自动并行原理<a class="headerlink" href="#半自动并行原理" title="永久链接至标题">¶</a></h3>
-<p><img alt="自动并行图解" src="../_images/auto_parallel.png" /></p>
+<p><img alt="自动并行图解" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/docs/mindspore/source_zh_cn/design/images/auto_parallel.png" /></p>
 <ol class="arabic">
 <li><p>分布式算子和张量排布模型</p>
 <p>在上面的架构图中，自动并行流程会对单机的正向计算图（ANF Graph）进行遍历，以分布式算子（Distributed Operator）为单位对张量进行切分建模，表示一个算子的输入输出张量如何分布到集群各个卡上（Tensor Layout）。这种模型充分地表达了张量和设备间的映射关系，用户无需感知模型各切片放到哪个设备上运行，框架会自动调度分配。</p>
@@ -348,9 +344,9 @@ Strategy），它表示算子的各个输入在相应维度的切分情况。通
 <p><strong>算子级并行</strong>：算子级并行以神经网络中的算子为单位，将输入张量切分到多个设备上进行计算。通过这种方式，可以实现数据样本和模型参数在不同设备之间的分配，从而训练大规模的深度学习模型，并利用集群资源进行并行计算，提高整体速度。用户可以设置每个算子的切分策略，框架会根据算子的切分策略对每个算子及其输入张量进行切分建模，以保持数学等价性。这种方法可以有效地减少单个设备的负载，提高计算效率，适用于大规模深度神经网络的训练。详情参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/operator_parallel.html">算子级并行</a></p>
 <p><strong>流水线并行</strong>：当集群设备数很多时，如果仅采用算子级并行的方式，则需要在整个集群的通信域上进行通信，这可能使得通信效率低，从而降低整体性能。而流水线并行能将神经网络结构切分成多个stage，每个stage跑在一部分设备内，将集合通信的通信域限定在这部分设备范围内，而stage间采用点对点通信。流水线并行的优点在于：能提升通信效率、能方便的处理按层堆叠的神经网络结构。缺点在于：同一时刻内，有些节点可能处于空闲状态。详情参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/pipeline_parallel.html">流水线并行</a></p>
 <p><strong>MoE并行</strong>：MoE是将专家分布到不同的worker上，并且每个worker承担不同批次的训练数据。对于非MoE层来说，专家并行和数据并行一样。在MoE层中，序列中的token通过all-to-all通信被发送到它们相匹配的专家所对应的worker。在完成对应专家的计算后，再通过all-to-all重新传回到原来的worker，组织成原始序列，用于下一层的计算。由于MoE模型通常有大量的专家，专家并行度比模型并行度更能随模型规模的增大而增大。</p>
-<p><img alt="MoE并行" src="../_images/MoE.png" /></p>
+<p><img alt="MoE并行" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/docs/mindspore/source_zh_cn/design/images/MoE.png" /></p>
 <p><strong>多副本并行</strong>：将输入模型的数据按照batchsize维度进行切分，从而将现有的单副本形式修改成多副本的形式，使其底层在通信的时候，另一副本进行计算操作，无需等待，这样就能保证多副本的计算和通信的时间相互互补，提升模型性能，同时将数据拆成多副本的形式还能减少算子输入的参数量，从而减少单个算子的计算时间，对提升模型性能有很大帮助。</p>
-<p><img alt="多副本并行" src="../_images/multi_copy.png" /></p>
+<p><img alt="多副本并行" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/docs/mindspore/source_zh_cn/design/images/multi_copy.png" /></p>
 <p><strong>优化器并行</strong>：在数据并行或算子级并行训练时，模型的参数可能在多个设备上存在同一份副本。这使得优化器在更新该权重之时，在多个设备间存在冗余计算。在此情况下，可以通过优化器并行将优化器的计算量分散到多个设备上。它的优点在于：能减少静态内存消耗、减少优化器内的计算量。缺点在于：增加了通信开销。详情参考：<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/optimizer_parallel.html">优化器并行</a></p>
 </li>
 </ol>
@@ -395,7 +391,7 @@ Strategy），它表示算子的各个输入在相应维度的切分情况。通
 <h3>特性设计<a class="headerlink" href="#特性设计" title="永久链接至标题">¶</a></h3>
 <p>全自动并行是基于MindSpore半自动框架，以自动混合并行策略生成算法代替专家配置并行策略。下图展示了使用MindSpore分布式训练或推理一个神经网络的过程，用户使用Python语言开发自己的神经网络模型（或MindIR导入），经MindSpore解析成计算图（ANF图），自动混合并行策略生成模块通过算法搜索到较优的策略，传递给半自动并行模块，经过半自动模块分析张量排布，分布式算子分析，设备管理以及进行整图切分等操作，传递给后端进行计算。</p>
 <p>实际上，混合并行策略生成模块负责在给定神经网络模型和集群配置下，来找到适合的并行切分策略。所采用的关键技术是基于代价模型的策略搜索算法，即构建代价模型（Cost Model）来描述在分布式训练场景下所产生的计算代价(Computation Cost)与通信代价(Communication Cost)，以内存开销（Memory Cost）为约束条件，通过计算图搜索算法，高效地搜索出性能较优地并行策略。</p>
-<p><img alt="全自动并行" src="../_images/auto.png" /></p>
+<p><img alt="全自动并行" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/docs/mindspore/source_zh_cn/design/images/auto.png" /></p>
 </div>
 <div class="section" id="三种搜索算法">
 <h3>三种搜索算法<a class="headerlink" href="#三种搜索算法" title="永久链接至标题">¶</a></h3>
