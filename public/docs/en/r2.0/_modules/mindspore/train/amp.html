@@ -101,12 +101,9 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../design/data_engine.html">High Performance Data Processing Engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../design/glossary.html">Glossary</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Specification</span></p>
+<p class="caption"><span class="caption-text">Models</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../note/benchmark.html">Benchmarks</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://gitee.com/mindspore/models/blob/r2.0/README.md#table-of-contents">Network List↗</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../note/operator_list.html">API List</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../note/syntax_list.html">Syntax Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../note/official_models.html">Official Models</a></li>
 </ul>
 <p class="caption"><span class="caption-text">API</span></p>
 <ul>
@@ -142,6 +139,11 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/debug_and_tune.html">Debugging and Tuning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/sample_code.html">Network Migration Debugging Example</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/faq.html">FAQs</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Syntax Support</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../note/static_graph_syntax_support.html">Static Graph Syntax Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../note/index_support.html">Tensor Index Support</a></li>
 </ul>
 <p class="caption"><span class="caption-text">FAQ</span></p>
 <ul>
@@ -335,7 +337,7 @@
         <span class="c1"># if cell is already in allowed_list, it means to_float(mindspore.float16) is set by amp.</span>
         <span class="c1"># if cell is not in allowed_list, but has to_float(mindspore.float16),</span>
         <span class="c1"># it means to_float(mindspore.float16) is set by user.</span>
-        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">to_float_fp16</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">(),</span> <span class="s2">&quot;to_float_fp16&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">to_float_fp16</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
     <span class="n">allowed_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">())</span>
     <span class="k">return</span> <span class="kc">True</span>
@@ -387,6 +389,10 @@
 <span class="k">def</span> <span class="nf">_insert_cast_operator_white_list</span><span class="p">(</span><span class="n">stree</span><span class="p">,</span> <span class="n">white_list</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;insert cast for operators in white_list.&quot;&quot;&quot;</span>
     <span class="n">allowed_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Ignore if net called &quot;.to_float(mindspore.float16)&quot;</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">stree</span><span class="o">.</span><span class="n">get_handler</span><span class="p">()</span><span class="o">.</span><span class="n">get_origin_network</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="s2">&quot;to_float_fp16&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">net</span><span class="o">.</span><span class="n">to_float_fp16</span><span class="p">:</span>
+        <span class="k">return</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">stree</span><span class="o">.</span><span class="n">nodes</span><span class="p">():</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">get_targets</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">continue</span>
@@ -418,6 +424,8 @@
         <span class="k">return</span> <span class="kc">False</span>
     <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">get_users</span><span class="p">():</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_instance</span><span class="p">(),</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_instance</span><span class="p">(),</span> <span class="s2">&quot;to_float_fp16&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">False</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">user</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">to_float_fp16</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">False</span>
         <span class="k">elif</span> <span class="n">user</span><span class="o">.</span><span class="n">get_instance_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">P</span><span class="o">.</span><span class="n">Cast</span><span class="p">:</span>
@@ -496,15 +504,48 @@
 
 <div class="viewcode-block" id="auto_mixed_precision"><a class="viewcode-back" href="../../../api_python/amp/mindspore.amp.auto_mixed_precision.html#mindspore.amp.auto_mixed_precision">[docs]</a><span class="k">def</span> <span class="nf">auto_mixed_precision</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O0&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    auto mixed precision function.</span>
+<span class="sd">    Returns a network processed with auto mixed precision.</span>
+
+<span class="sd">    This interface will automatically perform mixed-precision processing on the input network, and the cells</span>
+<span class="sd">    and operators in the processed network will add precision conversion operations to calculate with float16 accuracy.</span>
+<span class="sd">    Inputs and parameters of cells and operators are converted to float16 type, and calculation results are converted</span>
+<span class="sd">    back to float32 type.</span>
+
+<span class="sd">    The framework has a set of built-in blacklists and whitelists, and the `amp_level` determines which cells and</span>
+<span class="sd">    operators are specifically converted:</span>
+
+<span class="sd">    - When `amp_level=&quot;O0&quot;` , no precision conversion is performed.</span>
+<span class="sd">    - When `amp_level=&quot;O1&quot;` , only the cells and operators in the whitelist will be converted.</span>
+<span class="sd">    - When `amp_level=&quot;O2&quot;` , all cells and operators except those in the blacklist will be converted.</span>
+<span class="sd">    - When `amp_level=&quot;O3&quot;` , all cells and operators in the network are converted.</span>
+
+<span class="sd">    The current built-in whitelist contents are:</span>
+
+<span class="sd">    [:class:`mindspore.nn.Conv1d`, :class:`mindspore.nn.Conv2d`, :class:`mindspore.nn.Conv3d`,</span>
+<span class="sd">    :class:`mindspore.nn.Conv1dTranspose`, :class:`mindspore.nn.Conv2dTranspose`,</span>
+<span class="sd">    :class:`mindspore.nn.Conv3dTranspose`, :class:`mindspore.nn.Dense`, :class:`mindspore.nn.LSTMCell`,</span>
+<span class="sd">    :class:`mindspore.nn.RNNCell`, :class:`mindspore.nn.GRUCell`, :class:`mindspore.ops.Conv2D`,</span>
+<span class="sd">    :class:`mindspore.ops.Conv3D`, :class:`mindspore.ops.Conv2DTranspose`,</span>
+<span class="sd">    :class:`mindspore.ops.Conv3DTranspose`, :class:`mindspore.ops.MatMul`, :class:`mindspore.ops.BatchMatMul`,</span>
+<span class="sd">    :class:`mindspore.ops.PReLU`, :class:`mindspore.ops.ReLU`, :class:`mindspore.ops.Ger`]</span>
+
+<span class="sd">    The current built-in blacklist contents are:</span>
+
+<span class="sd">    [:class:`mindspore.nn.BatchNorm1d`, :class:`mindspore.nn.BatchNorm2d`, :class:`mindspore.nn.BatchNorm3d`,</span>
+<span class="sd">    :class:`mindspore.nn.LayerNorm`]</span>
+
+<span class="sd">    For details on automatic mixed precision, refer to</span>
+<span class="sd">    `Automatic Mix Precision &lt;https://www.mindspore.cn/tutorials/en/r2.0/advanced/mixed_precision.html&gt;`_ .</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        network (Cell): Definition of the network.</span>
 <span class="sd">        amp_level (str): Supports [&quot;O0&quot;, &quot;O1&quot;, &quot;O2&quot;, &quot;O3&quot;]. Default: &quot;O0&quot;.</span>
 
 <span class="sd">            - &quot;O0&quot;: Do not change.</span>
-<span class="sd">            - &quot;O1&quot;: Cast the operators in white_list to float16, the remaining operators are kept in float32.</span>
-<span class="sd">            - &quot;O2&quot;: Cast network to float16, keep operators in black_list run in float32,</span>
+<span class="sd">            - &quot;O1&quot;: Convert cells and operators in whitelist to float16 precision operations, and keep float32</span>
+<span class="sd">              precision operations for the rest.</span>
+<span class="sd">            - &quot;O2&quot;: Keep float32 precision operations for cells and operators in blacklist, and convert the rest</span>
+<span class="sd">              to float16 precision operations.</span>
 <span class="sd">            - &quot;O3&quot;: Cast network to float16.</span>
 
 <span class="sd">    Raises:</span>
@@ -512,6 +553,8 @@
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; from mindspore import amp, nn</span>
+<span class="sd">        &gt;&gt;&gt; # Define the network structure of LeNet5. Refer to</span>
+<span class="sd">        &gt;&gt;&gt; # https://gitee.com/mindspore/docs/blob/r2.0/docs/mindspore/code/lenet.py</span>
 <span class="sd">        &gt;&gt;&gt; network = LeNet5()</span>
 <span class="sd">        &gt;&gt;&gt; amp_level = &quot;O1&quot;</span>
 <span class="sd">        &gt;&gt;&gt; net = amp.auto_mixed_precision(network, amp_level)</span>
@@ -643,36 +686,36 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        network (Cell): Definition of the network.</span>
+<span class="sd">        optimizer (Optimizer): Define the optimizer to update the Parameter.</span>
 <span class="sd">        loss_fn (Union[None, Cell]): Define the loss function. If None, the `network` should have the loss inside.</span>
 <span class="sd">            Default: None.</span>
-<span class="sd">        optimizer (Optimizer): Define the optimizer to update the Parameter.</span>
-<span class="sd">        level (str): Supports [&quot;O0&quot;, &quot;O1&quot;, &quot;O2&quot;, &quot;O3&quot;, &quot;auto&quot;]. Default: &quot;O0&quot;.</span>
+<span class="sd">        level (str): Supports [&#39;O0&#39;, &#39;O1&#39;, &#39;O2&#39;, &#39;O3&#39;, &#39;auto&#39;]. Default: &#39;O0&#39;.</span>
 
-<span class="sd">            - &quot;O0&quot;: Do not change.</span>
-<span class="sd">            - &quot;O1&quot;: Cast the operators in white_list to float16, the remaining operators are kept in float32.</span>
+<span class="sd">            - &#39;O0&#39;: Do not change.</span>
+<span class="sd">            - &#39;O1&#39;: Cast the operators in white_list to float16, the remaining operators are kept in float32.</span>
 <span class="sd">              The operators in the whitelist: [Conv1d, Conv2d, Conv3d, Conv1dTranspose, Conv2dTranspose,</span>
 <span class="sd">              Conv3dTranspose, Dense, LSTMCell, RNNCell, GRUCell, MatMul, BatchMatMul, PReLU, ReLU, Ger].</span>
-<span class="sd">            - &quot;O2&quot;: Cast network to float16, keep batchnorm and `loss_fn` (if set) run in float32,</span>
+<span class="sd">            - &#39;O2&#39;: Cast network to float16, keep batchnorm and `loss_fn` (if set) run in float32,</span>
 <span class="sd">              using dynamic loss scale.</span>
-<span class="sd">            - &quot;O3&quot;: Cast network to float16, with additional property `keep_batchnorm_fp32=False` .</span>
-<span class="sd">            - auto: Set to level to recommended level in different devices. Set level to &quot;O2&quot; on GPU, Set</span>
-<span class="sd">              level to &quot;O3&quot; Ascend. The recommended level is chosen by the export experience, not applicable to all</span>
+<span class="sd">            - &#39;O3&#39;: Cast network to float16, with additional property `keep_batchnorm_fp32=False` .</span>
+<span class="sd">            - &#39;auto&#39;: Set to level to recommended level in different devices. Set level to &#39;O2&#39; on GPU, Set</span>
+<span class="sd">              level to &#39;O3&#39; Ascend. The recommended level is chosen by the export experience, not applicable to all</span>
 <span class="sd">              scenarios. User should specify the level for special network.</span>
 
-<span class="sd">            &quot;O2&quot; is recommended on GPU, &quot;O3&quot; is recommended on Ascend. Property of `keep_batchnorm_fp32`,</span>
+<span class="sd">            &#39;O2&#39; is recommended on GPU, &quot;O3&quot; is recommended on Ascend. Property of `keep_batchnorm_fp32`,</span>
 <span class="sd">            `cast_model_type` and `loss_scale_manager` determined by `level` setting may be overwritten by settings in</span>
 <span class="sd">            `kwargs`.</span>
 
 <span class="sd">        boost_level (str): Option for argument `level` in `mindspore.boost` , level for boost mode</span>
-<span class="sd">            training. Supports [&quot;O0&quot;, &quot;O1&quot;, &quot;O2&quot;]. Default: &quot;O0&quot;.</span>
+<span class="sd">            training. Supports [&#39;O0&#39;, &#39;O1&#39;, &#39;O2&#39;]. Default: &#39;O0&#39;.</span>
 
-<span class="sd">            - &quot;O0&quot;: Do not change.</span>
-<span class="sd">            - &quot;O1&quot;: Enable the boost mode, the performance is improved by about 20%, and</span>
+<span class="sd">            - &#39;O0&#39;: Do not change.</span>
+<span class="sd">            - &#39;O1&#39;: Enable the boost mode, the performance is improved by about 20%, and</span>
 <span class="sd">              the accuracy is the same as the original accuracy.</span>
-<span class="sd">            - &quot;O2&quot;: Enable the boost mode, the performance is improved by about 30%, and</span>
+<span class="sd">            - &#39;O2&#39;: Enable the boost mode, the performance is improved by about 30%, and</span>
 <span class="sd">              the accuracy is reduced by less than 3%.</span>
 
-<span class="sd">            If &quot;O1&quot; or &quot;O2&quot; mode is set, the boost related library will take effect automatically.</span>
+<span class="sd">            If &#39;O1&#39; or &#39;O2&#39; mode is set, the boost related library will take effect automatically.</span>
 
 <span class="sd">        cast_model_type (:class:`mindspore.dtype`): Supports `mstype.float16` or `mstype.float32` . If set, the</span>
 <span class="sd">            network will be casted to `cast_model_type` ( `mstype.float16` or `mstype.float32` ), but not to be casted</span>
@@ -689,6 +732,8 @@
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; from mindspore import amp, nn</span>
+<span class="sd">        &gt;&gt;&gt; # Define the network structure of LeNet5. Refer to</span>
+<span class="sd">        &gt;&gt;&gt; # https://gitee.com/mindspore/docs/blob/r2.0/docs/mindspore/code/lenet.py</span>
 <span class="sd">        &gt;&gt;&gt; network = LeNet5()</span>
 <span class="sd">        &gt;&gt;&gt; net_loss = nn.SoftmaxCrossEntropyWithLogits(reduction=&quot;mean&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; net_opt = nn.Momentum(network.trainable_params(), learning_rate=0.01, momentum=0.9)</span>
@@ -810,9 +855,11 @@
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; from mindspore import amp</span>
-<span class="sd">        &gt;&gt;&gt; net = MyNet()</span>
+<span class="sd">        &gt;&gt;&gt; # Define the network structure of LeNet5. Refer to</span>
+<span class="sd">        &gt;&gt;&gt; # https://gitee.com/mindspore/docs/blob/r2.0/docs/mindspore/code/lenet.py</span>
+<span class="sd">        &gt;&gt;&gt; net = LeNet5()</span>
 <span class="sd">        &gt;&gt;&gt; custom_white_list = amp.get_white_list()</span>
-<span class="sd">        &gt;&gt;&gt; custom_white_list.append(nn.Tanhshrink)</span>
+<span class="sd">        &gt;&gt;&gt; custom_white_list.append(nn.Flatten)</span>
 <span class="sd">        &gt;&gt;&gt; net = amp.custom_mixed_precision(net, white_list=custom_white_list)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>

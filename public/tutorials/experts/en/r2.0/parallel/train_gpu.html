@@ -528,10 +528,10 @@ tar<span class="w"> </span>-zxvf<span class="w"> </span>cifar-10-binary.tar.gz
 
 rm<span class="w"> </span>-rf<span class="w"> </span>device
 mkdir<span class="w"> </span>device
-cp<span class="w"> </span>./resnet50_distributed_training.py<span class="w"> </span>./resnet.py<span class="w"> </span>./device
+cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>./resnet.py<span class="w"> </span>./device
 <span class="nb">cd</span><span class="w"> </span>./device
 <span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;start training&quot;</span>
-mpirun<span class="w"> </span>-n<span class="w"> </span><span class="m">8</span><span class="w"> </span>pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training.py<span class="w"> </span>&gt;<span class="w"> </span>train.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
+mpirun<span class="w"> </span>-n<span class="w"> </span><span class="m">8</span><span class="w"> </span>pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>&gt;<span class="w"> </span>train.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
 </pre></div>
 </div>
 <p>The script will run in the bachground. The log file is saved in the device directory, we will run 10 epochs and each epochs contain 234 steps, and the loss result is saved in train.log. The output loss values of the grep command are as follows:</p>
@@ -562,7 +562,7 @@ epoch: 1 step: 1, loss is 2.3025854
 <p>Multi-host execution of GPU can also be performed by constructing hostfile files. For ease of debugging, it is recommended to use this method to execute multi-host scripts. This is then executed in the form of <code class="docutils literal notranslate"><span class="pre">mpirun</span> <span class="pre">--hostfile</span> <span class="pre">$HOST_FILE</span></code>. Below we give a detailed Multi-host configuration in the hostfile boot method.</p>
 <p>Each line in the hostfile is in the format of <code class="docutils literal notranslate"><span class="pre">[hostname]</span> <span class="pre">slots=[slotnum]</span></code>, where hostname can be an IP address or a host name. It should be noted that the usernames on different machines need to be the same, but hostnames cannot be the same. As follows, it means that there are 8 cards on DEVICE1 and 8 cards on machines with IP 192.168.0.1:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>DEVICE1 slots=8
-DEVICE2 slots=8
+192.168.0.1 slots=8
 </pre></div>
 </div>
 <p>The following is the execution script of the 16-device two-host cluster. The variables <code class="docutils literal notranslate"><span class="pre">DATA_PATH</span></code> and <code class="docutils literal notranslate"><span class="pre">HOSTFILE</span></code> need to be transferred, indicating the dataset path and hostfile path. We need to set the btl parameter of mca in mpi to specify the network card that communicates with mpi, otherwise it may fail to initialize when calling the mpi interface. The btl parameter specifies the TCP protocol between nodes and the loop within the nodes for communication. The IP address of the network card through which the specified nodes communication of  btl_tcp_if_include needs to be in the given subnet. For details about more mpirun options, see the OpenMPI official website.</p>
@@ -573,10 +573,10 @@ DEVICE2 slots=8
 
 rm<span class="w"> </span>-rf<span class="w"> </span>device
 mkdir<span class="w"> </span>device
-cp<span class="w"> </span>./resnet50_distributed_training.py<span class="w"> </span>./resnet.py<span class="w"> </span>./device
+cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>./resnet.py<span class="w"> </span>./device
 <span class="nb">cd</span><span class="w"> </span>./device
 <span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;start training&quot;</span>
-mpirun<span class="w"> </span>-n<span class="w"> </span><span class="m">16</span><span class="w"> </span>--hostfile<span class="w"> </span><span class="nv">$HOSTFILE</span><span class="w"> </span>-x<span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="nv">$DATA_PATH</span><span class="w"> </span>-x<span class="w"> </span>PATH<span class="w"> </span>-mca<span class="w"> </span>pml<span class="w"> </span>ob1<span class="w"> </span>pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training.py<span class="w"> </span>&gt;<span class="w"> </span>train.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
+mpirun<span class="w"> </span>-n<span class="w"> </span><span class="m">16</span><span class="w"> </span>--mca<span class="w"> </span>btl<span class="w"> </span>tcp,self<span class="w"> </span>--mca<span class="w"> </span>btl_tcp_if_include<span class="w"> </span><span class="m">192</span>.168.0.0/24<span class="w"> </span>--hostfile<span class="w"> </span><span class="nv">$HOSTFILE</span><span class="w"> </span>-x<span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="nv">$DATA_PATH</span><span class="w"> </span>-x<span class="w"> </span>PATH<span class="w"> </span>-mca<span class="w"> </span>pml<span class="w"> </span>ob1<span class="w"> </span>mpirun_gpu_clusher.sh<span class="w"> </span><span class="p">&amp;</span>
 </pre></div>
 </div>
 <p>Considering that some environment variables on different machines may be different, we take the form of mpirun to start a <code class="docutils literal notranslate"><span class="pre">mpirun_gpu_cluster.sh</span></code> and specify the required environment variables in the script file on different machines. Here we have configured the <code class="docutils literal notranslate"><span class="pre">NCCL_SOCKET_IFNAME</span></code> to specify the NIC when the NCCL communicates.</p>
@@ -638,7 +638,7 @@ export MS_ROLE=MS_WORKER              # The role of this process: MS_SCHED repre
 </ul>
 <p>To use a secure encrypted tunnel, set the configuration as following:</p>
 <p><code class="docutils literal notranslate"><span class="pre">set_ps_context(config_file_path=&quot;/path/to/config_file.json&quot;,</span> <span class="pre">enable_ssl=True,</span> <span class="pre">client_password=&quot;123456&quot;,</span> <span class="pre">server_password=&quot;123456&quot;)</span></code>.</p>
-<p>For detailed parameter configurations, refer to <a class="reference external" href="https://www.mindspore.cn/docs/en/r2.0/api_python/mindspore/mindspore.set_ps_context.html#mindspore.set_ps_context">mindspore.set_ps_context</a>, and <a class="reference external" href="#security-authentication">Safety Certification</a> section.</p>
+<p>For detailed parameter configurations, refer to <a class="reference external" href="https://www.mindspore.cn/docs/en/r2.0/api_python/mindspore/mindspore.set_ps_context.html#mindspore.set_ps_context">mindspore.set_ps_context</a>, and <a class="reference internal" href="#security-authentication"><span class="std std-ref">Safety Certification</span></a> section.</p>
 <p>The script content <code class="docutils literal notranslate"><span class="pre">run_gpu_cluster.sh</span></code> is as follows, before starting the Worker and Scheduler, you need to add the relevant environment variable settings:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
 

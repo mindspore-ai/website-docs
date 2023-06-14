@@ -111,12 +111,9 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../design/data_engine.html">高性能数据处理引擎</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../design/glossary.html">术语</a></li>
 </ul>
-<p class="caption"><span class="caption-text">规格</span></p>
+<p class="caption"><span class="caption-text">模型库</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../note/benchmark.html">基准性能</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://gitee.com/mindspore/models/blob/r2.0/README_CN.md#目录">网络支持↗</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../note/operator_list.html">API支持</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../note/syntax_list.html">语法支持</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../note/official_models.html">官方模型库</a></li>
 </ul>
 <p class="caption"><span class="caption-text">API</span></p>
 <ul>
@@ -152,6 +149,11 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/debug_and_tune.html">调试调优</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/sample_code.html">网络迁移调试实例</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/faq.html">常见问题</a></li>
+</ul>
+<p class="caption"><span class="caption-text">语法支持</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../note/static_graph_syntax_support.html">静态图语法支持</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../note/index_support.html">Tensor索引支持</a></li>
 </ul>
 <p class="caption"><span class="caption-text">FAQ</span></p>
 <ul>
@@ -261,7 +263,6 @@
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span>
 <span class="kn">import</span> <span class="nn">numpy</span>
 
-<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 <span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">args_type_check</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">PARAMETER_NAME_DEFAULT</span>
@@ -280,29 +281,14 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops.operations</span> <span class="kn">import</span> <span class="n">_inner_ops</span> <span class="k">as</span> <span class="n">inner</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel.shard</span> <span class="kn">import</span> <span class="n">Shard</span>
 <span class="kn">from</span> <span class="nn">mindspore._check_jit_forbidden_api</span> <span class="kn">import</span> <span class="n">jit_forbidden_register</span>
+<span class="kn">from</span> <span class="nn">mindspore.common._decorator</span> <span class="kn">import</span> <span class="n">deprecated</span>
 
 
 <span class="k">def</span> <span class="nf">_check_args</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check the input args&#39;s type&quot;&quot;&quot;</span>
-    <span class="n">index</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">has_init</span><span class="p">:</span>
             <span class="n">item</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-            <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;th&quot;</span>
-            <span class="k">if</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;st&quot;</span>
-            <span class="k">elif</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-                <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;nd&quot;</span>
-            <span class="k">elif</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
-                <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;rd&quot;</span>
-
-            <span class="n">input_index</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="o">+</span> <span class="n">suffix</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;Cell&#39;, inputs should not be numpy array. Only support bool, int, float, None, &quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot;Tensor, Parameter, mstype.Number(mstype.bool, mstype.int, mstype.float, mstype.uint&quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot;), and tuple or list containing only these types, and dict whose values are these &quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot;types, but the </span><span class="si">{</span><span class="n">input_index</span><span class="si">}</span><span class="s2"> arg type is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
-        <span class="n">index</span> <span class="o">+=</span> <span class="mi">1</span>
 
 
 <div class="viewcode-block" id="Cell"><a class="viewcode-back" href="../../../api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell">[文档]</a><span class="k">class</span> <span class="nc">Cell</span><span class="p">(</span><span class="n">Cell_</span><span class="p">):</span>
@@ -796,7 +782,7 @@
 <span class="sd">                             Support [&quot;CPU&quot;, &quot;GPU&quot;, &quot;Ascend&quot;]. Default: &quot;Ascend&quot;.</span>
 <span class="sd">            level (int): Option for parallel strategy infer algorithm, namely the object function, maximize computation</span>
 <span class="sd">                         over communication ratio, maximize speed performance, minimize memory usage etc. It is not in</span>
-<span class="sd">                         use right now. Support [&quot;0&quot;, &quot;1&quot;, &quot;2&quot;]. Default: &quot;0&quot;.</span>
+<span class="sd">                         use right now. Support [&quot;0&quot;, &quot;1&quot;, &quot;2&quot;]. Default: 0.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Cell, the cell itself.</span>
@@ -1142,8 +1128,6 @@
                 <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For element in &#39;set_inputs&#39;, the type must not be str.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_shape_inputs</span> <span class="o">=</span> <span class="n">inputs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_construct_args</span><span class="p">(</span><span class="o">*</span><span class="n">inputs</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_shape_inputs</span><span class="p">:</span>
-            <span class="n">ds</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">set_dynamic_shape</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">_get_mode</span><span class="p">()</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">:</span>
             <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">set_dynamic_input</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
@@ -1716,7 +1700,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            flags (dict): Network configuration information, currently it is used for the binding of network and</span>
-<span class="sd">                dataset. Users can also customize network attributes by this parameter. Default: None.</span>
+<span class="sd">                dataset. Users can also customize network attributes by this parameter.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_func_graph_flags&quot;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_func_graph_flags</span> <span class="o">=</span> <span class="p">{}</span>
@@ -1731,7 +1715,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            flags (dict): Network configuration information, currently it is used for the binding of network and</span>
-<span class="sd">                dataset. Users can also customize network attributes by this parameter. Default: None.</span>
+<span class="sd">                dataset. Users can also customize network attributes by this parameter.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_flags</span><span class="p">(</span><span class="o">**</span><span class="n">flags</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_add_mixed_precision_flag_recursive</span><span class="p">(</span><span class="o">**</span><span class="n">flags</span><span class="p">)</span>
@@ -2246,15 +2230,8 @@
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
             <span class="n">param</span><span class="o">.</span><span class="n">set_param_ps</span><span class="p">(</span><span class="n">init_in_server</span><span class="p">)</span></div>
 
+    <span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;1.8&quot;</span><span class="p">,</span> <span class="s2">&quot;set_param_fl&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">set_param_fl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">push_to_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">pull_from_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">requires_aggr</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Set the way of parameter and server interaction.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            push_to_server (bool): Whether the parameter should be pushed to server. Default: False.</span>
-<span class="sd">            pull_from_server (bool): Whether the parameter should be pulled from server. Default: False.</span>
-<span class="sd">            requires_aggr (bool): Whether the parameter should be aggregated in the server. Default: True.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
             <span class="n">param</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_param_fl</span><span class="p">(</span><span class="n">push_to_server</span><span class="p">,</span> <span class="n">pull_from_server</span><span class="p">,</span> <span class="n">requires_aggr</span><span class="p">)</span>
@@ -2371,7 +2348,7 @@
                                <span class="s2">&quot;are not support recomputation in pipeline parallel.&quot;</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">context</span><span class="o">.</span><span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;pipeline_stages&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_parallel_optimizer_comm_recompute</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;parallel_optimizer_comm_recompute&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
-        <span class="k">if</span> <span class="s1">&#39;recompute_slice_activation&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="s1">&#39;recompute_slice_activation&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_recompute_slice_activation</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;recompute_slice_activation&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
 
         <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -2455,19 +2432,26 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net_input</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input type of &#39;set_inputs&#39; must be Tensor, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">net_input</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                <span class="sa">f</span><span class="s2">&quot;For &#39;set_inputs&#39; and tuple(list) in &#39;set_inputs&#39;,the type of </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input must be Tensor, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">net_input</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="n">is_param_set_input</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">set_input</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)</span>
+        <span class="n">is_param_net_input</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net_input</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">is_param_set_input</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_param_net_input</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">is_param_net_input</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_param_set_input</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;For &#39;set_inputs&#39; and tuple(list) in &#39;set_inputs&#39;, the </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input must be the same &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;as network&#39;s input, but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">set_input</span><span class="p">)</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">net_input</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">set_input</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">net_input</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input type of &#39;set_inputs&#39; must be the same as network&#39;s input, &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="n">set_input</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_input</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;For &#39;set_inputs&#39; and tuple(list) in &#39;set_inputs&#39;,the dtype of </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input must be the same &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;as network&#39;s input, but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="n">set_input</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_input</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">net_input</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">set_input</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">!=</span> <span class="n">net_input</span><span class="o">.</span><span class="n">dim</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input dims of &#39;set_inputs&#39; must be the same as network&#39;s input, &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="n">set_input</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_input</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                <span class="sa">f</span><span class="s2">&quot;For &#39;set_inputs&#39; and tuple(list) in &#39;set_inputs&#39;,the dims of </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input must be the same as &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;network&#39;s input, but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="n">set_input</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_input</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">ele1</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">ele2</span><span class="p">)</span> <span class="k">for</span> <span class="n">ele1</span><span class="p">,</span> <span class="n">ele2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">set_input</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">net_input</span><span class="o">.</span><span class="n">shape</span><span class="p">)]):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input shape of &#39;set_inputs&#39; must be the same as network&#39;s input, &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="n">set_input</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_input</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                <span class="sa">f</span><span class="s2">&quot;For &#39;set_inputs&#39; and tuple(list) in &#39;set_inputs&#39;,the shape of </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input must be the same &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;as network&#39;s input, but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="n">set_input</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_input</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_check_compile_dynamic_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">set_inputs</span><span class="p">,</span> <span class="n">net_inputs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -2479,22 +2463,24 @@
         <span class="n">set_inputs_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">set_inputs</span><span class="p">)</span>
         <span class="n">net_inputs_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">net_inputs</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">set_inputs_len</span> <span class="o">!=</span> <span class="n">net_inputs_len</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The length of &#39;set_inputs&#39; must be equal to network&#39;s inputs, &quot;</span>
-                             <span class="sa">f</span><span class="s2">&quot;but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="n">set_inputs_len</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_inputs_len</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The length of &#39;set_inputs&#39; or tuple(list) in &#39;set_inputs&#39; must be equal to network&#39;s &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;inputs, but got &#39;set_inputs&#39;: </span><span class="si">{</span><span class="n">set_inputs_len</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_inputs_len</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="p">(</span><span class="n">set_input</span><span class="p">,</span> <span class="n">net_input</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">set_inputs</span><span class="p">,</span> <span class="n">net_inputs</span><span class="p">)):</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">set_input</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_check_dynamic_tensor</span><span class="p">(</span><span class="n">set_input</span><span class="p">,</span> <span class="n">net_input</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
             <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">set_input</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net_input</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
                     <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input type of &#39;set_inputs&#39; must be tuple or list, &quot;</span>
-                        <span class="sa">f</span><span class="s2">&quot;but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">net_input</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                        <span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input type of &#39;set_inputs&#39; or tuple(list) in &#39;set_inputs&#39; must be tuple or &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;list, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">net_input</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_check_compile_dynamic_shape</span><span class="p">(</span><span class="n">set_input</span><span class="p">,</span> <span class="n">net_input</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">_get_mode</span><span class="p">()</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span> <span class="ow">and</span> <span class="n">set_input</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
                 <span class="k">if</span> <span class="n">net_input</span> <span class="o">!=</span> <span class="n">set_input</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input of &#39;set_inputs&#39; must be the same with network&#39;s input, but got &quot;</span>
-                        <span class="sa">f</span><span class="s2">&quot;set_inputs: </span><span class="si">{</span><span class="n">set_input</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_input</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span></div>
+                        <span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">th input of &#39;set_inputs&#39; or tuple(list) in &#39;set_inputs&#39; must be the same with &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;network&#39;s input, but got set_inputs: </span><span class="si">{</span><span class="n">set_input</span><span class="si">}</span><span class="s2"> and network&#39;s input: </span><span class="si">{</span><span class="n">net_input</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="GraphCell"><a class="viewcode-back" href="../../../api_python/nn/mindspore.nn.GraphCell.html#mindspore.nn.GraphCell">[文档]</a><span class="k">class</span> <span class="nc">GraphCell</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
