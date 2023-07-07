@@ -104,6 +104,8 @@ def main(arg_version):
                 if not os.path.exists(css_path_en[num]):
                     error_dir.append(css_path_en[num])
                     continue
+
+                # 拷贝样式文件至各组件工程内
                 if os.path.exists(os.path.join(js_path_zh[num], "theme.js")):
                     os.remove(os.path.join(js_path_zh[num], "theme.js"))
                 shutil.copy(os.path.join(theme_class, "theme.js"), os.path.join(js_path_zh[num], "theme.js"))
@@ -116,7 +118,16 @@ def main(arg_version):
                 if os.path.exists(os.path.join(css_path_en[num], "theme.css")):
                     os.remove(os.path.join(css_path_en[num], "theme.css"))
                 shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_en[num], "theme.css"))
-        print(f"{'.'.join(json_name.split('.')[:-1])}版本样式文件已替换完成！")
+
+                # 删字体文件
+                if os.path.exists(os.path.join(css_path_zh[num], "fonts")):
+                    shutil.rmtree(os.path.join(css_path_zh[num], "fonts"))
+                    # print(f'{css_path_zh[num]}字体删除成功')
+                if os.path.exists(os.path.join(css_path_en[num], "fonts")):
+                    shutil.rmtree(os.path.join(css_path_en[num], "fonts"))
+                    # print(f'{css_path_en[num]}字体删除成功')
+
+        print(f"{'.'.join(json_name.split('.')[:-1])}版本样式文件已替换完成！字体文件也已删除！")
     if error_dir:
         print('error_dir', error_dir)
 

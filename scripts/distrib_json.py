@@ -105,6 +105,8 @@ def main(arg_version):
                 if not os.path.exists(css_path_en[num]):
                     error_dir.append(css_path_en[num])
                     continue
+
+                # 拷贝样式文件至各组件工程内
                 if os.path.exists(os.path.join(js_path_zh[num], "theme.js")):
                     os.remove(os.path.join(js_path_zh[num], "theme.js"))
                 shutil.copy(os.path.join(theme_class, "theme.js"), os.path.join(js_path_zh[num], "theme.js"))
@@ -117,6 +119,16 @@ def main(arg_version):
                 if os.path.exists(os.path.join(css_path_en[num], "theme.css")):
                     os.remove(os.path.join(css_path_en[num], "theme.css"))
                 shutil.copy(os.path.join(theme_class, "theme.css"), os.path.join(css_path_en[num], "theme.css"))
+
+                # 删字体文件
+                if os.path.exists(os.path.join(css_path_zh[num], "fonts")):
+                    shutil.rmtree(os.path.join(css_path_zh[num], "fonts"))
+                    # print(f'{css_path_zh[num]}字体删除成功')
+                if os.path.exists(os.path.join(css_path_en[num], "fonts")):
+                    shutil.rmtree(os.path.join(css_path_en[num], "fonts"))
+                    # print(f'{css_path_en[num]}字体删除成功')
+
+                # 分发版本信息json至各工程内
                 write_content = copy.deepcopy(data[i])
                 write_content.pop("repo_name", None)
                 with open(os.path.join(js_path_zh[num], "version.json"), 'w+', encoding='utf-8') as g:
@@ -124,7 +136,7 @@ def main(arg_version):
                 with open(os.path.join(js_path_en[num], "version.json"), 'w+', encoding='utf-8') as h:
                     json.dump(write_content, h, indent=4)
     if error_dir:
-        print('error_dir', error_dir)
+        print('错误或不存在的路径：', error_dir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
