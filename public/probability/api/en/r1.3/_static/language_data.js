@@ -5,7 +5,7 @@
  * This script contains the language-specific data used by searchtools.js,
  * namely the list of stopwords, stemmer, scorer and splitter.
  *
- * :copyright: Copyright 2007-2020 by the Sphinx team, see AUTHORS.
+ * :copyright: Copyright 2007-2022 by the Sphinx team, see AUTHORS.
  * :license: BSD, see LICENSE for details.
  *
  */
@@ -13,7 +13,8 @@
 var stopwords = ["a","and","are","as","at","be","but","by","for","if","in","into","is","it","near","no","not","of","on","or","such","that","the","their","then","there","these","they","this","to","was","will","with"];
 
 
-/* Non-minified version JS is _stemmer.js if file is provided */ 
+/* Non-minified version is copied as a separate JS file, is available */
+
 /**
  * Porter Stemmer
  */
@@ -199,7 +200,6 @@ var Stemmer = function() {
 
 
 
-
 var splitChars = (function() {
     var result = {};
     var singles = [96, 180, 187, 191, 215, 247, 749, 885, 903, 907, 909, 930, 1014, 1648,
@@ -277,46 +277,25 @@ var splitChars = (function() {
 
 function splitQuery(query, dict, all_dict) {
     var result = [];
-    if (query.includes(" ")) {
-      var start = -1;
-      for (var i = 0; i < query.length; i++) {
-        if (splitChars[query.charCodeAt(i)]) {
-            if (start !== -1) {
-                result.push(query.slice(start, i));
-                start = -1;
-            }
-        } else if (start === -1) {
-            start = i;
-          }
-      }
-    if (start !== -1) {
-      result.push(query.slice(start));
+    var tmp = []
+    for (var i = 0; i < dict.length; i++) {
+        if (query.indexOf(dict[i])!=-1) {
+          tmp.push(dict[i])
+        }
     }
-    } else {
-      var tmp = []
-      for (var i = 0; i < dict.length; i++) {
-          if (query.indexOf(dict[i])!=-1) {
-            tmp.push(dict[i])
-          }
-      }
-      if (escape(query).indexOf("%u")== -1 && query.indexOf(all_dict[i])==-1){
-        query = query.split('.').slice(-1)
-        return query
-      }
-      if (!tmp.length){
-        return [query]
-      }
-      min_freq = all_dict[tmp[0]].length
-      var min_freq_word = tmp[0]
-      for (var i = 0; i < tmp.length-1; i++) {
-          var a = all_dict[tmp[i]].length
-          if (a<min_freq){
-            min_freq = a
-            min_freq_word = tmp[i]
-          }
-      }
-      result.push(min_freq_word)
+    if (!tmp.length){
+      return [query]
     }
+    min_freq = all_dict[tmp[0]].length
+    var min_freq_word = tmp[0]
+    for (var i = 0; i < tmp.length-1; i++) {
+        var a = all_dict[tmp[i]].length
+        if (a<min_freq){
+          min_freq = a
+          min_freq_word = tmp[i]
+        }
+    }
+    result.push(min_freq_word)
     return result;
 }
 
