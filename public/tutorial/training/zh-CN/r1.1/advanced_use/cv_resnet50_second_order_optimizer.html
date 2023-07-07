@@ -18,6 +18,8 @@
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
         <script src="../_static/js/training.js"></script>
+        <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -157,13 +159,13 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="resnet-50">
+  <section class="tex2jax_ignore mathjax_ignore" id="resnet-50">
 <h1>在ResNet-50网络上应用二阶优化实践<a class="headerlink" href="#resnet-50" title="Permalink to this headline"></a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">Linux</span></code> <code class="docutils literal notranslate"><span class="pre">Ascend</span></code> <code class="docutils literal notranslate"><span class="pre">GPU</span></code> <code class="docutils literal notranslate"><span class="pre">模型开发</span></code> <code class="docutils literal notranslate"><span class="pre">模型调优</span></code> <code class="docutils literal notranslate"><span class="pre">高级</span></code>
 <a href="https://gitee.com/mindspore/docs/blob/r1.1/tutorials/training/source_zh_cn/advanced_use/cv_resnet50_second_order_optimizer.md" target="_blank"><img src="../_static/logo_source.png"></a>  </p>
 <section id="id1">
 <h2>概述<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
-<p>常见的优化算法可分为一阶优化算法和二阶优化算法。经典的一阶优化算法如SGD等，计算量小、计算速度快，但是收敛的速度慢，所需的迭代次数多。而二阶优化算法使用目标函数的二阶导数来加速收敛，能更快地收敛到模型最优值，所需要的迭代次数少，但由于二阶优化算法过高的计算成本，导致其总体执行时间仍然慢于一阶，故目前在深度神经网络训练中二阶优化算法的应用并不普遍。二阶优化算法的主要计算成本在于二阶信息矩阵（Hessian矩阵、<a class="reference external" href="https://arxiv.org/pdf/1808.07172.pdf">FIM矩阵</a>等）的求逆运算，时间复杂度约为$O(n^3)$。</p>
+<p>常见的优化算法可分为一阶优化算法和二阶优化算法。经典的一阶优化算法如SGD等，计算量小、计算速度快，但是收敛的速度慢，所需的迭代次数多。而二阶优化算法使用目标函数的二阶导数来加速收敛，能更快地收敛到模型最优值，所需要的迭代次数少，但由于二阶优化算法过高的计算成本，导致其总体执行时间仍然慢于一阶，故目前在深度神经网络训练中二阶优化算法的应用并不普遍。二阶优化算法的主要计算成本在于二阶信息矩阵（Hessian矩阵、<a class="reference external" href="https://arxiv.org/pdf/1808.07172.pdf">FIM矩阵</a>等）的求逆运算，时间复杂度约为<span class="math notranslate nohighlight">\(O(n^3)\)</span>。</p>
 <p>MindSpore开发团队在现有的自然梯度算法的基础上，对FIM矩阵采用近似、切分等优化加速手段，极大的降低了逆矩阵的计算复杂度，开发出了可用的二阶优化器THOR。使用8块Ascend 910 AI处理器，THOR可以在72min内完成ResNet50-v1.5网络和ImageNet数据集的训练，相比于SGD+Momentum速度提升了近一倍。</p>
 <p>本篇教程将主要介绍如何在Ascend 910 以及GPU上，使用MindSpore提供的二阶优化器THOR训练ResNet50-v1.5网络和ImageNet数据集。</p>
 <blockquote>
@@ -365,14 +367,15 @@
 <section id="id8">
 <h3>定义优化器<a class="headerlink" href="#id8" title="Permalink to this headline"></a></h3>
 <p>THOR优化器的参数更新公式如下：</p>
-<p>$$ \theta^{t+1} = \theta^t + \alpha F^{-1}\nabla E$$</p>
+<div class="math notranslate nohighlight">
+\[ \theta^{t+1} = \theta^t + \alpha F^{-1}\nabla E\]</div>
 <p>参数更新公式中各参数的含义如下：</p>
 <ul class="simple">
-<li><p>$\theta$：网络中的可训参数；</p></li>
-<li><p>$t$：迭代次数；</p></li>
-<li><p>$\alpha$：学习率值，参数的更新步长；</p></li>
-<li><p>$F^{-1}$：FIM矩阵，在网络中计算获得；</p></li>
-<li><p>$\nabla E$：一阶梯度值。</p></li>
+<li><p><span class="math notranslate nohighlight">\(\theta\)</span>：网络中的可训参数；</p></li>
+<li><p><span class="math notranslate nohighlight">\(t\)</span>：迭代次数；</p></li>
+<li><p><span class="math notranslate nohighlight">\(\alpha\)</span>：学习率值，参数的更新步长；</p></li>
+<li><p><span class="math notranslate nohighlight">\(F^{-1}\)</span>：FIM矩阵，在网络中计算获得；</p></li>
+<li><p><span class="math notranslate nohighlight">\(\nabla E\)</span>：一阶梯度值。</p></li>
 </ul>
 <p>从参数更新公式中可以看出，THOR优化器需要额外计算的是每一层的FIM矩阵，每一层的FIM矩阵就是之前在自定义的网络模型中计算获得的。FIM矩阵可以对每一层参数更新的步长和方向进行自适应的调整，加速收敛的同时可以降低调参的复杂度。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
