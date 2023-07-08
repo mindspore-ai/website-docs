@@ -4,7 +4,7 @@
  *
  * Sphinx JavaScript utilities for the full-text search.
  *
- * :copyright: Copyright 2007-2020 by the Sphinx team, see AUTHORS.
+ * :copyright: Copyright 2007-2022 by the Sphinx team, see AUTHORS.
  * :license: BSD, see LICENSE for details.
  *
  */
@@ -23,10 +23,10 @@ if (!Scorer) {
     },
     */
 
-    // query matches the full name of an object 11
-    objNameMatch: 60,
-    // or matches in the last dotted part of the object name 6
-    objPartialMatch: 55,
+    // query matches the full name of an object
+    objNameMatch: 11,
+    // or matches in the last dotted part of the object name
+    objPartialMatch: 6,
     // Additive scores depending on the priority of the object
     objPrio: {0:  15,   // used to be importantResults
               1:  5,   // used to be objectResults
@@ -34,9 +34,9 @@ if (!Scorer) {
     //  Used when the priority is not in the mapping.
     objPrioDefault: 0,
 
-    // query found in title 15,7
+    // query found in title
     title: 50,
-    partialTitle: 60,
+    partialTitle: 7,
     // query found in terms
     term: 5,
     partialTerm: 2
@@ -59,10 +59,10 @@ var Search = {
   _pulse_status : -1,
 
   htmlToText : function(htmlString) {
-      var htmlElement = document.createElement('span');
-      htmlElement.innerHTML = htmlString;
-      $(htmlElement).find('.headerlink').remove();
-      docContent = $(htmlElement).find('[role=main]')[0];
+      var virtualDocument = document.implementation.createHTMLDocument('virtual');
+      var htmlElement = $(htmlString, virtualDocument);
+      htmlElement.find('.headerlink').remove();
+      docContent = htmlElement.find('[role=main]')[0];
       if(docContent === undefined) {
           console.warn("Content block not found. Sphinx search tries to obtain it " +
                        "via '[role=main]'. Could you check your theme or template.");
@@ -194,8 +194,7 @@ var Search = {
           objectterms.push(tmp[i].toLowerCase());
       }
 
-      if ($u.indexOf(stopwords, tmp[i].toLowerCase()) != -1 || tmp[i].match(/^\d+$/) ||
-          tmp[i] === "") {
+      if ($u.indexOf(stopwords, tmp[i].toLowerCase()) != -1 || tmp[i] === "") {
         // skip this "word"
         continue;
       }
@@ -329,8 +328,9 @@ var Search = {
       // results left, load the summary and display it
       if (results.length) {
         var item = results.pop();
-        var listItem = $('<li style="display:none"></li>');
+        var listItem = $('<li></li>');
         var requestUrl = "";
+        var linkUrl = "";
         if (DOCUMENTATION_OPTIONS.BUILDER === 'dirhtml') {
           // dirhtml builder
           var dirname = item[0] + '/';
@@ -340,51 +340,44 @@ var Search = {
             dirname = '';
           }
           requestUrl = DOCUMENTATION_OPTIONS.URL_ROOT + dirname;
+          linkUrl = requestUrl;
 
         } else {
           // normal html builders
           requestUrl = DOCUMENTATION_OPTIONS.URL_ROOT + item[0] + DOCUMENTATION_OPTIONS.FILE_SUFFIX;
+          linkUrl = item[0] + DOCUMENTATION_OPTIONS.LINK_SUFFIX;
         }
         listItem.append($('<a/>').attr('href',
-            requestUrl +
+            linkUrl +
             highlightstring + item[2]).html(item[1]));
         if (item[3]) {
           listItem.append($('<span> (' + item[3] + ')</span>'));
           Search.output.append(listItem);
-          listItem.slideDown(5, function() {
+          setTimeout(function() {
             displayNextItem();
-          });
+          }, 5);
         } else if (DOCUMENTATION_OPTIONS.HAS_SOURCE) {
-          if (resultCount < 100) {
-          listItem.append(item[7]);
-          Search.output.append(listItem);
-          listItem.slideDown(5, function() {
-            displayNextItem();
-          });
-          } else {
           $.ajax({url: requestUrl,
                   dataType: "text",
                   complete: function(jqxhr, textstatus) {
                     var data = jqxhr.responseText;
                     if (data !== '' && data !== undefined) {
-                      if (Search.makeSearchSummary(data, [query], hlterms).length) {
-                        listItem.append(Search.makeSearchSummary(data, [query], hlterms));
-                      } else {
-                        listItem.append(Search.makeSearchSummary(data, searchterms, hlterms));
+                      var summary = Search.makeSearchSummary(data, searchterms, hlterms);
+                      if (summary) {
+                        listItem.append(summary);
                       }
                     }
                     Search.output.append(listItem);
-                    listItem.slideDown(5, function() {
+                    setTimeout(function() {
                       displayNextItem();
-                    });
+                    }, 5);
                   }});
-          };
         } else {
           // no source available, just display title
           Search.output.append(listItem);
-          listItem.slideDown(5, function() {
+          setTimeout(function() {
             displayNextItem();
-          });
+          }, 5);
         }
       }
       // search finished, update title and status message
@@ -415,7 +408,9 @@ var Search = {
     var results = [];
 
     for (var prefix in objects) {
-      for (var name in objects[prefix]) {
+      for (var iMatch = 0; iMatch != objects[prefix].length; ++iMatch) {
+        var match = objects[prefix][iMatch];
+        var name = match[4];
         var fullname = (prefix ? prefix + '.' : '') + name;
         var fullnameLower = fullname.toLowerCase()
         if (fullnameLower.indexOf(object) > -1) {
@@ -429,7 +424,6 @@ var Search = {
           } else if (parts[parts.length - 1].indexOf(object) > -1) {
             score += Scorer.objPartialMatch;
           }
-          var match = objects[prefix][name];
           var objname = objnames[match[1]][2];
           var title = titles[match[0]];
           // If more than one term searched for, we require other words to be
@@ -470,6 +464,13 @@ var Search = {
   },
 
   /**
+   * See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
+   */
+  escapeRegExp : function(string) {
+    return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+  },
+
+  /**
    * search for full-text terms in the index
    */
   performTermsSearch : function(searchterms, excluded, terms, titleterms) {
@@ -492,13 +493,14 @@ var Search = {
       ];
       // add support for partial matches
       if (word.length > 2) {
+        var word_regex = this.escapeRegExp(word);
         for (var w in terms) {
-          if (w.match(word) && !terms[word]) {
+          if (w.match(word_regex) && !terms[word]) {
             _o.push({files: terms[w], score: Scorer.partialTerm})
           }
         }
         for (var w in titleterms) {
-          if (w.match(word) && !titleterms[word]) {
+          if (w.match(word_regex) && !titleterms[word]) {
               _o.push({files: titleterms[w], score: Scorer.partialTitle})
           }
         }
@@ -580,6 +582,9 @@ var Search = {
    */
   makeSearchSummary : function(htmlText, keywords, hlwords) {
     var text = Search.htmlToText(htmlText);
+    if (text == "") {
+      return null;
+    }
     var textLower = text.toLowerCase();
     var start = 0;
     $.each(keywords, function() {
@@ -595,7 +600,7 @@ var Search = {
     var excerpt = ((start > 0) ? '...' : '') +
       $.trim(text.substr(start, 240)) +
       ((start + 240 - text.length) ? '...' : '');
-    var rv = $('<div class="context"></div>').text(excerpt);
+    var rv = $('<p class="context"></p>').text(excerpt);
     $.each(hlwords, function() {
       rv = rv.highlightText(this, 'highlighted');
     });
