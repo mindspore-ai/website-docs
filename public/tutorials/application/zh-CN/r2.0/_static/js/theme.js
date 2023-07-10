@@ -4,11 +4,11 @@
 
 // 公共css/js文件
 (function () {
-  var s = document.getElementsByTagName('HEAD')[0];
+  let s = document.getElementsByTagName('HEAD')[0];
   let origin = window.location.origin;
-  var hm = document.createElement('script');
+  let hm = document.createElement('script');
       hm.src = origin + '/common.js';
-  var oLink = document.createElement('link');
+  let oLink = document.createElement('link');
   oLink.rel = 'stylesheet';
   oLink.href = origin + '/h5_docs.css';
   s.parentNode.insertBefore(hm, s);
@@ -126,10 +126,6 @@ $(function () {
           $('.header').append(theme2Nav);
           $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
               pageTitle + ' (' + curVersion(componentVersionTitle) + ')';
-          $('#rtd-search-form input').attr(
-              'placeholder',
-              isEn ? 'Search in Tutorials' : '"教程" 内搜索'
-          );
           let welcomeText = isEn ? 'MindSpore Tutorials': '欢迎查看MindSpore教程';
           $('.wy-menu-vertical').before(
             `<div class="docsHome"><a  href="${pagePath}/index.html" class="welcome">${welcomeText}</a></div>`

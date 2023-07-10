@@ -2,11 +2,11 @@
 
 // 公共css/js文件
 (function () {
-  var s = document.getElementsByTagName('HEAD')[0];
+  let s = document.getElementsByTagName('HEAD')[0];
   let origin = window.location.origin;
-  var hm = document.createElement('script');
+  let hm = document.createElement('script');
       hm.src = origin + '/common.js';
-  var oLink = document.createElement('link');
+  let oLink = document.createElement('link');
   oLink.rel = 'stylesheet';
   oLink.href = origin + '/h5_docs.css';
   s.parentNode.insertBefore(hm, s);
