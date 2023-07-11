@@ -88,7 +88,14 @@ $(function () {
   const pathname = window.location.pathname
   const isEn = pathname.indexOf('/en/') !== -1
   const lang = isEn ? '/en/' : '/zh-CN/'
-  const enPath = isEn ? 'en' : ''
+  const enPath = isEn ? 'en' : '';
+  const pathPrefix = pathname.split(lang);
+  const currentVersion = pathPrefix[1].split('/')[0];
+  const pagePath = pathPrefix[0] +lang + currentVersion;
+
+  function curVersion(version = '') {
+    return version.startsWith('r') ? version.slice(1):version;
+  }
 
   //切换语言链接
   const newNavPath = isEn
@@ -115,6 +122,8 @@ $(function () {
           })
       })
   }
+
+  
 
   //初始化header
   const msHeader = {
@@ -462,7 +471,12 @@ $(function () {
                       version =
                           item.versions.length < 2
                               ? item.versions[0].version
-                              : item.versions[1].version
+                              : item.versions[1].version;
+                  }else if(path.startsWith(item.name) && item.state !=='old'){
+                    version =
+                          item.versions.length < 2
+                              ? item.versions[0].version
+                              : item.versions[1].version;
                   }
               })
           return version
@@ -1316,6 +1330,37 @@ $(function () {
       $('.wy-grid-for-nav').scroll(navContentAnchor)
   }
 
+  const componentInfo = {
+    versionDropdownList:function () {
+      let list = [];
+      msVersionData&&msVersionData.forEach(function (item) {
+        if (pathname.startsWith('/' + item.name+'/')) {
+          list = item.versions.map((sub) => {
+            return {
+              version: curVersion(sub.version),
+              url: sub.url !=='' ? sub.url : pagePath.replace(currentVersion, sub.version)+'/index.html',
+              versionAlias: curVersion(sub.versionAlias)
+            };
+          });
+        }
+      });
+      return list.slice(0, 4);
+    },
+    sideVersionList:function(){
+        return `<div class='version-select-wrap commonjs'><div class="version-select-dom">
+        <span class="versionText">${curVersion(currentVersion)}</span> <img src="/pic/down.svg" />
+            <ul>
+                ${componentInfo.versionDropdownList()
+                    .map(function (item) {
+                        return `<li><a href="${item.url}" class='version-option'>${item.versionAlias===''?item.version : item.versionAlias}</a></li>`;
+                    })
+                    .join('')}
+                <li><a href="/versions/${ isEn ? 'en' : ''}" class='version-option'>${isEn?'More':'更多'}</a></li>
+            </ul>
+        </div></div>`;
+    },
+  }
+
   const initPage = async function () {
       createScriptCommonJs()
       createScriptBaidu()
@@ -1332,6 +1377,13 @@ $(function () {
 
       body.prepend(msHeader.pcHeader)
       msHeader.headerMethods()
+      if(!pathname.startsWith('/lite/')){
+        $('.wy-nav-side').addClass('side-fix').prepend(componentInfo.sideVersionList());
+      }else{
+        setTimeout(() => {
+          $('.version-select').append(componentInfo.sideVersionList()).find('img').attr('src','/pic/select-down.svg');
+        }, 150);
+      }
 
       $('.wy-nav-content').append(msFotter.pcFootHTML)
       msFotter.jumpForumStatistics()
@@ -1339,7 +1391,11 @@ $(function () {
 
       // H5 显示
       isH5(() => {
-          isH5Show()
+          isH5Show();
+          $('#nav-h5').append(componentInfo.sideVersionList());
+          $('#nav-h5 .version-select-dom').on('click', function () {
+              $(this).find('ul').slideToggle();
+          });
       })
 
       sideRightAnchor()
