@@ -16,23 +16,21 @@
 
 // 模板3
 $(function () {
-  $('body').addClass('theme-lite');
-  const pathname = window.location.pathname;
-  const isEn = pathname.indexOf('/en/') !== -1;
-  const lang = isEn?'/en/':'/zh-CN/';
-  const pathPrefix = pathname.split(lang);
-  const currentVersion = pathPrefix[1].split('/')[0];
-  const pagePath = pathPrefix[0] +lang + currentVersion;
+  $('body').addClass('theme-lite')
+  const pathname = window.location.pathname
+  const isEn = pathname.indexOf('/en/') !== -1
+  const lang = isEn ? '/en/' : '/zh-CN/'
+  const pathPrefix = pathname.split(lang)
+  const currentVersion = pathPrefix[1].split('/')[0]
+  const pagePath = pathPrefix[0] + lang + currentVersion
 
-  let msVersionData = [],
-      componentVersionData = [],
-      versionDropdownList = [],
+  let componentVersionData = [],
       componentVersionTitle = '',
-      pageTitle = '';
+      pageTitle = ''
 
   // 获取当前版本 不带R
   function curVersion(version = '') {
-    return version.startsWith('r') ? version.slice(1):version;
+      return version.startsWith('r') ? version.slice(1) : version
   }
 
   // 请求数据
@@ -43,109 +41,90 @@ $(function () {
               url: url,
               dataType: 'json',
               success: (res) => {
-                  resolve(res);
+                  resolve(res)
               },
               error: (e) => {
-                  reject(e);
-              }
-          });
-      });
+                  reject(e)
+              },
+          })
+      })
   }
 
-
   const initLite = async function () {
-      msVersionData = await getHeaderData('/msVersion.json');
-      componentVersionData = await getHeaderData(`${pagePath}/_static/js/version.json`);
+      componentVersionData = await getHeaderData(
+          `${pagePath}/_static/js/version.json`
+      )
 
-      pageTitle = isEn ? componentVersionData.label.en || '' : componentVersionData.label.zh || '';
-      const pageSubMenu = isEn ? componentVersionData.submenu.en || []: componentVersionData.submenu.zh || [];
+      pageTitle = isEn
+          ? componentVersionData.label.en || ''
+          : componentVersionData.label.zh || ''
+      const pageSubMenu = isEn
+          ? componentVersionData.submenu.en || []
+          : componentVersionData.submenu.zh || []
 
-      componentVersionTitle = componentVersionData.versionAlias ?componentVersionData.versionAlias:componentVersionData.version;
+      componentVersionTitle = componentVersionData.versionAlias
+          ? componentVersionData.versionAlias
+          : componentVersionData.version
 
-
-      let liteSubMenu = '';
-      msVersionData.forEach(function (item) {
-        if (pathname.startsWith('/' + item.name +'/')) {
-              versionDropdownList = item.versions.slice(0,4);
-              // 格式化版本拉下菜单
-              pageSubMenu.forEach((item) => {
-                  if(item.url.startsWith(pagePath) && !item.url.includes('use/downloads')){
-                    item.versions = versionDropdownList.map((sub) => {
-                        return {
-                            version: curVersion(sub.version),
-                            url: sub.url !=='' ? sub.url:item.url.replace(currentVersion, sub.version),
-                            versionAlias: curVersion(sub.versionAlias)
-                        };
-                    });
-                  }
-              });
-              liteSubMenu = `<nav class="header-wapper row navbar navbar-expand-lg navbar-light header-wapper-lite header-wapper-docs" >
-                <div class="header-nav navbar-nav" style="height:100%;justify-content: flex-end;">
-                <div class="top">
-                  <p>${pageTitle}</p>
-                  ${pageSubMenu.map(function (subitem) {
-                    if(subitem.url.startsWith(pagePath) && !subitem.url.includes('use/downloads')){
-                        return `<div class="version-select">
-                            ${curVersion(componentVersionTitle)}
-                            <img src="/pic/select-down.svg" />
-                            <ul>${subitem.versions && subitem.versions.map((child) => {
-                                    return `<li><a href="${child.url}" class='version-option'>${child.versionAlias !==''?curVersion(child.versionAlias):child.version}</a></li>`;
-                                }).join('')
-                            }
-                            <li><a href="/versions/${ isEn ? 'en' : ''}" class='version-option'>${isEn?'More':'更多'}</a></li>
-                            </ul>
-                          </div>`;
-                        }
-                    })
-                    .join('')}
-                </div>
-                <div class="bottom" style="line-height: initial;">
-                ${pageSubMenu
-                    .map(function (item) {
-                      if(item.url.startsWith(pagePath) && !item.url.includes('use/downloads')){
-                            item.active = 1;
-                        }
-                        return `<div class="header-nav-link">
-                            <a class="header-nav-link-line ${
-                                item.active ? 'selected' : ''
-                            }" href="${item.url}">${item.label}</a>
-                        </div>
-                        `;
-                    })
-                    .join('')}
-              </div></nav>`;
-        }
-      });
+      let liteSubMenu = `<nav class="header-wapper row navbar navbar-expand-lg navbar-light header-wapper-lite header-wapper-docs" >
+              <div class="header-nav navbar-nav" style="height:100%;justify-content: flex-end;">
+              <div class="top">
+                <p>${pageTitle}</p>
+                <div class='version-select'></div>
+              </div>
+              <div class="bottom" style="line-height: initial;">
+              ${pageSubMenu
+                  .map(function (item) {
+                      if (
+                          item.url.startsWith(pagePath) &&
+                          !item.url.includes('use/downloads')
+                      ) {
+                          item.active = 1
+                      }
+                      return `<div class="header-nav-link">
+                          <a class="header-nav-link-line ${
+                              item.active ? 'selected' : ''
+                          }" href="${item.url}">${item.label}</a>
+                      </div>
+                      `
+                  })
+                  .join('')}
+            </div></nav>`
 
       setTimeout(() => {
-          $('.header').append(liteSubMenu);
+          $('.header').append(liteSubMenu)
 
-          if(pathname.indexOf('/use/downloads')>-1){
-            $('.header-wapper-docs .bottom .header-nav-link-line').removeClass('selected').eq(1).addClass('selected');
-            $('.header-wapper-docs .top .version-select').hide();
+          if (pathname.indexOf('/use/downloads') > -1) {
+              $('.header-wapper-docs .bottom .header-nav-link-line')
+                  .removeClass('selected')
+                  .eq(1)
+                  .addClass('selected')
+              $('.header-wapper-docs .top .version-select').hide()
           }
-          $('.wy-breadcrumbs>li:first-of-type')[0].innerText = pageTitle + ' (' + curVersion(componentVersionTitle) + ')';
-          
-          let welcomeText = isEn ? `${pageTitle} Documentation`: `欢迎查看${pageTitle}文档`;
+          $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
+              pageTitle + ' (' + curVersion(componentVersionTitle) + ')'
+          let welcomeText = isEn
+              ? `${pageTitle} Documentation`
+              : `欢迎查看${pageTitle}文档`
           $('.wy-menu-vertical').before(
-            `<div class="docsHome"><a  href="${pagePath}/index.html" class="welcome">${welcomeText}</a></div>`
-          );
-
-      }, 100);
+              `<div class="docsHome"><a  href="${pagePath}/index.html" class="welcome">${welcomeText}</a></div>`
+          )
+      }, 100)
 
       if ($('li.current>ul').length === 0) {
-        $('li.current').addClass('notoctree-l2');
+          $('li.current').addClass('notoctree-l2')
       }
-      let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a');
+      let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a')
       for (let i = 0; i < aList.length; i++) {
-        let hash = aList[i].hash;
-        if (hash != '') {
-            aList[i].parentNode.parentNode.style.display = 'none';
-            aList[i].parentNode.parentNode.parentNode.className = aList[i].parentNode.parentNode.parentNode.className + ' ' + 'navNoPlus';
-        }
+          let hash = aList[i].hash
+          if (hash != '') {
+              aList[i].parentNode.parentNode.style.display = 'none'
+              aList[i].parentNode.parentNode.parentNode.className =
+                  aList[i].parentNode.parentNode.parentNode.className +
+                  ' ' +
+                  'navNoPlus'
+          }
       }
-      
-  };
-  initLite();
-});
-
+  }
+  initLite()
+})
