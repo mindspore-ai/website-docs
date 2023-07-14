@@ -1,88 +1,6 @@
-function createScriptCommonJs() {
-  let oHead = document.getElementsByTagName('HEAD').item(0)
-  let origin = location.origin
-  let jsScript = document.createElement('script')
-  jsScript.type = 'text/javascript'
-  jsScript.src = origin + '/commonJs/docHandle.js'
-  setTimeout(() => {
-      oHead.appendChild(jsScript)
-  })
-}
-
-// 百度统计
-function createScriptBaidu() {
-  // var _hmt = _hmt || [];
-  ;(function () {
-      var hm = document.createElement('script')
-      hm.src = 'https://hm.baidu.com/hm.js?7c2afdec4c0d635d30ebb361804d0464'
-      var s = document.getElementsByTagName('script')[0]
-      s.parentNode.insertBefore(hm, s)
-  })()
-}
-
-// jQuery中id含有特殊字符转义后使用
-function escapeJquery(srcString) {
-  // 转义之后的结果
-  var escapseResult = srcString
-  // javascript正则表达式中的特殊字符
-  var jsSpecialChars = [
-      '\\',
-      '^',
-      '$',
-      '*',
-      '?',
-      '.',
-      '+',
-      '(',
-      ')',
-      '[',
-      ']',
-      '|',
-      '{',
-      '}',
-  ]
-  // jquery中的特殊字符,不是正则表达式中的特殊字符
-  var jquerySpecialChars = [
-      '~',
-      '`',
-      '@',
-      '#',
-      '%',
-      '&',
-      '=',
-      "'",
-      '"',
-      ':',
-      ';',
-      '<',
-      '>',
-      ',',
-      '/',
-  ]
-  for (let i = 0; i < jsSpecialChars.length; i++) {
-      escapseResult = escapseResult.replace(
-          new RegExp('\\' + jsSpecialChars[i], 'g'),
-          '\\' + jsSpecialChars[i]
-      )
-  }
-  for (let i = 0; i < jquerySpecialChars.length; i++) {
-      escapseResult = escapseResult.replace(
-          new RegExp(jquerySpecialChars[i], 'g'),
-          '\\' + jquerySpecialChars[i]
-      )
-  }
-  return escapseResult
-}
-
-// 判断是否 h5
-function isH5(cb) {
-  let screen = document.documentElement.clientWidth
-  if (screen < 768) {
-      cb()
-  }
-}
 
 $(function () {
+  ;(function () {
   // 统一修改title
   $('title').text('MindSpore')
   const pathname = window.location.pathname
@@ -223,8 +141,7 @@ $(function () {
                 <div class="searchInput"><span class="search-icon"></span><span class="close-icon"></span><input
                         class="search-val" placeholder="${
                             isEn ? 'Site-wide search' : '全站搜索'
-                        }"></div>
-                <ul class="hotWord"></ul>
+                        }"></div> 
             </div>
         </div>
     </nav>
@@ -347,42 +264,7 @@ $(function () {
                   window.location.href = searchUrl + '?inputValue=' + val
               }
           })
-          // 搜索框联想词设置
-          $('.search-val').on('input', function () {
-              let val = $('.search-val').val()
-              let $hotWord = $('.hotWord')
-              $.ajax({
-                  type: 'get',
-                  url:
-                      '/tips?keywords=' + val + '&index=mindspore_index_tips',
-                  dataType: 'json',
-                  success: function (res) {
-                      if (res && res.status && res.status === 200) {
-                          let arr = res.obj ? res.obj : []
-                          $hotWord.html('')
-                          let html = ''
-                          if (arr.length > 0) {
-                              arr.map(function (item, index) {
-                                  html +=
-                                      '<li class="search--list" key=' +
-                                      index +
-                                      '>' +
-                                      item +
-                                      '</li>'
-                              })
-                              $hotWord.append(html)
-                          }
-                          $('.search--list').on('click', function (e) {
-                              let value = e.target.innerText
-                              window.location.href =
-                                  '/search?inputValue=' + value
-                              $('.header-nav').css('display', 'flex')
-                              $('.searchMain').css('display', 'none')
-                          })
-                      }
-                  },
-              })
-          })
+          
           // 点击页面其余地方搜索框消失
           $(document).mousedown(function (e) {
               const target = $(e.target)[0].className
@@ -1359,6 +1241,89 @@ $(function () {
     },
   }
 
+  function createScriptCommonJs() {
+    let oHead = document.getElementsByTagName('HEAD').item(0)
+    let origin = location.origin
+    let jsScript = document.createElement('script')
+    jsScript.type = 'text/javascript'
+    jsScript.src = origin + '/commonJs/docHandle.js'
+    setTimeout(() => {
+        oHead.appendChild(jsScript)
+    })
+  }
+  
+  // 百度统计
+  function createScriptBaidu() {
+    // var _hmt = _hmt || [];
+    ;(function () {
+        var hm = document.createElement('script')
+        hm.src = 'https://hm.baidu.com/hm.js?7c2afdec4c0d635d30ebb361804d0464'
+        var s = document.getElementsByTagName('script')[0]
+        s.parentNode.insertBefore(hm, s)
+    })()
+  }
+  
+  // jQuery中id含有特殊字符转义后使用
+  function escapeJquery(srcString) {
+    // 转义之后的结果
+    var escapseResult = srcString
+    // javascript正则表达式中的特殊字符
+    var jsSpecialChars = [
+        '\\',
+        '^',
+        '$',
+        '*',
+        '?',
+        '.',
+        '+',
+        '(',
+        ')',
+        '[',
+        ']',
+        '|',
+        '{',
+        '}',
+    ]
+    // jquery中的特殊字符,不是正则表达式中的特殊字符
+    var jquerySpecialChars = [
+        '~',
+        '`',
+        '@',
+        '#',
+        '%',
+        '&',
+        '=',
+        "'",
+        '"',
+        ':',
+        ';',
+        '<',
+        '>',
+        ',',
+        '/',
+    ]
+    for (let i = 0; i < jsSpecialChars.length; i++) {
+        escapseResult = escapseResult.replace(
+            new RegExp('\\' + jsSpecialChars[i], 'g'),
+            '\\' + jsSpecialChars[i]
+        )
+    }
+    for (let i = 0; i < jquerySpecialChars.length; i++) {
+        escapseResult = escapseResult.replace(
+            new RegExp(jquerySpecialChars[i], 'g'),
+            '\\' + jquerySpecialChars[i]
+        )
+    }
+    return escapseResult
+  }
+  // 判断是否 h5
+  function isH5(cb) {
+    let screen = document.documentElement.clientWidth
+    if (screen < 768) {
+        cb()
+    }
+  }
+
   const initPage = async function () {
       createScriptCommonJs()
       createScriptBaidu()
@@ -1400,4 +1365,5 @@ $(function () {
   }
 
   initPage()
+})()
 })
