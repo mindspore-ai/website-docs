@@ -499,8 +499,7 @@ $(function () {
       // 导航显示 隐藏  val : 0 主导航  val : 1 侧导航
       showNav: function (val) {
           if (val) {
-              $('.wy-nav-side').css({ left: '0', transition: '0.3s' })
-              $('#side-nav').css({ left: '0', transition: '0.3s' })
+              $('.wy-nav-side').css({ left: '0' })
               $('.nav').attr('show', '0')
               $('#mask').css('zIndex', '10')
           } else {
@@ -514,8 +513,7 @@ $(function () {
       },
       hideNav: function (val) {
           if (val) {
-              $('.wy-nav-side').css({ left: '-90%', transition: '0.3s' })
-              $('#side-nav').css({ left: '-90%', transition: '0.3s' })
+              $('.wy-nav-side').css({ left: '-90%' })
               $('.nav').attr('show', '1')
           } else {
               $('.nav-link-container').css('right', '-65%')
@@ -1105,7 +1103,7 @@ $(function () {
       let sectionList = $('.document>div:first-of-type>section')
       let h1List = $('.document section>h1')
       let h2List = $('.document section>h2')
-      let codeList = $('dl>dt>.descname:not(.method .descname)')
+      let codeList = $('dl>dt>.descname:not(.method .descname):not(.property .descname)')
       if (sectionList[0] === undefined) {
           return
       }
@@ -1274,7 +1272,7 @@ $(function () {
               if ($(codeList[i].parentNode).next().length) {
                   $(codeList[i].parentNode)
                       .next()
-                      .find('.method .descname')
+                      .find('.descname')
                       .each(function () {
                           navLi3 +=
                               '<li><a href="#' +
@@ -1347,7 +1345,7 @@ $(function () {
       return list.slice(0, 4);
     },
     sideVersionList:function(){
-        return `<div class='version-select-wrap commonjs'><div class="version-select-dom">
+        return `<div class='version-select-wrap '><div class="version-select-dom">
         <span class="versionText">${curVersion(currentVersion)}</span> <img src="/pic/down.svg" />
             <ul>
                 ${componentInfo.versionDropdownList()
