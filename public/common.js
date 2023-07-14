@@ -1,88 +1,6 @@
-function createScriptCommonJs() {
-  let oHead = document.getElementsByTagName('HEAD').item(0)
-  let origin = location.origin
-  let jsScript = document.createElement('script')
-  jsScript.type = 'text/javascript'
-  jsScript.src = origin + '/commonJs/docHandle.js'
-  setTimeout(() => {
-      oHead.appendChild(jsScript)
-  })
-}
-
-// 百度统计
-function createScriptBaidu() {
-  // var _hmt = _hmt || [];
-  ;(function () {
-      var hm = document.createElement('script')
-      hm.src = 'https://hm.baidu.com/hm.js?7c2afdec4c0d635d30ebb361804d0464'
-      var s = document.getElementsByTagName('script')[0]
-      s.parentNode.insertBefore(hm, s)
-  })()
-}
-
-// jQuery中id含有特殊字符转义后使用
-function escapeJquery(srcString) {
-  // 转义之后的结果
-  var escapseResult = srcString
-  // javascript正则表达式中的特殊字符
-  var jsSpecialChars = [
-      '\\',
-      '^',
-      '$',
-      '*',
-      '?',
-      '.',
-      '+',
-      '(',
-      ')',
-      '[',
-      ']',
-      '|',
-      '{',
-      '}',
-  ]
-  // jquery中的特殊字符,不是正则表达式中的特殊字符
-  var jquerySpecialChars = [
-      '~',
-      '`',
-      '@',
-      '#',
-      '%',
-      '&',
-      '=',
-      "'",
-      '"',
-      ':',
-      ';',
-      '<',
-      '>',
-      ',',
-      '/',
-  ]
-  for (let i = 0; i < jsSpecialChars.length; i++) {
-      escapseResult = escapseResult.replace(
-          new RegExp('\\' + jsSpecialChars[i], 'g'),
-          '\\' + jsSpecialChars[i]
-      )
-  }
-  for (let i = 0; i < jquerySpecialChars.length; i++) {
-      escapseResult = escapseResult.replace(
-          new RegExp(jquerySpecialChars[i], 'g'),
-          '\\' + jquerySpecialChars[i]
-      )
-  }
-  return escapseResult
-}
-
-// 判断是否 h5
-function isH5(cb) {
-  let screen = document.documentElement.clientWidth
-  if (screen < 768) {
-      cb()
-  }
-}
 
 $(function () {
+  ;(function () {
   // 统一修改title
   $('title').text('MindSpore')
   const pathname = window.location.pathname
@@ -223,8 +141,7 @@ $(function () {
                 <div class="searchInput"><span class="search-icon"></span><span class="close-icon"></span><input
                         class="search-val" placeholder="${
                             isEn ? 'Site-wide search' : '全站搜索'
-                        }"></div>
-                <ul class="hotWord"></ul>
+                        }"></div> 
             </div>
         </div>
     </nav>
@@ -347,42 +264,7 @@ $(function () {
                   window.location.href = searchUrl + '?inputValue=' + val
               }
           })
-          // 搜索框联想词设置
-          $('.search-val').on('input', function () {
-              let val = $('.search-val').val()
-              let $hotWord = $('.hotWord')
-              $.ajax({
-                  type: 'get',
-                  url:
-                      '/tips?keywords=' + val + '&index=mindspore_index_tips',
-                  dataType: 'json',
-                  success: function (res) {
-                      if (res && res.status && res.status === 200) {
-                          let arr = res.obj ? res.obj : []
-                          $hotWord.html('')
-                          let html = ''
-                          if (arr.length > 0) {
-                              arr.map(function (item, index) {
-                                  html +=
-                                      '<li class="search--list" key=' +
-                                      index +
-                                      '>' +
-                                      item +
-                                      '</li>'
-                              })
-                              $hotWord.append(html)
-                          }
-                          $('.search--list').on('click', function (e) {
-                              let value = e.target.innerText
-                              window.location.href =
-                                  '/search?inputValue=' + value
-                              $('.header-nav').css('display', 'flex')
-                              $('.searchMain').css('display', 'none')
-                          })
-                      }
-                  },
-              })
-          })
+          
           // 点击页面其余地方搜索框消失
           $(document).mousedown(function (e) {
               const target = $(e.target)[0].className
@@ -499,8 +381,7 @@ $(function () {
       // 导航显示 隐藏  val : 0 主导航  val : 1 侧导航
       showNav: function (val) {
           if (val) {
-              $('.wy-nav-side').css({ left: '0', transition: '0.3s' })
-              $('#side-nav').css({ left: '0', transition: '0.3s' })
+              $('.wy-nav-side').css({ left: '0' })
               $('.nav').attr('show', '0')
               $('#mask').css('zIndex', '10')
           } else {
@@ -514,8 +395,7 @@ $(function () {
       },
       hideNav: function (val) {
           if (val) {
-              $('.wy-nav-side').css({ left: '-90%', transition: '0.3s' })
-              $('#side-nav').css({ left: '-90%', transition: '0.3s' })
+              $('.wy-nav-side').css({ left: '-90%' })
               $('.nav').attr('show', '1')
           } else {
               $('.nav-link-container').css('right', '-65%')
@@ -1105,7 +985,7 @@ $(function () {
       let sectionList = $('.document>div:first-of-type>section')
       let h1List = $('.document section>h1')
       let h2List = $('.document section>h2')
-      let codeList = $('dl>dt>.descname:not(.method .descname)')
+      let codeList = $('dl>dt>.descname:not(.method .descname):not(.property .descname)')
       if (sectionList[0] === undefined) {
           return
       }
@@ -1274,7 +1154,7 @@ $(function () {
               if ($(codeList[i].parentNode).next().length) {
                   $(codeList[i].parentNode)
                       .next()
-                      .find('.method .descname')
+                      .find('.descname')
                       .each(function () {
                           navLi3 +=
                               '<li><a href="#' +
@@ -1347,7 +1227,7 @@ $(function () {
       return list.slice(0, 4);
     },
     sideVersionList:function(){
-        return `<div class='version-select-wrap commonjs'><div class="version-select-dom">
+        return `<div class='version-select-wrap '><div class="version-select-dom">
         <span class="versionText">${curVersion(currentVersion)}</span> <img src="/pic/down.svg" />
             <ul>
                 ${componentInfo.versionDropdownList()
@@ -1359,6 +1239,89 @@ $(function () {
             </ul>
         </div></div>`;
     },
+  }
+
+  function createScriptCommonJs() {
+    let oHead = document.getElementsByTagName('HEAD').item(0)
+    let origin = location.origin
+    let jsScript = document.createElement('script')
+    jsScript.type = 'text/javascript'
+    jsScript.src = origin + '/commonJs/docHandle.js'
+    setTimeout(() => {
+        oHead.appendChild(jsScript)
+    })
+  }
+  
+  // 百度统计
+  function createScriptBaidu() {
+    // var _hmt = _hmt || [];
+    ;(function () {
+        var hm = document.createElement('script')
+        hm.src = 'https://hm.baidu.com/hm.js?7c2afdec4c0d635d30ebb361804d0464'
+        var s = document.getElementsByTagName('script')[0]
+        s.parentNode.insertBefore(hm, s)
+    })()
+  }
+  
+  // jQuery中id含有特殊字符转义后使用
+  function escapeJquery(srcString) {
+    // 转义之后的结果
+    var escapseResult = srcString
+    // javascript正则表达式中的特殊字符
+    var jsSpecialChars = [
+        '\\',
+        '^',
+        '$',
+        '*',
+        '?',
+        '.',
+        '+',
+        '(',
+        ')',
+        '[',
+        ']',
+        '|',
+        '{',
+        '}',
+    ]
+    // jquery中的特殊字符,不是正则表达式中的特殊字符
+    var jquerySpecialChars = [
+        '~',
+        '`',
+        '@',
+        '#',
+        '%',
+        '&',
+        '=',
+        "'",
+        '"',
+        ':',
+        ';',
+        '<',
+        '>',
+        ',',
+        '/',
+    ]
+    for (let i = 0; i < jsSpecialChars.length; i++) {
+        escapseResult = escapseResult.replace(
+            new RegExp('\\' + jsSpecialChars[i], 'g'),
+            '\\' + jsSpecialChars[i]
+        )
+    }
+    for (let i = 0; i < jquerySpecialChars.length; i++) {
+        escapseResult = escapseResult.replace(
+            new RegExp(jquerySpecialChars[i], 'g'),
+            '\\' + jquerySpecialChars[i]
+        )
+    }
+    return escapseResult
+  }
+  // 判断是否 h5
+  function isH5(cb) {
+    let screen = document.documentElement.clientWidth
+    if (screen < 768) {
+        cb()
+    }
   }
 
   const initPage = async function () {
@@ -1402,4 +1365,5 @@ $(function () {
   }
 
   initPage()
+})()
 })
