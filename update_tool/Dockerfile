@@ -33,7 +33,7 @@ RUN apt install -y software-properties-common \
 
 
 # Install rtd themes and update the config file
-RUN pip install -U sphinx_rtd_theme==1.0.0 \
+RUN pip install sphinx_rtd_theme==1.0.0 \
     && pip install --upgrade pip \
     && pip install requests \
     && pip install sphinx==4.4.0 \
