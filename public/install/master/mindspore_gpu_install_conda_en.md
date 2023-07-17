@@ -143,9 +143,9 @@ After completing the installation of CUDA, Log in and download the corresponding
 
 ```bash
 tar -zxvf cudnn.tgz
-sudo cp cuda/include/cudnn.h /usr/local/cuda-11.6/include
+sudo cp cuda/include/cudnn*.h /usr/local/cuda-11.6/include
 sudo cp cuda/lib64/libcudnn* /usr/local/cuda-11.6/lib64
-sudo chmod a+r /usr/local/cuda-11.6/include/cudnn.h /usr/local/cuda-11.6/lib64/libcudnn*
+sudo chmod a+r /usr/local/cuda-11.6/include/cudnn*.h /usr/local/cuda-11.6/lib64/libcudnn*
 ```
 
 If a different version of CUDA have been installed or the CUDA installation path is different, just replace `/usr/local/cuda-11.6` in the above command with the CUDA path currently installed.
@@ -252,7 +252,7 @@ If a different version of CUDA have been installed or the CUDA installation path
 i:
 
 ```bash
-python -c "import mindspore;mindspore.run_check()"
+python -c "import mindspore;mindspore.set_context(device_target='GPU');mindspore.run_check()"
 ```
 
 The outputs should be the same as:
@@ -297,7 +297,19 @@ It means MindSpore has been installed successfully.
 
 ## Version Update
 
-Use the following command if you need to update the MindSpore version:
+When upgrading from MindSpore 1.x to MindSpore 2.x, you need to manually uninstall the old version first:
+
+```bash
+conda remove mindspore-gpu
+```
+
+Then install MindSpore 2.x:
+
+```bash
+conda install mindspore -c mindspore -c conda-forge
+```
+
+When upgrading from MindSpore 2.x:
 
 ```bash
 conda update mindspore -c mindspore -c conda-forge

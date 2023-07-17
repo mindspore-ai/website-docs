@@ -133,7 +133,7 @@ conda install mindspore -c mindspore -c conda-forge -y
 ## 验证是否成功安装
 
 ```bash
-python -c "import mindspore;mindspore.run_check()"
+python -c "import mindspore;mindspore.set_context(device_target='CPU');mindspore.run_check()"
 ```
 
 如果输出：
@@ -147,13 +147,19 @@ The result of multiplication calculation is correct, MindSpore has been installe
 
 ## 升级MindSpore版本
 
-从旧版本升级到MindSpore 2.0时，需要先手动卸载旧版本：
+从MindSpore 1.x升级到MindSpore 2.x版本时，需要先手动卸载旧版本：
 
 ```bash
 conda remove mindspore-cpu
 ```
 
-当需要升级MindSpore版本时，可执行如下命令：
+然后安装新版本：
+
+```bash
+conda install mindspore -c mindspore -c conda-forge
+```
+
+从MindSpore 2.x版本升级时，执行如下命令：
 
 ```bash
 conda update mindspore -c mindspore -c conda-forge

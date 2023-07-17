@@ -15,6 +15,8 @@
     s.parentNode.insertBefore(oLink, s)
 })()
 
+
+
 // 通用模板 1
 $(function () {
     ;(function () {

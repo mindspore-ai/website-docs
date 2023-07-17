@@ -53,7 +53,7 @@ for %x in (output\mindspore*.whl) do pip install %x -i https://pypi.tuna.tsinghu
 
 ```bash
 cd ..
-python -c "import mindspore;mindspore.run_check()"
+python -c "import mindspore;mindspore.set_context(device_target='GPU');mindspore.run_check()"
 ```
 
 执行`import mindspore`应在MindSpore源码根目录之外，因为Windows上的Python将当前目录视为执行环境，可能产生目录查找问题。
@@ -68,18 +68,8 @@ The result of multiplication calculation is correct, MindSpore has been installe
 
 ## 升级MindSpore版本
 
-当需要升级MindSpore版本时，可执行如下命令：
+在源码根目录下执行编译脚本`build.bat`成功后，在`output`目录下找到编译生成的whl安装包，然后执行下述命令进行升级。
 
-- 直接在线升级
-
-    ```bash
-    pip install --upgrade mindspore
-    ```
-
-- 本地源码编译升级
-
-    在源码根目录下执行编译脚本`build.bat`成功后，在`output`目录下找到编译生成的whl安装包，然后执行命令进行升级。
-
-    ```bash
-    pip install --upgrade mindspore-{version}-{python_version}-win_amd64.whl
-    ```
+ ```bash
+pip install --upgrade mindspore-*.whl
+```

@@ -70,7 +70,7 @@ pip install --pre -i https://pypi.anaconda.org/scipy-wheels-nightly/simple scipy
 ## Installation Verification
 
 ```bash
-python -c "import mindspore;mindspore.run_check()"
+python -c "import mindspore;mindspore.set_context(device_target='CPU');mindspore.run_check()"
 ```
 
 The outputs should be the same as:
@@ -84,18 +84,8 @@ It means MindSpore has been installed successfully.
 
 ## Version Update
 
-Using the following command if you need to update the MindSpore version:
+After successfully executing the compile script `build.sh` in the root path of the source code, find the whl package in path `output`, and use the following command to update your version.
 
-- Update online directly
-
-    ```bash
-    pip install --upgrade mindspore
-    ```
-
-- Update after source code compilation
-
-    After successfully executing the compilation script `build.sh` in the source code root directory, find the generated whl installation package by compilation in the `output` directory, and then execute the command to upgrade.
-
-    ```bash
-    pip install --upgrade mindspore-{version}-{python_version}-macosx_{platform_version}_{arch}.whl
-    ```
+```bash
+pip install --upgrade mindspore*.whl
+```

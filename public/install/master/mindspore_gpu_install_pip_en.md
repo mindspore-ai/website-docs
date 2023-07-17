@@ -131,7 +131,7 @@ After completing the installation of CUDA, Log in and download the corresponding
 
 ```bash
 tar -zxvf cudnn.tgz
-sudo cp cuda/include/cudnn.h /usr/local/cuda-11.6/include
+sudo cp cuda/include/cudnn*.h /usr/local/cuda-11.6/include
 sudo cp cuda/lib64/libcudnn* /usr/local/cuda-11.6/lib64
 sudo chmod a+r /usr/local/cuda-11.1/include/cudnn.h /usr/local/cuda-11.6/lib64/libcudnn*
 ```
@@ -258,7 +258,7 @@ If a different version of CUDA have been installed or the CUDA installation path
 i:
 
 ```bash
-python -c "import mindspore;mindspore.run_check()"
+python -c "import mindspore;mindspore.set_context(device_target='GPU');mindspore.run_check()"
 ```
 
 The outputs should be the same as:
@@ -303,13 +303,19 @@ It means MindSpore has been installed successfully.
 
 ## Version Update
 
-When upgrading from an older version to MindSpore 2.0, you need to manually uninstall the old version first:
+When upgrading from MindSpore 1.x to MindSpore 2.x, you need to manually uninstall the old version first:
 
 ```bash
 pip uninstall mindspore-gpu
 ```
 
-Use the following command if you need to update the MindSpore version:
+Then install MindSpore 2.x:
+
+```bash
+pip install mindspore=={version}
+```
+
+When upgrading from MindSpore 2.x:
 
 ```bash
 pip install --upgrade mindspore=={version}

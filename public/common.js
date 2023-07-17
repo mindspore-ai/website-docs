@@ -23,7 +23,8 @@ $(function () {
   const body = $('body')
 
   let headerMenuData = [],
-      msVersionData = []
+      msVersionData = [],
+      configIP = {};
   // 获取导航菜单
   function getHeaderData(url) {
       return new Promise((resolve, reject) => {
@@ -41,14 +42,12 @@ $(function () {
       })
   }
 
-  
-
   //初始化header
   const msHeader = {
       pcHeader: function () {
           return `<header class="header">
     <nav class="header-wapper">
-        <div class="header-nav " style="display: flex;">
+        <div class="header-nav" style="display: flex;">
             <a href="/${enPath}" class="logo">
                 <img src="/pic/${
                     isEn ? 'logo_black_en.png' : 'logo_black.png'
@@ -133,8 +132,8 @@ $(function () {
             <div class="header-nav-link">
                 <p style="cursor: pointer;">${isEn ? 'Code' : '代码'}</p>
                 <ul class="dropdown-menu-git">
-                    <li><a href="https://gitee.com/mindspore/mindspore" target="_blank">Gitee</a></li>
-                    <li><a href="https://github.com/mindspore-ai/mindspore" target="_blank">GitHub</a></li>
+                    <li><a href="${configIP.GITEE_URL}/mindspore/mindspore" target="_blank">Gitee</a></li>
+                    <li><a href="${configIP.GITHUB_URL}/mindspore-ai/mindspore" target="_blank">GitHub</a></li>
                 </ul>
             </div><a class="header__search"></a>
             <div class="searchMain" style="display: none;">
@@ -255,13 +254,13 @@ $(function () {
           $('.search-val').on('keydown', function (e) {
               const val = $('.search-val').val()
               if (e.keyCode === 13 && val !== '') {
-                  window.location.href = searchUrl + '?inputValue=' + val
+                  window.location.href = searchUrl + '?inputValue=' + encodeURIComponent(val)
               }
           })
           $('.search-icon').on('click', function () {
               const val = $('.search-val').val()
               if (val !== '') {
-                  window.location.href = searchUrl + '?inputValue=' + val
+                  window.location.href = searchUrl + '?inputValue=' + encodeURIComponent(val)
               }
           })
           
@@ -437,16 +436,16 @@ $(function () {
           knowledgeMap: isEn ? 'Knowledge Map' : '知识地图',
           forumText: isEn ? 'Ask questions in Ascend Forum' : '到论坛去提问',
           forumPath: isEn
-              ? 'https://forum.huawei.com/enterprise/en/forum-100504.html'
-              : 'https://www.hiascend.com/forum/forum-0106101385921175002-1.html',
+              ? configIP.HWFORUM_URL
+              : configIP.HIASCEND_URL,
           copyRight: isEn
               ? 'Copyright©MindSpore 2023'
               : '版权所有©MindSpore 2023',
           terms: isEn ? 'Terms of Use' : '法律声明',
           privacy: isEn ? 'Privacy Policy' : '个人信息保护政策',
           license: isEn
-              ? "The content of this page is licensed under the<a target='_blank' href='https://creativecommons.org/licenses/by/4.0/'> Creative Commons Attribution 4.0 License</a>, and code samples are licensed under the <a target='_blank' href='https://www.apache.org/licenses/LICENSE-2.0'>Apache 2.0 License</a>."
-              : "本页面的内容根据<a target='_blank' href='https://creativecommons.org/licenses/by/4.0/'>Creative Commons Attribution 4.0</a>许可证获得许可，代码示例根据<a target='_blank' href='https://www.apache.org/licenses/LICENSE-2.0'>Apache 2.0</a>许可证获得许可。",
+              ? `The content of this page is licensed under the<a target='_blank' href='${configIP.CREATIVECOMMONS}/licenses/by/4.0/'> Creative Commons Attribution 4.0 License</a>, and code samples are licensed under the <a target='_blank' href='${configIP.APACHE}/licenses/LICENSE-2.0'>Apache 2.0 License</a>.`
+              :`本页面的内容根据<a target='_blank' href='${configIP.CREATIVECOMMONS}/licenses/by/4.0/'>Creative Commons Attribution 4.0</a>许可证获得许可，代码示例根据<a target='_blank' href='${configIP.APACHE}/licenses/LICENSE-2.0'>Apache 2.0</a>许可证获得许可。`,
       },
       // 文档反馈链接
       getQuestionHref: function () {
@@ -456,10 +455,10 @@ $(function () {
               pathname.indexOf('/api_python/') > -1
           ) {
               url =
-                  'https://gitee.com/mindspore/mindspore/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0'
+              configIP.GITEE_URL+'/mindspore/mindspore/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0'
           } else {
               url =
-                  'https://gitee.com/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0'
+              configIP.GITEE_URL+'/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0'
           }
           return url
       },
@@ -556,7 +555,7 @@ $(function () {
       </div>
       <div class="row copyright col-xs-12 col-md-8">
       <span class="copyRight">${msFotter.fontmatter.copyRight}</span
-      ><a class="copynum" target="_blank" href="https://beian.miit.gov.cn"
+      ><a class="copynum" target="_blank" href="${configIP.BEIAN_URL}"
           >粤A2-20044005号</a
       ><a href="/legal/${enPath}" class="legal">${
               msFotter.fontmatter.terms
@@ -568,7 +567,7 @@ $(function () {
       </div>
       <a
       class="footer-record"
-      href="https://beian.miit.gov.cn"
+      href="${configIP.BEIAN_URL}"
       ><img class="copyImg2" src="/pic/copyright3.png" alt="img" /><span
           class="keepRecord"
           >粤公网安备 </span
@@ -585,7 +584,7 @@ $(function () {
                   url: '/saveEssayJump',
                   contentType: 'application/json',
                   data: JSON.stringify({
-                      essayUrl: location.href,
+                      essayUrl: encodeURIComponent(location.href),
                   }),
               })
           })
@@ -635,7 +634,7 @@ $(function () {
           <div class="copynum">
           <p>
               <span class="keepRecord">${msFotter.fontmatter.copyRight}</span>
-              <a target="_blank" href="https://beian.miit.gov.cn"
+              <a target="_blank" href="${configIP.BEIAN_URL}"
               >粤A2-20044005号</a
               >
           </p>
@@ -643,7 +642,7 @@ $(function () {
               <span class="keepRecord">粤公网安备 </span
               ><a
               class="footer-record"
-              href="https://beian.miit.gov.cn"
+              href="${configIP.BEIAN_URL}"
               >44030702002890号</a
               >
           </p>
@@ -727,7 +726,7 @@ $(function () {
                   contentType: 'application/json',
                   data: JSON.stringify({
                       score: grade,
-                      essayUrl: location.href,
+                      essayUrl: encodeURIComponent(location.href),
                   }),
                   url: '/saveEssayScore',
               })
@@ -738,7 +737,7 @@ $(function () {
   function codeClipboard() {
       // 实现复制粘贴功能
       $('pre>span:first-of-type').append(
-          '<button class="btn1" data-clipboard-action="copy"><img src="/pic/copy.png"/></button><button class="btn3" data-clipboard-action="copy"><img src="/pic/copySuc.png"/></button><span class="copybg">Copy</span>'
+          '<button class="btn1"><img src="/pic/copy.png"/></button><button class="btn3"><img src="/pic/copySuc.png"/></button><span class="copybg">Copy</span>'
       )
 
       $('.btn1').click(function () {
@@ -747,26 +746,9 @@ $(function () {
           let Url2 = domTemp.innerText.replace('Copy', '')
           Url2 = Url2.split(/[\n]/)
           // 只有python才需要去掉>>>和...
-          if (
-              $(this)
-                  .parent()
-                  .parent()[0]
-                  .parentElement.parentElement.className.includes(
-                      'highlight-cpp'
-                  ) ||
-              $(this)
-                  .parent()
-                  .parent()[0]
-                  .parentElement.parentElement.className.includes(
-                      'highlight-c++'
-                  ) ||
-              $(this)
-                  .parent()
-                  .parent()[0]
-                  .parentElement.parentElement.className.includes(
-                      'highlight-java'
-                  )
-          ) {
+          const parentElement = $(this).closest('.highlight-cpp, .highlight-c++, .highlight-java').get(0);
+
+          if (parentElement) {
               Url2 = Url2.join('\n')
           } else {
               let flag = false
@@ -917,17 +899,8 @@ $(function () {
       function resolveText(text) {
           return isEn ? 'Search in ' + text : '"' + text + '" 内搜索'
       }
-
-      // 左侧文档菜单控制
-      const wyMenu = $('.wy-grid-for-nav .wy-menu')
-      if (!wyMenu.find('.notoctree-l2.current .current').next().length) {
-          wyMenu
-              .find('.notoctree-l2.current .current')
-              .append(
-                  "<style>.wy-grid-for-nav .wy-menu .notoctree-l2.current .current::before{content:''}</style>"
-              )
-      }
-
+      
+      const wyMenu = $('.wy-grid-for-nav .wy-menu');
       wyMenu
           .find('.caption')
           .append("<img src='/pic/arrow-right.svg' />")
@@ -1214,7 +1187,7 @@ $(function () {
     versionDropdownList:function () {
       let list = [];
       msVersionData&&msVersionData.forEach(function (item) {
-        if (pathname.startsWith('/' + item.name+'/')) {
+        if (pathname.startsWith('/' + item.name+'/')  && item.state !=='old') {
           list = item.versions.map((sub) => {
             return {
               version: curVersion(sub.version),
@@ -1227,7 +1200,7 @@ $(function () {
       return list.slice(0, 4);
     },
     sideVersionList:function(){
-        return `<div class='version-select-wrap '><div class="version-select-dom">
+        return componentInfo.versionDropdownList().length>0&&`<div class='version-select-wrap '><div class="version-select-dom">
         <span class="versionText">${curVersion(currentVersion)}</span> <img src="/pic/down.svg" />
             <ul>
                 ${componentInfo.versionDropdownList()
@@ -1337,6 +1310,8 @@ $(function () {
           `/menu_${isEn ? 'en' : 'zh-CN'}.json`
       )
       msVersionData = await getHeaderData('/msVersion.json')
+      // 公网ip配置
+      configIP = await getHeaderData('/config.json');
 
       body.prepend(msHeader.pcHeader)
       msHeader.headerMethods()

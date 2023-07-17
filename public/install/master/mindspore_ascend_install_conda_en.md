@@ -204,7 +204,7 @@ export PYTHONPATH=${TBE_IMPL_PATH}:${PYTHONPATH}
 i:
 
 ```bash
-python -c "import mindspore;mindspore.run_check()"
+python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
 ```
 
 The output should be like:
@@ -249,13 +249,19 @@ It means MindSpore has been installed successfully.
 
 ## Version Update
 
-When upgrading from an older version to MindSpore 2.0, you need to manually uninstall the old version first:
+When upgrading from MindSpore 1.x to MindSpore 2.x, you need to manually uninstall the old version first:
 
 ```bash
 conda remove mindspore-ascend
 ```
 
-Use the following command if you need to update the MindSpore version:
+Then install MindSpore 2.x:
+
+```bash
+conda install mindspore -c mindspore -c conda-forge
+```
+
+When upgrading from MindSpore 2.x:
 
 ```bash
 conda update mindspore -c mindspore -c conda-forge

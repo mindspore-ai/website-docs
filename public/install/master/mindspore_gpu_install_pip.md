@@ -131,9 +131,9 @@ source ~/.bashrc
 
 ```bash
 tar -zxvf cudnn.tgz
-sudo cp cuda/include/cudnn.h /usr/local/cuda-11.6/include
+sudo cp cuda/include/cudnn*.h /usr/local/cuda-11.6/include
 sudo cp cuda/lib64/libcudnn* /usr/local/cuda-11.6/lib64
-sudo chmod a+r /usr/local/cuda-11.6/include/cudnn.h /usr/local/cuda-11.6/lib64/libcudnn*
+sudo chmod a+r /usr/local/cuda-11.6/include/cudnn*.h /usr/local/cuda-11.6/lib64/libcudnn*
 ```
 
 如果之前安装了其他CUDA版本或者CUDA安装路径不同，只需替换上述命令中的`/usr/local/cuda-11.6`为当前安装的CUDA路径。
@@ -258,7 +258,7 @@ export LD_LIBRARY_PATH=/usr/local/cuda-11.6/lib64:$LD_LIBRARY_PATH
 方法一：
 
 ```bash
-python -c "import mindspore;mindspore.run_check()"
+python -c "import mindspore;mindspore.set_context(device_target='GPU');mindspore.run_check()"
 ```
 
 如果输出：
@@ -303,13 +303,19 @@ print(ops.add(x, y))
 
 ## 升级MindSpore版本
 
-从旧版本升级到MindSpore 2.0时，需要先手动卸载旧版本：
+从MindSpore 1.x升级到MindSpore 2.x版本时，需要先手动卸载旧版本：
 
 ```bash
 pip uninstall mindspore-gpu
 ```
 
-当需要升级MindSpore版本时，可执行如下命令：
+然后安装新版本：
+
+```bash
+pip install mindspore=={version}
+```
+
+从MindSpore 2.x版本升级时，执行如下命令：
 
 ```bash
 pip install --upgrade mindspore=={version}
