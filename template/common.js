@@ -138,7 +138,9 @@ $(function () {
             </div><a class="header__search"></a>
             <div class="searchMain" style="display: none;">
                 <div class="searchInput"><span class="search-icon"></span><span class="close-icon"></span><input
-                        class="search-val" placeholder="${isEn ? 'Site-wide search' : '全站搜索'}"></div> 
+                        class="search-val" placeholder="${
+                            isEn ? 'Site-wide search' : '全站搜索'
+                        }"></div> 
             </div>
         </div>
     </nav>
@@ -261,6 +263,7 @@ $(function () {
                   window.location.href = searchUrl + '?inputValue=' + encodeURIComponent(val)
               }
           })
+          
           // 点击页面其余地方搜索框消失
           $(document).mousedown(function (e) {
               const target = $(e.target)[0].className
@@ -1293,6 +1296,7 @@ $(function () {
         cb()
     }
   }
+
   const initPage = async function () {
       createScriptCommonJs()
       createScriptBaidu()
