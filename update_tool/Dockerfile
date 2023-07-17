@@ -28,6 +28,7 @@ RUN apt install -y software-properties-common \
     && apt-get install -y libgl1 \
     && apt install -y doxygen \
     && apt install -y pandoc \
+    && apt install -y libgmp-dev \
     && apt clean
 
 
@@ -35,7 +36,7 @@ RUN apt install -y software-properties-common \
 RUN pip install -U sphinx_rtd_theme \
     && pip install --upgrade pip \
     && pip install requests \
-    && pip install sphinx \
+    && pip install sphinx==4.4.0 \
     && pip install gitpython \
     && pip install lxml \
     && pip install -U bs4 \
@@ -48,6 +49,7 @@ RUN pip install -U sphinx_rtd_theme \
     && pip install setuptools==65.5.0 \
     && pip install gitpython \
     && pip install lxml \
+    && pip install protobuf==3.20.1 \
     && pip install astor
 
 ENV VERSION=VERSION
@@ -63,4 +65,4 @@ RUN cd /root/build-docs \
 
 WORKDIR /root/build-docs
 RUN mkdir /log
-CMD ./push.sh | tee /log/"$(date +%Y-%m-%d_%H:%M:%S)".log 2>&1
+CMD ./push.sh 2>&1 | tee /log/"$(date +%Y-%m-%d_%H:%M:%S)".log

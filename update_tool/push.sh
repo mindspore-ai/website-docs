@@ -2,38 +2,33 @@
 echo "Start now --> ""${VERSION}"
 
 # shellcheck disable=SC2164
-cd /root
+mkdir -p /root/workspace
+cd /root/workspace
 
 echo "clone docs repositories bash --> ""${VERSION}"
 
 rm -rf docs
-
 git clone https://gitee.com/mindspore/docs.git -b "${VERSION}"
 
-echo "clone docs success, now start building"
-
 rm -rf website-docs
-# shellcheck disable=SC2086
 git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}"
 
-rm -rf /root/website-docs/public/install/${VERSION}
-mkdir -p /root/website-docs/public/install/${VERSION}
-cp -r /root/docs/install/* /root/website-docs/public/install/${VERSION}/
-if [ ${VERSION} == "master" ];then
-    cp -r /root/docs/resource/release/release_list_* /root/website-docs/public/more/
-fi
-
+rm -rf website-log
 git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/gemini524/website-log.git
+
+rm -rf ./website-docs/public/install/${VERSION}
+mkdir -p ./website-docs/public/install/${VERSION}
+cp -r ./docs/install/* ./website-docs/public/install/${VERSION}/
+if [ ${VERSION} == "master" ];then
+    cp -r ./docs/resource/release/release_list_* ./website-docs/public/more/
+fi
 
 # shellcheck disable=SC2034
 BUILD_PATH=${VERSION}
-
-# shellcheck disable=SC2164
-cd /root
 #!/bin/bash
 # shellcheck disable=SC2120
 function delete_old() {
-  local buildPath="/root/docs/tools/generate_html/${BUILD_PATH}/output$1"
+  local buildPath="/root/workspace/docs/tools/generate_html/${BUILD_PATH}/output$1"
   # shellcheck disable=SC2045
   for dir in $(ls "$buildPath"); do
     # shellcheck disable=SC2034
@@ -76,44 +71,47 @@ function delete_old() {
 function refreshDir() {
   local path=$1
   echo "$path"
-  rm -rf "/root/website-docs/public"$1
+  rm -rf "/root/workspace/website-docs/public"$1
 
-  mkdir -p "/root/website-docs/public"$1
+  mkdir -p "/root/workspace/website-docs/public"$1
 
-  cp -r /root/docs/tools/generate_html/${BUILD_PATH}/output"$path"/* /root/website-docs/public"$path"/
+  cp -r /root/workspace/docs/tools/generate_html/${BUILD_PATH}/output"$path"/* /root/workspace/website-docs/public"$path"/
 }
 
+
+# shellcheck disable=SC2164
+cd /root/workspace
 if [ ${DO_BUILD} == "true" ];then
   # shellcheck disable=SC2164
-  cd /root/docs/tools/generate_html
+  cd ./docs/tools/generate_html
   if [ ${VERSION} == "master" ];then
     # shellcheck disable=SC2034
     BUILD_PATH="daily"
-    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --theme="/root/website-docs/template"
+    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --theme="/root/workspace/website-docs/template"
   else
-    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}" --theme="/root/website-docs/template"
+    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}" --theme="/root/workspace/website-docs/template"
 
   fi
 
   # shellcheck disable=SC2164
-  cd /root/docs/tools/generate_html/${BUILD_PATH}/output
-  cp -f common.css /root/website-docs/public/
-  cp -f common.js /root/website-docs/public/
-  cp -f h5_docs.css /root/website-docs/public/
-  cp -f menu_en.json /root/website-docs/public/
-  cp -f menu_zh-CN.json /root/website-docs/public/
-  cp -f msVersion.json /root/website-docs/public/
+  cd /root/workspace/docs/tools/generate_html/${BUILD_PATH}/output
+  cp -f common.css /root/workspace/website-docs/public/
+  cp -f common.js /root/workspace/website-docs/public/
+  cp -f h5_docs.css /root/workspace/website-docs/public/
+  cp -f menu_en.json /root/workspace/website-docs/public/
+  cp -f menu_zh-CN.json /root/workspace/website-docs/public/
+  cp -f msVersion.json /root/workspace/website-docs/public/
 
   delete_old
 fi
 
 if [ ${REPLACE_BUILD} == "true" ];then
-    cd /root/website-docs/scripts
-    python distrib_theme.py --version="${VERSION}"
+    cd /root/workspace/website-docs/scripts
+    python distrib_json.py --version="all"
 fi
 
 # shellcheck disable=SC2164
-cd /root/website-docs
+cd /root/workspace/website-docs
 
 git config --global user.email "contact@mindspore.cn"
 
@@ -129,7 +127,7 @@ git push
 
 sleep 3m
 
-cd /root/website-log
+cd /root/workspace/website-log
 
 cp /log/* ./log
 
