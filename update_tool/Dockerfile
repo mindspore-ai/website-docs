@@ -40,7 +40,6 @@ RUN pip install sphinx_rtd_theme==1.0.0 \
     && pip install gitpython \
     && pip install lxml \
     && pip install -U bs4 \
-    && pip install -U sphinx \
     && pip install -U grpcio \
     && pip install -U easydict \
     && pip install jinja2==3.0.3 \
