@@ -1,4 +1,3 @@
-
 $(function () {
   ;(function () {
   // 统一修改title
@@ -16,7 +15,7 @@ $(function () {
   }
 
   //切换语言链接
-  const newNavPath = isEn
+  let newNavPath = isEn
       ? pathname.replace('/en/', '/zh-CN/')
       : pathname.replace('/zh-CN/', '/en/')
 
@@ -62,8 +61,8 @@ $(function () {
                     <div class="header-nav-link"><a class="header-nav-link-line" href="${
                         item.url === ''
                             ? msHeader.headerNavLinks(item.id)
-                            : item.url
-                    }">${item.name}</a></div>
+                            : filterXSS(item.url)
+                    }">${filterXSS(item.name)}</a></div>
                     `
                         } else {
                             if (pathname.indexOf(item.id) > -1) {
@@ -76,8 +75,8 @@ $(function () {
                       }" href="${
                                 item.url === '' || item.url === undefined
                                     ? msHeader.headerNavLinks(item.id)
-                                    : item.url
-                            }">${item.name}</a>
+                                    : filterXSS(item.url)
+                            }">${filterXSS(item.name)}</a>
                         <div class="dropdown-menu-git ${
                             item.id === 'docs' ? 'dropdown-menu-docs' : ''
                         }" >
@@ -86,7 +85,7 @@ $(function () {
                                         if (sub.children) {
                                             return `<div class="docsNew-column">
                                                 <div class="docsNew-column-title">${
-                                                    sub.title || ''
+                                                  filterXSS(sub.title) || ''
                                                 }</div>
                                             <div class="bottom" style="line-height: initial;">
                                                 ${sub.children
@@ -94,7 +93,7 @@ $(function () {
                                                         return `
                                                     <div class="docsVersion"><a class="versionM" href="${msHeader.headerNavLinks(
                                                         subitem.id
-                                                    )}">${subitem.name}</a></div>
+                                                    )}">${filterXSS(subitem.name)}</a></div>
                                                     `
                                                     })
                                                     .join('')}
@@ -111,8 +110,8 @@ $(function () {
                                                     ? msHeader.headerNavLinks(
                                                           sub.id
                                                       )
-                                                    : sub.url
-                                            }">${sub.name}</a></li>`
+                                                    : filterXSS(sub.url)
+                                            }">${filterXSS(sub.name)}</a></li>`
                                         }
                                     })
                                     .join('')}
@@ -125,7 +124,7 @@ $(function () {
         </div>
         <div class="header-nav navbar-nav" style="display: flex;">
             <div class="dropdown">
-                <a href="${newNavPath}" class="dropdown-toggle" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                <a href="${filterXSS(newNavPath)}" class="dropdown-toggle" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
                     <span class="languageIpt">EN</span>
                 </a>
             </div>
@@ -140,7 +139,7 @@ $(function () {
                 <div class="searchInput"><span class="search-icon"></span><span class="close-icon"></span><input
                         class="search-val" placeholder="${
                             isEn ? 'Site-wide search' : '全站搜索'
-                        }"></div> 
+                        }"></div>
             </div>
         </div>
     </nav>
@@ -159,7 +158,7 @@ $(function () {
           <div class="pc-lang-switch">
               <div class="pc-lang-current">
                   <a href="/search/${enPath}" class="search"></a>
-                  <a href="${newNavPath}" class="dropdown-toggle" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                  <a href="${filterXSS(newNavPath)}" class="dropdown-toggle" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
                   <span class="languageIpt">EN</span>
               </a>
               </div>
@@ -174,13 +173,13 @@ $(function () {
                       if (!item.children) {
                           return `<div class="mobile-nav-item"><a class="mobile-nav-link" href="${
                               item.url === undefined
-                                  ? item.url
+                                  ? filterXSS(item.url)
                                   : msHeader.headerNavLinks(item.id)
-                          }">${item.name} </a></div>`
+                          }">${filterXSS(item.name)} </a></div>`
                       } else {
                           return `<div class="mobile-nav-item drop-nav">
                                 <div class="mobile-nav-link">${
-                                    item.name
+                                  filterXSS(item.name)
                                 }<span class="btnArrow topArrow"></span></div>
                                 <div class="mobile-subnav-wraper">
                                       ${item.children
@@ -190,7 +189,7 @@ $(function () {
                                                       .map(function (sub) {
                                                           return `<a class="mobile-subnav-link" href="${msHeader.headerNavLinks(
                                                               sub.id
-                                                          )}">${sub.name}</a>`
+                                                          )}">${filterXSS(sub.name)}</a>`
                                                       })
                                                       .join('')}`
                                               } else {
@@ -198,15 +197,15 @@ $(function () {
                                                       item.openType ===
                                                       undefined
                                                           ? '_self'
-                                                          : item.openType
+                                                          : filterXSS(item.openType)
                                                   }" class="mobile-subnav-link" href="${
                                                       item.url === '' ||
                                                       item.url === undefined
                                                           ? msHeader.headerNavLinks(
                                                                 item.id
                                                             )
-                                                          : item.url
-                                                  }">${item.name}</a>`
+                                                          : filterXSS(item.url)
+                                                  }">${filterXSS(item.name)}</a>`
                                               }
                                           })
                                           .join('')}
@@ -375,7 +374,7 @@ $(function () {
                   path + '/docs' + lang + msHeader.headerPathVersion(path)
               }/index.html`
           }
-          return href
+          return filterXSS(href)
       },
       // 导航显示 隐藏  val : 0 主导航  val : 1 侧导航
       showNav: function (val) {
@@ -809,10 +808,8 @@ $(function () {
       msFotter.srollEvent()
       body.prepend(msHeader.h5Header)
       $('.wy-nav-top').append(msHeader.h5Nav)
-      setTimeout(() => {
-          $('header.header').css({ display: 'none' })
-          msHeader.h5HeaderMethods()
-      }, 50)
+      $('header.header').css({ display: 'none' })
+      msHeader.h5HeaderMethods()
   }
 
   // 用一个宽度来记录之前的宽度，当之前的宽度和现在的宽度，从手机切换到电脑或者从电脑切换到手机，才执行下面部分函数
@@ -897,9 +894,8 @@ $(function () {
               .css('display', 'none')
       }
       function resolveText(text) {
-          return isEn ? 'Search in ' + text : '"' + text + '" 内搜索'
+          return isEn ? `Search in ${text} `:`"${text}" 内搜索`
       }
-      
       const wyMenu = $('.wy-grid-for-nav .wy-menu');
       wyMenu
           .find('.caption')
@@ -938,19 +934,17 @@ $(function () {
           }
       }
 
-      setTimeout(function () {
-          let strTemp = isEn ? 'Docs' : '文档'
-          if (pathname.startsWith('/tutorials')) {
-              strTemp = isEn ? 'Tutorials' : '教程'
-          }
+      
+      let strTemp = isEn ? 'Docs' : '文档'
+      if (pathname.startsWith('/tutorials')) {
+          strTemp = isEn ? 'Tutorials' : '教程'
+      }
 
-          $('#rtd-search-form input').attr(
-              'placeholder',
-              resolveText(strTemp)
-          )
-
-          gotoId()
-      }, 100)
+      $('#rtd-search-form input').attr(
+          'placeholder',
+          resolveText(strTemp)
+      )
+      gotoId()
   }
 
   // 右侧锚点标识
@@ -964,9 +958,9 @@ $(function () {
       }
       let $ul =
           '<div class="navRight"><ul class="navList"><li class="navLi"><a href="#' +
-          sectionList[0].id +
+          filterXSS(sectionList[0].id) +
           '">' +
-          h1List[0].innerText +
+          filterXSS(h1List[0].innerText) +
           '</a><ul class="navList2"></ul></li></ul></div>'
       let navLi3 = '',
           navLi2 = '',
@@ -992,41 +986,41 @@ $(function () {
                           for (let k = 0; k < navLi4Array.length; k++) {
                               navLi4 +=
                                   '<li><a title="' +
-                                  navLi4Array[k].innerText +
+                                  filterXSS(navLi4Array[k].innerText) +
                                   '" href=\'#' +
-                                  navLi4Array[k].parentNode.id +
+                                  filterXSS(navLi4Array[k].parentNode.id) +
                                   "'>" +
-                                  navLi4Array[k].innerText +
+                                  filterXSS(navLi4Array[k].innerText) +
                                   '</a></li>'
                           }
                           navLi3 +=
                               '<li><a title="' +
-                              h3[i].innerText +
+                              filterXSS(h3[i].innerText)  +
                               '" href=\'#' +
-                              h3[i].parentNode.id +
+                              filterXSS(h3[i].parentNode.id ) +
                               "'>" +
-                              h3[i].innerText +
+                              filterXSS( h3[i].innerText ) +
                               "</a><ul class='navList4'>" +
-                              navLi4 +
+                              filterXSS(navLi4) +
                               '</ul></li>'
                       } else {
                           navLi3 +=
-                              '<li><a title="' +
-                              h3[i].innerText +
+                              '<li><a title="'+
+                              filterXSS(h3[i].innerText)  +
                               '" href=\'#' +
-                              h3[i].parentNode.id +
+                              filterXSS(h3[i].parentNode.id)  +
                               "'>" +
-                              h3[i].innerText +
+                              filterXSS(h3[i].innerText)  +
                               '</a></li>'
                       }
                   }
                   navLi2 =
                       '<li><a title="' +
-                      h2List[i].innerText +
+                      filterXSS(h2List[i].innerText) +
                       '" href="#' +
-                      h2List[i].parentNode.id +
+                      filterXSS(h2List[i].parentNode.id) +
                       '">' +
-                      h2List[i].innerText +
+                      filterXSS(h2List[i].innerText) +
                       '</a><ul class="navList3"></ul></li>'
               } else {
                   navLi3 = ''
@@ -1058,50 +1052,50 @@ $(function () {
                               for (let k = 0; k < navLi4Array.length; k++) {
                                   navLi4 +=
                                       '<li><a title="' +
-                                      navLi4Array[k].innerText +
+                                      filterXSS(navLi4Array[k].innerText) +
                                       '" href=\'#' +
-                                      navLi4Array[k].parentNode.id +
+                                      filterXSS(navLi4Array[k].parentNode.id) +
                                       "'>" +
-                                      navLi4Array[k].innerText +
+                                      filterXSS(navLi4Array[k].innerText) +
                                       '</a></li>'
                               }
                               navLi3 +=
                                   '<li><a title="' +
-                                  navLi3Array[j].innerText +
+                                  filterXSS(navLi3Array[j].innerText) +
                                   '" href=\'#' +
-                                  navLi3Array[j].parentNode.id +
+                                  filterXSS(navLi3Array[j].parentNode.id) +
                                   "'>" +
-                                  navLi3Array[j].innerText +
+                                  filterXSS(navLi3Array[j].innerText) +
                                   '</a><ul class="navList4">' +
-                                  navLi4 +
+                                  filterXSS(navLi4) +
                                   '</ul></li>'
                           } else {
                               navLi3 +=
                                   '<li><a title="' +
-                                  navLi3Array[j].innerText +
+                                  filterXSS(navLi3Array[j].innerText) +
                                   '" href=\'#' +
-                                  navLi3Array[j].parentNode.id +
+                                  filterXSS(navLi3Array[j].parentNode.id) +
                                   "'>" +
-                                  navLi3Array[j].innerText +
+                                  filterXSS(navLi3Array[j].innerText) +
                                   '</a><ul class="navList4"></ul></li>'
                           }
                       }
                       navLi2 =
                           '<li><a title="' +
-                          h2List[i].innerText +
+                          filterXSS(h2List[i].innerText) +
                           '" href="#' +
-                          h2List[i].parentNode.id +
+                          filterXSS( h2List[i].parentNode.id) +
                           '">' +
-                          h2List[i].innerText +
+                          filterXSS(h2List[i].innerText) +
                           '</a><ul class="navList3"></ul></li>'
                   } else {
                       navLi2 =
                           '<li><a title="' +
-                          h2List[i].innerText +
+                          filterXSS( h2List[i].innerText) +
                           '" href="#' +
-                          h2List[i].parentNode.id +
+                          filterXSS( h2List[i].parentNode.id) +
                           '">' +
-                          h2List[i].innerText +
+                          filterXSS( h2List[i].innerText) +
                           '</a></li>'
                   }
               }
@@ -1116,11 +1110,11 @@ $(function () {
           for (let i = 0; i < codeList.length; i++) {
               var codeLi2 =
                   '<li><a title="' +
-                  codeList[i].innerText +
+                  filterXSS(codeList[i].innerText) +
                   '" href="#' +
-                  codeList[i].parentNode.id +
+                  filterXSS(codeList[i].parentNode.id) +
                   '">' +
-                  codeList[i].innerText +
+                  filterXSS(codeList[i].innerText) +
                   '</a><ul class="navList3"></ul></li>'
               $('.navList2').append(codeLi2)
               navLi3 = ''
@@ -1131,9 +1125,9 @@ $(function () {
                       .each(function () {
                           navLi3 +=
                               '<li><a href="#' +
-                              $(this)[0].parentNode.id +
+                              filterXSS($(this)[0].parentNode.id) +
                               '">' +
-                              $(this).text() +
+                              filterXSS($(this).text()) +
                               '</a></li>'
                       })
                   $('.navList2 .navList3').eq(i).append(navLi3)
@@ -1201,11 +1195,11 @@ $(function () {
     },
     sideVersionList:function(){
         return componentInfo.versionDropdownList().length>0&&`<div class='version-select-wrap '><div class="version-select-dom">
-        <span class="versionText">${curVersion(currentVersion)}</span> <img src="/pic/down.svg" />
+        <span class="versionText">${filterXSS(curVersion(currentVersion))}</span> <img src="/pic/down.svg" />
             <ul>
                 ${componentInfo.versionDropdownList()
                     .map(function (item) {
-                        return `<li><a href="${item.url}" class='version-option'>${item.versionAlias===''?item.version : item.versionAlias}</a></li>`;
+                        return `<li><a href="${filterXSS(item.url)}" class='version-option'>${filterXSS(item.versionAlias===''?item.version : item.versionAlias)}</a></li>`;
                     })
                     .join('')}
                 <li><a href="/versions/${ isEn ? 'en' : ''}" class='version-option'>${isEn?'More':'更多'}</a></li>
@@ -1220,9 +1214,7 @@ $(function () {
     let jsScript = document.createElement('script')
     jsScript.type = 'text/javascript'
     jsScript.src = origin + '/commonJs/docHandle.js'
-    setTimeout(() => {
-        oHead.appendChild(jsScript)
-    })
+    oHead.appendChild(jsScript)
   }
   
   // 百度统计
@@ -1235,7 +1227,6 @@ $(function () {
         s.parentNode.insertBefore(hm, s)
     })()
   }
-  
   // jQuery中id含有特殊字符转义后使用
   function escapeJquery(srcString) {
     // 转义之后的结果
@@ -1318,9 +1309,7 @@ $(function () {
       if(!pathname.startsWith('/lite/')){
         $('.wy-nav-side').addClass('side-fix').prepend(componentInfo.sideVersionList());
       }else{
-        setTimeout(() => {
-          $('.version-select').append(componentInfo.sideVersionList()).find('img').attr('src','/pic/select-down.svg');
-        }, 150);
+          $('.header-wapper .version-select').append(componentInfo.sideVersionList()).find('img').attr('src',filterXSS('/pic/select-down.svg'));
       }
 
       $('.wy-nav-content').append(msFotter.pcFootHTML)
