@@ -163,7 +163,7 @@ $(function () {
               </a>
               </div>
           </div>
-          <div class="more-nav" show="1"></div>
+          <div class="more-nav"></div>
       </div>
       <div class="nav-link-container">
           ${
@@ -220,8 +220,7 @@ $(function () {
 </header>`
       },
       h5Nav: function () {
-          return `
-  <div class="nav-h5" id="nav-h5" style="height:4rem;"><div class="nav" show="1"></div></div>`
+          return `<div class="nav-h5" id="nav-h5" style="height:4rem;"><div class="nav"></div></div>`
       },
       // 文档页面交互
       headerMethods: function () {
@@ -262,7 +261,6 @@ $(function () {
                   window.location.href = searchUrl + '?inputValue=' + encodeURIComponent(val)
               }
           })
-          
           // 点击页面其余地方搜索框消失
           $(document).mousedown(function (e) {
               const target = $(e.target)[0].className
@@ -295,7 +293,7 @@ $(function () {
           })
           // 主导航显示
           $('.more-nav').on('click', function () {
-              if ($(this).attr('show') == '0') {
+              if ($(this).hasClass('h')) {
                   msHeader.hideNav(0)
                   $(this).css('backgroundImage', 'url("/pic/nav_white.png")')
               } else {
@@ -306,7 +304,7 @@ $(function () {
 
           // 侧栏导航显示
           $('.nav').on('click', function () {
-              if ($(this).attr('show') == '0') {
+              if ($(this).hasClass('h')) {
                   msHeader.hideNav(1)
               } else {
                   msHeader.showNav(1)
@@ -364,28 +362,25 @@ $(function () {
       headerNavLinks: function (path) {
           let href = ''
           if (path === 'lite') {
-              href = '/' + path + (isEn ? '/en' : '')
+            href = `/${path}${isEn ? '/en' : ''}`;
           } else if (path.startsWith('tutorials') || path === 'docs') {
-              href = `/${
-                  path + lang + msHeader.headerPathVersion(path)
-              }/index.html`
+            href = `/${path}${lang}${msHeader.headerPathVersion(path)}/index.html`;
           } else {
-              href = `/${
-                  path + '/docs' + lang + msHeader.headerPathVersion(path)
-              }/index.html`
+            href = `/${path}/docs${lang}${msHeader.headerPathVersion(path)}/index.html`;
           }
           return filterXSS(href)
       },
       // 导航显示 隐藏  val : 0 主导航  val : 1 侧导航
       showNav: function (val) {
           if (val) {
-              $('.wy-nav-side').css({ left: '0' })
-              $('.nav').attr('show', '0')
+              $('.wy-nav-side').css({ left: '0' }).show()
               $('#mask').css('zIndex', '10')
+              $('.nav').addClass('h')
           } else {
               $('.nav-link-container').css('right', 0)
-              $('.more-nav').attr('show', '0')
               $('#mask').css('zIndex', '150')
+              $('.nav').removeClass('h')
+              $('.more-nav').addClass('h')
               this.hideNav(1)
           }
           body.addClass('overflow')
@@ -393,15 +388,13 @@ $(function () {
       },
       hideNav: function (val) {
           if (val) {
-              $('.wy-nav-side').css({ left: '-90%' })
-              $('.nav').attr('show', '1')
+              $('.wy-nav-side').css({ left: '-90%' }).show()
+              $('.nav').removeClass('h')
           } else {
               $('.nav-link-container').css('right', '-65%')
               $('.mobile-subnav-wraper').slideUp()
               $('.btnArrow').css('transform', 'rotate(0deg)')
-              $('.more-nav')
-                  .attr('show', '1')
-                  .css('backgroundImage', 'url("/pic/nav_white.png")')
+              $('.more-nav').removeClass('h').css('backgroundImage', 'url("/pic/nav_white.png")')
           }
           body.removeClass('overflow')
           $('#mask').hide()
@@ -463,117 +456,79 @@ $(function () {
       },
       // PC footer
       pcFootHTML: function () {
-          return `<div id="footer">
-      <div class="evaluate">
-      <div class="evaluateTitle">
-          ${msFotter.fontmatter.helpforyou}
-          <div class="docsLayer">
-            <div class="km-item">
-                <a class="km-item-link" href="/resources/knowledgeMap/${enPath}">
-                  <img class="btn-img" src="/pic/knowledgeMap-icon.png"/>
-                  <div class="btn-label">${
-                      msFotter.fontmatter.knowledgeMap
-                  }</div>
-                </a>
-            </div>
-            <div class="askQuestion-box">
-                <a class="askQuestion" href="${msFotter.getQuestionHref()}" target="_blank">
-                    <img class="btn-img" src="/pic/docs/ask.png"/>
-                    <div class="btn-label">${
-                        msFotter.fontmatter.askQuestion3
-                    }</div>
-                </a>
-                <div class="askQuestion-info">
-                    <div class="askQuestion-info-title"><img src="/pic/docs/text.png"/>${
-                        msFotter.fontmatter.askQuestion2
-                    }</div>
-                    <div class="askQuestion-info-content">
-                        <p class="first">${
-                            msFotter.fontmatter.askQuestionInfo
-                        }</p>
-                        <p>${msFotter.fontmatter.askQuestionInfo2}</p>
-                        <p><span></span> mindspore-assistant</p>
-                    </div>
+        const helpForScores = [
+          msFotter.fontmatter.helpfor1,
+          msFotter.fontmatter.helpfor2,
+          msFotter.fontmatter.helpfor3,
+          msFotter.fontmatter.helpfor4,
+          msFotter.fontmatter.helpfor5
+        ];
+        return `
+        <div id="footer">
+          <div class="evaluate">
+            <div class="evaluateTitle">
+              ${msFotter.fontmatter.helpforyou}
+              <div class="docsLayer">
+                <div class="km-item">
+                  <a class="km-item-link" href="/resources/knowledgeMap/${enPath}">
+                    <img class="btn-img" src="/pic/knowledgeMap-icon.png" />
+                    <div class="btn-label">${msFotter.fontmatter.knowledgeMap}</div>
+                  </a>
                 </div>
+                <div class="askQuestion-box">
+                  <a class="askQuestion" href="${msFotter.getQuestionHref()}" target="_blank">
+                    <img class="btn-img" src="/pic/docs/ask.png" />
+                    <div class="btn-label">${msFotter.fontmatter.askQuestion3}</div>
+                  </a>
+                  <div class="askQuestion-info">
+                    <div class="askQuestion-info-title"><img src="/pic/docs/text.png"/>${msFotter.fontmatter.askQuestion2}</div>
+                    <div class="askQuestion-info-content">
+                      <p class="first">${msFotter.fontmatter.askQuestionInfo}</p>
+                      <p>${msFotter.fontmatter.askQuestionInfo2}</p>
+                      <p><span></span> mindspore-assistant</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+            <ul class="evaluateStar">
+              ${helpForScores
+                .map(
+                  (score) => `
+                  <li>
+                    <div class="star"></div>
+                    <div class="wordScore">${score}</div>
+                  </li>
+                `
+                )
+                .join("")}
+            </ul>
           </div>
-      </div>
-      <ul class="evaluateStar">
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor1}</div>
-          </li>
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor2}</div>
-          </li>
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor3}</div>
-          </li>
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor4}</div>
-          </li>
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor5}</div>
-          </li>
-      </ul>
-      </div>
-      <div class="licensed">${msFotter.fontmatter.license}</div>
-      <div class="partLine"></div>
-      <div class="footer row">
-      <a class="jump col-xs-12 col-md-4" target="_top" href="/install/${enPath}">${
-              msFotter.fontmatter.install
-          }</a>
-      <a
-          class="jump col-xs-12 col-md-4"
-          target="_top"
-          href="/tutorials/${isEn ? 'en' : 'zh-CN'}/master/index.html"
-          >${msFotter.fontmatter.tutorial}</a
-      ><a
-          class="jump col-xs-12 col-md-4"
-          target="_top"
-          href="/mindspore/${enPath}"
-          >${msFotter.fontmatter.docs}</a
-      ><a
-          class="jump col-xs-12 col-md-4"
-          target="_top"
-          href="/community/${enPath}"
-          >${msFotter.fontmatter.community}</a
-      ><a class="jump col-xs-12 col-md-4" target="_top" href="/news/${enPath}"
-          >${msFotter.fontmatter.news}</a
-      ><a class="jump col-xs-12 col-md-4" target="_top" href="/security/${enPath}"
-          >${msFotter.fontmatter.security}</a
-      ><a class="jump col-xs-12 col-md-4" target="_blank" href="${
-          msFotter.fontmatter.forumPath
-      }"
-          >${msFotter.fontmatter.forum} </a
-      >
-      </div>
-      <div class="row copyright col-xs-12 col-md-8">
-      <span class="copyRight">${msFotter.fontmatter.copyRight}</span
-      ><a class="copynum" target="_blank" href="${configIP.BEIAN_URL}"
-          >粤A2-20044005号</a
-      ><a href="/legal/${enPath}" class="legal">${
-              msFotter.fontmatter.terms
-          }</a
-      ><span class="verticalLine"></span
-      ><a href="/privacy/${enPath}" class="privacyPolicy">${
-              msFotter.fontmatter.privacy
-          }</a>
-      </div>
-      <a
-      class="footer-record"
-      href="${configIP.BEIAN_URL}"
-      ><img class="copyImg2" src="/pic/copyright3.png" alt="img" /><span
-          class="keepRecord"
-          >粤公网安备 </span
-      ><span class="recordNum">44030702002890号</span></a
-      >
-  </div>
-  `
+          <div class="licensed">${msFotter.fontmatter.license}</div>
+          <div class="partLine"></div>
+          <div class="footer row">
+            <a class="jump col-xs-12 col-md-4" target="_top" href="/install/${enPath}">${msFotter.fontmatter.install}</a>
+            <a class="jump col-xs-12 col-md-4" target="_top" href="/tutorials/${isEn ? "en" : "zh-CN"}/master/index.html">${msFotter.fontmatter.tutorial}</a>
+            <a class="jump col-xs-12 col-md-4" target="_top" href="/mindspore/${enPath}">${msFotter.fontmatter.docs}</a>
+            <a class="jump col-xs-12 col-md-4" target="_top" href="/community/${enPath}">${msFotter.fontmatter.community}</a>
+            <a class="jump col-xs-12 col-md-4" target="_top" href="/news/${enPath}">${msFotter.fontmatter.news}</a>
+            <a class="jump col-xs-12 col-md-4" target="_top" href="/security/${enPath}">${msFotter.fontmatter.security}</a>
+            <a class="jump col-xs-12 col-md-4" target="_blank" href="${msFotter.fontmatter.forumPath}">${msFotter.fontmatter.forum}</a>
+          </div>
+          <div class="row copyright col-xs-12 col-md-8">
+            <span class="copyRight">${msFotter.fontmatter.copyRight}</span>
+            <a class="copynum" target="_blank" href="${configIP.BEIAN_URL}">粤A2-20044005号</a>
+            <a href="/legal/${enPath}" class="legal">${msFotter.fontmatter.terms}</a>
+            <span class="verticalLine"></span>
+            <a href="/privacy/${enPath}" class="privacyPolicy">${msFotter.fontmatter.privacy}</a>
+          </div>
+          <a class="footer-record" href="${configIP.BEIAN_URL}">
+            <img class="copyImg2" src="/pic/copyright3.png" alt="img" />
+            <span class="keepRecord">粤公网安备 </span>
+            <span class="recordNum">44030702002890号</span>
+          </a>
+        </div>
+        `;
       },
       //跳转论坛统计
       jumpForumStatistics: function () {
@@ -590,107 +545,68 @@ $(function () {
       },
       // H5 footer
       h5FootHTML: function () {
-          return `
-  <div id="h5_footer">
-      <div class="evaluate">
-      <div class="evaluateTitle">
-          ${msFotter.fontmatter.helpforyou}
-          <a class="askQuestion" style="padding-bottom:1px; border-bottom:1px solid #379bbe6;" href="${
-              msFotter.fontmatter.forumPath
-          }" target="_blank">${msFotter.fontmatter.forumText}</a>
-      </div>
-      <ul class="evaluateStar">
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor1}</div>
-          </li>
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor2}</div>
-          </li>
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor3}</div>
-          </li>
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor4}</div>
-          </li>
-          <li>
-          <div class="star"></div>
-          <div class="wordScore">${msFotter.fontmatter.helpfor5}</div>
-          </li>
-      </ul>
-      </div>
-      <div class="licensed">${msFotter.fontmatter.license}</div>
-      <div class="footer row">
-      <div class="logo"><a href="/">
-          <img src="/pic/${
-              isEn ? 'logo_bottom_en.png' : 'logo_bottom.png'
-          }" alt="logo" />
-      </a></div>
-      <div class="copyright">
-          <div class="copynum">
-          <p>
-              <span class="keepRecord">${msFotter.fontmatter.copyRight}</span>
-              <a target="_blank" href="${configIP.BEIAN_URL}"
-              >粤A2-20044005号</a
-              >
-          </p>
-          <p>
-              <span class="keepRecord">粤公网安备 </span
-              ><a
-              class="footer-record"
-              href="${configIP.BEIAN_URL}"
-              >44030702002890号</a
-              >
-          </p>
+        const helpForYou = msFotter.fontmatter.helpforyou;
+        const forumPath = msFotter.fontmatter.forumPath;
+        const forumText = msFotter.fontmatter.forumText;
+        const helpForScores = [
+          msFotter.fontmatter.helpfor1,
+          msFotter.fontmatter.helpfor2,
+          msFotter.fontmatter.helpfor3,
+          msFotter.fontmatter.helpfor4,
+          msFotter.fontmatter.helpfor5
+        ];
+        const logoImage = isEn ? 'logo_bottom_en.png' : 'logo_bottom.png';
+        const copyRight = msFotter.fontmatter.copyRight;
+        const beianUrl = configIP.BEIAN_URL;
+        const legalPath = `/legal/${enPath}`;
+        const privacyPath = `/privacy/${enPath}`;
+        const terms = msFotter.fontmatter.terms;
+        const privacy = msFotter.fontmatter.privacy;
+        return `
+          <div id="h5_footer">
+            <div class="evaluate">
+              <div class="evaluateTitle">
+                ${helpForYou}
+                <a class="askQuestion" href="${forumPath}" target="_blank">${forumText}</a>
+              </div>
+              <ul class="evaluateStar">
+                ${helpForScores.map((score) => `
+                  <li>
+                    <div class="star"></div>
+                    <div class="wordScore">${score}</div>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+            <div class="licensed">${msFotter.fontmatter.license}</div>
+            <div class="footer row">
+              <div class="logo">
+                <a href="/">
+                  <img src="/pic/${logoImage}" alt="logo" />
+                </a>
+              </div>
+              <div class="copyright">
+                <div class="copynum">
+                  <p>
+                    <span class="keepRecord">${copyRight}</span>
+                    <a target="_blank" href="${beianUrl}">粤A2-20044005号</a>
+                  </p>
+                  <p>
+                    <span class="keepRecord">粤公网安备 </span>
+                    <a class="footer-record" href="${beianUrl}">44030702002890号</a>
+                  </p>
+                </div>
+                <div class="legal">
+                  <a href="${legalPath}" class="legal">${terms}</a>
+                  <span class="verticalLine"></span>
+                  <a href="${privacyPath}" class="privacyPolicy">${privacy}</a>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="legal">
-          <a href="/legal/${enPath}" class="legal">${
-              msFotter.fontmatter.terms
-          }</a
-          ><span class="verticalLine"></span
-          ><a href="/privacy/${enPath}" class="privacyPolicy">${
-              msFotter.fontmatter.privacy
-          }</a>
-          </div>
-      </div>
-      </div>
-  </div>
-  `
+        `;
       },
 
-      srollEvent: function () {
-          let startY, moveEndY, Y
-          let main = document.getElementsByTagName('body')[0]
-          main.addEventListener(
-              'touchstart',
-              function (e) {
-                  startY = e.touches[0].pageY
-              },
-              false
-          )
-          main.addEventListener('touchmove', function (e) {
-              // 出现mask的时候，header禁止上移
-              if (
-                  $('.nav').attr('show') == 1 &&
-                  $('.more-nav').attr('show') == 1
-              ) {
-                  moveEndY = e.changedTouches[0].pageY
-                  Y = moveEndY - startY
-                  if (Y > 10) {
-                      $('#header-h5').css('top', '0rem')
-                      $('.nav-h5').css('top', '6rem')
-                      $('.wy-breadcrumbs').css('top', '10rem')
-                  } else if (Y < -100) {
-                      $('#header-h5').css('top', '-6rem')
-                      $('.nav-h5').css('top', '-12rem')
-                      $('.wy-breadcrumbs').css('top', '-12rem')
-                  }
-              }
-          })
-      },
       documentEvaluationFn() {
           const star = $('div.star')
           star.on('mouseover', function () {
@@ -805,7 +721,6 @@ $(function () {
           .append(msFotter.h5FootHTML)
           .append('<div id="mask"></div>')
       $('#footer').remove()
-      msFotter.srollEvent()
       body.prepend(msHeader.h5Header)
       $('.wy-nav-top').append(msHeader.h5Nav)
       $('header.header').css({ display: 'none' })
@@ -925,7 +840,7 @@ $(function () {
 
       // 进入页面调整到锚点,解决中文锚点问题，中文锚点需要转码
       function gotoId() {
-          let url = window.location.toString() //进这个页面的url
+          let url = filterXSS(window.location.toString()) //进这个页面的url
           let id = window.decodeURIComponent(url.split('#')[1]) //中文id需要转码，英文id走catch error
           if (id) {
               if (document.querySelector(`#${id}`) !== null) {
@@ -934,7 +849,6 @@ $(function () {
           }
       }
 
-      
       let strTemp = isEn ? 'Docs' : '文档'
       if (pathname.startsWith('/tutorials')) {
           strTemp = isEn ? 'Tutorials' : '教程'
@@ -942,7 +856,7 @@ $(function () {
 
       $('#rtd-search-form input').attr(
           'placeholder',
-          resolveText(strTemp)
+          filterXSS(resolveText(strTemp))
       )
       gotoId()
   }
@@ -1079,6 +993,7 @@ $(function () {
                                   filterXSS(navLi3Array[j].innerText) +
                                   '</a><ul class="navList4"></ul></li>'
                           }
+                          
                       }
                       navLi2 =
                           '<li><a title="' +
@@ -1108,30 +1023,21 @@ $(function () {
       } else {
           navLi3 = ''
           for (let i = 0; i < codeList.length; i++) {
-              var codeLi2 =
-                  '<li><a title="' +
-                  filterXSS(codeList[i].innerText) +
-                  '" href="#' +
-                  filterXSS(codeList[i].parentNode.id) +
-                  '">' +
-                  filterXSS(codeList[i].innerText) +
-                  '</a><ul class="navList3"></ul></li>'
-              $('.navList2').append(codeLi2)
-              navLi3 = ''
-              if ($(codeList[i].parentNode).next().length) {
-                  $(codeList[i].parentNode)
-                      .next()
-                      .find('.descname')
-                      .each(function () {
-                          navLi3 +=
-                              '<li><a href="#' +
-                              filterXSS($(this)[0].parentNode.id) +
-                              '">' +
-                              filterXSS($(this).text()) +
-                              '</a></li>'
-                      })
-                  $('.navList2 .navList3').eq(i).append(navLi3)
-              }
+            const codeText = filterXSS(codeList[i].innerText);
+            const parentId = filterXSS(codeList[i].parentNode.id);
+            const codeLi2 = `<li><a title="${codeText}" href="#${parentId}">${codeText}</a><ul class="navList3"></ul></li>`;
+            $('.navList2').append(codeLi2)
+            navLi3 = ''
+            if ($(codeList[i].parentNode).next().length) {
+              const descnames = $(codeList[i].parentNode).next().find('.descname');
+
+              descnames.each(function () {
+                const text = filterXSS($(descname).text());
+                const id = filterXSS(descname.parentNode.id);
+                return `<li><a href="#${id}">${text}</a></li>`;
+              })
+              $('.navList2 .navList3').eq(i).append(navLi3)
+            }
           }
       }
 
@@ -1180,17 +1086,14 @@ $(function () {
   const componentInfo = {
     versionDropdownList:function () {
       let list = [];
-      msVersionData&&msVersionData.forEach(function (item) {
-        if (pathname.startsWith('/' + item.name+'/')  && item.state !=='old') {
-          list = item.versions.map((sub) => {
-            return {
-              version: curVersion(sub.version),
-              url: sub.url !=='' ? sub.url : pagePath.replace(currentVersion, sub.version)+'/index.html',
-              versionAlias: curVersion(sub.versionAlias)
-            };
-          });
-        }
-      });
+      const matchingItem = msVersionData.find(item => pathname.startsWith(`/${item.name}/`) && item.state !== 'old');
+      if (matchingItem) {
+        list = matchingItem.versions.map(sub => ({
+          version: curVersion(sub.version),
+          url: sub.url !== '' ? sub.url : `${pagePath.replace(currentVersion, sub.version)}/index.html`,
+          versionAlias: curVersion(sub.versionAlias)
+        }));
+      }
       return list.slice(0, 4);
     },
     sideVersionList:function(){
