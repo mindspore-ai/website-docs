@@ -2,17 +2,22 @@
 
 // 公共css/js文件
 ;(function () {
-    let s = document.getElementsByTagName('HEAD')[0]
-    let origin = window.location.origin
-    let hm = document.createElement('script')
-    hm.src = origin + '/common.js'
-    let oLink = document.createElement('link')
-    oLink.rel = 'stylesheet'
-    oLink.href = origin + '/h5_docs.css'
-    s.parentNode.insertBefore(hm, s)
-    s.parentNode.insertBefore(oLink, s)
-})()
+  let s = document.getElementsByTagName('HEAD')[0]
+  let origin = window.location.origin
+  let hm = document.createElement('script')
+  hm.src = origin + '/common.js'
 
+  let xss = document.createElement('script')
+  xss.src = origin + '/xss.min.js'
+
+  let oLink = document.createElement('link')
+  oLink.rel = 'stylesheet'
+  oLink.href = origin + '/h5_docs.css'
+
+  s.parentNode.insertBefore(xss, s)
+  s.parentNode.insertBefore(hm, s)
+  s.parentNode.insertBefore(oLink, s)
+})()
 // 模板2
 $(function () {
     ;(function () {
@@ -51,72 +56,72 @@ $(function () {
             })
         }
         const initPage = async function () {
-            componentVersionData = await getHeaderData(
-                `${pagePath}/_static/js/version.json`
+          componentVersionData = await getHeaderData(
+              `${pagePath}/_static/js/version.json`
+          )
+
+          pageTitle = isEn
+              ? componentVersionData.label.en || ''
+              : componentVersionData.label.zh || ''
+          const pageSubMenu = isEn
+              ? componentVersionData.submenu.en || []
+              : componentVersionData.submenu.zh || []
+
+          componentVersionTitle = componentVersionData.versionAlias
+              ? componentVersionData.versionAlias
+              : componentVersionData.version
+
+          pageTitle = filterXSS(pageTitle)
+          componentVersionTitle = filterXSS(componentVersionTitle)
+          let theme2Nav = `<nav class="header-wapper row navbar navbar-expand-lg navbar-light header-wapper-lite header-wapper-docs" >
+            <div class="header-nav navbar-nav" style="height:100%;justify-content: flex-end;"><div class="bottom" style="line-height: initial;">
+            ${pageSubMenu
+                .map(function (item) {
+                    if (item.url.startsWith(pagePath)) {
+                        item.active = 1
+                    }
+                    return `<div class="header-nav-link">
+                        <a class="header-nav-link-line ${
+                            item.active ? 'selected' : ''
+                        }" href="${filterXSS(item.url)}">${filterXSS(item.label)}</a>
+                    </div>
+                    `
+                })
+                .join('')}
+          </div></nav>`
+
+          // 教程首页中间导航点击在本页打开
+          $('.toctree-l1 .reference').on('click', function (e) {
+              e.preventDefault()
+              window.open(
+                  $(this).attr('href'),
+                  $(this).attr('target') || '_self'
+              )
+          })
+
+          $('body').prepend(theme2Nav)
+            $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
+                pageTitle + ' (' + curVersion(componentVersionTitle) + ')'
+            let welcomeText = isEn
+                ? 'MindSpore Tutorials'
+                : '欢迎查看MindSpore教程'
+            $('.wy-menu-vertical').before(
+                `<div class="docsHome"><a  href="${filterXSS(pagePath)}/index.html" class="welcome">${filterXSS(welcomeText)}</a></div>`
             )
 
-            pageTitle = isEn
-                ? componentVersionData.label.en || ''
-                : componentVersionData.label.zh || ''
-            const pageSubMenu = isEn
-                ? componentVersionData.submenu.en || []
-                : componentVersionData.submenu.zh || []
-
-            componentVersionTitle = componentVersionData.versionAlias
-                ? componentVersionData.versionAlias
-                : componentVersionData.version
-
-            let theme2Nav = `<nav class="header-wapper row navbar navbar-expand-lg navbar-light header-wapper-lite header-wapper-docs" >
-              <div class="header-nav navbar-nav" style="height:100%;justify-content: flex-end;"><div class="bottom" style="line-height: initial;">
-              ${pageSubMenu
-                  .map(function (item) {
-                      if (item.url.startsWith(pagePath)) {
-                          item.active = 1
-                      }
-                      return `<div class="header-nav-link">
-                          <a class="header-nav-link-line ${
-                              item.active ? 'selected' : ''
-                          }" href="${item.url}">${item.label}</a>
-                      </div>
-                      `
-                  })
-                  .join('')}
-            </div></nav>`
-
-            // 教程首页中间导航点击在本页打开
-            $('.toctree-l1 .reference').on('click', function (e) {
-                e.preventDefault()
-                window.open(
-                    $(this).attr('href'),
-                    $(this).attr('target') || '_self'
-                )
-            })
-
-            setTimeout(() => {
-                $('.header').append(theme2Nav)
-                $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
-                    pageTitle + ' (' + curVersion(componentVersionTitle) + ')'
-                let welcomeText = isEn
-                    ? 'MindSpore Tutorials'
-                    : '欢迎查看MindSpore教程'
-                $('.wy-menu-vertical').before(
-                    `<div class="docsHome"><a  href="${pagePath}/index.html" class="welcome">${welcomeText}</a></div>`
-                )
-            }, 100)
-
-            // 左侧菜单控制
-            let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a')
-            for (let i = 0; i < aList.length; i++) {
-                let hash = aList[i].hash
-                if (hash != '') {
-                    aList[i].parentNode.parentNode.style.display = 'none'
-                    aList[i].parentNode.parentNode.parentNode.className =
-                        aList[i].parentNode.parentNode.parentNode.className +
-                        ' ' +
-                        'navNoPlus'
-                }
-            }
-        }
+          // 左侧菜单控制
+          let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a')
+          for (let i = 0; i < aList.length; i++) {
+              let hash = aList[i].hash
+              if (hash != '') {
+                  aList[i].parentNode.parentNode.style.display = 'none'
+                  aList[i].parentNode.parentNode.parentNode.className =
+                      aList[i].parentNode.parentNode.parentNode.className +
+                      ' ' +
+                      'navNoPlus'
+              }
+          }
+      }
 
         initPage()
     })()

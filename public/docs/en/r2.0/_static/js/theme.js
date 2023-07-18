@@ -4,18 +4,22 @@
 
 // 公共css/js文件
 ;(function () {
-    let s = document.getElementsByTagName('HEAD')[0]
-    let origin = window.location.origin
-    let hm = document.createElement('script')
-    hm.src = origin + '/common.js'
-    let oLink = document.createElement('link')
-    oLink.rel = 'stylesheet'
-    oLink.href = origin + '/h5_docs.css'
-    s.parentNode.insertBefore(hm, s)
-    s.parentNode.insertBefore(oLink, s)
+  let s = document.getElementsByTagName('HEAD')[0]
+  let origin = window.location.origin
+  let hm = document.createElement('script')
+  hm.src = origin + '/common.js'
+
+  let xss = document.createElement('script')
+  xss.src = origin + '/xss.min.js'
+
+  let oLink = document.createElement('link')
+  oLink.rel = 'stylesheet'
+  oLink.href = origin + '/h5_docs.css'
+
+  s.parentNode.insertBefore(xss, s)
+  s.parentNode.insertBefore(hm, s)
+  s.parentNode.insertBefore(oLink, s)
 })()
-
-
 
 // 通用模板 1
 $(function () {
@@ -67,15 +71,16 @@ $(function () {
             componentVersionTitle = componentVersionData.versionAlias
                 ? componentVersionData.versionAlias
                 : componentVersionData.version
+            pageTitle = filterXSS(pageTitle)
+            componentVersionTitle = filterXSS(componentVersionTitle)
 
-            setTimeout(() => {
-                $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
+            $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
                     pageTitle + ' (' + curVersion(componentVersionTitle) + ')'
                 let welcomeText = isEn
                     ? `${pageTitle} Documentation`
                     : `欢迎查看${pageTitle}文档`
                 $('.wy-menu-vertical').before(
-                    `<div class="docsHome"><a  href="${pagePath}/index.html" class="welcome">${welcomeText}</a></div>`
+                    `<div class="docsHome"><a  href="${filterXSS(pagePath)}/index.html" class="welcome">${filterXSS(welcomeText)}</a></div>`
                 )
 
                 // 默认展开API  docs
@@ -102,7 +107,7 @@ $(function () {
                             .show()
                     }
                 }
-            }, 100)
+           
 
             let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a')
             if ($('li.current>ul').length === 0) {
