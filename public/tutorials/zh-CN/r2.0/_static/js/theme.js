@@ -88,16 +88,7 @@ $(function () {
                     `
                 })
                 .join('')}
-          </div></nav>`
-
-          // 教程首页中间导航点击在本页打开
-          $('.toctree-l1 .reference').on('click', function (e) {
-              e.preventDefault()
-              window.open(
-                  $(this).attr('href'),
-                  $(this).attr('target') || '_self'
-              )
-          })
+          </div></nav>`;
 
           $('body').prepend(theme2Nav)
             $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
