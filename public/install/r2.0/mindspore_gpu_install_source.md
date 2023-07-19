@@ -148,9 +148,9 @@ source ~/.bashrc
 
 ```bash
 tar -zxvf cudnn.tgz
-sudo cp cuda/include/cudnn.h /usr/local/cuda-11.6/include
+sudo cp cuda/include/cudnn*.h /usr/local/cuda-11.6/include
 sudo cp cuda/lib64/libcudnn* /usr/local/cuda-11.6/lib64
-sudo chmod a+r /usr/local/cuda-11.6/include/cudnn.h /usr/local/cuda-11.6/lib64/libcudnn*
+sudo chmod a+r /usr/local/cuda-11.6/include/cudnn*.h /usr/local/cuda-11.6/lib64/libcudnn*
 ```
 
 如果之前安装了其他CUDA版本或者CUDA安装路径不同，只需替换上述命令中的`/usr/local/cuda-11.6`为当前安装的CUDA路径。
@@ -359,24 +359,22 @@ print(ops.add(x, y))
 
 ## 升级MindSpore版本
 
-从旧版本升级到MindSpore 2.0时，需要先手动卸载旧版本：
+在源码根目录下执行编译脚本`build.sh`成功后，在`output`目录下找到编译生成的whl安装包，然后执行下述命令进行升级。
+
+从MindSpore 1.x升级到MindSpore 2.x版本时，需要先手动卸载旧版本：
 
 ```bash
 pip uninstall mindspore-gpu
 ```
 
-当需要升级MindSpore版本时，可执行如下命令：
+然后安装新版本：
 
-- 直接在线升级
+```bash
+pip install mindspore-*.whl
+```
 
-    ```bash
-    pip install --upgrade mindspore
-    ```
+从MindSpore 2.x版本升级到最新版本时，执行如下命令：
 
-- 本地源码编译升级
-
-    在源码根目录下执行编译脚本`build.sh`成功后，在`output`目录下找到编译生成的whl安装包，然后执行命令进行升级。
-
-    ```bash
-    pip install --upgrade mindspore-*.whl
-    ```
+ ```bash
+pip install --upgrade mindspore-*.whl
+```
