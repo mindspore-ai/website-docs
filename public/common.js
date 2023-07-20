@@ -532,7 +532,7 @@ $(function () {
       },
       //跳转论坛统计
       jumpForumStatistics: function () {
-          $('.askQuestion').on('click', function () {
+          $('.askQuestion').one('click', function () {
               $.ajax({
                   type: 'POST',
                   url: '/saveEssayJump',
@@ -625,7 +625,7 @@ $(function () {
                   .children('.star')
                   .removeClass('sel')
           })
-          $('.evaluateStar').on('click', '.star', function () {
+          $('.evaluateStar').one('click', '.star', function () {
               $(this).addClass('sel')
               $(this).parent('li').prevAll().children('.star').addClass('sel')
               $(this)
@@ -866,7 +866,7 @@ $(function () {
       let sectionList = $('.document>div:first-of-type>section')
       let h1List = $('.document section>h1')
       let h2List = $('.document section>h2')
-      let codeList = $('dl>dt>.descname:not(.method .descname):not(.property .descname)')
+      let codeList = $('dl>dt>.descname .pre:not(.method .descname .pre):not(.property .descname .pre)')
       if (sectionList[0] === undefined) {
           return
       }
@@ -941,11 +941,11 @@ $(function () {
                   navLi2 = ''
                   if (
                       h2List[i].parentNode.querySelectorAll(
-                          '.class>dt .descname,.function>dt .descname'
+                          '.class>dt .pre ,.function>dt .pre'
                       ).length > 0
                   ) {
                       let navLi3Array = h2List[i].parentNode.querySelectorAll(
-                          '.class>dt .descname,.function>dt .descname'
+                          '.class>dt .pre,.function>dt .pre'
                       )
 
                       for (let j = 0; j < navLi3Array.length; j++) {
@@ -953,7 +953,7 @@ $(function () {
                               navLi3Array[
                                   j
                               ].parentNode.parentNode.querySelectorAll(
-                                  'dd .descname'
+                                  'dd .pre'
                               ).length > 0
                           ) {
                               navLi4 = ''
@@ -961,7 +961,7 @@ $(function () {
                                   navLi3Array[
                                       j
                                   ].parentNode.parentNode.querySelectorAll(
-                                      'dd .descname'
+                                      'dd .pre'
                                   )
                               for (let k = 0; k < navLi4Array.length; k++) {
                                   navLi4 +=
@@ -993,7 +993,6 @@ $(function () {
                                   filterXSS(navLi3Array[j].innerText) +
                                   '</a><ul class="navList4"></ul></li>'
                           }
-                          
                       }
                       navLi2 =
                           '<li><a title="' +
@@ -1021,24 +1020,28 @@ $(function () {
               )
           }
       } else {
-          navLi3 = ''
-          for (let i = 0; i < codeList.length; i++) {
-            const codeText = filterXSS(codeList[i].innerText);
-            const parentId = filterXSS(codeList[i].parentNode.id);
-            const codeLi2 = `<li><a title="${codeText}" href="#${parentId}">${codeText}</a><ul class="navList3"></ul></li>`;
-            $('.navList2').append(codeLi2)
-            navLi3 = ''
-            if ($(codeList[i].parentNode).next().length) {
-              const descnames = $(codeList[i].parentNode).next().find('.descname');
-
-              descnames.each(function () {
-                const text = filterXSS($(this).text());
-                const id = filterXSS($(this).parent().attr('id'));
-                return `<li><a href="#${id}">${text}</a></li>`;
-              })
-              $('.navList2 .navList3').eq(i).append(navLi3)
+          codeList.each(function () {
+            let codeText = $(this).text();
+            let parentID = $(this).closest('dt').attr('id');
+            codeText = filterXSS(codeText)
+            parentID = filterXSS(parentID)
+            const codeLi2 = `
+              <li>
+                <a title="${codeText}" href="#${parentID}">${codeText}</a>
+                <ul class="navList3"></ul>
+              </li>`;
+            $('.navList2').append(codeLi2);
+            const nextDescnames = $(this).closest('dt').next().find('.descname .pre');
+            if (nextDescnames.length) {
+              const navLi3 = nextDescnames.map(function () {
+                const descnameText = $(this).text();
+                const descnameParentID = $(this).closest('dt').attr('id');
+                return `<li><a href="#${descnameParentID}">${descnameText}</a></li>`;
+              }).get().join('');
+              $('.navList2 .navList3').last().append(navLi3);
             }
-          }
+          });
+
       }
 
       // 点击右侧导航选中
