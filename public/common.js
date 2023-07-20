@@ -1186,6 +1186,9 @@ $(function () {
         cb()
     }
   }
+  function filterXSS(val){
+    return $('<div>').text(val).html();
+  }
 
   const initPage = async function () { 
       createScriptBaidu()
