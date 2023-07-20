@@ -38,6 +38,12 @@
 | [mindspore::Format](https://www.mindspore.cn/lite/api/zh-CN/master/api_cpp/mindspore_format.html) | MindSpore MSTensor保存的数据支持的排列格式。 | √      | √      |
 | [Allocator](#allocator-1)                          | 内存管理基类。                                           | √      | √      |
 
+### 模型分组
+
+| 类名                                       | 描述                  | 云侧推理是否支持 | 端侧推理是否支持 |
+|-------------------------------------------|-----------------------|--------|--------|
+| [ModelGroup](#modelgroup)                 | 模型分组。              |    √   |  ✕     |
+
 ### 状态
 
 | 类名                                               | 描述                                                | 云侧推理是否支持 | 端侧推理是否支持 |
@@ -597,6 +603,7 @@ Serialization类汇总了模型文件读写的方法。
 | [static Status SetParameters(const std::map<std::string, Buffer> &parameters, Model *model)](#setparameters)     |    ✕    |    ✕    |
 | [static Status ExportModel(const Model &model, ModelType model_type, Buffer *model_data)](#exportmodel)     |    ✕    |    √    |
 | [static Status ExportModel(const Model &model, ModelType model_type, const std::string &model_file, QuantizationType quantization_type = kNoQuant, bool export_inference_only = true, std::vector<std::string> output_tensor_name = {})](#exportmodel)     |    ✕    |    √    |
+| [static Status ExportWeightsCollaborateWithMicro(const Model &model, ModelType model_type, const std::string &weight_file, bool is_inference = true, bool enable_fp16 = false, const std::vector<std::string> &changeable_weights_name = {})](#exportweightscollaboratewithmicro)     |    ✕    |    √    |
 
 #### Load
 
@@ -715,6 +722,30 @@ static Status ExportModel(const Model &model, ModelType model_type, const std::s
     - `quantization_type`: 量化类型。
     - `export_inference_only`: 是否导出只做推理的模型。
     - `output_tensor_name`: 设置导出的推理模型的输出张量的名称，默认为空，导出完整的推理模型。
+
+- 返回值
+
+  状态码类`Status`对象，可以使用其公有函数`StatusCode`或`ToString`函数来获取具体错误码及错误信息。
+
+#### ExportWeightsCollaborateWithMicro
+
+试验接口，导出供micro推理使用的模型权重，MindSpore Lite训练使用。
+
+```cpp
+static Status ExportWeightsCollaborateWithMicro(const Model &model, ModelType model_type,
+                                                const std::string &weight_file, bool is_inference = true,
+                                                bool enable_fp16 = false,
+                                                const std::vector<std::string> &changeable_weights_name = {})
+```
+
+- 参数
+
+    - `model`：模型数据。
+    - `model_type`：模型文件类型。
+    - `weight_file`：保存的权重文件。
+    - `is_inference`: 是否是对推理模型的导出，当前仅支持推理模型。
+    - `enable_fp16`: 权重保存类型。
+    - `changeable_weights_name`: 设置shape会变化的权重名称。
 
 - 返回值
 
@@ -3460,6 +3491,8 @@ RunnerConfig()
 | [inline std::map<std::string, std::map<std::string, std::string>> GetConfigInfo() const](#getconfiginfo)     |    √    |    ✕    |
 | [inline void SetConfigPath(const std::string &config_path)](#setconfigpath)     |    √    |    ✕    |
 | [inline std::string GetConfigPath() const](#getconfigpath)     |    √    |    ✕    |
+| [void SetDeviceIds(const std::vector<uint32_t\> &device_ids)](#setdeviceids)     |    √    |    ✕    |
+| [std::vector<uint32_t\> GetDeviceIds() const](#getdeviceids)     |    √    |    ✕    |
 
 #### SetWorkersNum
 
@@ -3476,7 +3509,7 @@ void SetWorkersNum(int32_t workers_num)
 #### GetWorkersNum
 
 ```cpp
-int32_t GetWorkersNum() const;
+int32_t GetWorkersNum() const
 ```
 
 获取RunnerConfig的worker的个数。
@@ -3500,7 +3533,7 @@ void SetContext(const std::shared_ptr<Context> &context)
 #### GetContext
 
 ```cpp
-std::shared_ptr<Context> GetContext() const;
+std::shared_ptr<Context> GetContext() const
 ```
 
 获取RunnerConfig配置的上下文参数。
@@ -3525,7 +3558,7 @@ void SetConfigInfo(const std::string &key, const std::map<std::string, std::stri
 #### GetConfigInfo
 
 ```cpp
-std::map<std::string, std::map<std::string, std::string>> GetConfigInfo() const;
+std::map<std::string, std::map<std::string, std::string>> GetConfigInfo() const
 ```
 
 获取RunnerConfig配置参数信息。
@@ -3549,7 +3582,7 @@ void SetConfigPath(const std::string &config_path)
 #### GetConfigPath
 
 ```cpp
-std::string GetConfigPath() const;
+std::string GetConfigPath() const
 ```
 
 获取RunnerConfig中的配置文件的路径。
@@ -3557,6 +3590,30 @@ std::string GetConfigPath() const;
 - 返回值
 
   RunnerConfig类中的配置文件路径。
+
+#### SetDeviceIds
+
+```cpp
+void SetDeviceIds(const std::vector<uint32_t> &device_ids)
+```
+
+设置RunnerConfig中的设备ID列表。
+
+- 参数
+
+    - `device_ids`: 设备ID列表。
+
+#### GetDeviceIds
+
+```cpp
+std::vector<uint32_t> GetDeviceIds() const
+```
+
+获取RunnerConfig中的设备ID列表。
+
+- 返回值
+
+  RunnerConfig类中的设备ID列表。
 
 ## ModelParallelRunner
 
@@ -3659,3 +3716,94 @@ std::vector<MSTensor> GetOutputs()
 - 返回值
 
   包含模型所有输出张量的容器类型变量。
+
+## ModelGroup
+
+\#include &lt;[model_group.h](https://gitee.com/mindspore/mindspore/blob/master/include/api/model_group.h)&gt;
+
+ModelGroup 类定义MindSpore Lite模型分组信息，用于共享工作空间（Workspace）内存或者权重（包括常量和变量）内存。
+
+### 构造函数和析构函数
+
+```cpp
+ModelGroup(ModelGroupFlag flags = ModelGroupFlag::kShareWorkspace)
+~ModelGroup()
+```
+
+- 参数
+
+    - `flags`: 指示 ModelGroup 的类型，取值 ``ModelGroupFlag::kShareWorkspace`` ， ``ModelGroupFlag::kShareWorkspace`` 。默认 ``ModelGroupFlag::kShareWorkspace`` 。
+
+### 公有成员函数
+
+| 函数                   | 云侧推理是否支持 | 端侧推理是否支持 |
+|-------------------------------------------------------------|---------|---------|
+| [Status AddModel(const std::vector<std::string> &model_path_list)](#addmodel)     |    √    |    ✕    |
+| [Status AddModel(const std::vector<std::pair<const void *, size_t>> &model_buff_list)](#addmodel-1)     |    √    |    ✕    |
+| [Status AddModel(const std::vector<Model> &model_list)](#addmodel-2)     |    √    |    ✕    |
+| [Status CalMaxSizeOfWorkspace(ModelType model_type, const std::shared_ptr<Context> &ms_context)](#calmaxsizeofworkspace)     |    √    |    ✕    |
+
+#### AddModel
+
+```cpp
+Status AddModel(const std::vector<std::string> &model_path_list)
+```
+
+共享工作空间内存时，添加需要共享工作空间内存的模型路径。
+
+- 参数
+
+    - `model_path_list`: 需要共享工作空间内存的模型路径。
+
+- 返回值
+
+  状态码类`Status`对象，可以使用其公有函数`StatusCode`或`ToString`函数来获取具体错误码及错误信息。
+
+#### AddModel
+
+```cpp
+Status AddModel(const std::vector<std::pair<const void *, size_t>> &model_buff_list)
+```
+
+共享工作空间内存时，添加需要共享工作空间内存的模型缓存。
+
+- 参数
+
+    - `model_buff_list`: 需要共享工作空间内存的模型缓存。
+
+- 返回值
+
+  状态码类`Status`对象，可以使用其公有函数`StatusCode`或`ToString`函数来获取具体错误码及错误信息。
+
+#### AddModel
+
+```cpp
+Status AddModel(const std::vector<Model> &model_list)
+```
+
+共享权重内存时，添加需要共享权重内存的模型对象。
+
+- 参数
+
+    - `model_list`: 需要共享权重内存的模型对象[Model](#model)列表。
+
+- 返回值
+
+  状态码类`Status`对象，可以使用其公有函数`StatusCode`或`ToString`函数来获取具体错误码及错误信息。
+
+#### CalMaxSizeOfWorkspace
+
+```cpp
+Status CalMaxSizeOfWorkspace(ModelType model_type, const std::shared_ptr<Context> &ms_context)
+```
+
+共享工作空间内存时，计算最大的工作空间内存大小。
+
+- 参数
+
+    - `model_type`: 模型文件类型，可选有`ModelType::kMindIR_Lite`、`ModelType::kMindIR`，分别对应`ms`模型（`converter_lite`工具导出）和`mindir`模型（MindSpore导出或`converter_lite`工具导出）。在端侧和云侧推理包中，端侧推理只支持`ms`模型推理，该入参值被忽略。云端推理支持`ms`和`mindir`模型推理，需要将该参数设置为模型对应的选项值。云侧推理对`ms`模型的支持，将在未来的迭代中删除，推荐通过`mindir`模型进行云侧推理。
+    - `model_context`: 模型[Context](#context)。
+
+- 返回值
+
+  状态码类`Status`对象，可以使用其公有函数`StatusCode`或`ToString`函数来获取具体错误码及错误信息。
