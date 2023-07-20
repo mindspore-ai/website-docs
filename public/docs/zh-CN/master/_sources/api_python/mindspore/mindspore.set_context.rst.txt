@@ -55,6 +55,8 @@ mindspore.set_context
     |                         +------------------------------+----------------------------+
     |                         |  enable_reduce_precision     |  Ascend                    |
     |                         +------------------------------+----------------------------+
+    |                         |  aoe_tune_mode               |  Ascend                    |
+    |                         +------------------------------+----------------------------+
     |                         |  check_bprop                 |  CPU/GPU/Ascend            |
     |                         +------------------------------+----------------------------+
     |                         |  max_call_depth              |  CPU/GPU/Ascend            |
@@ -147,7 +149,15 @@ mindspore.set_context
           有关更多选项，可以参考实现代码。
 
         - **enable_reduce_precision** (bool) - 表示是否开启降低精度计算。默认值： ``True`` 。设置为 ``True`` 时，不支持用户指定的精度，且精度将自动更改。设置为 ``False`` 时，如果未指定用例的精度，则会报错并退出。
-        - **check_bprop** (bool) - 表示是否检查反向传播节点，以确保反向传播节点输出的形状(shape)和数据类型与输入参数相同。默认值： ``False`` 。
+        - **aoe_tune_mode** (str) - 表示启动AOE调优，默认不设置。设置为 ``online`` 时，将启动在线调优，设置为 ``offline`` 时，将为离线调优保存GE图 。
+        - **aoe_config** (dict) - 设置aoe工具专用的参数，默认不设置。
+
+          - **job_type** (str): 设置调优类型，有算子调优和子图调优。默认为算子调优。
+
+            - ``"1"``: 设置为子图调优。
+            - ``"2"``: 设置为算子调优。
+
+        - **check_bprop** (bool) - 表示是否检查反向传播节点，以确保反向传播节点输出的shape和数据类型与输入参数相同。默认值： ``False`` 。
         - **max_call_depth** (int) - 指定函数调用的最大深度。其值必须为正整数。默认值： ``1000`` 。当嵌套Cell太深或子图数量太多时，需要设置 `max_call_depth` 参数。系统最大堆栈深度应随着 `max_call_depth` 的调整而设置为更大的值，否则可能会因为系统堆栈溢出而引发 "core dumped" 异常。
         - **grad_for_scalar** (bool) - 表示是否获取标量梯度。默认值： ``False`` 。当 `grad_for_scalar` 设置为True时，则可以导出函数的标量输入。由于后端目前不支持伸缩操作，所以该接口只支持在前端可推演的简单操作。
         - **enable_compile_cache** (bool) - 表示是否加载或者保存前端编译的图。当 `enable_compile_cache` 被设置为True时，在第一次执行的过程中，一个硬件无关的编译缓存会被生成并且导出为一个MINDIR文件。当该网络被再次执行时，如果 `enable_compile_cache` 仍然为True并且网络脚本没有被更改，那么这个编译缓存会被加载。注意目前只支持有限的Python脚本更改的自动检测，这意味着可能有正确性风险。默认值： ``False`` 。这是一个实验特性，可能会被更改或者删除。
@@ -179,7 +189,7 @@ mindspore.set_context
             - allow_mix_precision_bf16: 自动混合精度，针对全网算子，按照内置的优化策略，自动将部分算子的精度降低到bfloat16。
 
           - **jit_compile** (bool): 表示是否选择在线编译。默认值：以CANN设置的默认值为准。当设置为 ``False`` 时，优先选择系统中已经编译好的算子二进制文件，提升编译性能。
-          - **atomic_clean_policy** (int): 表示清理网络中atomic算子占用的内存的策略。默认值：以CANN设置的默认值为准。
+          - **atomic_clean_policy** (int): 表示清理网络中atomic算子占用的内存的策略。默认值： ``1`` 。
 
             - 0：集中清理网络中所有atomic算子占用的内存。
             - 1：不集中清理内存，对网络中每一个atomic算子进行单独清零。当网络中内存超限时，可以尝试此种清理方式，但可能会导致一定的性能损耗。
@@ -204,7 +214,7 @@ mindspore.set_context
           - COMPATIBLE(``1``): 除支持基础语法外，还支持更多语法，如dict，list和scalar的操作等。
           - LAX(``2``): 最大程度地兼容Python所有语法。执行性能可能会受影响，不是最佳。
         - **gpu_config** (dict) - 设置GPU硬件平台专用的参数，默认不设置。
-          目前只支持GPU硬件平台上设置conv_fprop_algo、conv_dgrad_algo和conv_wgrad_algo参数。
+          目前只支持GPU硬件平台上设置conv_fprop_algo、conv_dgrad_algo、conv_wgrad_algo、conv_allow_tf32和matmul_allow_tf32参数。
 
           - **conv_fprop_algo** (str): 指定Cudnn的卷积前向算法。默认值： ``normal`` 。其值范围如下：
 
@@ -237,8 +247,12 @@ mindspore.set_context
             - algo_1: 该算法将卷积表示为矩阵乘积，而没有实际显式地形成保存输入张量数据的矩阵。结果是确定的。
             - algo_3: 该算法类似于 ``algo_0`` ，但使用一些小的工作空间来预计算一些索引。结果也是不确定的。
             - fft: 该算法利用快速傅里叶变换完成卷积计算。需要额外申请内存空间，保存中间结果。结果是确定的。
-            - fft_tiling: 该算法利用快速傅里叶变换完成卷积计算，但是需要对输入进行分块。同样需要额外申请内存空间，保存中间结果，但是对大尺寸的输入，所需内存空间小于``fft``算法。结果是确定的。
+            - fft_tiling: 该算法利用快速傅里叶变换完成卷积计算，但是需要对输入进行分块。同样需要额外申请内存空间，保存中间结果，但是对大尺寸的输入，所需内存空间小于 ``fft`` 算法。结果是确定的。
             - winograd_nonfused: 该算法利用Winograd变形算法完成卷积计算。需要额外申请内存空间，保存中间结果。结果是确定的。
+
+          - **conv_allow_tf32** (bool): 该标志表示是否开启卷积在CUDNN下的TF32张量核计算。默认值： ``True`` 。
+
+          - **matmul_allow_tf32** (bool): 该标志表示是否开启矩阵乘在CUBLAS下的TF32张量核计算。默认值： ``False`` 。
 
     异常：
         - **ValueError** - 输入key不是上下文中的属性。
