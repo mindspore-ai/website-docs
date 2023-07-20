@@ -129,7 +129,7 @@ $(function () {
                 </a>
             </div>
             <div class="header-nav-link">
-                <p style="cursor: pointer;">${isEn ? 'Code' : '代码'}</p>
+                <p>${isEn ? 'Code' : '代码'}</p>
                 <ul class="dropdown-menu-git">
                     <li><a href="${configIP.GITEE_URL}/mindspore/mindspore" target="_blank">Gitee</a></li>
                     <li><a href="${configIP.GITHUB_URL}/mindspore-ai/mindspore" target="_blank">GitHub</a></li>
@@ -1032,8 +1032,8 @@ $(function () {
               const descnames = $(codeList[i].parentNode).next().find('.descname');
 
               descnames.each(function () {
-                const text = filterXSS($(descname).text());
-                const id = filterXSS(descname.parentNode.id);
+                const text = filterXSS($(this).text());
+                const id = filterXSS($(this).parent().attr('id'));
                 return `<li><a href="#${id}">${text}</a></li>`;
               })
               $('.navList2 .navList3').eq(i).append(navLi3)
@@ -1111,15 +1111,7 @@ $(function () {
     },
   }
 
-  function createScriptCommonJs() {
-    let oHead = document.getElementsByTagName('HEAD').item(0)
-    let origin = location.origin
-    let jsScript = document.createElement('script')
-    jsScript.type = 'text/javascript'
-    jsScript.src = origin + '/commonJs/docHandle.js'
-    oHead.appendChild(jsScript)
-  }
-  
+
   // 百度统计
   function createScriptBaidu() {
     // var _hmt = _hmt || [];
@@ -1192,7 +1184,6 @@ $(function () {
   }
 
   const initPage = async function () {
-      createScriptCommonJs()
       createScriptBaidu()
 
       watchWinResize()
