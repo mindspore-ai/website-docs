@@ -4,11 +4,13 @@
 ;(function () {
   let s = document.getElementsByTagName('HEAD')[0]
   let origin = window.location.origin
-  let hm = document.createElement('script')
-  hm.src = origin + '/common.js'
 
   let xss = document.createElement('script')
+  xss.defer = 'defer'
   xss.src = origin + '/xss.min.js'
+
+  let hm = document.createElement('script')
+  hm.src = origin + '/common.js'
 
   let oLink = document.createElement('link')
   oLink.rel = 'stylesheet'

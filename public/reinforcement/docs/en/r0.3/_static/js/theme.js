@@ -6,11 +6,13 @@
 ;(function () {
   let s = document.getElementsByTagName('HEAD')[0]
   let origin = window.location.origin
-  let hm = document.createElement('script')
-  hm.src = origin + '/common.js'
 
   let xss = document.createElement('script')
+  xss.defer = 'defer'
   xss.src = origin + '/xss.min.js'
+
+  let hm = document.createElement('script')
+  hm.src = origin + '/common.js'
 
   let oLink = document.createElement('link')
   oLink.rel = 'stylesheet'
@@ -23,108 +25,105 @@
 
 // 通用模板 1
 $(function () {
-    ;(function () {
-        $('body').addClass('theme-docs')
+      $('body').addClass('theme-docs')
 
-        const pathname = window.location.pathname
-        const isEn = pathname.indexOf('/en/') !== -1
-        const lang = isEn ? '/en/' : '/zh-CN/'
-        const pathPrefix = pathname.split(lang)
-        const currentVersion = pathPrefix[1].split('/')[0]
-        const pagePath = pathPrefix[0] + lang + currentVersion
+      const pathname = window.location.pathname
+      const isEn = pathname.indexOf('/en/') !== -1
+      const lang = isEn ? '/en/' : '/zh-CN/'
+      const pathPrefix = pathname.split(lang)
+      const currentVersion = pathPrefix[1].split('/')[0]
+      const pagePath = pathPrefix[0] + lang + currentVersion
 
-        let componentVersionData = [],
-            componentVersionTitle = '',
-            pageTitle = ''
+      let componentVersionData = [],
+          componentVersionTitle = '',
+          pageTitle = ''
 
-        // 获取当前版本 不带R
-        function curVersion(version = '') {
-            return version.startsWith('r') ? version.slice(1) : version
-        }
+      // 获取当前版本 不带R
+      function curVersion(version = '') {
+          return version.startsWith('r') ? version.slice(1) : version
+      }
 
-        // 请求数据
-        function getHeaderData(url) {
-            return new Promise((resolve, reject) => {
-                $.ajax({
-                    type: 'get',
-                    url: url,
-                    dataType: 'json',
-                    success: (res) => {
-                        resolve(res)
-                    },
-                    error: (e) => {
-                        reject(e)
-                    },
-                })
-            })
-        }
+      // 请求数据
+      function getHeaderData(url) {
+          return new Promise((resolve, reject) => {
+              $.ajax({
+                  type: 'get',
+                  url: url,
+                  dataType: 'json',
+                  success: (res) => {
+                      resolve(res)
+                  },
+                  error: (e) => {
+                      reject(e)
+                  },
+              })
+          })
+      }
 
-        const initPage = async function () {
-            componentVersionData = await getHeaderData(
-                `${pagePath}/_static/js/version.json`
-            )
+      const initPage = async function () {
+          componentVersionData = await getHeaderData(
+              `${pagePath}/_static/js/version.json`
+          ) 
 
-            pageTitle = isEn
-                ? componentVersionData.label.en || ''
-                : componentVersionData.label.zh || ''
+          pageTitle = isEn
+              ? componentVersionData.label.en || ''
+              : componentVersionData.label.zh || ''
 
-            componentVersionTitle = componentVersionData.versionAlias
-                ? componentVersionData.versionAlias
-                : componentVersionData.version
-            pageTitle = filterXSS(pageTitle)
-            componentVersionTitle = filterXSS(componentVersionTitle)
+          componentVersionTitle = componentVersionData.versionAlias
+              ? componentVersionData.versionAlias
+              : componentVersionData.version
+          pageTitle = filterXSS(pageTitle)
+          componentVersionTitle = filterXSS(componentVersionTitle)
 
-            $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
-                    pageTitle + ' (' + curVersion(componentVersionTitle) + ')'
-                let welcomeText = isEn
-                    ? `${pageTitle} Documentation`
-                    : `欢迎查看${pageTitle}文档`
-                $('.wy-menu-vertical').before(
-                    `<div class="docsHome"><a  href="${filterXSS(pagePath)}/index.html" class="welcome">${filterXSS(welcomeText)}</a></div>`
-                )
+          $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
+                  pageTitle + ' (' + curVersion(componentVersionTitle) + ')'
+              let welcomeText = isEn
+                  ? `${pageTitle} Documentation`
+                  : `欢迎查看${pageTitle}文档`
+              $('.wy-menu-vertical').before(
+                  `<div class="docsHome"><a  href="${filterXSS(pagePath)}/index.html" class="welcome">${filterXSS(welcomeText)}</a></div>`
+              )
 
-                // 默认展开API  docs
-                const wyMenu = $('.wy-grid-for-nav .wy-menu')
-                if (
-                    pathname.startsWith('/docs/zh-CN/') ||
-                    pathname.startsWith('/docs/en/')
-                ) {
-                    if (
-                        pathname.indexOf('/index.html') > -1 ||
-                        pathname.indexOf('/search.html') > -1 ||
-                        pathname.indexOf('/_modules/') > -1
-                    ) {
-                        wyMenu
-                            .find('.caption')
-                            .removeClass('down')
-                            .next()
-                            .hide()
-                        wyMenu
-                            .find('.caption')
-                            .eq(2)
-                            .addClass('down')
-                            .next()
-                            .show()
-                    }
-                }
-           
+              // 默认展开API  docs
+              const wyMenu = $('.wy-grid-for-nav .wy-menu')
+              if (
+                  pathname.startsWith('/docs/zh-CN/') ||
+                  pathname.startsWith('/docs/en/')
+              ) {
+                  if (
+                      pathname.indexOf('/index.html') > -1 ||
+                      pathname.indexOf('/search.html') > -1 ||
+                      pathname.indexOf('/_modules/') > -1
+                  ) {
+                      wyMenu
+                          .find('.caption')
+                          .removeClass('down')
+                          .next()
+                          .hide()
+                      wyMenu
+                          .find('.caption')
+                          .eq(2)
+                          .addClass('down')
+                          .next()
+                          .show()
+                  }
+              }
 
-            let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a')
-            if ($('li.current>ul').length === 0) {
-                $('li.current').addClass('notoctree-l2')
-            }
-            for (let i = 0; i < aList.length; i++) {
-                let hash = aList[i].hash
-                if (hash != '') {
-                    aList[i].parentNode.parentNode.style.display = 'none'
-                    aList[i].parentNode.parentNode.parentNode.className =
-                        aList[i].parentNode.parentNode.parentNode.className +
-                        ' ' +
-                        'navNoPlus'
-                }
-            }
-        }
+          let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a')
+          if ($('li.current>ul').length === 0) {
+              $('li.current').addClass('notoctree-l2')
+          }
+          for (let i = 0; i < aList.length; i++) {
+              let hash = aList[i].hash
+              if (hash != '') {
+                  aList[i].parentNode.parentNode.style.display = 'none'
+                  aList[i].parentNode.parentNode.parentNode.className =
+                      aList[i].parentNode.parentNode.parentNode.className +
+                      ' ' +
+                      'navNoPlus'
+              }
+          }
+      }
 
-        initPage()
-    })()
+      initPage()
 })
