@@ -866,7 +866,7 @@ $(function () {
       let sectionList = $('.document>div:first-of-type>section')
       let h1List = $('.document section>h1')
       let h2List = $('.document section>h2')
-      let codeList = $('dl>dt>.descname .pre:not(.method .descname .pre):not(.property .descname .pre)')
+      let codeList = $('dl>dt>.descname>.pre:not(.method .descname>.pre):not(.property .descname>.pre)')
       if (sectionList[0] === undefined) {
           return
       }
@@ -941,11 +941,11 @@ $(function () {
                   navLi2 = ''
                   if (
                       h2List[i].parentNode.querySelectorAll(
-                          '.class>dt .pre ,.function>dt .pre'
+                          '.class>dt .descname>.pre ,.function>dt .descname>.pre'
                       ).length > 0
                   ) {
                       let navLi3Array = h2List[i].parentNode.querySelectorAll(
-                          '.class>dt .pre,.function>dt .pre'
+                          '.class>dt .descname>.pre,.function>dt .descname>.pre'
                       )
 
                       for (let j = 0; j < navLi3Array.length; j++) {
@@ -961,7 +961,7 @@ $(function () {
                                   navLi3Array[
                                       j
                                   ].parentNode.parentNode.querySelectorAll(
-                                      'dd .pre'
+                                      'dd .descname>.pre'
                                   )
                               for (let k = 0; k < navLi4Array.length; k++) {
                                   navLi4 +=
@@ -1031,7 +1031,7 @@ $(function () {
                 <ul class="navList3"></ul>
               </li>`;
             $('.navList2').append(codeLi2);
-            const nextDescnames = $(this).closest('dt').next().find('.descname .pre');
+            const nextDescnames = $(this).closest('dt').next().find('.descname>.pre');
             if (nextDescnames.length) {
               const navLi3 = nextDescnames.map(function () {
                 const descnameText = $(this).text();
