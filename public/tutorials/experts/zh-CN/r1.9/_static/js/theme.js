@@ -5,10 +5,6 @@
   let s = document.getElementsByTagName('HEAD')[0]
   let origin = window.location.origin
 
-  let xss = document.createElement('script')
-  xss.defer = 'defer'
-  xss.src = origin + '/xss.min.js'
-
   let hm = document.createElement('script')
   hm.src = origin + '/common.js'
 
@@ -16,7 +12,6 @@
   oLink.rel = 'stylesheet'
   oLink.href = origin + '/h5_docs.css'
 
-  s.parentNode.insertBefore(xss, s)
   s.parentNode.insertBefore(hm, s)
   s.parentNode.insertBefore(oLink, s)
 })()
@@ -39,6 +34,9 @@ $(function () {
         // 获取当前版本 不带R
         function curVersion(version = '') {
             return version.startsWith('r') ? version.slice(1) : version
+        }
+        function filterXSS(val){
+          return $('<div>').text(val).html();
         }
 
         // 请求数据
