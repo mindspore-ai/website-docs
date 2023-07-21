@@ -510,7 +510,7 @@ $(function () {
           <div class="footer row">
             <a class="jump col-xs-12 col-md-4" href="/install/${enPath}">${msFotter.fontmatter.install}</a>
             <a class="jump col-xs-12 col-md-4" href="/tutorials/${isEn ? "en" : "zh-CN"}/master/index.html">${msFotter.fontmatter.tutorial}</a>
-            <a class="jump col-xs-12 col-md-4" href="/mindspore/${enPath}">${msFotter.fontmatter.docs}</a>
+            <a class="jump col-xs-12 col-md-4" href="/docs/${isEn ? "en" : "zh-CN"}/master/index.html">${msFotter.fontmatter.docs}</a>
             <a class="jump col-xs-12 col-md-4" href="/community/${enPath}">${msFotter.fontmatter.community}</a>
             <a class="jump col-xs-12 col-md-4" href="/news/${enPath}">${msFotter.fontmatter.news}</a>
             <a class="jump col-xs-12 col-md-4" href="/security/${enPath}">${msFotter.fontmatter.security}</a>
