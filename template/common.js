@@ -918,7 +918,7 @@ $(function () {
                               "'>" +
                               filterXSS( h3[i].innerText ) +
                               "</a><ul class='navList4'>" +
-                              filterXSS(navLi4) +
+                              navLi4 +
                               '</ul></li>'
                       } else {
                           navLi3 +=
