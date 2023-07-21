@@ -131,8 +131,8 @@ $(function () {
             <div class="header-nav-link">
                 <p >${isEn ? 'Code' : '代码'}</p>
                 <ul class="dropdown-menu-git">
-                    <li><a href="${configIP.GITEE_URL}/mindspore/mindspore" target="_blank">Gitee</a></li>
-                    <li><a href="${configIP.GITHUB_URL}/mindspore-ai/mindspore" target="_blank">GitHub</a></li>
+                    <li><a href="${configIP.GITEE_URL}/mindspore/mindspore" rel="noopener noreferrer"  target="_blank">Gitee</a></li>
+                    <li><a href="${configIP.GITHUB_URL}/mindspore-ai/mindspore" rel="noopener noreferrer" target="_blank">GitHub</a></li>
                 </ul>
             </div><a class="header__search"></a>
             <div class="searchMain" style="display: none;">
@@ -403,6 +403,7 @@ $(function () {
 
   // 初始化footer
   const msFotter = {
+      gradeState:-1,
       fontmatter: {
           askQuestion3: isEn ? 'Document Feedback' : '文档反馈',
           helpforyou: isEn ? 'Was this helpful?' : '这个对你有帮助吗 ?',
@@ -476,7 +477,7 @@ $(function () {
                   </a>
                 </div>
                 <div class="askQuestion-box">
-                  <a class="askQuestion" href="${msFotter.getQuestionHref()}" target="_blank">
+                  <a class="askQuestion" rel="noopener noreferrer" href="${msFotter.getQuestionHref()}" target="_blank">
                     <img class="btn-img" src="/pic/docs/ask.png" />
                     <div class="btn-label">${msFotter.fontmatter.askQuestion3}</div>
                   </a>
@@ -507,22 +508,22 @@ $(function () {
           <div class="licensed">${msFotter.fontmatter.license}</div>
           <div class="partLine"></div>
           <div class="footer row">
-            <a class="jump col-xs-12 col-md-4" target="_top" href="/install/${enPath}">${msFotter.fontmatter.install}</a>
-            <a class="jump col-xs-12 col-md-4" target="_top" href="/tutorials/${isEn ? "en" : "zh-CN"}/master/index.html">${msFotter.fontmatter.tutorial}</a>
-            <a class="jump col-xs-12 col-md-4" target="_top" href="/mindspore/${enPath}">${msFotter.fontmatter.docs}</a>
-            <a class="jump col-xs-12 col-md-4" target="_top" href="/community/${enPath}">${msFotter.fontmatter.community}</a>
-            <a class="jump col-xs-12 col-md-4" target="_top" href="/news/${enPath}">${msFotter.fontmatter.news}</a>
-            <a class="jump col-xs-12 col-md-4" target="_top" href="/security/${enPath}">${msFotter.fontmatter.security}</a>
-            <a class="jump col-xs-12 col-md-4" target="_blank" href="${msFotter.fontmatter.forumPath}">${msFotter.fontmatter.forum}</a>
+            <a class="jump col-xs-12 col-md-4" href="/install/${enPath}">${msFotter.fontmatter.install}</a>
+            <a class="jump col-xs-12 col-md-4" href="/tutorials/${isEn ? "en" : "zh-CN"}/master/index.html">${msFotter.fontmatter.tutorial}</a>
+            <a class="jump col-xs-12 col-md-4" href="/docs/${isEn ? "en" : "zh-CN"}/master/index.html">${msFotter.fontmatter.docs}</a>
+            <a class="jump col-xs-12 col-md-4" href="/community/${enPath}">${msFotter.fontmatter.community}</a>
+            <a class="jump col-xs-12 col-md-4" href="/news/${enPath}">${msFotter.fontmatter.news}</a>
+            <a class="jump col-xs-12 col-md-4" href="/security/${enPath}">${msFotter.fontmatter.security}</a>
+            <a class="jump col-xs-12 col-md-4" rel="noopener noreferrer" target="_blank" href="${msFotter.fontmatter.forumPath}">${msFotter.fontmatter.forum}</a>
           </div>
           <div class="row copyright col-xs-12 col-md-8">
             <span class="copyRight">${msFotter.fontmatter.copyRight}</span>
-            <a class="copynum" target="_blank" href="${configIP.BEIAN_URL}">粤A2-20044005号</a>
+            <a class="copynum" rel="noopener noreferrer" target="_blank" href="${configIP.BEIAN_URL}">粤A2-20044005号</a>
             <a href="/legal/${enPath}" class="legal">${msFotter.fontmatter.terms}</a>
             <span class="verticalLine"></span>
             <a href="/privacy/${enPath}" class="privacyPolicy">${msFotter.fontmatter.privacy}</a>
           </div>
-          <a class="footer-record" href="${configIP.BEIAN_URL}">
+          <a class="footer-record" rel="noopener noreferrer" target="_blank" href="${configIP.BEIAN_URL}">
             <img class="copyImg2" src="/pic/copyright3.png" alt="img" />
             <span class="keepRecord">粤公网安备 </span>
             <span class="recordNum">44030702002890号</span>
@@ -532,7 +533,7 @@ $(function () {
       },
       //跳转论坛统计
       jumpForumStatistics: function () {
-          $('.askQuestion').one('click', function () {
+          $('.askQuestion').on('click', function () {
               $.ajax({
                   type: 'POST',
                   url: '/saveEssayJump',
@@ -567,7 +568,7 @@ $(function () {
             <div class="evaluate">
               <div class="evaluateTitle">
                 ${helpForYou}
-                <a class="askQuestion" href="${forumPath}" target="_blank">${forumText}</a>
+                <a class="askQuestion" rel="noopener noreferrer" href="${forumPath}" target="_blank">${forumText}</a>
               </div>
               <ul class="evaluateStar">
                 ${helpForScores.map((score) => `
@@ -589,7 +590,7 @@ $(function () {
                 <div class="copynum">
                   <p>
                     <span class="keepRecord">${copyRight}</span>
-                    <a target="_blank" href="${beianUrl}">粤A2-20044005号</a>
+                    <a target="_blank" rel="noopener noreferrer" href="${beianUrl}">粤A2-20044005号</a>
                   </p>
                   <p>
                     <span class="keepRecord">粤公网安备 </span>
@@ -608,7 +609,7 @@ $(function () {
       },
 
       documentEvaluationFn() {
-          const star = $('div.star')
+          const star = $('div.star');
           star.on('mouseover', function () {
               $(this).addClass('sel')
               $(this).parent('li').prevAll().children('.star').addClass('sel')
@@ -625,7 +626,7 @@ $(function () {
                   .children('.star')
                   .removeClass('sel')
           })
-          $('.evaluateStar').one('click', '.star', function () {
+          $('.evaluateStar').on('click', '.star', function () {
               $(this).addClass('sel')
               $(this).parent('li').prevAll().children('.star').addClass('sel')
               $(this)
@@ -635,7 +636,8 @@ $(function () {
                   .removeClass('sel')
               star.unbind('mouseover')
               star.unbind('mouseout')
-              let grade = $(this).parent('li').prevAll().length + 1
+              let grade = $(this).parent('li').prevAll().length + 1;
+              if(grade === msFotter.gradeState) return;
               $.ajax({
                   type: 'POST',
                   contentType: 'application/json',
@@ -645,6 +647,7 @@ $(function () {
                   }),
                   url: '/saveEssayScore',
               })
+              msFotter.gradeState = grade
           })
       },
   }
@@ -1185,6 +1188,9 @@ $(function () {
     if (screen < 768) {
         cb()
     }
+  }
+  function filterXSS(val){
+    return $('<div>').text(val).html();
   }
 
   const initPage = async function () { 
