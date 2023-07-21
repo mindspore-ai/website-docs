@@ -514,7 +514,7 @@ $(function () {
             <a class="jump col-xs-12 col-md-4" href="/community/${enPath}">${msFotter.fontmatter.community}</a>
             <a class="jump col-xs-12 col-md-4" href="/news/${enPath}">${msFotter.fontmatter.news}</a>
             <a class="jump col-xs-12 col-md-4" href="/security/${enPath}">${msFotter.fontmatter.security}</a>
-            <a class="jump col-xs-12 col-md-4" rel="noopener noreferrer" target="_blank" href="${msFotter.fontmatter.forumPath}">${msFotter.fontmatter.forum}</a>
+            <a class="jump col-xs-12 col-md-4" rel="noopener noreferrer" target="_blank" href="${isEn?configIP.HWFORUM_URL:configIP.HIASCEND_URL}">${msFotter.fontmatter.forum}</a>
           </div>
           <div class="row copyright col-xs-12 col-md-8">
             <span class="copyRight">${msFotter.fontmatter.copyRight}</span>
