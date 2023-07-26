@@ -48,6 +48,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../advanced_operations_of_quantum_circuit.html">量子线路高阶操作</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../quantum_measurement.html">量子测量</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../noise.html">含噪声量子线路</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../noise_simulator.html">噪声模拟器</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../bloch_sphere.html">布洛赫球</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">变分量子算法</span></p>
@@ -125,8 +126,10 @@
 <span class="kn">import</span> <span class="nn">typing</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span>
 
+<span class="kn">from</span> <span class="nn">mindquantum.utils.type_value_check</span> <span class="kn">import</span> <span class="n">_check_input_type</span><span class="p">,</span> <span class="n">_check_int_type</span>
+
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">gates</span>
-<span class="kn">from</span> <span class="nn">..gates</span> <span class="kn">import</span> <span class="n">BasicGate</span>
+<span class="kn">from</span> <span class="nn">..gates</span> <span class="kn">import</span> <span class="n">BarrierGate</span><span class="p">,</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="n">NoiseGate</span>
 <span class="kn">from</span> <span class="nn">.circuit</span> <span class="kn">import</span> <span class="n">Circuit</span>
 
 
@@ -147,6 +150,7 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">add_after</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a ChannelAdderBase.&quot;&quot;&quot;</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;add_after&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">add_after</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_after</span> <span class="o">=</span> <span class="n">add_after</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">accepter</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># a list of function, which act as rules to accept considering gate to add noise channel.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">excluder</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># a list of function, which act as rules to deny considering gate to add noise channel.</span>
@@ -157,6 +161,8 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Add noise channel after acceptable quantum gate.&quot;&quot;&quot;</span>
         <span class="n">out</span> <span class="o">=</span> <span class="n">Circuit</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">circ</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">BarrierGate</span><span class="p">):</span>
+                <span class="k">continue</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_after</span><span class="p">:</span>
                 <span class="n">out</span> <span class="o">+=</span> <span class="n">g</span>
             <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">rule</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">rule</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">accepter</span><span class="p">):</span>
@@ -166,7 +172,7 @@
                 <span class="n">out</span> <span class="o">+=</span> <span class="n">g</span>
         <span class="k">return</span> <span class="n">out</span>
 
-    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string expression of adder.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&lt;&gt;&quot;</span>
 
@@ -174,11 +180,11 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct accepter rules.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[]</span>
 
-    <span class="k">def</span> <span class="nf">_excluder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_excluder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct excluder rules.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[]</span>
 
-    <span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Circuit</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create action you will do if a gate is acceptable.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">Circuit</span><span class="p">()</span></div>
 
@@ -189,10 +195,22 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        adder (:class:`~.core.circuit.ChannelAdderBase`): A channel adder.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import ReverseAdder, MeasureAccepter, BitFlipAdder, MixerAdder</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().rx(&#39;a&#39;, 0).measure_all()</span>
+<span class="sd">        &gt;&gt;&gt; only_measure = MixerAdder([BitFlipAdder(0.1), MeasureAccepter()])</span>
+<span class="sd">        &gt;&gt;&gt; only_measure(circ)</span>
+<span class="sd">        q0: ──RX(a)────M(q0)────BFC(p=1/10)──</span>
+<span class="sd">        &gt;&gt;&gt; no_measure = ReverseAdder(only_measure)</span>
+<span class="sd">        &gt;&gt;&gt; no_measure(circ)</span>
+<span class="sd">        q0: ──RX(a)────BFC(p=1/10)────M(q0)──</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adder</span><span class="p">:</span> <span class="n">ChannelAdderBase</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a channel adder.&quot;&quot;&quot;</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;adder&quot;</span><span class="p">,</span> <span class="n">ChannelAdderBase</span><span class="p">,</span> <span class="n">adder</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">adder</span> <span class="o">=</span> <span class="n">adder</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">adder</span><span class="o">.</span><span class="n">add_after</span><span class="p">)</span>
 
@@ -200,13 +218,40 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct accepter rules.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">adder</span><span class="o">.</span><span class="n">_excluder</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">_excluder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_excluder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct excluder rules.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">adder</span><span class="o">.</span><span class="n">_accepter</span><span class="p">()</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">adder</span><span class="o">.</span><span class="n">_accepter</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string expression of adder.&quot;&quot;&quot;</span>
+        <span class="n">strs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ReverseAdder&lt;&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adder</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">):</span>
+            <span class="n">strs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;  &quot;</span> <span class="o">+</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">strs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&gt;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">strs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Circuit</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create action you will do if a gate is acceptable.&quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">Circuit</span><span class="p">()</span>
+        <span class="n">out</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">adder</span><span class="o">.</span><span class="n">_handler</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
 
 
 <div class="viewcode-block" id="MeasureAccepter"><a class="viewcode-back" href="../../../../mindquantum.core.circuit.MeasureAccepter.html#mindquantum.core.circuit.MeasureAccepter">[文档]</a><span class="k">class</span> <span class="nc">MeasureAccepter</span><span class="p">(</span><span class="n">ChannelAdderBase</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Select measurement gate.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Select measurement gate.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        add_after (bool): Whether add channel after gate or before gate. Default: ``True``.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import MeasureAccepter, BitFlipAdder, MixerAdder</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().rx(&#39;a&#39;, 0).h(0).measure_all()</span>
+<span class="sd">        &gt;&gt;&gt; only_measure = MixerAdder([BitFlipAdder(0.1), MeasureAccepter()], add_after=False)</span>
+<span class="sd">        &gt;&gt;&gt; only_measure(circ)</span>
+<span class="sd">        q0: ──RX(a)────H────BFC(p=1/10)────M(q0)──</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a MeasureAccepter.&quot;&quot;&quot;</span>
@@ -223,9 +268,22 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        add_after (bool): Whether add channel after gate or before gate. Default: ``True``.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit, NoiseExcluder, BitFlipAdder, MixerAdder</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.gates import DepolarizingChannel</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().x(0)</span>
+<span class="sd">        &gt;&gt;&gt; circ += DepolarizingChannel(0.1).on(0)</span>
+<span class="sd">        &gt;&gt;&gt; circ</span>
+<span class="sd">        q0: ──X────DC(p=1/10)──</span>
+<span class="sd">        &gt;&gt;&gt; BitFlipAdder(0.1)(circ)</span>
+<span class="sd">        q0: ──X────BFC(p=1/10)────DC(p=1/10)────BFC(p=1/10)──</span>
+<span class="sd">        &gt;&gt;&gt; adder = MixerAdder([NoiseExcluder(), BitFlipAdder(0.1)])</span>
+<span class="sd">        &gt;&gt;&gt; adder(circ)</span>
+<span class="sd">        q0: ──X────BFC(p=1/10)────DC(p=1/10)──</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">_excluder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_excluder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct excluder rules.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">NoiseGate</span><span class="p">)]</span></div>
 
@@ -238,27 +296,199 @@
 <span class="sd">        flip_rate (float): The flip rate for bit flip channel. For more detail please refers to</span>
 <span class="sd">            :class:`~.core.gates.BitFlipChannel`.</span>
 <span class="sd">        with_ctrl (bool): Whether add bit flip channel for control qubits. Default: ``True``.</span>
+<span class="sd">        focus_on (int): Only add this noise channel on ``focus_on`` qubit. If ``None``, add to</span>
+<span class="sd">            all qubits of selected quantum gate. Default: ``None``.</span>
 <span class="sd">        add_after (bool): Whether add this channel after quantum gate or not. If ``False``, the</span>
 <span class="sd">            channel will add before quantum gate. Default: ``True``.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import BitFlipAdder</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().h(0).x(1, 0)</span>
+<span class="sd">        &gt;&gt;&gt; adder1 = BitFlipAdder(0.1, with_ctrl=False)</span>
+<span class="sd">        &gt;&gt;&gt; adder1(circ)</span>
+<span class="sd">        q0: ──H────BFC(p=1/10)────●─────────────────</span>
+<span class="sd">                                  │</span>
+<span class="sd">        q1: ──────────────────────X────BFC(p=1/10)──</span>
+<span class="sd">        &gt;&gt;&gt; adder2 = BitFlipAdder(0.1, with_ctrl=False, focus_on=1)</span>
+<span class="sd">        &gt;&gt;&gt; adder2(circ)</span>
+<span class="sd">        q0: ──H────●─────────────────</span>
+<span class="sd">                   │</span>
+<span class="sd">        q1: ───────X────BFC(p=1/10)──</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flip_rate</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">with_ctrl</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">add_after</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flip_rate</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">with_ctrl</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">focus_on</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">add_after</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a BitFlipAdder.&quot;&quot;&quot;</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;with_ctrl&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">with_ctrl</span><span class="p">)</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">add_after</span><span class="o">=</span><span class="n">add_after</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">flip_rate</span> <span class="o">=</span> <span class="n">flip_rate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span> <span class="o">=</span> <span class="n">with_ctrl</span>
+        <span class="k">if</span> <span class="n">focus_on</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_check_int_type</span><span class="p">(</span><span class="s2">&quot;focus_on&quot;</span><span class="p">,</span> <span class="n">focus_on</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span> <span class="o">=</span> <span class="n">focus_on</span>
 
-    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string expression of adder.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;BitFlipAdder&lt;flip_rate=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">flip_rate</span><span class="si">}</span><span class="s2">, with_ctrl=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Circuit</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create action you will do if a gate is acceptable.&quot;&quot;&quot;</span>
         <span class="n">circ</span> <span class="o">=</span> <span class="n">Circuit</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">qubit</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">obj_qubits</span> <span class="o">+</span> <span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">ctrl_qubits</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span> <span class="k">else</span> <span class="p">[]):</span>
-            <span class="n">circ</span> <span class="o">+=</span> <span class="n">gates</span><span class="o">.</span><span class="n">BitFlipChannel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flip_rate</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="n">qubit</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">qubit</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">obj_qubits</span> <span class="o">+</span> <span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">ctrl_qubits</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span> <span class="k">else</span> <span class="p">[]):</span>
+                <span class="n">circ</span> <span class="o">+=</span> <span class="n">gates</span><span class="o">.</span><span class="n">BitFlipChannel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flip_rate</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="n">qubit</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">obj_qubits</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">ctrl_qubits</span><span class="p">:</span>
+                <span class="n">circ</span> <span class="o">+=</span> <span class="n">gates</span><span class="o">.</span><span class="n">BitFlipChannel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flip_rate</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">circ</span></div>
+
+
+<div class="viewcode-block" id="NoiseChannelAdder"><a class="viewcode-back" href="../../../../mindquantum.core.circuit.NoiseChannelAdder.html#mindquantum.core.circuit.NoiseChannelAdder">[文档]</a><span class="k">class</span> <span class="nc">NoiseChannelAdder</span><span class="p">(</span><span class="n">ChannelAdderBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Add single qubit quantum channel.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        channel (:class:`~.core.gates.NoiseGate`): A single qubit quantum channel.</span>
+<span class="sd">        with_ctrl (bool): Whether add quantum channel for control qubits. Default: ``True``.</span>
+<span class="sd">        focus_on (int): Only add this noise channel on ``focus_on`` qubit. If ``None``, add to</span>
+<span class="sd">            all qubits of selected quantum gate. Default: ``None``.</span>
+<span class="sd">        add_after (bool): Whether add this channel after quantum gate or not. If ``False``, the</span>
+<span class="sd">            channel will add before quantum gate. Default: ``True``.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import NoiseChannelAdder, Circuit</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.gates import AmplitudeDampingChannel</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().h(0).x(1, 0)</span>
+<span class="sd">        &gt;&gt;&gt; channel = AmplitudeDampingChannel(0.3)</span>
+<span class="sd">        &gt;&gt;&gt; adder1 = NoiseChannelAdder(channel, with_ctrl=True, add_after=True)</span>
+<span class="sd">        &gt;&gt;&gt; adder1(circ)</span>
+<span class="sd">        q0: ──H────ADC(γ=3/10)────●────ADC(γ=3/10)──</span>
+<span class="sd">                                  │</span>
+<span class="sd">        q1: ──────────────────────X────ADC(γ=3/10)──</span>
+<span class="sd">        &gt;&gt;&gt; adder2 = NoiseChannelAdder(channel, with_ctrl=True, focus_on=1, add_after=True)</span>
+<span class="sd">        &gt;&gt;&gt; adder2(circ)</span>
+<span class="sd">        q0: ──H────●─────────────────</span>
+<span class="sd">                   │</span>
+<span class="sd">        q1: ───────X────ADC(γ=3/10)──</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">:</span> <span class="n">NoiseGate</span><span class="p">,</span> <span class="n">with_ctrl</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">focus_on</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">add_after</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a BitFlipAdder.&quot;&quot;&quot;</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;channel&quot;</span><span class="p">,</span> <span class="n">NoiseGate</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;with_ctrl&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">with_ctrl</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">channel</span><span class="o">.</span><span class="n">n_qubits</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Requires a single qubit channel, but get </span><span class="si">{</span><span class="n">channel</span><span class="o">.</span><span class="n">n_qubits</span><span class="si">}</span><span class="s2">, please customize a adder.&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">add_after</span><span class="o">=</span><span class="n">add_after</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span> <span class="o">=</span> <span class="n">with_ctrl</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span>
+        <span class="k">if</span> <span class="n">focus_on</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_check_int_type</span><span class="p">(</span><span class="s2">&quot;focus_on&quot;</span><span class="p">,</span> <span class="n">focus_on</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span> <span class="o">=</span> <span class="n">focus_on</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string expression of adder.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;NoiseChannelAdder&lt;channel=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="si">}</span><span class="s2">, with_ctrl=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Circuit</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create action you will do if a gate is acceptable.&quot;&quot;&quot;</span>
+        <span class="n">circ</span> <span class="o">=</span> <span class="n">Circuit</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">qubit</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">obj_qubits</span> <span class="o">+</span> <span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">ctrl_qubits</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span> <span class="k">else</span> <span class="p">[]):</span>
+                <span class="n">circ</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="n">qubit</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">obj_qubits</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">ctrl_qubits</span><span class="p">:</span>
+                <span class="n">circ</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">focus_on</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">circ</span></div>
+
+
+<div class="viewcode-block" id="QubitNumberConstrain"><a class="viewcode-back" href="../../../../mindquantum.core.circuit.QubitNumberConstrain.html#mindquantum.core.circuit.QubitNumberConstrain">[文档]</a><span class="k">class</span> <span class="nc">QubitNumberConstrain</span><span class="p">(</span><span class="n">ChannelAdderBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Only add noise channel for ``n_qubits`` quantum gate.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        n_qubits (int): The number qubit of quantum gate.</span>
+<span class="sd">        with_ctrl (bool): Whether control qubits also contribute to `n_qubits` or not. Default: ``True``.</span>
+<span class="sd">        add_after (bool): Whether add channel after gate or before gate. Default: ``True``.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import QubitNumberConstrain, Circuit, BitFlipAdder, MixerAdder</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().h(0).x(1, 0)</span>
+<span class="sd">        &gt;&gt;&gt; circ</span>
+<span class="sd">        q0: ──H────●──</span>
+<span class="sd">                   │</span>
+<span class="sd">        q1: ───────X──</span>
+<span class="sd">        &gt;&gt;&gt; adder = MixerAdder([</span>
+<span class="sd">        ...     QubitNumberConstrain(2),</span>
+<span class="sd">        ...     BitFlipAdder(0.1)</span>
+<span class="sd">        ... ])</span>
+<span class="sd">        &gt;&gt;&gt; adder(circ)</span>
+<span class="sd">        q0: ──H────●────BFC(p=1/10)──</span>
+<span class="sd">                   │</span>
+<span class="sd">        q1: ───────X────BFC(p=1/10)──</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">with_ctrl</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">add_after</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a QubitNumberConstrain.&quot;&quot;&quot;</span>
+        <span class="n">_check_int_type</span><span class="p">(</span><span class="s2">&quot;n_qubits&quot;</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">)</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;with_ctrl&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">with_ctrl</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span> <span class="o">=</span> <span class="n">n_qubits</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span> <span class="o">=</span> <span class="n">with_ctrl</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">add_after</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string expression of adder.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;QubitNumberConstrain&lt;n_qubits=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="si">}</span><span class="s2">, with_ctrl=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_accepter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct accepter rules.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span> <span class="o">==</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">obj_qubits</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">ctrl_qubits</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_ctrl</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="QubitIDConstrain"><a class="viewcode-back" href="../../../../mindquantum.core.circuit.QubitIDConstrain.html#mindquantum.core.circuit.QubitIDConstrain">[文档]</a><span class="k">class</span> <span class="nc">QubitIDConstrain</span><span class="p">(</span><span class="n">ChannelAdderBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Select gate with qubit id in given list.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        qubit_ids (Union[int, List[int]]): The qubit id list you want to select.</span>
+<span class="sd">        add_after (bool): Whether add channel after gate or before gate. Default: ``True``.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import MixerAdder, BitFlipAdder, QubitIDConstrain, Circuit</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().h(0).h(1).h(2).x(1, 0).x(2, 1)</span>
+<span class="sd">        &gt;&gt;&gt; circ</span>
+<span class="sd">        q0: ──H────●───────</span>
+<span class="sd">                   │</span>
+<span class="sd">        q1: ──H────X────●──</span>
+<span class="sd">                        │</span>
+<span class="sd">        q2: ──H─────────X──</span>
+<span class="sd">        &gt;&gt;&gt; adder = MixerAdder([</span>
+<span class="sd">        ...     QubitIDConstrain([0, 1]),</span>
+<span class="sd">        ...     BitFlipAdder(0.1),</span>
+<span class="sd">        ... ])</span>
+<span class="sd">        &gt;&gt;&gt; adder(circ)</span>
+<span class="sd">        q0: ──H────BFC(p=1/10)────●────BFC(p=1/10)───────</span>
+<span class="sd">                                  │</span>
+<span class="sd">        q1: ──H────BFC(p=1/10)────X────BFC(p=1/10)────●──</span>
+<span class="sd">                                                      │</span>
+<span class="sd">        q2: ──H───────────────────────────────────────X──</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qubit_ids</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">add_after</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a QubitIDConstrain.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qubit_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">qubit_ids</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">qubit_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">qubit_ids</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">qubit_ids</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">qubit_id</span> <span class="ow">in</span> <span class="n">qubit_ids</span><span class="p">:</span>
+                <span class="n">_check_int_type</span><span class="p">(</span><span class="s2">&quot;Element of qubit_ids&quot;</span><span class="p">,</span> <span class="n">qubit_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">qubit_ids</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">qubit_ids</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;qubit_ids requires a int or a list, but get </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">qubit_ids</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">add_after</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_accepter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct accepter rules.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">all</span><span class="p">(</span><span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">qubit_ids</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">x</span><span class="o">.</span><span class="n">obj_qubits</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="n">ctrl_qubits</span><span class="p">)]</span></div>
 
 
 <div class="viewcode-block" id="MixerAdder"><a class="viewcode-back" href="../../../../mindquantum.core.circuit.MixerAdder.html#mindquantum.core.circuit.MixerAdder">[文档]</a><span class="k">class</span> <span class="nc">MixerAdder</span><span class="p">(</span><span class="n">ChannelAdderBase</span><span class="p">):</span>
@@ -268,15 +498,27 @@
 <span class="sd">    Args:</span>
 <span class="sd">        adders (List[:class:`~.core.gates.BitFlipChannel`]): The adders you want to mix.</span>
 <span class="sd">        add_after (bool): Whether add channel after quantum gate or not. If ``False``, the</span>
-<span class="sd">            channel will add before quantum gate. Default: ``True``.</span>
+<span class="sd">            channel will add before quantum gate. This `add_after` will override all`add_after`</span>
+<span class="sd">            of sub adder. Default: ``True``.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import MeasureAccepter, BitFlipAdder, MixerAdder</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().rx(&#39;a&#39;, 0).h(0).measure_all()</span>
+<span class="sd">        &gt;&gt;&gt; only_measure = MixerAdder([BitFlipAdder(0.1), MeasureAccepter()], add_after=False)</span>
+<span class="sd">        &gt;&gt;&gt; only_measure(circ)</span>
+<span class="sd">        q0: ──RX(a)────H────BFC(p=1/10)────M(q0)──</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adders</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">ChannelAdderBase</span><span class="p">],</span> <span class="n">add_after</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a MixerAdder.&quot;&quot;&quot;</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;adders&quot;</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="n">adders</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">adder</span> <span class="ow">in</span> <span class="n">adders</span><span class="p">:</span>
+            <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;Element of adders&quot;</span><span class="p">,</span> <span class="n">ChannelAdderBase</span><span class="p">,</span> <span class="n">adder</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">adders</span> <span class="o">=</span> <span class="n">adders</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">add_after</span><span class="o">=</span><span class="n">add_after</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string expression of adder.&quot;&quot;&quot;</span>
         <span class="n">strs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;MixerAdder&lt;&quot;</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">adder</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adders</span><span class="p">:</span>
@@ -285,15 +527,15 @@
         <span class="n">strs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&gt;&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">strs</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_accepter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_accepter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct accepter rules.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">adder</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adders</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">adder</span><span class="o">.</span><span class="n">_accepter</span><span class="p">()]</span>
 
-    <span class="k">def</span> <span class="nf">_excluder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_excluder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct excluder rules.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">adder</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adders</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">adder</span><span class="o">.</span><span class="n">_excluder</span><span class="p">()]</span>
 
-    <span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Circuit</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create action you will do if a gate is acceptable.&quot;&quot;&quot;</span>
         <span class="n">out</span> <span class="o">=</span> <span class="n">Circuit</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">adder</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adders</span><span class="p">:</span>
@@ -307,20 +549,52 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        adders (List[:class:`~.core.circuit.ChannelAdderBase`]): The adder you want to apply.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import SequentialAdder, MixerAdder, BitFlipAdder, NoiseChannelAdder</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import MeasureAccepter, ReverseAdder, NoiseChannelAdder, Circuit</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import NoiseExcluder</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.gates import DepolarizingChannel</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit().h(0).x(1, 0).measure_all()</span>
+<span class="sd">        &gt;&gt;&gt; circ</span>
+<span class="sd">        q0: ──H────●────M(q0)──</span>
+<span class="sd">                   │</span>
+<span class="sd">        q1: ───────X────M(q1)──</span>
+<span class="sd">        &gt;&gt;&gt; bitflip_error_for_measure = MixerAdder([</span>
+<span class="sd">        ...     BitFlipAdder(0.1),</span>
+<span class="sd">        ...     MeasureAccepter(),</span>
+<span class="sd">        ...     NoiseExcluder()</span>
+<span class="sd">        ... ], add_after=False)</span>
+<span class="sd">        &gt;&gt;&gt; depolarizing_for_gate = MixerAdder([</span>
+<span class="sd">        ...     NoiseChannelAdder(DepolarizingChannel(0.1)),</span>
+<span class="sd">        ...     ReverseAdder(MeasureAccepter()),</span>
+<span class="sd">        ...     NoiseExcluder()</span>
+<span class="sd">        ... ])</span>
+<span class="sd">        &gt;&gt;&gt; adder = SequentialAdder([</span>
+<span class="sd">        ...     bitflip_error_for_measure,</span>
+<span class="sd">        ...     depolarizing_for_gate,</span>
+<span class="sd">        ... ])</span>
+<span class="sd">        &gt;&gt;&gt; adder(circ)</span>
+<span class="sd">        q0: ──H────DC(p=1/10)────●────DC(p=1/10)────BFC(p=1/10)────M(q0)──</span>
+<span class="sd">                                 │</span>
+<span class="sd">        q1: ─────────────────────X────DC(p=1/10)────BFC(p=1/10)────M(q1)──</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adders</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">ChannelAdderBase</span><span class="p">]):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a SequentialAdder.&quot;&quot;&quot;</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;adders&quot;</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="n">adders</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">adder</span> <span class="ow">in</span> <span class="n">adders</span><span class="p">:</span>
+            <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;Element of adders&quot;</span><span class="p">,</span> <span class="n">ChannelAdderBase</span><span class="p">,</span> <span class="n">adder</span><span class="p">)</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">adders</span> <span class="o">=</span> <span class="n">adders</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">circ</span><span class="p">:</span> <span class="n">Circuit</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">circ</span><span class="p">:</span> <span class="n">Circuit</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Circuit</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Add noise channel after acceptable quantum gate.&quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">adder</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adders</span><span class="p">:</span>
             <span class="n">circ</span> <span class="o">=</span> <span class="n">adder</span><span class="p">(</span><span class="n">circ</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">circ</span>
 
-    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string expression of adder.&quot;&quot;&quot;</span>
         <span class="n">strs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;SequentialAdder&lt;&quot;</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">adder</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adders</span><span class="p">:</span>
@@ -332,13 +606,17 @@
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;ChannelAdderBase&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;NoiseChannelAdder&quot;</span><span class="p">,</span>
     <span class="s2">&quot;MeasureAccepter&quot;</span><span class="p">,</span>
     <span class="s2">&quot;ReverseAdder&quot;</span><span class="p">,</span>
     <span class="s2">&quot;NoiseExcluder&quot;</span><span class="p">,</span>
     <span class="s2">&quot;BitFlipAdder&quot;</span><span class="p">,</span>
     <span class="s2">&quot;MixerAdder&quot;</span><span class="p">,</span>
     <span class="s2">&quot;SequentialAdder&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;QubitNumberConstrain&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;QubitIDConstrain&quot;</span><span class="p">,</span>
 <span class="p">]</span>
+<span class="n">__all__</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
 </pre></div>
 
            </div>
