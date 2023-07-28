@@ -93,7 +93,7 @@ $(function () {
                                                         return `
                                                     <div class="docsVersion"><a class="versionM" href="${msHeader.headerNavLinks(
                                                         subitem.id
-                                                    )}">${filterXSS(subitem.name)}</a></div>
+                                                    )}">${filterXSS(subitem.name)}  ${subitem.state&&`<span class="tag"><span class="tag-label">${filterXSS(subitem.state)}</span></span>`}</a></div>
                                                     `
                                                     })
                                                     .join('')}
@@ -189,7 +189,7 @@ $(function () {
                                                       .map(function (sub) {
                                                           return `<a class="mobile-subnav-link" href="${msHeader.headerNavLinks(
                                                               sub.id
-                                                          )}">${filterXSS(sub.name)}</a>`
+                                                          )}">${filterXSS(sub.name)} ${sub.state&&`<span class="tag"><span class="tag-label">${filterXSS(sub.state)}</span></span>`}</a>`
                                                       })
                                                       .join('')}`
                                               } else {
