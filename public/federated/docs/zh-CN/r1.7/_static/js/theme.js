@@ -81,7 +81,8 @@ $(function () {
                   `<div class="docsHome"><a  href="${filterXSS(pagePath)}/index.html" class="welcome">${filterXSS(welcomeText)}</a></div>`
               )
 
-              // 默认展开API  docs
+            // 默认展开API  docs
+            setTimeout(() => {
               const wyMenu = $('.wy-grid-for-nav .wy-menu')
               if (
                   pathname.startsWith('/docs/zh-CN/') ||
@@ -105,7 +106,7 @@ $(function () {
                           .show()
                   }
               }
-
+          }, 50);
           let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a')
           if ($('li.current>ul').length === 0) {
               $('li.current').addClass('notoctree-l2')
