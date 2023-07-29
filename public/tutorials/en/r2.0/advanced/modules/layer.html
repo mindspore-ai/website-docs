@@ -68,6 +68,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../derivation.html">Advanced Automatic Differentiation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../compute_graph.html">Computational Graph</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../mixed_precision.html">Automatic Mix Precision</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../error_analysis.html">Error Reporting Analysis</a></li>
 </ul>
 
         </div>
@@ -119,7 +120,7 @@
     text-align: unset;
 }
 </style>
-<p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.0/tutorials/source_en/advanced/modules/layer.md"><img alt="View Source On Gitee" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.0/resource/_static/logo_source_en.png" /></a></p>
+<p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.1/tutorials/source_en/advanced/modules/layer.md"><img alt="View Source On Gitee" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source_en.png" /></a></p>
 <section id="cell-and-parameter">
 <h1>Cell and Parameter<a class="headerlink" href="#cell-and-parameter" title="Permalink to this headline"></a></h1>
 <p>Cell, as the basic unit of neural network construction, corresponds to the concept of neural network layer, and the abstract encapsulation of Tensor computation operation can represent the neural network structure more accurately and clearly. In addition to the basic Tensor computation flow definition, the neural network layer contains functions such as parameter management and state management. Parameter is the core of neural network training and is usually used as an internal member variable of the neural network layer. In this section, we systematically introduce parameters, neural network layers and their related usage.</p>
@@ -218,7 +219,7 @@ b:
 </section>
 <section id="overriding-the-modified-parameter-values">
 <h4>Overriding the Modified Parameter Values<a class="headerlink" href="#overriding-the-modified-parameter-values" title="Permalink to this headline"></a></h4>
-<p>The <code class="docutils literal notranslate"><span class="pre">Parameter.set_data</span></code> method can be called to override the Parameter by using a Tensor with the same Shape. This method is commonly used for <a class="reference external" href="https://www.mindspore.cn/tutorials/en/r2.0/advanced/modules/initializer.html">Cell traversal initialization</a> by using Initializer.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">Parameter.set_data</span></code> method can be called to override the Parameter by using a Tensor with the same Shape. This method is commonly used for <a class="reference external" href="https://www.mindspore.cn/tutorials/en/r2.1/advanced/modules/initializer.html">Cell traversal initialization</a> by using Initializer.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">net</span><span class="o">.</span><span class="n">b</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span><span class="n">Tensor</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]))</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">b</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
 </pre></div>
@@ -229,7 +230,7 @@ b:
 </section>
 <section id="modifying-parameter-values-during-runtime">
 <h4>Modifying Parameter Values During Runtime<a class="headerlink" href="#modifying-parameter-values-during-runtime" title="Permalink to this headline"></a></h4>
-<p>The main role of parameters is to update their values during model training, which involves parameter modification during runtime after backward propagation to obtain gradients, or when untrainable parameters need to be updated. Due to the compiled design of MindSpore’s <a class="reference external" href="https://www.mindspore.cn/tutorials/en/r2.0/advanced/compute_graph.html">computational graph</a>, it is necessary at this point to use the <code class="docutils literal notranslate"><span class="pre">mindspore.ops.assign</span></code> interface to assign parameters. This method is commonly used in <a class="reference external" href="https://www.mindspore.cn/tutorials/en/r2.0/advanced/modules/optimizer.html">Custom Optimizer</a> scenarios. The following is a simple sample modification of parameter values during runtime:</p>
+<p>The main role of parameters is to update their values during model training, which involves parameter modification during runtime after backward propagation to obtain gradients, or when untrainable parameters need to be updated. Due to the compiled design of MindSpore’s <a class="reference external" href="https://www.mindspore.cn/tutorials/en/r2.1/advanced/compute_graph.html">computational graph</a>, it is necessary at this point to use the <code class="docutils literal notranslate"><span class="pre">mindspore.ops.assign</span></code> interface to assign parameters. This method is commonly used in <a class="reference external" href="https://www.mindspore.cn/tutorials/en/r2.1/advanced/modules/optimizer.html">Custom Optimizer</a> scenarios. The following is a simple sample modification of parameter values during runtime:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 
 <span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
@@ -360,6 +361,306 @@ y =\begin{cases}
 <li><p><em>dout</em>: When backward propagation is performed, the current Cell executes the previous reverse result.</p></li>
 </ul>
 <p>Generally we need to calculate the reverse result according to the reverse derivative formula based on the forward output and the reverse result of the front layer, and return it. The reverse calculation of <code class="docutils literal notranslate"><span class="pre">Dropout2d</span></code> requires masking the reverse result of the front layer based on the <code class="docutils literal notranslate"><span class="pre">mask</span></code> matrix of the forward output, and then scaling according to <code class="docutils literal notranslate"><span class="pre">keep_prob</span></code>. The final implementation can get the correct calculation result.</p>
+</section>
+</section>
+<section id="hook-function">
+<h2>Hook Function<a class="headerlink" href="#hook-function" title="Permalink to this headline"></a></h2>
+<p>Debugging deep learning networks is a big task for every practitioner in the field of deep learning. Since the deep learning network hides the input and output data as well as the inverse gradient of the intermediate layer operators, only the gradient of the network input data (feature quantity and weight) is provided, resulting in the inability to accurately sense the data changes of the intermediate layer operators, which reduces the debugging efficiency. In order to facilitate users to debug the deep learning network accurately and quickly, MindSpore designes Hook function in dynamic graph mode. <strong>Using Hook function can capture the input and output data of intermediate layer operators as well as the reverse gradient</strong>.</p>
+<p>Currently, four forms of Hook functions are provided in dynamic graph mode: HookBackward operator and register_forward_pre_hook, register_forward_hook, register_backward_hook functions registered on Cell objects.</p>
+<section id="hookbackward-operator">
+<h3>HookBackward Operator<a class="headerlink" href="#hookbackward-operator" title="Permalink to this headline"></a></h3>
+<p>HookBackward implements the Hook function in the form of an operator. The user initializes a HookBackward operator and places it at the location in the deep learning network where the gradient needs to be captured. In the forward execution of the network, the HookBackward operator outputs the input data as is without any modification. When the network back propagates the gradient, the Hook function registered on HookBackward will capture the gradient back propagated to this point. The user can customize the operation on the gradient in the Hook function, such as printing the gradient, or returning a new gradient.</p>
+<p>The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ops</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">hook_fn</span><span class="p">(</span><span class="n">grad_out</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print Gradient&quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;hook_fn print grad_out:&quot;</span><span class="p">,</span> <span class="n">grad_out</span><span class="p">)</span>
+
+<span class="n">hook</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">HookBackward</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">hook_test</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">hook</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">z</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="k">return</span> <span class="n">z</span>
+
+<span class="k">def</span> <span class="nf">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">ms</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">hook_test</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+<span class="n">output</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;output:&quot;</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>hook_fn print grad_out: (Tensor(shape=[], dtype=Float32, value= 2),)
+output: (Tensor(shape=[], dtype=Float32, value= 4), Tensor(shape=[], dtype=Float32, value= 4))
+</pre></div>
+</div>
+<p>For more descriptions of the HookBackward operator, refer to the <a class="reference external" href="https://mindspore.cn/docs/en/r2.1/api_python/ops/mindspore.ops.HookBackward.html">API documentation</a>.</p>
+</section>
+<section id="register-forward-pre-hook-function-in-cell-object">
+<h3>register_forward_pre_hook Function in Cell Object<a class="headerlink" href="#register-forward-pre-hook-function-in-cell-object" title="Permalink to this headline"></a></h3>
+<p>The user can use the <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> function on the Cell object to register a custom Hook function to capture data that is passed to that Cell object. This function does not work in static graph mode and inside functions modified with <code class="docutils literal notranslate"><span class="pre">&#64;jit</span></code>. The <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> function takes the Hook function as an input and returns a <code class="docutils literal notranslate"><span class="pre">handle</span></code> object that corresponds to the Hook function. The user can remove the corresponding Hook function by calling the <code class="docutils literal notranslate"><span class="pre">remove()</span></code> function of the <code class="docutils literal notranslate"><span class="pre">handle</span></code> object. Each call to the <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> function returns a different <code class="docutils literal notranslate"><span class="pre">handle</span></code> object. Hook functions should be defined in the following way.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">forward_pre_hook_fn</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward inputs: &quot;</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here cell_id is the name of the Cell object as well as the ID information, and inputs are the data passed forward to the Cell object. Therefore, the user can use the register_forward_pre_hook function to capture the positive input data of a particular Cell object in the network. The user can customize the operations on the input data in the Hook function, such as viewing, printing data, or returning new input data to the current Cell object. If the original input data of the Cell object is computed in the Hook function and then returned as new input data, these additional computation operations will act on the backpropagation of the gradient at the same time.</p>
+<p>The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">forward_pre_hook_fn</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward inputs: &quot;</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="n">input_x</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">input_x</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="o">.</span><span class="n">register_forward_pre_hook</span><span class="p">(</span><span class="n">forward_pre_hook_fn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">grad_net</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+
+<span class="n">output</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+<span class="n">gradient</span> <span class="o">=</span> <span class="n">grad_net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">gradient</span><span class="p">)</span>
+<span class="n">net</span><span class="o">.</span><span class="n">handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+<span class="n">gradient</span> <span class="o">=</span> <span class="n">grad_net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">gradient</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>forward inputs:  (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)
+[2.]
+forward inputs:  (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)
+(Tensor(shape=[1], dtype=Float32, value= [ 1.00000000e+00]), Tensor(shape=[1], dtype=Float32, value= [ 1.00000000e+00]))
+(Tensor(shape=[1], dtype=Float32, value= [ 1.00000000e+00]), Tensor(shape=[1], dtype=Float32, value= [ 1.00000000e+00]))
+</pre></div>
+</div>
+<p>If the user returns the newly created data directly in the Hook function, instead of returning the data obtained from the original input data after calculation, then the back propagation of the gradient will be cut off on that Cell object.</p>
+<p>The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">forward_pre_hook_fn</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward inputs: &quot;</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="o">.</span><span class="n">register_forward_pre_hook</span><span class="p">(</span><span class="n">forward_pre_hook_fn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">grad_net</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+
+<span class="n">gradient</span> <span class="o">=</span> <span class="n">grad_net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">gradient</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>forward inputs:  (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)
+(Tensor(shape=[1], dtype=Float32, value= [ 0.00000000e+00]), Tensor(shape=[1], dtype=Float32, value= [ 0.00000000e+00]))
+</pre></div>
+</div>
+<p>To avoid running failure when scripts switch to graph mode, it is not recommended to call the <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> function and the <code class="docutils literal notranslate"><span class="pre">remove()</span></code> function of the <code class="docutils literal notranslate"><span class="pre">handle</span></code> object in the <code class="docutils literal notranslate"><span class="pre">construct</span></code> function of the Cell object. In dynamic graph mode, if the <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> function is called in the <code class="docutils literal notranslate"><span class="pre">construct</span></code> function of the Cell object, the Cell object will register a new Hook function every time it runs.</p>
+<p>For more information about the <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> function of the Cell object, refer to the <a class="reference external" href="https://mindspore.cn/docs/en/r2.1/api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell.register_forward_pre_hook">API documentation</a>.</p>
+</section>
+<section id="register-forward-hook-function-of-cell-object">
+<h3>register_forward_hook Function of Cell Object<a class="headerlink" href="#register-forward-hook-function-of-cell-object" title="Permalink to this headline"></a></h3>
+<p>The user can use the <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> function on the Cell object to register a custom Hook function that captures the data passed forward to the Cell object and the output data of the Cell object. This function does not work in static graph mode and inside functions modified with <code class="docutils literal notranslate"><span class="pre">&#64;jit</span></code>. The <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> function takes the Hook function as an input and returns a <code class="docutils literal notranslate"><span class="pre">handle</span></code> object that corresponds to the Hook function. The user can remove the corresponding Hook function by calling the <code class="docutils literal notranslate"><span class="pre">remove()</span></code> function of the <code class="docutils literal notranslate"><span class="pre">handle</span></code> object. Each call to the <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> function returns a different <code class="docutils literal notranslate"><span class="pre">handle</span></code> object. Hook functions should be defined in the following way.</p>
+<p>The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">forward_hook_fn</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward inputs: &quot;</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward outputs: &quot;</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here <code class="docutils literal notranslate"><span class="pre">cell_id</span></code> is the name of the Cell object and the ID information, <code class="docutils literal notranslate"><span class="pre">inputs</span></code> is the forward input data to the Cell object, and <code class="docutils literal notranslate"><span class="pre">outputs</span></code> is the forward output data of the Cell object. Therefore, the user can use the <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> function to capture the forward input data and output data of a particular Cell object in the network. Users can customize the operations on input and output data in the Hook function, such as viewing, printing data, or returning new output data. If the original output data of the Cell object is computed in the Hook function and then returned as new output data, these additional computation operations will act on the back propagation of the gradient at the same time.</p>
+<p>The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">forward_hook_fn</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward inputs: &quot;</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward outputs: &quot;</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">outputs</span> <span class="o">+</span> <span class="n">outputs</span>
+    <span class="k">return</span> <span class="n">outputs</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="n">forward_hook_fn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">grad_net</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+
+<span class="n">gradient</span> <span class="o">=</span> <span class="n">grad_net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">gradient</span><span class="p">)</span>
+<span class="n">net</span><span class="o">.</span><span class="n">handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+<span class="n">gradient</span> <span class="o">=</span> <span class="n">grad_net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">gradient</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>forward inputs:  (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)
+forward outputs:  [2.]
+(Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]), Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]))
+(Tensor(shape=[1], dtype=Float32, value= [ 1.00000000e+00]), Tensor(shape=[1], dtype=Float32, value= [ 1.00000000e+00]))
+</pre></div>
+</div>
+<p>If the user returns the newly created data directly in the Hook function, instead of returning new output data that is obtained after the original output data is calculated, then the back propagation of the gradient will cut off on that Cell object, which can be seen in the use case illustration of the <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> function.
+To avoid running failure when the script switches to graph mode, it is not recommended to call the <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> function in the <code class="docutils literal notranslate"><span class="pre">construct</span></code> function of the Cell object and the <code class="docutils literal notranslate"><span class="pre">remove()</span></code> function of the <code class="docutils literal notranslate"><span class="pre">handle</span></code> object. In dynamic graph mode, if the <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> function is called in the <code class="docutils literal notranslate"><span class="pre">construct</span></code> function of the Cell object, the Cell object will register a new Hook function every time it runs.</p>
+<p>For more information about the <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> function of the Cell object, please refer to the <a class="reference external" href="https://mindspore.cn/docs/en/r2.1/api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell.register_forward_hook">API documentation</a>.</p>
+</section>
+<section id="register-backward-hook-function-of-cell-object">
+<h3>register_backward_hook Function of Cell Object<a class="headerlink" href="#register-backward-hook-function-of-cell-object" title="Permalink to this headline"></a></h3>
+<p>The user can use the <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function on the Cell object to register a custom Hook function that captures the gradient associated with the Cell object when the network is back propagated. This function does not work in graph mode or inside functions modified with <code class="docutils literal notranslate"><span class="pre">&#64;jit</span></code>. The <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function takes the Hook function as an input and returns a <code class="docutils literal notranslate"><span class="pre">handle</span></code> object that corresponds to the Hook function. The user can remove the corresponding Hook function by calling the <code class="docutils literal notranslate"><span class="pre">remove()</span></code> function of the <code class="docutils literal notranslate"><span class="pre">handle</span></code> object. Each call to the <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function will return a different <code class="docutils literal notranslate"><span class="pre">handle</span></code> object.</p>
+<p>Unlike the custom Hook function used by the HookBackward operator, the inputs of the Hook function used by <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> contains <code class="docutils literal notranslate"><span class="pre">cell_id</span></code>, which represents the name and id information of the Cell object, the gradient passed to the Cell object in reverse, and the gradient of the reverse output of the Cell object.</p>
+<p>The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">backward_hook_function</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">grad_input</span><span class="p">,</span> <span class="n">grad_output</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">grad_input</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">grad_output</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here <code class="docutils literal notranslate"><span class="pre">cell_id</span></code> is the name and the ID information of the Cell object, <code class="docutils literal notranslate"><span class="pre">grad_input</span></code> is the gradient passed to the Cell object when the network is back-propagated, which corresponds to the reverse output gradient of the next operator in the forward process. <code class="docutils literal notranslate"><span class="pre">grad_output</span></code> is the gradient of the reverse output of the Cell object. Therefore, the user can use the <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function to capture the backward input and backward output gradients of a particular Cell object in the network. The user can customize the operations on the gradient in the Hook function, such as viewing, printing the gradient, or returning the new output gradient. If you need to return the new output gradient in the Hook function, the return value must be in the form of <code class="docutils literal notranslate"><span class="pre">tuple</span></code>.</p>
+<p>The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">backward_hook_function</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">grad_input</span><span class="p">,</span> <span class="n">grad_output</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">grad_input</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">grad_output</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;ones&quot;</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;valid&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span> <span class="n">gamma_init</span><span class="o">=</span><span class="s2">&quot;ones&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bn</span><span class="o">.</span><span class="n">register_backward_hook</span><span class="p">(</span><span class="n">backward_hook_function</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">grad_net</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">grad_net</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+<span class="n">net</span><span class="o">.</span><span class="n">handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">grad_net</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-------------</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>(Tensor(shape=[1, 2, 1, 1], dtype=Float32, value=
+[[[[ 1.00000000e+00]],
+  [[ 1.00000000e+00]]]]),)
+(Tensor(shape=[1, 2, 1, 1], dtype=Float32, value=
+[[[[ 9.99994993e-01]],
+  [[ 9.99994993e-01]]]]),)
+[[[[1.99999 1.99999]
+   [1.99999 1.99999]]]]
+-------------
+ [[[[1.99999 1.99999]
+   [1.99999 1.99999]]]]
+</pre></div>
+</div>
+<p>When the <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function and the <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> function, and the <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> function act on the same Cell object at the same time, if the <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> and the <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> functions add other operators for data processing, these new operators will participate in the forward calculation of the data before or after the execution of the Cell object, but the backward gradient of these new operators is not captured by the <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function. The Hook function registered in <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> only captures the input and output gradients of the original Cell object.</p>
+<p>The sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">forward_pre_hook_fn</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward inputs: &quot;</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="n">input_x</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">input_x</span>
+
+<span class="k">def</span> <span class="nf">forward_hook_fn</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward inputs: &quot;</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;forward outputs: &quot;</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">outputs</span> <span class="o">+</span> <span class="n">outputs</span>
+    <span class="k">return</span> <span class="n">outputs</span>
+
+<span class="k">def</span> <span class="nf">backward_hook_fn</span><span class="p">(</span><span class="n">cell_id</span><span class="p">,</span> <span class="n">grad_input</span><span class="p">,</span> <span class="n">grad_output</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;grad input: &quot;</span><span class="p">,</span> <span class="n">grad_input</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;grad output: &quot;</span><span class="p">,</span> <span class="n">grad_output</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="o">.</span><span class="n">register_forward_pre_hook</span><span class="p">(</span><span class="n">forward_pre_hook_fn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="n">forward_hook_fn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="o">.</span><span class="n">register_backward_hook</span><span class="p">(</span><span class="n">backward_hook_fn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">grad_net</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">gradient</span> <span class="o">=</span> <span class="n">grad_net</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)),</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">gradient</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>forward inputs:  (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)
+forward inputs:  (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)
+forward outputs:  [2.]
+grad input:  (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)
+grad output:  (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)
+(Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]), Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]))
+</pre></div>
+</div>
+<p>Here <code class="docutils literal notranslate"><span class="pre">grad_input</span></code> is the gradient passed to <code class="docutils literal notranslate"><span class="pre">self.relu</span></code> when the gradient is back-propagated, not the gradient of the new <code class="docutils literal notranslate"><span class="pre">Add</span></code> operator in the <code class="docutils literal notranslate"><span class="pre">forward_hook_fn</span></code> function. Here <code class="docutils literal notranslate"><span class="pre">grad_output</span></code> is the reverse output gradient of the <code class="docutils literal notranslate"><span class="pre">self.relu</span></code> when the gradient is back-propagated, not the reverse output gradient of the new <code class="docutils literal notranslate"><span class="pre">Add</span></code> operator in the <code class="docutils literal notranslate"><span class="pre">forward_pre_hook_fn</span></code> function. The <code class="docutils literal notranslate"><span class="pre">register_forward_pre_hook</span></code> and <code class="docutils literal notranslate"><span class="pre">register_forward_hook</span></code> functions work before and after the execution of the Cell object and do not affect the gradient capture range of the reverse Hook function on the Cell object.</p>
+<p>To avoid running failure when the scripts switch to graph mode, it is not recommended to call the <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function and the <code class="docutils literal notranslate"><span class="pre">remove()</span></code> function of the <code class="docutils literal notranslate"><span class="pre">handle</span></code> object in the <code class="docutils literal notranslate"><span class="pre">construct</span></code> function of the Cell object. In PyNative mode, if the <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function is called in the <code class="docutils literal notranslate"><span class="pre">construct</span></code> function of the Cell object, the Cell object will register a new Hook function every time it runs.</p>
+<p>For more information about the <code class="docutils literal notranslate"><span class="pre">register_backward_hook</span></code> function of the Cell object, please refer to the <a class="reference external" href="https://mindspore.cn/docs/en/r2.1/api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell.register_backward_hook">API documentation</a>.</p>
 </section>
 </section>
 </section>
