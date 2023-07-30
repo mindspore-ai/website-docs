@@ -122,9 +122,13 @@
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;Base class of ansatz.&quot;&quot;&quot;</span>
 
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">typing</span>
 <span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
 
 <span class="kn">from</span> <span class="nn">mindquantum.core.circuit</span> <span class="kn">import</span> <span class="n">Circuit</span>
+<span class="kn">from</span> <span class="nn">mindquantum.core.gates</span> <span class="kn">import</span> <span class="n">NoneParameterGate</span><span class="p">,</span> <span class="n">ParameterGate</span>
+<span class="kn">from</span> <span class="nn">mindquantum.core.parameterresolver</span> <span class="kn">import</span> <span class="n">PRGenerator</span>
 
 
 <div class="viewcode-block" id="Ansatz"><a class="viewcode-back" href="../../../../mindquantum.algorithm.nisq.Ansatz.html#mindquantum.algorithm.nisq.Ansatz">[docs]</a><span class="k">class</span> <span class="nc">Ansatz</span><span class="p">:</span>  <span class="c1"># pylint: disable=too-few-public-methods</span>
@@ -156,6 +160,35 @@
 <span class="sd">            Circuit, the quantum circuit of this ansatz.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_circuit</span></div>
+
+
+<span class="k">def</span> <span class="nf">single_qubit_gate_layer</span><span class="p">(</span>
+    <span class="n">gate</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">ParameterGate</span><span class="p">,</span> <span class="n">NoneParameterGate</span><span class="p">],</span> <span class="n">n_qubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">stop</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pr_gen</span><span class="p">:</span> <span class="n">PRGenerator</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate a single qubit gate layer.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        gate (Union[:class:`~.core.gates.ParameterGate`, :class:`~.core.gates.NoneParameterGate`]): A</span>
+<span class="sd">            quantum gate, can be a class or a instance.</span>
+<span class="sd">        n_qubits (int): Number qubits of ansatz. If `stop` is not ``None``, then `n_qubits` would be the start qubit.</span>
+<span class="sd">        stop (int): The stop qubit. If ``None``, `n_qubits` would be the stop qubit. Default: ``None``.</span>
+<span class="sd">        pr_gen (:class:`~.core.parameterresolver.PRGenerator`): Object that generate parameters. If given `gate` is</span>
+<span class="sd">            a sub class of ParameterGate, then `pr_gen` cannot be ``None``. Default: ``None``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">circ</span> <span class="o">=</span> <span class="n">Circuit</span><span class="p">()</span>
+    <span class="n">q_range</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_qubits</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">stop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">q_range</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_qubits</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">q_range</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">gate</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">ParameterGate</span><span class="p">):</span>
+                <span class="n">circ</span> <span class="o">+=</span> <span class="n">gate</span><span class="p">(</span><span class="n">pr_gen</span><span class="o">.</span><span class="n">new</span><span class="p">())</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">NoneParameterGate</span><span class="p">):</span>
+                <span class="n">circ</span> <span class="o">+=</span> <span class="n">gate</span><span class="p">()</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">circ</span> <span class="o">+=</span> <span class="n">gate</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">circ</span>
 </pre></div>
 
            </div>

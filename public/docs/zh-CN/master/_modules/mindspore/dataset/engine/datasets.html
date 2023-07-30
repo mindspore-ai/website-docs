@@ -3084,6 +3084,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">py_callable</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>
 
 
+<span class="c1"># used when python_multiprocessing=True in map</span>
 <span class="k">class</span> <span class="nc">Pipe</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class to handle communication between the master process and the worker processes.</span>
@@ -3098,8 +3099,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">in_queue</span> <span class="o">=</span> <span class="n">_Queue</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">res_queue</span> <span class="o">=</span> <span class="n">_Queue</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">in_queue</span><span class="o">.</span><span class="n">_joincancelled</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># pylint: disable=W0212</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">res_queue</span><span class="o">.</span><span class="n">_joincancelled</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># pylint: disable=W0212</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_queue</span><span class="o">.</span><span class="n">cancel_join_thread</span><span class="p">()</span>  <span class="c1"># Ensure that the process does not hung when exiting</span>
 
     <span class="k">def</span> <span class="nf">master_send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_index</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">in_queue</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">((</span><span class="n">func_index</span><span class="p">,</span> <span class="o">*</span><span class="n">data</span><span class="p">))</span>
@@ -3115,8 +3115,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">eof</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">send_finish_signal_to_worker</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">send_finish_signal</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">res_queue</span><span class="o">.</span><span class="n">cancel_join_thread</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">in_queue</span><span class="o">.</span><span class="n">cancel_join_thread</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">send_finish_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">worker_send</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
@@ -3136,10 +3134,6 @@
         <span class="n">func_index</span><span class="p">,</span> <span class="o">*</span><span class="n">data</span> <span class="o">=</span> <span class="n">result</span>
         <span class="k">return</span> <span class="n">func_index</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">worker_close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">res_queue</span><span class="o">.</span><span class="n">cancel_join_thread</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">in_queue</span><span class="o">.</span><span class="n">cancel_join_thread</span><span class="p">()</span>
-
 
 <span class="k">def</span> <span class="nf">_main_process_already_exit</span><span class="p">():</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -3157,6 +3151,8 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Multiprocess worker process loop.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Ensure that the process does not hung when exiting</span>
+    <span class="n">pipe</span><span class="o">.</span><span class="n">res_queue</span><span class="o">.</span><span class="n">cancel_join_thread</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_ignore_sigint</span><span class="p">():</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -3172,11 +3168,9 @@
 
         <span class="n">result</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">worker_receive</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">pipe</span><span class="o">.</span><span class="n">worker_close</span><span class="p">()</span>
             <span class="k">return</span>
         <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">input_tensors</span><span class="p">)</span> <span class="o">=</span> <span class="n">result</span>
         <span class="k">if</span> <span class="n">input_tensors</span> <span class="o">==</span> <span class="s2">&quot;QUIT&quot;</span><span class="p">:</span>
-            <span class="n">pipe</span><span class="o">.</span><span class="n">worker_close</span><span class="p">()</span>
             <span class="k">break</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">output_tensors</span> <span class="o">=</span> <span class="n">operations</span><span class="p">[</span><span class="n">idx</span><span class="p">](</span><span class="o">*</span><span class="n">input_tensors</span><span class="p">)</span>
