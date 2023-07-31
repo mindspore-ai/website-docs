@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FCN图像语义分割 &mdash; MindSpore master documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/translations.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="ShuffleNet图像分类" href="shufflenet.html" />
+    <link rel="prev" title="CNN+CTC图像文本识别" href="cnnctc.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">计算机视觉</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="resnet50.html">ResNet50图像分类</a></li>
+<li class="toctree-l1"><a class="reference internal" href="transfer_learning.html">ResNet50迁移学习</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fgsm.html">FGSM网络对抗攻击</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vit.html">Vision Transformer图像分类</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cnnctc.html">CNN+CTC图像文本识别</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">FCN图像语义分割</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#语义分割">语义分割</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#模型简介">模型简介</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#网络特点">网络特点</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#数据处理">数据处理</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#数据预处理">数据预处理</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#数据加载">数据加载</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#训练集可视化">训练集可视化</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#网络构建">网络构建</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#网络流程">网络流程</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#训练准备">训练准备</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#导入vgg-16部分预训练权重">导入VGG-16部分预训练权重</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#损失函数">损失函数</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#自定义评价指标-metrics">自定义评价指标 Metrics</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#模型训练">模型训练</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#模型评估">模型评估</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#模型推理">模型推理</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#总结">总结</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#引用">引用</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="shufflenet.html">ShuffleNet图像分类</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ssd.html">SSD目标检测</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">自然语言处理</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../nlp/sentiment_analysis.html">RNN实现情感分类</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../nlp/sequence_labeling.html">LSTM+CRF序列标注</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">生成式</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generative/gan.html">GAN图像生成</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generative/dcgan.html">DCGAN生成漫画头像</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generative/pix2pix.html">Pix2Pix实现图像转换</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generative/cyclegan.html">CycleGAN图像风格迁移互换</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generative/diffusion.html">Diffusion扩散模型</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>FCN图像语义分割</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cv/fcn8s.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars and line breaks on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+    white-space: pre;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt .copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+.jp-RenderedHTMLCommon table,
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.jp-RenderedHTMLCommon thead,
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+.jp-RenderedHTMLCommon tr,
+.jp-RenderedHTMLCommon th,
+.jp-RenderedHTMLCommon td,
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+.jp-RenderedHTMLCommon th,
+div.rendered_html th {
+  font-weight: bold;
+}
+.jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+.jp-RenderedHTMLCommon tbody tr:hover,
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="fcn图像语义分割">
+<h1>FCN图像语义分割<a class="headerlink" href="#fcn图像语义分割" title="Permalink to this headline"></a></h1>
+<p><a class="reference external" href="https://obs.dualstack.cn-north-4.myhuaweicloud.com/mindspore-website/notebook/r2.1/tutorials/application/zh_cn/cv/mindspore_fcn8s.ipynb"><img alt="下载Notebook" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_notebook.png" /></a> <a class="reference external" href="https://obs.dualstack.cn-north-4.myhuaweicloud.com/mindspore-website/notebook/r2.1/tutorials/application/zh_cn/cv/mindspore_fcn8s.py"><img alt="下载样例代码" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_download_code.png" /></a> <a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.1/tutorials/application/source_zh_cn/cv/fcn8s.ipynb"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.png" /></a></p>
+<p>全卷积网络（Fully Convolutional Networks，FCN）是UC Berkeley的Jonathan Long等人于2015年在Fully Convolutional Networks for Semantic Segmentation一文中提出的用于图像语义分割的一种框架。</p>
+<p>FCN是首个端到端（end to end）进行像素级（pixel level）预测的全卷积网络。</p>
+<p><img alt="fcn-1" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/tutorials/application/source_zh_cn/cv/images/fcn_1.png" /></p>
+<section id="语义分割">
+<h2>语义分割<a class="headerlink" href="#语义分割" title="Permalink to this headline"></a></h2>
+<p>在具体介绍FCN之前，首先介绍何为语义分割：</p>
+<p>图像语义分割（semantic segmentation）是图像处理和机器视觉技术中关于图像理解的重要一环，AI领域中一个重要分支，常被应用于人脸识别、物体检测、医学影像、卫星图像分析、自动驾驶感知等领域。</p>
+<p>语义分割的目的是对图像中每个像素点进行分类。与普通的分类任务只输出某个类别不同，语义分割任务输出与输入大小相同的图像，输出图像的每个像素对应了输入图像每个像素的类别。语义在图像领域指的是图像的内容，对图片意思的理解，下图是一些语义分割的实例：</p>
+<p><img alt="fcn-2" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/tutorials/application/source_zh_cn/cv/images/fcn_2.png" /></p>
+</section>
+<section id="模型简介">
+<h2>模型简介<a class="headerlink" href="#模型简介" title="Permalink to this headline"></a></h2>
+<p>FCN主要用于图像分割领域，是一种端到端的分割方法，是深度学习应用在图像语义分割的开山之作。通过进行像素级的预测直接得出与原图大小相等的label map。因FCN丢弃全连接层替换为全卷积层，网络所有层均为卷积层，故称为全卷积网络。</p>
+<p>全卷积神经网络主要使用以下三种技术：</p>
+<ol class="arabic">
+<li><p>卷积化（Convolutional）</p>
+<p>使用VGG-16作为FCN的backbone。VGG-16的输入为224*224的RGB图像，输出为1000个预测值。VGG-16只能接受固定大小的输入，丢弃了空间坐标，产生非空间输出。VGG-16中共有三个全连接层，全连接层也可视为带有覆盖整个区域的卷积。将全连接层转换为卷积层能使网络输出由一维非空间输出变为二维矩阵，利用输出能生成输入图片映射的heatmap。</p>
+<p><img alt="fcn-3" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/tutorials/application/source_zh_cn/cv/images/fcn_3.png" /></p>
+</li>
+<li><p>上采样（Upsample）</p>
+<p>在卷积过程的卷积操作和池化操作会使得特征图的尺寸变小，为得到原图的大小的稠密图像预测，需要对得到的特征图进行上采样操作。使用双线性插值的参数来初始化上采样逆卷积的参数，后通过反向传播来学习非线性上采样。在网络中执行上采样，以通过像素损失的反向传播进行端到端的学习。</p>
+<p><img alt="fcn-4" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/tutorials/application/source_zh_cn/cv/images/fcn_4.png" /></p>
+</li>
+<li><p>跳跃结构（Skip Layer）</p>
+<p>利用上采样技巧对最后一层的特征图进行上采样得到原图大小的分割是步长为32像素的预测，称之为FCN-32s。由于最后一层的特征图太小，损失过多细节，采用skips结构将更具有全局信息的最后一层预测和更浅层的预测结合，使预测结果获取更多的局部细节。将底层（stride 32）的预测（FCN-32s）进行2倍的上采样得到原尺寸的图像，并与从pool4层（stride 16）进行的预测融合起来（相加），这一部分的网络被称为FCN-16s。随后将这一部分的预测再进行一次2倍的上采样并与从pool3层得到的预测融合起来，这一部分的网络被称为FCN-8s。
+Skips结构将深层的全局信息与浅层的局部信息相结合。</p>
+<p><img alt="fcn-5" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/tutorials/application/source_zh_cn/cv/images/fcn_5.png" /></p>
+</li>
+</ol>
+</section>
+<section id="网络特点">
+<h2>网络特点<a class="headerlink" href="#网络特点" title="Permalink to this headline"></a></h2>
+<ol class="arabic simple">
+<li><p>不含全连接层(fc)的全卷积(fully conv)网络，可适应任意尺寸输入。</p></li>
+<li><p>增大数据尺寸的反卷积(deconv)层，能够输出精细的结果。</p></li>
+<li><p>结合不同深度层结果的跳级(skip)结构，同时确保鲁棒性和精确性。</p></li>
+</ol>
+</section>
+<section id="数据处理">
+<h2>数据处理<a class="headerlink" href="#数据处理" title="Permalink to this headline"></a></h2>
+<p>开始实验前，需确保本地已经安装Python环境及MindSpore。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">download</span> <span class="kn">import</span> <span class="n">download</span>
+
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/dataset_fcn8s.tar&quot;</span>
+
+<span class="n">download</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="s2">&quot;./dataset&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;tar&quot;</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="数据预处理">
+<h3>数据预处理<a class="headerlink" href="#数据预处理" title="Permalink to this headline"></a></h3>
+<p>由于PASCAL VOC 2012数据集中图像的分辨率大多不一致，无法放在一个tensor中，故输入前需做标准化处理。</p>
+</section>
+<section id="数据加载">
+<h3>数据加载<a class="headerlink" href="#数据加载" title="Permalink to this headline"></a></h3>
+<p>将PASCAL VOC 2012数据集与SDB数据集进行混合。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+
+<span class="k">class</span> <span class="nc">SegDataset</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">image_mean</span><span class="p">,</span>
+                 <span class="n">image_std</span><span class="p">,</span>
+                 <span class="n">data_file</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                 <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+                 <span class="n">crop_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                 <span class="n">max_scale</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+                 <span class="n">min_scale</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">ignore_label</span><span class="o">=</span><span class="mi">255</span><span class="p">,</span>
+                 <span class="n">num_classes</span><span class="o">=</span><span class="mi">21</span><span class="p">,</span>
+                 <span class="n">num_readers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                 <span class="n">num_parallel_calls</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_file</span> <span class="o">=</span> <span class="n">data_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span> <span class="o">=</span> <span class="n">crop_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">image_mean</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">image_std</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_scale</span> <span class="o">=</span> <span class="n">max_scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_scale</span> <span class="o">=</span> <span class="n">min_scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ignore_label</span> <span class="o">=</span> <span class="n">ignore_label</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="n">num_classes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_readers</span> <span class="o">=</span> <span class="n">num_readers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_parallel_calls</span> <span class="o">=</span> <span class="n">num_parallel_calls</span>
+        <span class="n">max_scale</span> <span class="o">&gt;</span> <span class="n">min_scale</span>
+
+    <span class="k">def</span> <span class="nf">preprocess_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+        <span class="n">image_out</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">imdecode</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">frombuffer</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span> <span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_COLOR</span><span class="p">)</span>
+        <span class="n">label_out</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">imdecode</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">frombuffer</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span> <span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_GRAYSCALE</span><span class="p">)</span>
+        <span class="n">sc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_scale</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_scale</span><span class="p">)</span>
+        <span class="n">new_h</span><span class="p">,</span> <span class="n">new_w</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sc</span> <span class="o">*</span> <span class="n">image_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">sc</span> <span class="o">*</span> <span class="n">image_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">image_out</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">image_out</span><span class="p">,</span> <span class="p">(</span><span class="n">new_w</span><span class="p">,</span> <span class="n">new_h</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_CUBIC</span><span class="p">)</span>
+        <span class="n">label_out</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">label_out</span><span class="p">,</span> <span class="p">(</span><span class="n">new_w</span><span class="p">,</span> <span class="n">new_h</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span><span class="p">)</span>
+
+        <span class="n">image_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">image_out</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_mean</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_std</span>
+        <span class="n">out_h</span><span class="p">,</span> <span class="n">out_w</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">new_h</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">new_w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span><span class="p">)</span>
+        <span class="n">pad_h</span><span class="p">,</span> <span class="n">pad_w</span> <span class="o">=</span> <span class="n">out_h</span> <span class="o">-</span> <span class="n">new_h</span><span class="p">,</span> <span class="n">out_w</span> <span class="o">-</span> <span class="n">new_w</span>
+        <span class="k">if</span> <span class="n">pad_h</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">pad_w</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">image_out</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">copyMakeBorder</span><span class="p">(</span><span class="n">image_out</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pad_h</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pad_w</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">label_out</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">copyMakeBorder</span><span class="p">(</span><span class="n">label_out</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pad_h</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pad_w</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ignore_label</span><span class="p">)</span>
+        <span class="n">offset_h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">out_h</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">offset_w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">out_w</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">image_out</span> <span class="o">=</span> <span class="n">image_out</span><span class="p">[</span><span class="n">offset_h</span><span class="p">:</span> <span class="n">offset_h</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span><span class="p">,</span> <span class="n">offset_w</span><span class="p">:</span> <span class="n">offset_w</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">label_out</span> <span class="o">=</span> <span class="n">label_out</span><span class="p">[</span><span class="n">offset_h</span><span class="p">:</span> <span class="n">offset_h</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span><span class="p">,</span> <span class="n">offset_w</span><span class="p">:</span> <span class="n">offset_w</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">crop_size</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">:</span>
+            <span class="n">image_out</span> <span class="o">=</span> <span class="n">image_out</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">label_out</span> <span class="o">=</span> <span class="n">label_out</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">image_out</span> <span class="o">=</span> <span class="n">image_out</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">image_out</span> <span class="o">=</span> <span class="n">image_out</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">label_out</span> <span class="o">=</span> <span class="n">label_out</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">label_out</span> <span class="o">=</span> <span class="n">label_out</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;int32&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">image_out</span><span class="p">,</span> <span class="n">label_out</span>
+
+    <span class="k">def</span> <span class="nf">get_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">set_numa_enable</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MindDataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_file</span><span class="p">,</span> <span class="n">columns_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span>
+                                 <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_readers</span><span class="p">)</span>
+        <span class="n">transforms_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_dataset</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="n">transforms_list</span><span class="p">,</span> <span class="n">input_columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span>
+                              <span class="n">output_columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span>
+                              <span class="n">num_parallel_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_parallel_calls</span><span class="p">)</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">buffer_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dataset</span>
+
+
+<span class="c1"># 定义创建数据集的参数</span>
+<span class="n">IMAGE_MEAN</span> <span class="o">=</span> <span class="p">[</span><span class="mf">103.53</span><span class="p">,</span> <span class="mf">116.28</span><span class="p">,</span> <span class="mf">123.675</span><span class="p">]</span>
+<span class="n">IMAGE_STD</span> <span class="o">=</span> <span class="p">[</span><span class="mf">57.375</span><span class="p">,</span> <span class="mf">57.120</span><span class="p">,</span> <span class="mf">58.395</span><span class="p">]</span>
+<span class="n">DATA_FILE</span> <span class="o">=</span> <span class="s2">&quot;dataset/dataset_fcn8s/mindname.mindrecord&quot;</span>
+
+<span class="c1"># 定义模型训练参数</span>
+<span class="n">train_batch_size</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">crop_size</span> <span class="o">=</span> <span class="mi">512</span>
+<span class="n">min_scale</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">max_scale</span> <span class="o">=</span> <span class="mf">2.0</span>
+<span class="n">ignore_label</span> <span class="o">=</span> <span class="mi">255</span>
+<span class="n">num_classes</span> <span class="o">=</span> <span class="mi">21</span>
+
+<span class="c1"># 实例化Dataset</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">SegDataset</span><span class="p">(</span><span class="n">image_mean</span><span class="o">=</span><span class="n">IMAGE_MEAN</span><span class="p">,</span>
+                     <span class="n">image_std</span><span class="o">=</span><span class="n">IMAGE_STD</span><span class="p">,</span>
+                     <span class="n">data_file</span><span class="o">=</span><span class="n">DATA_FILE</span><span class="p">,</span>
+                     <span class="n">batch_size</span><span class="o">=</span><span class="n">train_batch_size</span><span class="p">,</span>
+                     <span class="n">crop_size</span><span class="o">=</span><span class="n">crop_size</span><span class="p">,</span>
+                     <span class="n">max_scale</span><span class="o">=</span><span class="n">max_scale</span><span class="p">,</span>
+                     <span class="n">min_scale</span><span class="o">=</span><span class="n">min_scale</span><span class="p">,</span>
+                     <span class="n">ignore_label</span><span class="o">=</span><span class="n">ignore_label</span><span class="p">,</span>
+                     <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span>
+                     <span class="n">num_readers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                     <span class="n">num_parallel_calls</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="训练集可视化">
+<h3>训练集可视化<a class="headerlink" href="#训练集可视化" title="Permalink to this headline"></a></h3>
+<p>运行以下代码观察载入的数据集图片（数据处理过程中已做归一化处理）。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+
+<span class="c1"># 对训练集中的数据进行展示</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">show_data</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">())</span>
+    <span class="n">show_images</span> <span class="o">=</span> <span class="n">show_data</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+    <span class="n">show_images</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">show_images</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="c1"># 将图片转换HWC格式后进行展示</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">show_images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&quot;off&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">wspace</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/cv_fcn8s_7_0.png" src="../_images/cv_fcn8s_7_0.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="网络构建">
+<h2>网络构建<a class="headerlink" href="#网络构建" title="Permalink to this headline"></a></h2>
+<section id="网络流程">
+<h3>网络流程<a class="headerlink" href="#网络流程" title="Permalink to this headline"></a></h3>
+<p>FCN网络的流程如下图所示：</p>
+<ol class="arabic simple">
+<li><p>输入图像image，经过pool1池化后，尺寸变为原始尺寸的1/2。</p></li>
+<li><p>经过pool2池化，尺寸变为原始尺寸的1/4。</p></li>
+<li><p>接着经过pool3、pool4、pool5池化，大小分别变为原始尺寸的1/8、1/16、1/32。</p></li>
+<li><p>经过conv6-7卷积，输出的尺寸依然是原图的1/32。</p></li>
+<li><p>FCN-32s是最后使用反卷积，使得输出图像大小与输入图像相同。</p></li>
+<li><p>FCN-16s是将conv7的输出进行反卷积，使其尺寸扩大两倍至原图的1/16，并将其与pool4输出的特征图进行融合，后通过反卷积扩大到原始尺寸。</p></li>
+<li><p>FCN-8s是将conv7的输出进行反卷积扩大4倍，将pool4输出的特征图反卷积扩大2倍，并将pool3输出特征图拿出，三者融合后通反卷积扩大到原始尺寸。</p></li>
+</ol>
+<p><img alt="fcn-6" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/tutorials/application/source_zh_cn/cv/images/fcn_6.png" /></p>
+<p>使用以下代码构建FCN-8s网络。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+
+<span class="k">class</span> <span class="nc">FCN8s</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_class</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_class</span> <span class="o">=</span> <span class="n">n_class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">64</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">64</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">128</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">128</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">256</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">256</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">256</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv4</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">512</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">512</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">512</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool4</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv5</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">512</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">512</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">512</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool5</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv6</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">4096</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv7</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span>
+                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">4096</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">score_fr</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span>
+                                  <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upscore2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2dTranspose</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span>
+                                           <span class="n">kernel_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">score_pool4</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span>
+                                     <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upscore_pool4</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2dTranspose</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span>
+                                                <span class="n">kernel_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">score_pool3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span>
+                                     <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upscore8</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2dTranspose</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_class</span><span class="p">,</span>
+                                           <span class="n">kernel_size</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;xavier_uniform&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">p1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool1</span><span class="p">(</span><span class="n">x1</span><span class="p">)</span>
+        <span class="n">x2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">p1</span><span class="p">)</span>
+        <span class="n">p2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool2</span><span class="p">(</span><span class="n">x2</span><span class="p">)</span>
+        <span class="n">x3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv3</span><span class="p">(</span><span class="n">p2</span><span class="p">)</span>
+        <span class="n">p3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool3</span><span class="p">(</span><span class="n">x3</span><span class="p">)</span>
+        <span class="n">x4</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv4</span><span class="p">(</span><span class="n">p3</span><span class="p">)</span>
+        <span class="n">p4</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool4</span><span class="p">(</span><span class="n">x4</span><span class="p">)</span>
+        <span class="n">x5</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv5</span><span class="p">(</span><span class="n">p4</span><span class="p">)</span>
+        <span class="n">p5</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool5</span><span class="p">(</span><span class="n">x5</span><span class="p">)</span>
+        <span class="n">x6</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv6</span><span class="p">(</span><span class="n">p5</span><span class="p">)</span>
+        <span class="n">x7</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv7</span><span class="p">(</span><span class="n">x6</span><span class="p">)</span>
+        <span class="n">sf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">score_fr</span><span class="p">(</span><span class="n">x7</span><span class="p">)</span>
+        <span class="n">u2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">upscore2</span><span class="p">(</span><span class="n">sf</span><span class="p">)</span>
+        <span class="n">s4</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">score_pool4</span><span class="p">(</span><span class="n">p4</span><span class="p">)</span>
+        <span class="n">f4</span> <span class="o">=</span> <span class="n">s4</span> <span class="o">+</span> <span class="n">u2</span>
+        <span class="n">u4</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">upscore_pool4</span><span class="p">(</span><span class="n">f4</span><span class="p">)</span>
+        <span class="n">s3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">score_pool3</span><span class="p">(</span><span class="n">p3</span><span class="p">)</span>
+        <span class="n">f3</span> <span class="o">=</span> <span class="n">s3</span> <span class="o">+</span> <span class="n">u4</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">upscore8</span><span class="p">(</span><span class="n">f3</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+<section id="训练准备">
+<h2>训练准备<a class="headerlink" href="#训练准备" title="Permalink to this headline"></a></h2>
+<section id="导入vgg-16部分预训练权重">
+<h3>导入VGG-16部分预训练权重<a class="headerlink" href="#导入vgg-16部分预训练权重" title="Permalink to this headline"></a></h3>
+<p>FCN使用VGG-16作为骨干网络，用于实现图像编码。使用下面代码导入VGG-16预训练模型的部分预训练权重。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">download</span> <span class="kn">import</span> <span class="n">download</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">load_param_into_net</span>
+
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/fcn8s_vgg16_pretrain.ckpt&quot;</span>
+<span class="n">download</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="s2">&quot;fcn8s_vgg16_pretrain.ckpt&quot;</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">load_vgg16</span><span class="p">():</span>
+    <span class="n">ckpt_vgg16</span> <span class="o">=</span> <span class="s2">&quot;fcn8s_vgg16_pretrain.ckpt&quot;</span>
+    <span class="n">param_vgg</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">ckpt_vgg16</span><span class="p">)</span>
+    <span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">param_vgg</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="损失函数">
+<h3>损失函数<a class="headerlink" href="#损失函数" title="Permalink to this headline"></a></h3>
+<p>语义分割是对图像中每个像素点进行分类，仍是分类问题，故损失函数选择交叉熵损失函数来计算FCN网络输出与mask之间的交叉熵损失。这里我们使用的是mindspore.nn.CrossEntropyLoss()作为损失函数。</p>
+</section>
+<section id="自定义评价指标-metrics">
+<h3>自定义评价指标 Metrics<a class="headerlink" href="#自定义评价指标-metrics" title="Permalink to this headline"></a></h3>
+<p>这一部分主要对训练出来的模型效果进行评估，为了便于解释，假设如下：共有 <span class="math notranslate nohighlight">\(k+1\)</span> 个类（从 <span class="math notranslate nohighlight">\(L_0\)</span> 到 <span class="math notranslate nohighlight">\(L_k\)</span>, 其中包含一个空类或背景）， <span class="math notranslate nohighlight">\(p_{i j}\)</span> 表示本属于<span class="math notranslate nohighlight">\(i\)</span>类但被预测为<span class="math notranslate nohighlight">\(j\)</span>类的像素数量。即, <span class="math notranslate nohighlight">\(p_{i i}\)</span> 表示真正的数量, 而 <span class="math notranslate nohighlight">\(p_{i j} p_{j i}\)</span> 则分别被解释为假正和假负, 尽管两者都是假正与假负之和。</p>
+<ul class="simple">
+<li><p>Pixel Accuracy(PA, 像素精度)：这是最简单的度量，为标记正确的像素占总像素的比例。</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[P A=\frac{\sum_{i=0}^k p_{i i}}{\sum_{i=0}^k \sum_{j=0}^k p_{i j}}\]</div>
+<ul class="simple">
+<li><p>Mean Pixel Accuracy(MPA, 均像素精度)：是PA的一种简单提升，计算每个类内被正确分类像素数的比例，之后求所有类的平均。</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[M P A=\frac{1}{k+1} \sum_{i=0}^k \frac{p_{i i}}{\sum_{j=0}^k p_{i j}}\]</div>
+<ul class="simple">
+<li><p>Mean Intersection over Union(MloU, 均交并比)：为语义分割的标准度量。其计算两个集合的交集和并集之，在语义分割的问题中，这两个集合为真实值（ground truth) 和预测值（predicted segmentation）。这个比例可以变形为正真数 (intersection) 比上真正、假负、假正（并集）之和。在每个类上计算loU，之后平均。</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[M I o U=\frac{1}{k+1} \sum_{i=0}^k \frac{p_{i i}}{\sum_{j=0}^k p_{i j}+\sum_{j=0}^k p_{j i}-p_{i i}}\]</div>
+<ul class="simple">
+<li><p>Frequency Weighted Intersection over Union(FWIoU, 频权交井比)：为MloU的一种提升，这种方法根据每个类出现的频率为其设置权重。</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[F W I o U=\frac{1}{\sum_{i=0}^k \sum_{j=0}^k p_{i j}} \sum_{i=0}^k \frac{p_{i i}}{\sum_{j=0}^k p_{i j}+\sum_{j=0}^k p_{j i}-p_{i i}}\]</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore.train</span> <span class="k">as</span> <span class="nn">train</span>
+
+<span class="k">class</span> <span class="nc">PixelAccuracy</span><span class="p">(</span><span class="n">train</span><span class="o">.</span><span class="n">Metric</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_class</span><span class="o">=</span><span class="mi">21</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PixelAccuracy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span> <span class="o">=</span> <span class="n">num_class</span>
+
+    <span class="k">def</span> <span class="nf">_generate_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gt_image</span><span class="p">,</span> <span class="n">pre_image</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">gt_image</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">gt_image</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">)</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span> <span class="o">*</span> <span class="n">gt_image</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">pre_image</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">confusion_matrix</span> <span class="o">=</span> <span class="n">count</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">confusion_matrix</span>
+
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_matrix</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pixel_accuracy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">pixel_accuracy</span>
+
+
+<span class="k">class</span> <span class="nc">PixelAccuracyClass</span><span class="p">(</span><span class="n">train</span><span class="o">.</span><span class="n">Metric</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_class</span><span class="o">=</span><span class="mi">21</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PixelAccuracyClass</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span> <span class="o">=</span> <span class="n">num_class</span>
+
+    <span class="k">def</span> <span class="nf">_generate_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gt_image</span><span class="p">,</span> <span class="n">pre_image</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">gt_image</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">gt_image</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">)</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span> <span class="o">*</span> <span class="n">gt_image</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">pre_image</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">confusion_matrix</span> <span class="o">=</span> <span class="n">count</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">confusion_matrix</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_matrix</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">mean_pixel_accuracy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">mean_pixel_accuracy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">mean_pixel_accuracy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mean_pixel_accuracy</span>
+
+
+<span class="k">class</span> <span class="nc">MeanIntersectionOverUnion</span><span class="p">(</span><span class="n">train</span><span class="o">.</span><span class="n">Metric</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_class</span><span class="o">=</span><span class="mi">21</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MeanIntersectionOverUnion</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span> <span class="o">=</span> <span class="n">num_class</span>
+
+    <span class="k">def</span> <span class="nf">_generate_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gt_image</span><span class="p">,</span> <span class="n">pre_image</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">gt_image</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">gt_image</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">)</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span> <span class="o">*</span> <span class="n">gt_image</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">pre_image</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">confusion_matrix</span> <span class="o">=</span> <span class="n">count</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">confusion_matrix</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_matrix</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">mean_iou</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">))</span>
+        <span class="n">mean_iou</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">mean_iou</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mean_iou</span>
+
+
+<span class="k">class</span> <span class="nc">FrequencyWeightedIntersectionOverUnion</span><span class="p">(</span><span class="n">train</span><span class="o">.</span><span class="n">Metric</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_class</span><span class="o">=</span><span class="mi">21</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FrequencyWeightedIntersectionOverUnion</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span> <span class="o">=</span> <span class="n">num_class</span>
+
+    <span class="k">def</span> <span class="nf">_generate_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gt_image</span><span class="p">,</span> <span class="n">pre_image</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">gt_image</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">gt_image</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">)</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span> <span class="o">*</span> <span class="n">gt_image</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">pre_image</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">confusion_matrix</span> <span class="o">=</span> <span class="n">count</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">confusion_matrix</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_matrix</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">num_class</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">freq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">)</span>
+        <span class="n">iu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">))</span>
+
+        <span class="n">frequency_weighted_iou</span> <span class="o">=</span> <span class="p">(</span><span class="n">freq</span><span class="p">[</span><span class="n">freq</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">iu</span><span class="p">[</span><span class="n">freq</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">frequency_weighted_iou</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+<section id="模型训练">
+<h2>模型训练<a class="headerlink" href="#模型训练" title="Permalink to this headline"></a></h2>
+<p>导入VGG-16预训练参数后，实例化损失函数、优化器，使用Model接口编译网络，训练FCN-8s网络。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">mindspore.train</span> <span class="kn">import</span> <span class="n">ModelCheckpoint</span><span class="p">,</span> <span class="n">CheckpointConfig</span><span class="p">,</span> <span class="n">LossMonitor</span><span class="p">,</span> <span class="n">TimeMonitor</span><span class="p">,</span> <span class="n">Model</span>
+
+<span class="n">device_target</span> <span class="o">=</span> <span class="s2">&quot;GPU&quot;</span>
+<span class="n">mindspore</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">mindspore</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="n">device_target</span><span class="p">)</span>
+
+<span class="n">train_batch_size</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">num_classes</span> <span class="o">=</span> <span class="mi">21</span>
+<span class="c1"># 初始化模型结构</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">FCN8s</span><span class="p">(</span><span class="n">n_class</span><span class="o">=</span><span class="mi">21</span><span class="p">)</span>
+<span class="c1"># 导入vgg16预训练参数</span>
+<span class="n">load_vgg16</span><span class="p">()</span>
+<span class="c1"># 计算学习率</span>
+<span class="n">min_lr</span> <span class="o">=</span> <span class="mf">0.0005</span>
+<span class="n">base_lr</span> <span class="o">=</span> <span class="mf">0.05</span>
+<span class="n">train_epochs</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">iters_per_epoch</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+<span class="n">total_step</span> <span class="o">=</span> <span class="n">iters_per_epoch</span> <span class="o">*</span> <span class="n">train_epochs</span>
+
+<span class="n">lr_scheduler</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">cosine_decay_lr</span><span class="p">(</span><span class="n">min_lr</span><span class="p">,</span>
+                                            <span class="n">base_lr</span><span class="p">,</span>
+                                            <span class="n">total_step</span><span class="p">,</span>
+                                            <span class="n">iters_per_epoch</span><span class="p">,</span>
+                                            <span class="n">decay_epoch</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">lr</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+<span class="c1"># 定义损失函数</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">(</span><span class="n">ignore_index</span><span class="o">=</span><span class="mi">255</span><span class="p">)</span>
+<span class="c1"># 定义优化器</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">)</span>
+<span class="c1"># 定义loss_scale</span>
+<span class="n">scale_factor</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">scale_window</span> <span class="o">=</span> <span class="mi">3000</span>
+<span class="n">loss_scale_manager</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">amp</span><span class="o">.</span><span class="n">DynamicLossScaleManager</span><span class="p">(</span><span class="n">scale_factor</span><span class="p">,</span> <span class="n">scale_window</span><span class="p">)</span>
+<span class="c1"># 初始化模型</span>
+<span class="k">if</span> <span class="n">device_target</span> <span class="o">==</span> <span class="s2">&quot;Ascend&quot;</span><span class="p">:</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale_manager</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pixel accuracy&quot;</span><span class="p">:</span> <span class="n">PixelAccuracy</span><span class="p">(),</span> <span class="s2">&quot;mean pixel accuracy&quot;</span><span class="p">:</span> <span class="n">PixelAccuracyClass</span><span class="p">(),</span> <span class="s2">&quot;mean IoU&quot;</span><span class="p">:</span> <span class="n">MeanIntersectionOverUnion</span><span class="p">(),</span> <span class="s2">&quot;frequency weighted IoU&quot;</span><span class="p">:</span> <span class="n">FrequencyWeightedIntersectionOverUnion</span><span class="p">()})</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pixel accuracy&quot;</span><span class="p">:</span> <span class="n">PixelAccuracy</span><span class="p">(),</span> <span class="s2">&quot;mean pixel accuracy&quot;</span><span class="p">:</span> <span class="n">PixelAccuracyClass</span><span class="p">(),</span> <span class="s2">&quot;mean IoU&quot;</span><span class="p">:</span> <span class="n">MeanIntersectionOverUnion</span><span class="p">(),</span> <span class="s2">&quot;frequency weighted IoU&quot;</span><span class="p">:</span> <span class="n">FrequencyWeightedIntersectionOverUnion</span><span class="p">()})</span>
+
+<span class="c1"># 设置ckpt文件保存的参数</span>
+<span class="n">time_callback</span> <span class="o">=</span> <span class="n">TimeMonitor</span><span class="p">(</span><span class="n">data_size</span><span class="o">=</span><span class="n">iters_per_epoch</span><span class="p">)</span>
+<span class="n">loss_callback</span> <span class="o">=</span> <span class="n">LossMonitor</span><span class="p">()</span>
+<span class="n">callbacks</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_callback</span><span class="p">,</span> <span class="n">loss_callback</span><span class="p">]</span>
+<span class="n">save_steps</span> <span class="o">=</span> <span class="mi">330</span>
+<span class="n">keep_checkpoint_max</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">config_ckpt</span> <span class="o">=</span> <span class="n">CheckpointConfig</span><span class="p">(</span><span class="n">save_checkpoint_steps</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                               <span class="n">keep_checkpoint_max</span><span class="o">=</span><span class="n">keep_checkpoint_max</span><span class="p">)</span>
+<span class="n">ckpt_callback</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;FCN8s&quot;</span><span class="p">,</span>
+                                <span class="n">directory</span><span class="o">=</span><span class="s2">&quot;./ckpt&quot;</span><span class="p">,</span>
+                                <span class="n">config</span><span class="o">=</span><span class="n">config_ckpt</span><span class="p">)</span>
+<span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ckpt_callback</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">train_epochs</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch: 1 step: 1, loss is 3.0904884338378906
+epoch: 1 step: 2, loss is 3.0506458282470703
+epoch: 1 step: 3, loss is 2.9796371459960938
+...                                        ...
+epoch: 1 step: 1141, loss is 1.3178229331970215
+epoch: 1 step: 1142, loss is 1.307207703590393
+epoch: 1 step: 1143, loss is 1.1257227659225464
+Train epoch time: 637526.089 ms, per step time: 557.766 ms
+</pre></div></div>
+</div>
+<blockquote>
+<div><p>因为FCN网络在训练的过程中需要大量的训练数据和训练轮数，这里只提供了小数据单个epoch的训练来演示loss收敛的过程，下文中使用已训练好的权重文件进行模型评估和推理效果的展示。</p>
+</div></blockquote>
+</section>
+<section id="模型评估">
+<h2>模型评估<a class="headerlink" href="#模型评估" title="Permalink to this headline"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">IMAGE_MEAN</span> <span class="o">=</span> <span class="p">[</span><span class="mf">103.53</span><span class="p">,</span> <span class="mf">116.28</span><span class="p">,</span> <span class="mf">123.675</span><span class="p">]</span>
+<span class="n">IMAGE_STD</span> <span class="o">=</span> <span class="p">[</span><span class="mf">57.375</span><span class="p">,</span> <span class="mf">57.120</span><span class="p">,</span> <span class="mf">58.395</span><span class="p">]</span>
+<span class="n">DATA_FILE</span> <span class="o">=</span> <span class="s2">&quot;dataset/dataset_fcn8s/mindname.mindrecord&quot;</span>
+
+<span class="c1"># 下载已训练好的权重文件</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/FCN8s.ckpt&quot;</span>
+<span class="n">download</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="s2">&quot;FCN8s.ckpt&quot;</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">FCN8s</span><span class="p">(</span><span class="n">n_class</span><span class="o">=</span><span class="n">num_classes</span><span class="p">)</span>
+
+<span class="n">ckpt_file</span> <span class="o">=</span> <span class="s2">&quot;FCN8s.ckpt&quot;</span>
+<span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">ckpt_file</span><span class="p">)</span>
+<span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">device_target</span> <span class="o">==</span> <span class="s2">&quot;Ascend&quot;</span><span class="p">:</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale_manager</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pixel accuracy&quot;</span><span class="p">:</span> <span class="n">PixelAccuracy</span><span class="p">(),</span> <span class="s2">&quot;mean pixel accuracy&quot;</span><span class="p">:</span> <span class="n">PixelAccuracyClass</span><span class="p">(),</span> <span class="s2">&quot;mean IoU&quot;</span><span class="p">:</span> <span class="n">MeanIntersectionOverUnion</span><span class="p">(),</span> <span class="s2">&quot;frequency weighted IoU&quot;</span><span class="p">:</span> <span class="n">FrequencyWeightedIntersectionOverUnion</span><span class="p">()})</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pixel accuracy&quot;</span><span class="p">:</span> <span class="n">PixelAccuracy</span><span class="p">(),</span> <span class="s2">&quot;mean pixel accuracy&quot;</span><span class="p">:</span> <span class="n">PixelAccuracyClass</span><span class="p">(),</span> <span class="s2">&quot;mean IoU&quot;</span><span class="p">:</span> <span class="n">MeanIntersectionOverUnion</span><span class="p">(),</span> <span class="s2">&quot;frequency weighted IoU&quot;</span><span class="p">:</span> <span class="n">FrequencyWeightedIntersectionOverUnion</span><span class="p">()})</span>
+
+<span class="c1"># 实例化Dataset</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">SegDataset</span><span class="p">(</span><span class="n">image_mean</span><span class="o">=</span><span class="n">IMAGE_MEAN</span><span class="p">,</span>
+                     <span class="n">image_std</span><span class="o">=</span><span class="n">IMAGE_STD</span><span class="p">,</span>
+                     <span class="n">data_file</span><span class="o">=</span><span class="n">DATA_FILE</span><span class="p">,</span>
+                     <span class="n">batch_size</span><span class="o">=</span><span class="n">train_batch_size</span><span class="p">,</span>
+                     <span class="n">crop_size</span><span class="o">=</span><span class="n">crop_size</span><span class="p">,</span>
+                     <span class="n">max_scale</span><span class="o">=</span><span class="n">max_scale</span><span class="p">,</span>
+                     <span class="n">min_scale</span><span class="o">=</span><span class="n">min_scale</span><span class="p">,</span>
+                     <span class="n">ignore_label</span><span class="o">=</span><span class="n">ignore_label</span><span class="p">,</span>
+                     <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span>
+                     <span class="n">num_readers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                     <span class="n">num_parallel_calls</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">dataset_eval</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">()</span>
+<span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">dataset_eval</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;pixel accuracy&#39;: 0.9734971889839162,
+ &#39;mean pixel accuracy&#39;: 0.9417477500248013,
+ &#39;mean IoU&#39;: 0.8956981094249392,
+ &#39;frequency weighted IoU&#39;: 0.9488965587686847}
+</pre></div></div>
+</div>
+</section>
+<section id="模型推理">
+<h2>模型推理<a class="headerlink" href="#模型推理" title="Permalink to this headline"></a></h2>
+<p>使用训练的网络对模型推理结果进行展示。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">FCN8s</span><span class="p">(</span><span class="n">n_class</span><span class="o">=</span><span class="n">num_classes</span><span class="p">)</span>
+<span class="c1"># 设置超参</span>
+<span class="n">ckpt_file</span> <span class="o">=</span> <span class="s2">&quot;FCN8s.ckpt&quot;</span>
+<span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">ckpt_file</span><span class="p">)</span>
+<span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+<span class="n">eval_batch_size</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">img_lst</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">mask_lst</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">res_lst</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="c1"># 推理效果展示(上方为输入图片，下方为推理效果图片)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">show_data</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">dataset_eval</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">())</span>
+<span class="n">show_images</span> <span class="o">=</span> <span class="n">show_data</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+<span class="n">mask_images</span> <span class="o">=</span> <span class="n">show_data</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">])</span>
+<span class="n">show_images</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">show_images</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">eval_batch_size</span><span class="p">):</span>
+    <span class="n">img_lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">show_images</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="n">mask_lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mask_images</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">show_data</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">eval_batch_size</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">img_lst</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&quot;off&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">wspace</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mf">0.02</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&quot;off&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">wspace</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mf">0.02</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/cv_fcn8s_21_0.png" src="../_images/cv_fcn8s_21_0.png" />
+</div>
+</div>
+</section>
+<section id="总结">
+<h2>总结<a class="headerlink" href="#总结" title="Permalink to this headline"></a></h2>
+<p>FCN的核心贡献在于提出使用全卷积层，通过学习让图片实现端到端分割。与传统使用CNN进行图像分割的方法相比，FCN有两大明显的优点：一是可以接受任意大小的输入图像，无需要求所有的训练图像和测试图像具有固定的尺寸。二是更加高效，避免了由于使用像素块而带来的重复存储和计算卷积的问题。</p>
+<p>同时FCN网络也存在待改进之处：</p>
+<p>一是得到的结果仍不够精细。进行8倍上采样虽然比32倍的效果好了很多，但是上采样的结果仍比较模糊和平滑，尤其是边界处，网络对图像中的细节不敏感。 二是对各个像素进行分类，没有充分考虑像素与像素之间的关系（如不连续性和相似性）。忽略了在通常的基于像素分类的分割方法中使用的空间规整（spatial regularization）步骤，缺乏空间一致性。</p>
+</section>
+<section id="引用">
+<h2>引用<a class="headerlink" href="#引用" title="Permalink to this headline"></a></h2>
+<p>[1]Long, Jonathan, Evan Shelhamer, and Trevor Darrell. “Fully convolutional networks for Semantic Segmentation.” Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition. 2015.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cnnctc.html" class="btn btn-neutral float-left" title="CNN+CTC图像文本识别" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="shufflenet.html" class="btn btn-neutral float-right" title="ShuffleNet图像分类" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, MindSpore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+        <script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>
