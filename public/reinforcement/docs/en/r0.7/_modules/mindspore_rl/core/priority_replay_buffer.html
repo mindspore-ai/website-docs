@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mindspore_rl.core.priority_replay_buffer &mdash; MindSpore master documentation</title><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Installation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reinforcement_install.html">MindSpore Reinforcement Installation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_config_info.html">MindSpore RL Configuration Instruction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dqn.html">Deep Q Learning (DQN) with MindSpore Reinforcement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../replaybuffer.html">ReplayBuffer Usage Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../environment.html">Reinforcement Learning Environment Access</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reinforcement.html">mindspore_rl</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../RELEASE.html">Release Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>mindspore_rl.core.priority_replay_buffer</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for mindspore_rl.core.priority_replay_buffer</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2022 Huawei Technologies Co., Ltd</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1"># ============================================================================</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Implementation of Priority Replay Buffer class.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">nn</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.operations._rl_inner_ops</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PriorityReplayBufferCreate</span><span class="p">,</span>
+    <span class="n">PriorityReplayBufferDestroy</span><span class="p">,</span>
+    <span class="n">PriorityReplayBufferPush</span><span class="p">,</span>
+    <span class="n">PriorityReplayBufferSample</span><span class="p">,</span>
+    <span class="n">PriorityReplayBufferUpdate</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="PriorityReplayBuffer"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.core.PriorityReplayBuffer">[docs]</a><span class="k">class</span> <span class="nc">PriorityReplayBuffer</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    PriorityReplayBuffer is experience container used in Deep Q-Networks.</span>
+<span class="sd">    The algorithm is proposed in `Prioritized Experience Replay &lt;https://arxiv.org/abs/1511.05952&gt;`.</span>
+<span class="sd">    Same as the normal replay buffer, it lets the reinforcement learning agents remember and reuse experiences from the</span>
+<span class="sd">    past. Besides, it replays important transitions more frequently and improve sample effciency.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        alpha (float): parameter to control degree of prioritization.</span>
+<span class="sd">            ``0`` means the uniform sampling, ``1`` means priority sampling.</span>
+<span class="sd">        capacity (int): the capacity of the buffer.</span>
+<span class="sd">        sample_size (int): size for sampling from the buffer.</span>
+<span class="sd">        shapes (list[int]): the shape of each tensor in a buffer element.</span>
+<span class="sd">        types (list[mindspore.dtype]): the data type of each tensor in a buffer element.</span>
+<span class="sd">        seed0 (int): Seed0 value for random generating. Default: ``0``.</span>
+<span class="sd">        seed1 (int): Seed1 value for random generating. Default: ``0``.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import Tensor</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.core.priority_replay_buffer import PriorityReplayBuffer</span>
+<span class="sd">        &gt;&gt;&gt; capacity = 10000</span>
+<span class="sd">        &gt;&gt;&gt; batch_size = 10</span>
+<span class="sd">        &gt;&gt;&gt; shapes = [(4,), (1,), (1,), (4,)]</span>
+<span class="sd">        &gt;&gt;&gt; types = [ms.float32, ms.int32, ms.float32, ms.float32]</span>
+<span class="sd">        &gt;&gt;&gt; replaybuffer = PriorityReplayBuffer(alpha, capacity, batch_size, shapes, types)</span>
+<span class="sd">        &gt;&gt;&gt; print(replaybuffer)</span>
+<span class="sd">        PriorityReplayBuffer&lt;&gt;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">capacity</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">,</span> <span class="n">shapes</span><span class="p">,</span> <span class="n">types</span><span class="p">,</span> <span class="n">seed0</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">seed1</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">PriorityReplayBufferCreate</span><span class="p">(</span><span class="n">capacity</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">shapes</span><span class="p">,</span> <span class="n">types</span><span class="p">,</span> <span class="n">seed0</span><span class="p">,</span> <span class="n">seed1</span><span class="p">)()</span>
+            <span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push_op</span> <span class="o">=</span> <span class="n">PriorityReplayBufferPush</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span>
+            <span class="s2">&quot;side_effect_io&quot;</span><span class="p">,</span> <span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_op</span> <span class="o">=</span> <span class="n">PriorityReplayBufferSample</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">,</span> <span class="n">shapes</span><span class="p">,</span> <span class="n">types</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_op</span> <span class="o">=</span> <span class="n">PriorityReplayBufferUpdate</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span>
+            <span class="s2">&quot;side_effect_io&quot;</span><span class="p">,</span> <span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">destroy_op</span> <span class="o">=</span> <span class="n">PriorityReplayBufferDestroy</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span>
+            <span class="s2">&quot;side_effect_io&quot;</span><span class="p">,</span> <span class="kc">True</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="PriorityReplayBuffer.insert"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.core.PriorityReplayBuffer.insert">[docs]</a>    <span class="k">def</span> <span class="nf">insert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">transition</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Push a transition to the buffer. If the buffer is full, the oldest one will be removed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            transition (List[Tensor]): insert a list of tensor which matches with the initialized shapes</span>
+<span class="sd">                and dtypes into the buffer.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            handle(Tensor), Priority replay buffer instance handle with dtype int64 and shape :math:`(1,)`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">push_op</span><span class="p">(</span><span class="n">transition</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PriorityReplayBuffer.sample"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.core.PriorityReplayBuffer.sample">[docs]</a>    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Samples a batch of transitions from the replay buffer.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            beta (float): parameter to control degree of sampling correction.</span>
+<span class="sd">                ``0`` means the no correction, ``1`` means full correction.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            indices (Tensor), the transition indices in the replay buffer.</span>
+<span class="sd">            weights (Tensor), the weight used to correct for sampling bias.</span>
+<span class="sd">            transitions (tuple(Tensor)), transitions with variable-length tensors.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_op</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PriorityReplayBuffer.update_priorities"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.core.PriorityReplayBuffer.update_priorities">[docs]</a>    <span class="k">def</span> <span class="nf">update_priorities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">priorities</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update transition prorities.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            indices (Tensor): transition indices. The caller needs to ensure the validity of the indices.</span>
+<span class="sd">            priorities (Tensor): transition priorities.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            tuple(Tensor), Transition with its indices and correction weights.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_op</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">priorities</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PriorityReplayBuffer.full"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.core.PriorityReplayBuffer.full">[docs]</a>    <span class="k">def</span> <span class="nf">full</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;whether the buffer is full&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Tensor</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PriorityReplayBuffer.reset"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.core.PriorityReplayBuffer.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;reset the buffer&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;reset() is not supported by PriorityReplayBuffer.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PriorityReplayBuffer.destroy"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.core.PriorityReplayBuffer.destroy">[docs]</a>    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Destroy the replay buffer.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Priority replay buffer instance handle with dtype int64 and shape :math:`(1,)`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">destroy_op</span><span class="p">()</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, MindSpore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+</body>
+</html>

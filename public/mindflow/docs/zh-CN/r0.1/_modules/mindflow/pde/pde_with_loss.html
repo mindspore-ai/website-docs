@@ -50,11 +50,15 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../physics_driven/navier_stokes2D.html">二维圆柱绕流</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../physics_driven/poisson_geometry.html">二维&amp;三维Poisson问题</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../physics_driven/taylor_green2D.html">二维Taylor-Green涡流动</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../physics_driven/navier_stokes_inverse.html">Navier-Stokes方程反问题</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">数据驱动</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_driven/2D_steady.html">AI工业流体仿真模型——东方 御风</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../data_driven/burgers_FNO1D.html">基于FNO求解一维Burgers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../data_driven/navier_stokes_FNO2D.html">基于FNO求解二维Navier-Stokes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_driven/burgers_KNO1D.html">基于KNO求解一维Burgers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_driven/navier_stokes_KNO2D.html">基于KNO求解二维Navier-Stokes</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">数据机理融合</span></p>
 <ul>
@@ -151,6 +155,8 @@
 <span class="sd">        model (mindspore.nn.Cell): Network for training.</span>
 <span class="sd">        in_vars (List[sympy.core.Symbol]): Input variables of the `model`, represented by the sympy symbol.</span>
 <span class="sd">        out_vars (List[sympy.core.Function]): Output variables of the `model`, represented by the sympy function.</span>
+<span class="sd">        params (List[sympy.core.Function]): Parameters of the `model`, represented by the sympy function.</span>
+<span class="sd">        params_val (List[sympy.core.Function]): Values of the Parameters from optimizer.</span>
 
 <span class="sd">    Note:</span>
 <span class="sd">        - The member function, &quot;pde&quot;, must be overridden to define the symbolic derivative equqtions based on sympy.</span>
@@ -216,13 +222,14 @@
 <span class="sd">        {&#39;bc_eq&#39;: Derivative(u(x, t), t) + Derivative(u(x, t), x) - 2.0}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">in_vars</span><span class="p">,</span> <span class="n">out_vars</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">in_vars</span><span class="p">,</span> <span class="n">out_vars</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">params_val</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">jacobian</span> <span class="o">=</span> <span class="n">batched_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hessian</span> <span class="o">=</span> <span class="n">batched_hessian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param_val</span> <span class="o">=</span> <span class="n">params_val</span>
         <span class="n">pde_nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pde</span><span class="p">()</span> <span class="ow">or</span> <span class="nb">dict</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pde_nodes</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pde_nodes</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">pde_nodes</span> <span class="o">=</span> <span class="n">sympy_to_mindspore</span><span class="p">(</span><span class="n">pde_nodes</span><span class="p">,</span> <span class="n">in_vars</span><span class="p">,</span> <span class="n">out_vars</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pde_nodes</span> <span class="o">=</span> <span class="n">sympy_to_mindspore</span><span class="p">(</span><span class="n">pde_nodes</span><span class="p">,</span> <span class="n">in_vars</span><span class="p">,</span> <span class="n">out_vars</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
 <div class="viewcode-block" id="PDEWithLoss.pde"><a class="viewcode-back" href="../../../pde/mindflow.pde.PDEWithLoss.html#mindflow.pde.PDEWithLoss.pde">[文档]</a>    <span class="k">def</span> <span class="nf">pde</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -243,9 +250,9 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            formula_nodes (list[FormulaNode]): List of expressions node can be identified by mindspore.</span>
-<span class="sd">            inputs (Tensor): The input data of network. Default: None.</span>
+<span class="sd">            inputs (Tensor): The input data of network. Default: ``None``.</span>
 <span class="sd">            norm (Tensor): The normal of the surface at a point P is a vector perpendicular to the tangent plane of the</span>
-<span class="sd">                point. Default: None.</span>
+<span class="sd">                point. Default: ``None``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            List(Tensor), the results of the partial differential equations.</span>
@@ -264,7 +271,12 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">hessian</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">jacobian</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">data_map</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="n">inputs</span><span class="p">,</span> <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="n">outputs</span><span class="p">,</span> <span class="s2">&quot;jacobian&quot;</span><span class="p">:</span> <span class="n">jacobian</span><span class="p">,</span> <span class="s2">&quot;hessian&quot;</span><span class="p">:</span> <span class="n">hessian</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">:</span> <span class="n">norm</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data_map</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="n">inputs</span><span class="p">,</span> <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="n">outputs</span><span class="p">,</span> <span class="s2">&quot;jacobian&quot;</span><span class="p">:</span> <span class="n">jacobian</span><span class="p">,</span> <span class="s2">&quot;hessian&quot;</span><span class="p">:</span> <span class="n">hessian</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">:</span> <span class="n">norm</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data_map</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="n">inputs</span><span class="p">,</span> <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="n">outputs</span><span class="p">,</span> <span class="s2">&quot;jacobian&quot;</span><span class="p">:</span> <span class="n">jacobian</span><span class="p">,</span> <span class="s2">&quot;hessian&quot;</span><span class="p">:</span> <span class="n">hessian</span><span class="p">,</span>
+                        <span class="s2">&quot;norm&quot;</span><span class="p">:</span> <span class="n">norm</span><span class="p">,</span> <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_val</span><span class="p">}</span>
         <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">formula_node</span> <span class="ow">in</span> <span class="n">formula_nodes</span><span class="p">:</span>
             <span class="n">cur_eq_ret</span> <span class="o">=</span> <span class="n">formula_node</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">data_map</span><span class="p">)</span>
@@ -278,7 +290,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model (mindspore.nn.Cell): Network for training.</span>
-<span class="sd">        loss_fn (Union[str, Cell]): Define the loss function. Default: mse.</span>
+<span class="sd">        loss_fn (Union[str, Cell]): Define the loss function. Default: ``&quot;mse&quot;``.</span>
 
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend`` ``GPU``</span>
@@ -341,8 +353,8 @@
 <span class="sd">    Args:</span>
 <span class="sd">        model (mindspore.nn.Cell): network for training.</span>
 <span class="sd">        re (float): reynolds number is the ratio of inertia force to viscous force of a fluid. It is a dimensionless</span>
-<span class="sd">            quantity. Default: 100.0.</span>
-<span class="sd">        loss_fn (Union[str, Cell]): Define the loss function. Default: mse.</span>
+<span class="sd">            quantity. Default: ``100.0``.</span>
+<span class="sd">        loss_fn (Union[str, Cell]): Define the loss function. Default: ``&quot;mse&quot;``.</span>
 
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend`` ``GPU``</span>
@@ -422,7 +434,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model (mindspore.nn.Cell): network for training.</span>
-<span class="sd">        loss_fn (Union[str, Cell]): Define the loss function. Default: mse.</span>
+<span class="sd">        loss_fn (Union[str, Cell]): Define the loss function. Default: ``&quot;mse&quot;``.</span>
 
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend`` ``GPU``</span>

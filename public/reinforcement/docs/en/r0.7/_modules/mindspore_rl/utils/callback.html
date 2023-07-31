@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mindspore_rl.utils.callback &mdash; MindSpore master documentation</title><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Installation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reinforcement_install.html">MindSpore Reinforcement Installation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_config_info.html">MindSpore RL Configuration Instruction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dqn.html">Deep Q Learning (DQN) with MindSpore Reinforcement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../replaybuffer.html">ReplayBuffer Usage Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../environment.html">Reinforcement Learning Environment Access</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reinforcement.html">mindspore_rl</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../RELEASE.html">Release Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>mindspore_rl.utils.callback</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for mindspore_rl.utils.callback</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2021 Huawei Technologies Co., Ltd</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1"># ============================================================================</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Base Callback and some default callbacks.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">ExitStack</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span>
+<span class="kn">from</span> <span class="nn">mindspore.train.serialization</span> <span class="kn">import</span> <span class="n">save_checkpoint</span>
+<span class="kn">from</span> <span class="nn">mindspore.train._utils</span> <span class="kn">import</span> <span class="n">_make_directory</span>
+
+<span class="k">class</span> <span class="nc">Callback</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Base callback.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Return self.&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">err</span><span class="p">):</span>
+        <span class="s2">&quot;Exit and release.&quot;</span>
+
+    <span class="k">def</span> <span class="nf">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Call once before train.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for begin.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Call once after train.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for end.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">episode_begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Call before each episode begin.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for episode begin.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">episode_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Call after each episode finished.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for episode end.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+
+<div class="viewcode-block" id="CallbackParam"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.CallbackParam">[docs]</a><span class="k">class</span> <span class="nc">CallbackParam</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;It contains the parameters required for the execution of the callback function.&#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span></div>
+
+
+<div class="viewcode-block" id="CallbackManager"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.CallbackManager">[docs]</a><span class="k">class</span> <span class="nc">CallbackManager</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Execute callbacks sequentially</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            callbacks (list[Callback]): a list of Callbacks.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callbacks</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span> <span class="o">=</span> <span class="p">[],</span> <span class="kc">None</span>
+        <span class="c1"># 1 single callback</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">callbacks</span><span class="p">,</span> <span class="n">Callback</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">callbacks</span><span class="p">)</span>
+        <span class="c1"># 2 callbacks list</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">callbacks</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="n">callbacks</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cb</span><span class="p">,</span> <span class="n">Callback</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Callback in callbacks must be Callback Function.&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cb</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">callbacks</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;The callbacks must be Callback.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">callbacks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">ExitStack</span><span class="p">()</span><span class="o">.</span><span class="fm">__enter__</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">callback</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">:</span>
+                <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">enter_context</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">Callback</span><span class="p">):</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Error callback type.&quot;</span><span class="p">)</span>
+                    <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span> <span class="o">=</span> <span class="n">callbacks</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">err</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="fm">__exit__</span><span class="p">(</span><span class="o">*</span><span class="n">err</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CallbackManager.begin"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.CallbackManager.begin">[docs]</a>    <span class="k">def</span> <span class="nf">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Call only once before training.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for begin.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">:</span>
+            <span class="n">cb</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CallbackManager.end"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.CallbackManager.end">[docs]</a>    <span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Call only once after training.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for end.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">:</span>
+            <span class="n">cb</span><span class="o">.</span><span class="n">end</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CallbackManager.episode_begin"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.CallbackManager.episode_begin">[docs]</a>    <span class="k">def</span> <span class="nf">episode_begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Call before each episode start</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for episode begin.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">:</span>
+            <span class="n">cb</span><span class="o">.</span><span class="n">episode_begin</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CallbackManager.episode_end"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.CallbackManager.episode_end">[docs]</a>    <span class="k">def</span> <span class="nf">episode_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Call before each episode end.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for episode end.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">:</span>
+            <span class="n">cb</span><span class="o">.</span><span class="n">episode_end</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">_is_tensor</span><span class="p">(</span><span class="n">input_</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Inner util func to check input type.&#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<div class="viewcode-block" id="LossCallback"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.LossCallback">[docs]</a><span class="k">class</span> <span class="nc">LossCallback</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Print loss in each episode end.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        print_rate (int, optional): The frequency to print loss. Default: ``1`` .</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.utils.callback import LossCallback</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.core import Session</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.algorithm.dqn import config</span>
+<span class="sd">        &gt;&gt;&gt; loss_cb = LossCallback()</span>
+<span class="sd">        &gt;&gt;&gt; cbs = [loss_cb]</span>
+<span class="sd">        &gt;&gt;&gt; session = Session(config.algorithm_config, None, None, cbs)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">print_rate</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LossCallback</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">print_rate</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">print_rate</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The arg of &#39;print_rate&#39; must be int and &gt;= 0, but get &quot;</span><span class="p">,</span> <span class="n">print_rate</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_print_rate</span> <span class="o">=</span> <span class="n">print_rate</span>
+
+<div class="viewcode-block" id="LossCallback.episode_end"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.LossCallback.episode_end">[docs]</a>    <span class="k">def</span> <span class="nf">episode_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Print loss in the end of episode.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters of the tarining.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">losses</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">loss</span>
+        <span class="n">rewards</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">total_rewards</span>
+        <span class="n">rewards_out</span><span class="p">,</span> <span class="n">losses_out</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_print_rate</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_print_rate</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="c1"># 1 Deal with rewards for both tuple and single.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rewards</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">reward</span> <span class="ow">in</span> <span class="n">rewards</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_is_tensor</span><span class="p">(</span><span class="n">reward</span><span class="p">):</span>
+                    <span class="n">rewards_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">reward</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())),</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">_is_tensor</span><span class="p">(</span><span class="n">rewards</span><span class="p">):</span>
+            <span class="n">rewards_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">rewards</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())),</span> <span class="mi">3</span><span class="p">))</span>
+
+        <span class="c1"># 2 Deal with losses for both tuple and single.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">losses</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="n">losses</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_is_tensor</span><span class="p">(</span><span class="n">loss</span><span class="p">):</span>
+                    <span class="n">losses_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">loss</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())),</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">_is_tensor</span><span class="p">(</span><span class="n">losses</span><span class="p">):</span>
+            <span class="n">losses_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">losses</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())),</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Episode </span><span class="si">{}</span><span class="s2">: losses should be tensor or tensor of list/tuple.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span><span class="p">))</span>
+
+        <span class="c1"># 3 Check loss value and stop if it is NAN or INF.</span>
+        <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="n">losses_out</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">loss</span><span class="p">)):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Episode </span><span class="si">{}</span><span class="s2">: Invalid loss </span><span class="si">{}</span><span class="s2">, training stop.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span><span class="p">,</span> <span class="n">loss</span><span class="p">))</span>
+
+        <span class="c1"># 4 Pirnt the loss and rewards.</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Episode </span><span class="si">{}</span><span class="s2">: loss is </span><span class="si">{}</span><span class="s2">, rewards is </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span><span class="p">,</span> \
+            <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">losses_out</span><span class="p">]),</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rewards_out</span><span class="p">])),</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TimeCallback"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.TimeCallback">[docs]</a><span class="k">class</span> <span class="nc">TimeCallback</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Time Callback to monitor time costs for each episode.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        print_rate (int, optional): The frequency to print time. Default: ``1`` .</span>
+<span class="sd">        fixed_steps_in_episode (int, optional): If the number of steps in each episode is fixed, this number</span>
+<span class="sd">            is used to calculate the step time. If ``None`` , the real steps number should be provided in params.</span>
+<span class="sd">            Default: ``None`` .</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.utils.callback import TimeCallback</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.core import Session</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.algorithm.dqn import config</span>
+<span class="sd">        &gt;&gt;&gt; time_cb = TimeCallback()</span>
+<span class="sd">        &gt;&gt;&gt; cbs = [time_cb]</span>
+<span class="sd">        &gt;&gt;&gt; session = Session(config.algorithm_config, None, None, cbs)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">print_rate</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">fixed_steps_in_episode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TimeCallback</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">print_rate</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">print_rate</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The arg of &#39;print_rate&#39; must be int and &gt;= 0, but get &quot;</span><span class="p">,</span> <span class="n">print_rate</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fixed_steps_in_episode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">fixed_steps_in_episode</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">fixed_steps_in_episode</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The arg of &#39;fixed_steps_in_episode&#39; must be int and &gt; 0, but get &quot;</span><span class="p">,</span> \
+                    <span class="n">fixed_steps_in_episode</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_print_rate</span> <span class="o">=</span> <span class="n">print_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_steps_in_episode</span> <span class="o">=</span> <span class="n">fixed_steps_in_episode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">epoch_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TimeCallback.episode_begin"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.TimeCallback.episode_begin">[docs]</a>    <span class="k">def</span> <span class="nf">episode_begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Get time in the begin of episode.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters of the tarining.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">epoch_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TimeCallback.episode_end"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.TimeCallback.episode_end">[docs]</a>    <span class="k">def</span> <span class="nf">episode_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Print time in the end of episode.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters of the tarining.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">epoch_secends</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">epoch_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="n">steps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_steps_in_episode</span>
+
+        <span class="k">if</span> <span class="n">steps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">steps</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">steps</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">steps</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">steps</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">steps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                    <span class="n">steps</span> <span class="o">=</span> <span class="n">steps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">steps</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">steps</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                <span class="n">steps</span> <span class="o">=</span> <span class="n">steps</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+
+        <span class="n">step_seconds</span> <span class="o">=</span> <span class="n">epoch_secends</span> <span class="o">/</span> <span class="n">steps</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_print_rate</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_print_rate</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Episode </span><span class="si">{}</span><span class="s2"> has </span><span class="si">{}</span><span class="s2"> steps, cost time: </span><span class="si">{:5.3f}</span><span class="s2"> ms, per step time: </span><span class="si">{:5.3f}</span><span class="s2"> ms&quot;</span> \
+                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span><span class="p">,</span> <span class="n">steps</span><span class="p">,</span> <span class="n">epoch_secends</span><span class="p">,</span> <span class="n">step_seconds</span><span class="p">),</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="CheckpointCallback"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.CheckpointCallback">[docs]</a><span class="k">class</span> <span class="nc">CheckpointCallback</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Save the checkpoint file for all the model weights. And keep the latest `max_ckpt_nums` checkpoint files.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        save_per_episode (int, optional): The frequency to save checkpoint. Default: ``0`` (not saved).</span>
+<span class="sd">        directory (str, optional): The directory for saving checkpoints. Default: ``None`` , saving to ``&#39;./&#39;`` .</span>
+<span class="sd">        max_ckpt_nums (int, optional): Numbers of how many checkpoint files to be kept. Default: ``5`` .</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.utils.callback import CheckpointCallback</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.core import Session</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.algorithm.dqn import config</span>
+<span class="sd">        &gt;&gt;&gt; ckpt_cb = CheckpointCallback()</span>
+<span class="sd">        &gt;&gt;&gt; cbs = [ckpt_cb]</span>
+<span class="sd">        &gt;&gt;&gt; session = Session(config.algorithm_config, None, None, cbs)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_per_episode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_ckpt_nums</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CheckpointCallback</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save_per_episode</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">save_per_episode</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The arg of &#39;save_per_episode&#39; must be int and &gt;= 0, but get &quot;</span><span class="p">,</span> <span class="n">save_per_episode</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">max_ckpt_nums</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">max_ckpt_nums</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The arg of &#39;max_ckpt_nums&#39; must be int and &gt; 0, but get &quot;</span><span class="p">,</span> <span class="n">max_ckpt_nums</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_ckpt_nums</span> <span class="o">=</span> <span class="n">max_ckpt_nums</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_per_episode</span> <span class="o">=</span> <span class="n">save_per_episode</span>
+
+        <span class="c1"># Make directory if provided or get current directory.</span>
+        <span class="k">if</span> <span class="n">directory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_save_path</span> <span class="o">=</span> <span class="n">_make_directory</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_save_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_save_path</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_save_path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CheckpointCallback.episode_end"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.CheckpointCallback.episode_end">[docs]</a>    <span class="k">def</span> <span class="nf">episode_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Save checkpoint in the end of episode.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters of the tarining.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_save_per_episode</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save_per_episode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">params</span><span class="o">.</span><span class="n">vars</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;The trainable_variables not found.&quot;</span><span class="p">)</span>
+        <span class="c1"># 1 `(key, var)` in `params.vars` each represent as name and variables for saving.</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">vars</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># 2 `save_path` combined by `self._save_path` and name. Eg: /ckpt/actor_net/ .</span>
+            <span class="n">save_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save_path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">key</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">save_path</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span>
+
+            <span class="c1"># 3 Save checkpoints for each variables. Eg: /path/actor_net_10.ckpt.</span>
+            <span class="n">ckpt_name</span> <span class="o">=</span> <span class="n">save_path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.ckpt&#39;</span>
+            <span class="n">save_checkpoint</span><span class="p">(</span><span class="n">var</span><span class="p">,</span> <span class="n">ckpt_name</span><span class="p">)</span>
+
+            <span class="n">files</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span>
+            <span class="n">ckpt_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">nums</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="c1"># 4 Keep `_max_ckpt_nums` checkpoint files, and delete the older one.</span>
+            <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;.ckpt&#39;</span> <span class="ow">and</span> <span class="p">(</span><span class="n">key</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">):</span>
+                    <span class="n">nums</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">ckpt_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">save_path</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">nums</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_ckpt_nums</span><span class="p">:</span>
+                    <span class="n">ckpt_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">ckpt_list</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getmtime</span><span class="p">)</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">ckpt_files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">ckpt_list</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">ckpt_files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div></div>
+
+
+<div class="viewcode-block" id="EvaluateCallback"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.EvaluateCallback">[docs]</a><span class="k">class</span> <span class="nc">EvaluateCallback</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Evaluate callback.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        eval_rate (int, optional): The frequency to eval. Default: ``0`` (will not evaluate).</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.utils.callback import EvaluateCallback</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.core import Session</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore_rl.algorithm.dqn import config</span>
+<span class="sd">        &gt;&gt;&gt; eval_cb = EvaluateCallback()</span>
+<span class="sd">        &gt;&gt;&gt; cbs = [eval_cb]</span>
+<span class="sd">        &gt;&gt;&gt; session = Session(config.algorithm_config, None, None, cbs)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eval_rate</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">EvaluateCallback</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eval_rate</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">eval_rate</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The arg of &#39;eval_rate&#39; must be int and &gt;= 0, but get &quot;</span><span class="p">,</span> <span class="n">eval_rate</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_eval_rate</span> <span class="o">=</span> <span class="n">eval_rate</span>
+
+<div class="viewcode-block" id="EvaluateCallback.begin"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.EvaluateCallback.begin">[docs]</a>    <span class="k">def</span> <span class="nf">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Store the eval rate in the begin of training, run once.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for episode begin.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">eval_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_rate</span></div>
+
+<div class="viewcode-block" id="EvaluateCallback.episode_end"><a class="viewcode-back" href="../../../reinforcement.html#mindspore_rl.utils.EvaluateCallback.episode_end">[docs]</a>    <span class="k">def</span> <span class="nf">episode_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Run evaluate in the end of episode, and print the rewards.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (CallbackParam): Parameters for episode end.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_rate</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> \
+            <span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_rate</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Call the `evaluate` function provided by user.</span>
+            <span class="n">rewards</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">evaluate</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-----------------------------------------&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Evaluate for episode </span><span class="si">{}</span><span class="s2"> total rewards is </span><span class="si">{:5.3f}</span><span class="s2">&quot;</span> \
+                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">cur_episode</span><span class="p">,</span> <span class="n">rewards</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()),</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-----------------------------------------&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, MindSpore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+</body>
+</html>
