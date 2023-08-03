@@ -1,771 +1,313 @@
 # Release Notes
 
-## MindSpore 2.0.0 Release Notes
+## MindSpore 2.1.0 Release Notes
 
 ### Major Features and Improvements
 
+#### FrontEnd
+
+- [BETA] JIT Fallback supports variable scenarios. In static graph mode, JIT Fallback supports return of Dict type and Scalar type, supports property setting of non-Parameter type objects, supports partial in-place modification operations of List, and supports third-party libraries such as NumPy. Moreover, it supports related operations of user-defined classes and supports Python basic operators and built-in functions to use more data types. It is compatible with features like control flow, side effects, automatic differentiation. For more details, please refer to [Static Graph Syntax Support](https://www.mindspore.cn/docs/en/r2.1/note/static_graph_syntax_support.html).
+
+- [BETA] In static graph mode, the error message of using undefined variables in the control flow scene is optimized. When using variables defined in if, while, and for control flow branches, the variables need to be initialized and defined before the control flow.
+
+- [STABLE] Add module ReWrite, support the ability to modify multiple network in batches based on customized rules.
+
+- [BETA] Add optim_ex module for optimizers, extend the current functionality, support parameter grouping for every parameter in the optimizer, and support parameter modification by assignment while training.
+
+- [STABLE] Optimize PyTorch and MindSpore API Mapping Table, specify the differences between APIs among functionality, parameter, input, output and specialized cases.
+
 #### PyNative
 
-- [STABLE] Dynamic shape is fully supported on framework. For detailed operator support, refer to [Dynamic Shape Support Status of nn Interface](https://www.mindspore.cn/docs/en/master/note/dynamic_shape_nn.html), [Dynamic Shape Support Status of ops Interface](https://www.mindspore.cn/docs/en/master/note/dynamic_shape_func.html), and [Dynamic Shape Support Status of primitive Interface](https://www.mindspore.cn/docs/en/master/note/dynamic_shape_primitive.html).
+- Optimize the performance of dynamic shape scenes in PyNative mode.
+
+#### DataSet
+
+- [STABLE] Optimize the memory structure of MindRecord data files. Memory consumption can be reduced 60% when loading 100TB+ data for training.
+- [STABLE] Support single-thread execution of data processing pipeline, and users can add code in the data pipeline for debugging.
+- [STABLE] Optimize the performance of TFRecordDataset to improve the performance of dataset loading by 60%+. Optimize the performance of batch to improve the performance by 30% for the scenarios with large number of batch.
+- [STABLE] Optimize API documentation of [mindspore.dataset](https://www.mindspore.cn/docs/en/r2.1/api_python/mindspore.dataset.html) and [mindspore.dataset.transforms](https://www.mindspore.cn/docs/en/r2.1/api_python/mindspore.dataset.transforms.html). Four new sample libraries have been added to show the effect of data enhancement, namely: [Load & Process Datasets Using Data Pipeline](https://www.mindspore.cn/docs/en/r2.1/api_python/mindspore.dataset.html#quick-start-of-dataset-pipeline), [Visual Transformation Sample Library](https://www.mindspore.cn/docs/en/r2.1/api_python/mindspore.dataset.transforms.html#module-mindspore.dataset.vision), [Text Transform Sample Library](https://www.mindspore.cn/docs/en/r2.1/api_python/mindspore.dataset.transforms.html#module-mindspore.dataset.text), [Audio Transform Sample Library](https://www.mindspore.cn/docs/en/r2.1/api_python/mindspore.dataset.transforms.html#module-mindspore.dataset.audio)
 
 #### AutoParallel
 
-- [STABLE] Build new MindFormers independent repositpry, providing distributed parallel suite, replacing mindspore.nn.transformer module.
-- [DEMO] Distributed parallel operator Gather supports the BatchDim attribute.
-- [DEMO] Streamline parallel supports specifying any dimension of the input data as the Batch dimension.
+- [STABLE] Support offload parameters or intermediate activations to the CPU or NVMe storage during training process. Users can enable this offload feature by configuring context to scale up the trainable model size.
+
+- [STABLE] Enhanced automatic parallel capability including:
+
+  1. Performance of automatic strategy for typical networks is no less than 90% of default configuration.
+
+  2. Support 3D hybrid parallel training: automatic operator-level strategy generation combined with manual configured pipeline partition.
+
+#### Runtime
+
+- [STABLE] Upgrade OpenMPI version to 4.1.4.
+- [STABLE] Upgrade NCCL version to 2.16.5.
+- [STABLE] Assign rank id continuously in same node when using dynamic cluster to launch distributed jobs.
+- [STABLE] No adaptation code is required for Scheduler node. The script of Scheduler could be identical to that of Worker.
+
+#### Ascend
+
+- [STABLE] Support dump assisted debug information for operator AIC Error scenario. The information includes the operator task name, stream ID, input/output/workspace address and so on.
+- [STABLE] Provide default processing mechanism, which skips its execution,  for CANN operators for empty Tensor output scenarios.
+- [STABLE] Supplement debug information when network model fails to execute in graph mode. The debug information will saved in a CSV file in rank_${id}/exec_order/, recording the task ID and stream ID of each task.
+
+#### Profiler
+
+- [STABLE] The Profiler supports the collection of time-consuming data from all phases on the Host side.
+- [BETA] The Profiler supports the collection of memory data from all phases on the Host side.
+- [BETA] The Profiler supports the collection of data processing operator time consumption.
 
 ### API Change
 
-#### operator
+- `mindspore.dataset.GraphData`, `mindspore.dataset.Graph`, `mindspore.dataset.InMemoryGraphDataset`, `mindspore.dataset. ArgoverseDataset` are no longer evolved and are deprecated. Use [MindSpore Graph Learning](https://gitee.com/mindspore/graphlearning) for related functional replacements. When replacing networks in Model repositories that use this API, please refer to [GCN](https://gitee.com/mindspore/graphlearning/tree/master/model_zoo/gcn) for GCN and [GAT](https://gitee.com/mindspore/graphlearning/tree/master/model_zoo/gat).
+- `mindspore.set_context` adds `jit_syntax_level` option, which is used to set JIT syntax support level. For more details, please refer to [set_context](https://www.mindspore.cn/docs/en/r2.1/api_python/mindspore/mindspore.set_context.html).
+- Change the `model.infer_predict_layout` interface, which has a new parameter skip_backend_compile with a default value of False. Set to True when the user wants to skip the backend compilation process to get the parameter slicing strategy.
 
-- Add operator primitive for `mindspore.ops.AdaptiveAvgPool2D` .
-- Add operator primitive for `mindspore.ops.BatchToSpaceNDV2` .
-- Add operator primitive for `mindspore.ops.CeLU` .
-- Add operator primitive for `mindspore.ops.ExtractVolumePatches` .
-- Add operator primitive for `mindspore.ops.FFTWithSize` .
-- Add operator primitive for `mindspore.ops.FillDiagonal` .
-- Add operator primitive for `mindspore.ops.FractionalMaxPool3DWithFixedKsize` .
-- Add operator primitive for `mindspore.ops.Im2Col` .
-- Add operator primitive for `mindspore.ops.MaskedScatter` .
-- Add operator primitive for `mindspore.ops.MatrixBandPart` .
-- Add operator primitive for `mindspore.ops.MatrixInverse` .
-- Add operator primitive for `mindspore.ops.MaxPoolWithArgmaxV2` .
-- Add operator primitive for `mindspore.ops.Ormqr` .
-- Add operator primitive for `mindspore.ops.RandpermV2` .
-- Add operator primitive for `mindspore.ops.ResizeBicubic` .
-- Add operator primitive for `mindspore.ops.Triu` .
-- Add operator primitive for `mindspore.ops.Zeta` .
+#### Operators
+
+- Add operator primitive for `mindspore.ops.ApplyAdamWithAmsgradV2`. It is recommended to call this operator through API `mindspore.nn.Adam`.
+- Add operator primitive for `mindspore.ops.UpsampleTrilinear3D`. It is recommended to call this operator through API `mindspore.ops.interpolate`.
+- Add operator primitive for `mindspore.ops.UpsampleNearest3D`. It is recommended to call this operator through API `mindspore.ops.interpolate`.
+
+#### API Deprecation
+
+- Deprecate operator primitive `mindspore.ops.ScatterNonAliasingAdd`. It is recommended to use operator primitive `mindspore.ops.TensorScatterAdd` as a replacement.
 
 #### Backwards Incompatible Change
 
-- Interface: mindspore.ops.MultitypeFuncGraph
+- Interface name: `mindspore.nn.Dense`, `mindspore.nn.Conv1d`, `mindspore.nn.Conv1dTranspose`, `mindspore.nn.Conv2d`, `mindspore.nn.Conv2dTranspose`, `mindspore.nn.Conv3d`, `mindspore.nn.Conv3dTranspose`
 
-  Change: The interface parameter doc_url is used as a test feature in MindSpore 2.0.0.rc1 version. After the optimization of MindSpore 2.0.0 version, users do not need to configure this parameter, so this parameter is deleted in MindSpore 2.0.0 version.
+  Changes: Change initialization parameter strategy. The default value of weight_init is changed from "normal" to None, and the default value of bias_init is changed from "zeros" to None.
+
+  Description: The default initialization method for weights has been changed from "normal" to internal HeUniform initialization. The default initialization method of bias is changed from "zeros" to internal Uniform initialization.
 
   <table>
   <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0 </td>
+  <td style="text-align:center"> Original interface </td> <td style="text-align:center"> v2.1 interface </td>
   </tr>
   <tr>
   <td><pre>
-  mindspore.ops.MultitypeFuncGraph（name, read_value=False, doc_url=""）
+  mindspore.nn.Dense(in_channels,
+                     out_channels,
+                     weight_init='normal',
+                     bias_init='zeros',
+                     has_bias=True,
+                     activation=None)
   </pre>
   </td>
   <td><pre>
-  mindspore.ops.MultitypeFuncGraph（name, read_value=False）
+  mindspore.nn.Dense(in_channels,
+                     out_channels,
+                     weight_init=None,
+                     bias_init=None,
+                     has_bias=True,
+                     activation=None)
+  </pre>
+  </td>
+  </tr>
+  <tr>
+  <td><pre>
+  mindspore.nn.Conv1d(in_channels,
+                      out_channels,
+                      kernel_size,
+                      stride=1,
+                      pad_mode='same',
+                      padding=0,
+                      dilation=1,
+                      group=1,
+                      has_bias=False,
+                      weight_init='normal',
+                      bias_init='zeros')
+  </pre>
+  </td>
+  <td><pre>
+  mindspore.nn.Conv1d(in_channels,
+                      out_channels,
+                      kernel_size,
+                      stride=1,
+                      pad_mode='same',
+                      padding=0,
+                      dilation=1,
+                      group=1,
+                      has_bias=False,
+                      weight_init=None,
+                      bias_init=None)
+  </pre>
+  </td>
+  </tr>
+  <tr>
+  <td><pre>
+  mindspore.nn.Conv1dTranspose(in_channels,
+                               out_channels,
+                               kernel_size,
+                               stride=1,
+                               pad_mode='same',
+                               padding=0,
+                               dilation=1,
+                               group=1,
+                               has_bias=False,
+                               weight_init='normal',
+                               bias_init='zeros')
+  </pre>
+  </td>
+  <td><pre>
+  mindspore.nn.Conv1dTranspose(in_channels,
+                               out_channels,
+                               kernel_size,
+                               stride=1,
+                               pad_mode='same',
+                               padding=0,
+                               dilation=1,
+                               group=1,
+                               has_bias=False,
+                               weight_init=None,
+                               bias_init=None)
+  </pre>
+  </td>
+  </tr>
+  <tr>
+  <td><pre>
+  mindspore.nn.Conv2d(in_channels,
+                      out_channels, kernel_size,
+                      stride=1,
+                      pad_mode='same',
+                      padding=0,
+                      dilation=1,
+                      group=1,
+                      has_bias=False,
+                      weight_init='normal',
+                      bias_init='zeros',
+                      data_format='NCHW')
+  </pre>
+  </td>
+  <td><pre>
+  mindspore.nn.Conv2d(in_channels,
+                      out_channels,
+                      kernel_size,
+                      stride=1,
+                      pad_mode='same',
+                      padding=0,
+                      dilation=1,
+                      group=1,
+                      has_bias=False,
+                      weight_init=None,
+                      bias_init=None,
+                      data_format='NCHW')
+  </pre>
+  </td>
+  </tr>
+  <tr>
+  <td><pre>
+  mindspore.nn.Conv2dTranspose(in_channels,
+                               out_channels,
+                               kernel_size,
+                               stride=1,
+                               pad_mode='same',
+                               padding=0,
+                               output_padding=0,
+                               dilation=1,
+                               group=1,
+                               has_bias=False,
+                               weight_init='normal',
+                               bias_init='zeros')
+  </pre>
+  </td>
+  <td><pre>
+  mindspore.nn.Conv2dTranspose(in_channels,
+                               out_channels,
+                               kernel_size,
+                               stride=1,
+                               pad_mode='same',
+                               padding=0,
+                               output_padding=0,
+                               dilation=1,
+                               group=1,
+                               has_bias=False,
+                               weight_init=None,
+                               bias_init=None)
+  </pre>
+  </td>
+  </tr>
+  <tr>
+  <td><pre>
+  mindspore.nn.Conv3d(in_channels,
+                      out_channels,
+                      kernel_size,
+                      stride=1,
+                      pad_mode='same',
+                      padding=0,
+                      dilation=1,
+                      group=1,
+                      has_bias=False,
+                      weight_init='normal',
+                      bias_init='zeros',
+                      data_format='NCDHW')
+  </pre>
+  </td>
+  <td><pre>
+  mindspore.nn.Conv3d(in_channels,
+                      out_channels,
+                      kernel_size,
+                      stride=1,
+                      pad_mode='same',
+                      padding=0,
+                      dilation=1,
+                      group=1,
+                      has_bias=False,
+                      weight_init=None,
+                      bias_init=None,
+                      data_format='NCDHW')
+  </pre>
+  </td>
+  </tr>
+  <tr>
+  <td><pre>
+  mindspore.nn.Conv3dTranspose(in_channels,
+                               out_channels,
+                               kernel_size,
+                               stride=1,
+                               pad_mode='same',
+                               padding=0,
+                               dilation=1,
+                               group=1,
+                               output_padding=0,
+                               has_bias=False,
+                               weight_init='normal',
+                               bias_init='zeros',
+                               data_format='NCDHW')
+  </pre>
+  </td>
+  <td><pre>
+  mindspore.nn.Conv3dTranspose(in_channels,
+                               out_channels,
+                               kernel_size,
+                               stride=1,
+                               pad_mode='same',
+                               padding=0,
+                               dilation=1,
+                               group=1,
+                               output_padding=0,
+                               has_bias=False,
+                               weight_init=None,
+                               bias_init=None,
+                               data_format='NCDHW')
   </pre>
   </td>
   </tr>
   </table>
 
-- Interface: mindspore.set_context(auto_tune_mode="GA,RL")
-
-  Change: The AutoTune tool has been deprecated, delete auto_tune_mode option, new tuning tools will be planned in the future.
-
-- Interface: mindspore.set_context(mode=PYNATIVE_MODE)
-
-  Change: The default value is changed from GRAPH_MODE to PYNATIVE_MODE.
-
-  Description: If the running mode is not set and the diagram mode needs to be set, use the following method:
-  mindspore.set_context(mode=GRAPH_MODE).
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  mindspore.set_context(mode=GRAPH_MODE)
-  </pre>
-  </td>
-  <td><pre>
-  mindspore.set_context(mode=PYNATIVE_MODE)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.train.Model.train
-
-  Change: The default value of dataset_sink_mode is changed from True to False.
-
-  Description: If dataset_sink_mode is not set and the data sinking mode needs to be set, use the following method:
-  Model.train(dataset_sink_mode=True).
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  Model.train(dataset_sink_mode=True)
-  </pre>
-  </td>
-  <td><pre>
-  Model.train(dataset_sink_mode=False)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.export
-
-  Change: The file_format parameter is changed from AIR to no default value.
-
-  Description: If file_format is not set in the original mode, you need to set file_format additionally. In this case, use the following method:
-  mindspore.export(net, *inputs, file_name, file_format="AIR", **kwargs).
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  mindspore.export(net, *inputs, file_name,
-                   file_format="AIR", **kwargs)
-  </pre>
-  </td>
-  <td><pre>
-  mindspore.export(net, *inputs, file_name,
-                   file_format, **kwargs)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.norm
-
-  Change: The ord parameter function is extended to support multiple forms.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.norm(input_x, axis, p=2, keep_dims=False, epsilon=1e-12)
-  >>> # Example:
-  >>> input = Tensor(np.array([[[1.0, 2.0], [3.0, 4.0]],
-  ...                          [[5.0, 6.0], [7.0, 8.0]]]).astype(np.float32))
-  >>> output = ops.norm(input, [0, 1], p=2)
-  </pre></td>
-  <td><pre>
-  ops.norm(A, ord=None, dim=None, keepdim=False, *, dtype=None)
-  >>> # Example:
-  >>> input = Tensor(np.array([[[1.0, 2.0], [3.0, 4.0]],
-  ...                          [[5.0, 6.0], [7.0, 8.0]]]).astype(np.float32))
-  >>> output = ops.norm(input, ord=2, dim=(0, 1))
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.Tensor.norm
-
-  Change: The ord parameter function is extended to support multiple forms.
-
-  Description: For details, see the example of ops.norm.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  Tensor.norm(axis, p=2, keep_dims=False, epsilon=1e-12)
-  </pre>
-  </td>
-  <td><pre>
-  Tensor.norm(ord=None, dim=None, keepdim=False, *, dtype=None)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.dropout
-
-  Change: The seed0 and seed1 parameters are deleted and seed=None parameter is added. Instead of returning Tensors and masks, only Tensors are returned. The input parameter training=True is added.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.dropout(x, p=0.5, seed0=0, seed1=0)
-  >>> # Example:
-  >>> input = Tensor(((20, 16), (50, 50)),
-  ...                mindspore.float32)
-  >>> output, mask = dropout(x, p=0.5)
-  </pre>
-  </td>
-  <td><pre>
-  ops.dropout(input, p=0.5, training=True, seed=None)
-  >>> # Example:
-  >>> input = Tensor(((20, 16), (50, 50)),
-  ...                mindspore.float32)
-  >>> output = ops.dropout(input, p=0.5，training=True)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.dropout2d
-
-  Change: Return value is changed from Tensor and mask to Tensor only. The input parameter training=True is added.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.dropout2d(x, p=0.5)
-  >>> # Example:
-  >>> input = Tensor(np.ones([2, 1, 2, 3]),
-  ...                mindspore.float32)
-  >>> output, mask = dropout2d(input, 0.5)
-  </pre>
-  </td>
-  <td><pre>
-  ops.dropout2d(input, p=0.5, training=True)
-  >>> # Example:
-  >>> input = Tensor(np.ones([2, 1, 2, 3]),
-  ...                mindspore.float32)
-  >>> output = ops.dropout2d(input, 0.5, training=True)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.dropout3d
-
-  Change: Return value is changed from Tensor and mask to Tensor only. The input parameter training=True is added.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.dropout3d(x, p=0.5)
-  >>> # Example:
-  >>> input = Tensor(np.ones([2, 1, 2, 3]),
-  ...                mindspore.float32)
-  >>> output, mask = dropout3d(input, 0.5)
-  </pre>
-  </td>
-  <td><pre>
-  ops.dropout3d(input, p=0.5, training=True)
-  >>> # Example:
-  >>> input = Tensor(np.ones([2, 1, 2, 3]),
-  ...                mindspore.float32)
-  >>> output = ops.dropout3d(input, 0.5, training=True)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.std
-
-  Change: The interface is reconstructed, and the interface usage mode is more consistent with user habits.
-
-  Description: If parameter `unbiased` has been set, use the following alternative: `unbiased=False` -> `ddof=0`, `unbiased=True` -> `ddof=1`.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.std(input_x, axis=(), unbiased=True, keep_dims=False)
-  </pre>
-  </td>
-  <td><pre>
-  ops.std(input, axis=None, ddof=0, keepdims=False)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.load_param_into_net
-
-  Change: Parameters that are not loaded in the ckpt are added as return values.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  net_param = load_param_into_net()
-  </pre>
-  </td>
-  <td><pre>
-  net_param, ckpt_param = load_param_into_net()
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.nn.BCELoss
-
-  Change: The default value of `reduction` is changed from 'none' to 'mean'.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  BCELoss(weight=None, reduction='none')
-  >>> # Example:
-  >>> weight = Tensor(np.array([[1.0, 2.0, 3.0],
-  ...                           [4.0, 3.3, 2.2]]),
-  ...                 mindspore.float32)
-  >>> loss = nn.BCELoss(weight=weight, reduction='mean')
-  >>> logits = Tensor(np.array([[0.1, 0.2, 0.3],
-  ...                           [0.5, 0.7, 0.9]]),
-  ...                 mindspore.float32)
-  >>> labels = Tensor(np.array([[0, 1, 0], [0, 0, 1]]),
-  ...                 mindspore.float32)
-  >>> output = loss(logits, labels)
-  >>> print(output)
-  >>> 1.8952923
-  </pre>
-  </td>
-  <td><pre>
-  BCELoss(weight=None, reduction='mean')
-  >>> # Example:
-  >>> weight = Tensor(np.array([[1.0, 2.0, 3.0],
-  ...                           [4.0, 3.3, 2.2]]),
-  ...                 mindspore.float32)
-  >>> loss = nn.BCELoss(weight=weight)
-  >>> logits = Tensor(np.array([[0.1, 0.2, 0.3],
-  ...                           [0.5, 0.7, 0.9]]),
-  ...                 mindspore.float32)
-  >>> labels = Tensor(np.array([[0, 1, 0], [0, 0, 1]]),
-  ...                 mindspore.float32)
-  >>> output = loss(logits, labels)
-  >>> print(output)
-  >>> 1.8952923
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.split
-
-  Change: The interface is reconstructed. The interface usage mode is more suitable for users. The sequence of the second and third parameters is adjusted, and the split_size_or_sections function is modified and extended.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.split(input_x, axis=0, output_num=1)
-  >>> # Example:
-  >>> input = Tensor(np.array([[1, 1, 1, 1], [2, 2, 2, 2]]),
-  ...                mindspore.int32)
-  >>> output = ops.split(input, axis=1, output_num=4)
-  </pre>
-  </td>
-  <td><pre>
-  ops.split(tensor, split_size_or_sections, axis=0)
-  >>> # Example:
-  >>> input = Tensor(np.array([[1, 1, 1, 1], [2, 2, 2, 2]]),
-  ...                mindspore.int32)
-  >>> output = ops.split(input, split_size_or_sections=1, axis=1)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.Tensor.split
-
-  Change: The interface is reconstructed. The interface usage mode is more suitable for users. The positions of the two parameters is adjusted, and the split_size_or_sections function is modified and extended.
-
-  Description: For details, see the example of ops.split.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  Tensor.split(axis=0, output_num=1)
-  </pre>
-  </td>
-  <td><pre>
-  Tensor.split(split_size_or_sections, axis=0)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.pad
-
-  Change: Modify the parameter name paddings to padding, and the mode and value functions are added.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.pad(input_x, paddings)
-  >>> # Example:
-  >>> input_x = Tensor(np.array([[-0.1, 0.3, 3.6],
-  ...                            [0.4, 0.5, -3.2]]),
-  ...                  mindspore.float32)
-  >>> paddings = ((1, 2), (2, 1))
-  >>> output = ops.pad(input_x, paddings)
-  </pre>
-  </td>
-  <td><pre>
-  ops.pad(input_x, padding, mode='constant', value=None)
-  >>> # Example:
-  >>> input_x = Tensor(np.array([[-0.1, 0.3, 3.6],
-  ...                            [0.4, 0.5, -3.2]]),
-  ...                  mindspore.float32)
-  >>> paddings = (2, 1, 1, 2)
-  >>> output = ops.pad(input_x, paddings)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.meshgrid
-
-  Change: The input parameter is changed from `inputs` to `*input`.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.meshgrid(inputs, indexing='xy')
-  >>> # Example:
-  >>> x = Tensor(np.array([1, 2, 3, 4]).astype(np.int32))
-  >>> y = Tensor(np.array([5, 6, 7]).astype(np.int32))
-  >>> z = Tensor(np.array([8, 9, 0, 1, 2]).astype(np.int32))
-  output = ops.meshgrid((x, y, z), indexing='xy')
-  </pre>
-  </td>
-  <td><pre>
-  ops.meshgrid(*inputs, indexing='xy')
-  >>> # Example:
-  >>> x = Tensor(np.array([1, 2, 3, 4]).astype(np.int32))
-  >>> y = Tensor(np.array([5, 6, 7]).astype(np.int32))
-  >>> z = Tensor(np.array([8, 9, 0, 1, 2]).astype(np.int32))
-  output = ops.meshgrid(x, y, z, indexing='xy')
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.max
-
-  Change: Return value exchange sequence. The value is changed from "index, value" to "value, index".
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.max(x, axis=0, keep_dims=False)
-  >>> # Example:
-  >>> input = Tensor(np.array([0.0, 0.4, 0.6, 0.7, 0.1]),
-  ...                mindspore.float32)
-  >>> index, output = ops.max(input)
-  >>> print(index, output)
-  >>> 3 0.7
-  </pre>
-  </td>
-  <td><pre>
-  ops.max(input, axis=None, keepdims=False, *, initial=None, where=True, return_indices=False)
-  >>> # Example:
-  >>> input = Tensor(np.array([0.0, 0.4, 0.6, 0.7, 0.1]),
-  ...                mindspore.float32)
-  >>> output, index = ops.max(input, axis=0)
-  >>> print(output, index)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.min
-
-  Change: Return value exchange sequence. The value is changed from "index, value" to "value, index".
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.min(x, axis=0, keep_dims=False)
-  >>> # Example:
-  >>> input = Tensor(np.array([0.0, 0.4, 0.6, 0.7, 0.1]),
-  ...                mindspore.float32)
-  >>> index, output = ops.min(input)
-  >>> 0 0.0
-  </pre>
-  </td>
-  <td><pre>
-  ops.min(input, axis=None, keepdims=False, *, initial=None, where=True, return_indices=False)
-  >>> # Example:
-  >>> input = Tensor(np.array([0.0, 0.4, 0.6, 0.7, 0.1]),
-  ...                mindspore.float32)
-  >>> output, index = ops.min(input, keepdims=True)
-  >>> 0.0 0
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.random_gamma
-
-  Change: The seed2 parameter is deleted and seed=0 is changed to None. The framework behavior is unified and complies with the actual application scenarios and habits of users.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.random_gamma(shape, alpha, seed=0, seed2=0)
-  </pre>
-  </td>
-  <td><pre>
-  ops.random_gamma(shape, alpha, seed=None)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.standard_laplace
-
-  Change: The seed2 parameter is deleted and seed=0 is changed to None. The framework behavior is unified and complies with the actual application scenarios and habits of users.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.standard_laplace(shape, seed=0, seed2=0)
-  </pre>
-  </td>
-  <td><pre>
-  ops.standard_laplace(shape, seed=None)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.standard_normal
-
-  Change: The seed2 parameter is deleted and seed=0 is changed to None. The framework behavior is unified and complies with the actual application scenarios and habits of users.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.standard_normal(shape, seed=0, seed2=0)
-  </pre>
-  </td>
-  <td><pre>
-  ops.standard_normal(shape, seed=None)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.bernoulli
-
-  Change: The default value of seed is changed from -1 to None. Meets the actual application scenario.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  ops.bernoulli(x, p=0.5, seed=-1)
-  </pre>
-  </td>
-  <td><pre>
-  ops.bernoulli(input, p=0.5, seed=None)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.data_sink
-
-  Change: Deleted the steps parameter. Parameter name jit is changed to jit_config, and new input_signature parameter is added. The usability is improved to meet the requirements of actual application scenarios.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  mindspore.data_sink(fn, dataset, steps,
-                      sink_size=1, jit=False)
-  </pre>
-  </td>
-  <td><pre>
-  mindspore.data_sink(fn, dataset, sink_size=1,
-                      jit_config=None, input_signature=None)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.ops.conv2d
-
-  Change: Extend Interface Function. Add the bias parameter and modify the parameter name and parameter sequence.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  conv2d(inputs, weight, pad_mode="valid",
-         padding=0, stride=1, dilation=1, group=1)
-  </pre>
-  </td>
-  <td><pre>
-  conv2d(input, weight, bias=None, stride=1,
-         pad_mode="valid", padding=0, dilation=1, groups=1)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.dataset.vision.Pad
-
-  Change: Adjust the input parameter padding of Pad, RandomCrop, and RandomCropWithBbox. When the input length of Padding is 2, the first value is used to fill the left/upper boundary, the second value is used to fill the right/lower boundary, and the first value is used to fill the left/right boundary. Fill the upper/lower boundary with the second value.
-
-  Description: The padding parameter whose size is 2 is not compatible with the effect of the earlier version. The padding parameter needs to be explicitly represented (left, right, top, and bottom).
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  mindspore.dataset.vision.Pad(padding=(1,2))
-  Indicates that the left/upper part of the image is filled with 1 pixel,
-  and the right/down part is filled with 2 pixels.
-  </pre>
-  </td>
-  <td><pre>
-  mindspore.dataset.vision.Pad(padding=(1,2,1,2))
-  Indicates that the left/upper part of the image is filled with 1 pixel,
-  and the right/down part is filled with 2 pixels.
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.dataset.Dataset.map
-
-  Change: Delete the column_order parameter. In most cases, output_columns and column_order have the same value. Therefore, column_order does not need to be transferred. To adjust the sequence of data columns, use mindspore.dataset.Dataset.project.
-
-  Description:
-
-  1. If the column sequence does not need to be changed, delete the column_order parameter.
-  2. If you need to specify the data column sequence, delete the column_order parameter and add a project method to the end of the parameter for column transformation (as in the following example).
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  >>> dataset = dataset.map(operations=[transforms],
-  ...                       input_columns=["column_a"],
-  ...                       output_columns=["column_b", "column_c"],
-  ...                       column_order=["column_c", "column_b"])
-  </pre>
-  </td>
-  <td><pre>
-  >>> dataset = dataset.map(operations=[transforms],
-  ...                       input_columns=["column_a"],
-  ...                       output_columns=["column_b", "column_c"])
-  >>> dataset = dataset.project(["column_c", column_b"])")
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.dataset.Dataset.batch
-
-  Change: Delete the column_order parameter. In most cases, output_columns and column_order have the same value. Therefore, column_order does not need to be transferred. To adjust the sequence of data columns, use mindspore.dataset.Dataset.project.
-
-  Description:
-
-  1. If the column sequence does not need to be changed, delete the column_order parameter.
-  2. If you need to specify the data column sequence, delete the column_order parameter and add a project method to the end of the parameter for column transformation (as in the following example).
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  >>> dataset = dataset.batch(batch_size=4,
-  ...                         input_columns=["column_a"],
-  ...                         output_columns=["column_b", "column_c"],
-  ...                         column_order=["column_c", "column_b"])
-  </pre>
-  </td>
-  <td><pre>
-  >>> dataset = dataset.batch(batch_size=4, input_columns=["column_a"]
-  ...                         output_columns=["column_b", "column_c"])
-  >>> dataset = dataset.project(["column_c", column_b"])")
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-- Interface: mindspore.dataset.Dataset.batch
-
-  Change: Split the batch method into two methods: batch and padded_batch. The pad_info parameter is moved from the batch method to the padded_batch method.
-
-  Description: To use the pad_info parameter, use the padded_batch method instead.
-
-  <table>
-  <tr>
-  <td style="text-align:center"> Original Interface </td> <td style="text-align:center"> Interface v2.0.0-rc1 </td>
-  </tr>
-  <tr>
-  <td><pre>
-  >>> dataset = dataset.batch(batch_size=4,
-  ...                         drop_remainder=True, pad_info=...)
-  </pre>
-  </td>
-  <td><pre>
-  >>> dataset = dataset.padded_batch(batch_size=4,
-  ...                                drop_remainder=True, pad_info=...)
-  </pre>
-  </td>
-  </tr>
-  </table>
-
-### Bug fixes
-
-- [I62I3J] fix inference failure of BGCF network on Ascend 310
-- [I7C2W3] fix error issuse of null pointer when enabling multiple loss in parallel pipeline scenarios
+### Bug Fixes
+
+- [I6TKLW] Fix the issue of MobileNetV2 network performance degradation on the Ascend platform.
+- [I7CP5H] Fix the issue where ASR network training failed on the Ascend platform.
+- [I6QYCD] Fix the issue where the BERT-Large-Boost network fails to train in pynative mode on the Ascend platform.
+- [I7I3EZ] Fix the issue that caused run_check() failure due to changes to the enumeration interface in Pillow version 10.0.0. If encountered in a lower version of MindSpore, install versions of Pillow below 10.0.0 to avoid this issue.
+- [I7IZ8K] Fix accuracy issues with the assignsub interface in PyNative mode.
+- [I7HGY0] Fix the issue that the loss of the functional programming does not converge in the PyNative data_sink mode.
+- [I7J4N3] Fix the issue that the generation of Step Trace failed in Profiler dynamic Shape mode
+- [I7J4N3] Fix the issue that there is no data displayed in the MindInsight parallel strategy view.
+- [I79YY4] Fix SiLU operator error when high-order differential in PyNative mode.
+- [I6NQJQ] Fix the issue of probabilistic failure in dynamic shape scenarios of the ScatterUpdate operator in PyNative mode.
+- [I6Y4G5] Fix the issue of failure in dynamic Shape scenarios of the Conv3D operator in Graph mode.
 
 ### Contributors
 

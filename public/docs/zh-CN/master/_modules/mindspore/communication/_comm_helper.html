@@ -163,6 +163,7 @@
 <span class="sd">&quot;&quot;&quot;comm_helper&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">glob</span>
 <span class="kn">import</span> <span class="nn">ctypes</span>
 
 <span class="kn">import</span> <span class="nn">sys</span>
@@ -173,6 +174,7 @@
                                            <span class="n">_get_ps_context</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">CollectiveManager</span><span class="p">,</span> <span class="n">set_cluster_exit_with_exception</span><span class="p">,</span> <span class="n">MSContext</span>
+<span class="kn">from</span> <span class="nn">mindspore.common._utils</span> <span class="kn">import</span> <span class="n">load_lib</span>
 
 <span class="n">HCCL_LIB</span> <span class="o">=</span> <span class="s1">&#39;libhccl_plugin.so&#39;</span>
 
@@ -250,7 +252,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    World communication information. The GlobalComm is a global class. The members contain:</span>
 
-<span class="sd">    - ``BACKEND`` : The communication library used, using HCCL/NCCL.</span>
+<span class="sd">    - ``BACKEND`` : The communication library used, using HCCL/NCCL/MCCL.</span>
 <span class="sd">    - ``WORLD_COMM_GROUP`` : Global communication domain.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">BACKEND</span> <span class="o">=</span> <span class="n">DEFAULT_BACKEND</span>
@@ -327,6 +329,60 @@
             <span class="n">group</span> <span class="o">=</span> <span class="n">GlobalComm</span><span class="o">.</span><span class="n">WORLD_COMM_GROUP</span>
         <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kargs</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">wrapper</span>
+
+
+<span class="k">def</span> <span class="nf">_is_available</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns `True` if distributed module is available.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        Always returns `True` because MindSpore always has distributed ability on all platforms.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="k">def</span> <span class="nf">_is_initialized</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks if distributed module is successfully initialized.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">CollectiveManager</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">initialized</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_get_backend</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the backend of communication process groups.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        Only one communication backend is supported by MindSpore for each process.</span>
+<span class="sd">        It should be one of `hccl`/`nccl`/`mccl`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">GlobalComm</span><span class="o">.</span><span class="n">BACKEND</span>
+
+
+<span class="k">def</span> <span class="nf">_is_hccl_available</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks if `hccl` backend is available.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_HCCL_TEST_AVAILABLE</span>
+
+
+<span class="k">def</span> <span class="nf">_is_nccl_available</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks if `nccl` backend is available.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">base_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+    <span class="n">lib_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">base_dir</span><span class="p">,</span> <span class="s2">&quot;../lib/plugin/gpu*/libnvidia_collective.so&quot;</span><span class="p">)</span>
+    <span class="n">file_paths</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">lib_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">load_lib</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">file_paths</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_is_mpi_available</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks if OpenMPI&#39;s library is available.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">base_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+    <span class="n">lib_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">base_dir</span><span class="p">,</span> <span class="s2">&quot;../lib/libmpi_collective.so&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">load_lib</span><span class="p">(</span><span class="n">lib_path</span><span class="p">)</span>
 
 
 <span class="nd">@check_parameter_available</span>
@@ -466,6 +522,20 @@
         <span class="k">return</span> <span class="n">hccl</span><span class="o">.</span><span class="n">get_group_rank_from_world_rank</span><span class="p">(</span><span class="n">world_rank_id</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span>
     <span class="n">group_rank_id</span> <span class="o">=</span> <span class="n">CollectiveManager</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">get_group_rank_from_world_rank</span><span class="p">(</span><span class="n">world_rank_id</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">group_rank_id</span>
+
+
+<span class="nd">@check_parameter_available</span>
+<span class="k">def</span> <span class="nf">_get_group_ranks</span><span class="p">(</span><span class="n">group</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The Helper to do get_group_ranks.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        group (str): The communication group.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List. The ranks of specified group.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">CollectiveManager</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">get_group_ranks</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
 
 
 <span class="nd">@check_parameter_available</span>

@@ -207,6 +207,8 @@
 <span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_infer_rank_list</span><span class="p">,</span> <span class="n">_remove_repeated_slices</span><span class="p">,</span> <span class="n">_is_in_auto_parallel_mode</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._parallel_serialization</span> <span class="kn">import</span> <span class="n">_convert_to_list</span><span class="p">,</span> <span class="n">_convert_to_layout</span><span class="p">,</span> <span class="n">_build_searched_strategy</span><span class="p">,</span> \
     <span class="n">_restore_group_info_list</span>
+<span class="kn">from</span> <span class="nn">mindspore.parallel._ps_context</span> <span class="kn">import</span> <span class="n">_set_checkpoint_load_status</span><span class="p">,</span> <span class="n">_store_warm_up_ptr_by_tensor</span><span class="p">,</span> \
+    <span class="n">_store_warm_up_ptr_by_tensor_list</span><span class="p">,</span> <span class="n">_cache_enable</span>
 <span class="kn">from</span> <span class="nn">mindspore.train._utils</span> <span class="kn">import</span> <span class="n">read_proto</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">load_mindir</span><span class="p">,</span> <span class="n">_encrypt</span><span class="p">,</span> <span class="n">_decrypt</span><span class="p">,</span> <span class="n">_is_cipher_file</span><span class="p">,</span> <span class="n">dynamic_obfuscate_mindir</span><span class="p">,</span> \
     <span class="n">split_mindir</span>
@@ -575,7 +577,12 @@
                 <span class="k">continue</span>
             <span class="k">if</span> <span class="n">choice_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">choice_func</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
                 <span class="k">continue</span>
-            <span class="n">param_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span>
+            <span class="c1"># Add suffix for cache_enabled parameter, and then parameter can carry key info.</span>
+            <span class="c1"># Notice that suffix needs be removed when loading into net.</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">cache_enable</span><span class="p">:</span>
+                <span class="n">param_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.__param_key__&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="n">param</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">param_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span>
         <span class="n">param_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="n">append_dict</span> <span class="ow">and</span> <span class="s2">&quot;random_op&quot;</span> <span class="ow">in</span> <span class="n">append_dict</span><span class="p">:</span>
             <span class="n">phase</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">save_obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">save_obj</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">arguments_key</span>
@@ -1127,8 +1134,7 @@
                     <span class="n">choice_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">choice_func</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">tag</span><span class="p">):</span>
                 <span class="k">continue</span>
             <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">ByteSize</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">_load_map_parameter</span><span class="p">(</span><span class="n">checkpoint_list</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">element_id</span><span class="p">,</span>
-                                    <span class="n">map_data_list</span><span class="p">,</span> <span class="n">map_shape_list</span><span class="p">,</span> <span class="n">parameter_dict</span><span class="p">)</span>
+                <span class="n">_load_map_parameter</span><span class="p">(</span><span class="n">checkpoint_list</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">element_id</span><span class="p">,</span> <span class="n">map_data_list</span><span class="p">,</span> <span class="n">map_shape_list</span><span class="p">,</span> <span class="n">parameter_dict</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">tag</span> <span class="ow">in</span> <span class="n">parameter_dict</span><span class="p">:</span>
                     <span class="n">map_data_list</span> <span class="o">=</span> <span class="p">[[],</span> <span class="p">[],</span> <span class="p">[]]</span>
                     <span class="n">map_shape_list</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
@@ -1172,8 +1178,12 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The loaded parameter dict is empty after filter or specify, please check whether &quot;</span>
                          <span class="sa">f</span><span class="s2">&quot;&#39;filter_prefix&#39; or &#39;specify_prefix&#39; are set correctly.&quot;</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">_warm_up_host_cache_enabled</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">):</span>
+        <span class="p">(</span><span class="n">is_worker</span><span class="p">,</span> <span class="n">net_dict</span><span class="p">,</span> <span class="n">warm_up_dict</span><span class="p">)</span> <span class="o">=</span> <span class="n">_warm_up_host_cache</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">,</span> <span class="n">net</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">net</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">parameter_dict</span><span class="p">,</span> <span class="n">strict_load</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">_warm_up_host_cache_enabled</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">):</span>
+        <span class="n">_warm_up_host_cache_post_process</span><span class="p">(</span><span class="n">is_worker</span><span class="p">,</span> <span class="n">net_dict</span><span class="p">,</span> <span class="n">warm_up_dict</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">parameter_dict</span></div>
 
@@ -1209,7 +1219,7 @@
 
 
 <span class="k">def</span> <span class="nf">_check_ckpt_file_name</span><span class="p">(</span><span class="n">ckpt_file_name</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check function load_checkpoint&#39;s cket_file_name.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check function load_checkpoint&#39;s ckpt_file_name.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ckpt_file_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;load_checkpoint&#39;, the argument &#39;ckpt_file_name&#39; must be string, &quot;</span>
                         <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">ckpt_file_name</span><span class="p">)))</span>
@@ -1367,6 +1377,9 @@
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">MapParameter</span><span class="p">):</span>
                 <span class="n">param</span><span class="o">.</span><span class="n">import_data</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">])</span>
                 <span class="k">continue</span>
+            <span class="c1"># Add has attr protection when load server checkpoint file on worker.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">],</span> <span class="s2">&quot;data&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
             <span class="n">new_param</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">])</span>
             <span class="n">_update_param</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">new_param</span><span class="p">,</span> <span class="n">strict_load</span><span class="p">)</span>
             <span class="n">ckpt_not_load</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
@@ -1390,6 +1403,68 @@
         <span class="k">for</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">param_not_load</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not loaded.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">param_name</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">param_not_load</span><span class="p">,</span> <span class="n">ckpt_not_load</span></div>
+
+
+<span class="k">def</span> <span class="nf">_warm_up_host_cache_enabled</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Warm up host cache enabled.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">_cache_enable</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">parameter_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;.__param_key__&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parameter cache is not enabled, but configuration of checkpoint is cache enabled.&quot;</span>
+                             <span class="s2">&quot; Please enable parameter cache and retry.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span> <span class="nf">_warm_up_host_cache</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">,</span> <span class="n">net</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Warm up host cache.&quot;&quot;&quot;</span>
+    <span class="n">ms_role</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;MS_ROLE&quot;</span><span class="p">)</span>
+    <span class="n">is_worker</span> <span class="o">=</span> <span class="n">ms_role</span> <span class="o">==</span> <span class="s2">&quot;MS_WORKER&quot;</span>
+    <span class="n">warm_up_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">is_worker</span><span class="p">:</span>
+        <span class="n">net</span><span class="o">.</span><span class="n">init_parameters_data</span><span class="p">()</span>
+        <span class="n">net_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">net</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">():</span>
+            <span class="n">net_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parameter_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">param_name</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;.__param_key__&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pos</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">net_param_name</span> <span class="o">=</span> <span class="n">param_name</span><span class="p">[:</span><span class="n">pos</span><span class="p">]</span>
+                <span class="n">warm_up_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">net_param_name</span>
+                <span class="n">net_value</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">net_param_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">net_dict</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;net param name : </span><span class="si">%s</span><span class="s2"> is not in net&quot;</span><span class="p">,</span> <span class="n">net_param_name</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">net_value</span> <span class="o">=</span> <span class="n">net_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">net_param_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="n">pos</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="s2">&quot;.__param_key__&quot;</span><span class="p">)</span>
+                <span class="n">param_key</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">param_name</span><span class="p">[</span><span class="n">pos</span><span class="p">:])</span>
+                <span class="n">value_is_map_parameter</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+                <span class="k">if</span> <span class="n">value_is_map_parameter</span> <span class="ow">and</span> <span class="p">(</span><span class="n">net_value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net_value</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)):</span>
+                    <span class="n">key_tensor</span> <span class="o">=</span> <span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">value_tensor</span> <span class="o">=</span> <span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">status_tensor</span> <span class="o">=</span> <span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                    <span class="n">_store_warm_up_ptr_by_tensor_list</span><span class="p">(</span><span class="n">param_key</span><span class="p">,</span> <span class="n">key_tensor</span><span class="p">,</span> <span class="n">value_tensor</span><span class="p">,</span> <span class="n">status_tensor</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net_value</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
+                    <span class="n">_store_warm_up_ptr_by_tensor</span><span class="p">(</span><span class="n">param_key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unknown matches parameter type </span><span class="si">%s</span><span class="s2"> and net_value </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="nb">type</span><span class="p">(</span><span class="n">net_value</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parameter_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">param_name</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;.__param_key__&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pos</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">net_param_name</span> <span class="o">=</span> <span class="n">param_name</span><span class="p">[:</span><span class="n">pos</span><span class="p">]</span>
+                <span class="n">warm_up_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">net_param_name</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">warm_up_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">parameter_dict</span><span class="p">[</span><span class="n">value</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameter_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="n">parameter_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">is_worker</span><span class="p">,</span> <span class="n">parameter_dict</span><span class="p">,</span> <span class="n">warm_up_dict</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_warm_up_host_cache_post_process</span><span class="p">(</span><span class="n">is_worker</span><span class="p">,</span> <span class="n">net_dict</span><span class="p">,</span> <span class="n">warm_up_dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Warm up host cache post process.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">is_worker</span><span class="p">:</span>
+        <span class="n">net_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">warm_up_dict</span><span class="p">)</span>
+    <span class="n">_set_checkpoint_load_status</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_load_dismatch_prefix_params</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">parameter_dict</span><span class="p">,</span> <span class="n">param_not_load</span><span class="p">,</span> <span class="n">strict_load</span><span class="p">):</span>
