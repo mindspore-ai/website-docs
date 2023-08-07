@@ -50,11 +50,15 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../physics_driven/navier_stokes2D.html">二维圆柱绕流</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../physics_driven/poisson_geometry.html">二维&amp;三维Poisson问题</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../physics_driven/taylor_green2D.html">二维Taylor-Green涡流动</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../physics_driven/navier_stokes_inverse.html">Navier-Stokes方程反问题</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">数据驱动</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data_driven/2D_steady.html">AI工业流体仿真模型——东方 御风</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../data_driven/burgers_FNO1D.html">基于FNO求解一维Burgers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../data_driven/navier_stokes_FNO2D.html">基于FNO求解二维Navier-Stokes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data_driven/burgers_KNO1D.html">基于KNO求解一维Burgers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data_driven/navier_stokes_KNO2D.html">基于KNO求解二维Navier-Stokes</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">数据机理融合</span></p>
 <ul>
@@ -108,7 +112,7 @@
            <div itemprop="articleBody">
              
   <h1>mindflow.cell.neural_operators.fno2d 源代码</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright 2022 Huawei Technologies Co., Ltd</span>
+<span></span><span class="c1"># Copyright 2023 Huawei Technologies Co., Ltd</span>
 <span class="c1">#</span>
 <span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
@@ -123,96 +127,13 @@
 <span class="c1"># limitations under the License.</span>
 <span class="c1"># ============================================================================</span>
 
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-
 <span class="kn">import</span> <span class="nn">mindspore.common.dtype</span> <span class="k">as</span> <span class="nn">mstype</span>
-<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ops</span><span class="p">,</span> <span class="n">nn</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ops</span><span class="p">,</span> <span class="n">nn</span><span class="p">,</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
-<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">Zero</span>
 
-<span class="kn">from</span> <span class="nn">.dft</span> <span class="kn">import</span> <span class="n">dft2</span><span class="p">,</span> <span class="n">idft2</span>
+<span class="kn">from</span> <span class="nn">.dft</span> <span class="kn">import</span> <span class="n">SpectralConv2dDft</span>
 <span class="kn">from</span> <span class="nn">...common.math</span> <span class="kn">import</span> <span class="n">get_grid_2d</span>
 <span class="kn">from</span> <span class="nn">...utils.check_func</span> <span class="kn">import</span> <span class="n">check_param_type</span>
-
-
-<span class="k">class</span> <span class="nc">SpectralConv2dDft</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">modes1</span><span class="p">,</span> <span class="n">modes2</span><span class="p">,</span> <span class="n">column_resolution</span><span class="p">,</span> <span class="n">raw_resolution</span><span class="p">,</span>
-                 <span class="n">compute_dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">in_channels</span> <span class="o">=</span> <span class="n">in_channels</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span> <span class="o">=</span> <span class="n">out_channels</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">modes1</span> <span class="o">=</span> <span class="n">modes1</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">modes2</span> <span class="o">=</span> <span class="n">modes2</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">column_resolution</span> <span class="o">=</span> <span class="n">column_resolution</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">raw_resolution</span> <span class="o">=</span> <span class="n">raw_resolution</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">compute_dtype</span> <span class="o">=</span> <span class="n">compute_dtype</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">/</span> <span class="p">(</span><span class="n">in_channels</span> <span class="o">*</span> <span class="n">out_channels</span><span class="p">))</span>
-
-        <span class="n">w_re1</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span>
-                                        <span class="n">out_channels</span><span class="p">,</span> <span class="n">modes1</span><span class="p">,</span> <span class="n">modes2</span><span class="p">),</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="n">compute_dtype</span><span class="p">)</span>
-        <span class="n">w_im1</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span>
-                                        <span class="n">out_channels</span><span class="p">,</span> <span class="n">modes1</span><span class="p">,</span> <span class="n">modes2</span><span class="p">),</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="n">compute_dtype</span><span class="p">)</span>
-        <span class="n">w_re2</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span>
-                                        <span class="n">out_channels</span><span class="p">,</span> <span class="n">modes1</span><span class="p">,</span> <span class="n">modes2</span><span class="p">),</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="n">compute_dtype</span><span class="p">)</span>
-        <span class="n">w_im2</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span>
-                                        <span class="n">out_channels</span><span class="p">,</span> <span class="n">modes1</span><span class="p">,</span> <span class="n">modes2</span><span class="p">),</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="n">compute_dtype</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">w_re1</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">w_re1</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">w_im1</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">w_im1</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">w_re2</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">w_re2</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">w_im2</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">w_im2</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">dft2_cell</span> <span class="o">=</span> <span class="n">dft2</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">column_resolution</span><span class="p">,</span> <span class="n">raw_resolution</span><span class="p">),</span> <span class="n">modes</span><span class="o">=</span><span class="p">(</span><span class="n">modes1</span><span class="p">,</span> <span class="n">modes2</span><span class="p">),</span>
-                              <span class="n">compute_dtype</span><span class="o">=</span><span class="n">compute_dtype</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">idft2_cell</span> <span class="o">=</span> <span class="n">idft2</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">column_resolution</span><span class="p">,</span> <span class="n">raw_resolution</span><span class="p">),</span> <span class="n">modes</span><span class="o">=</span><span class="p">(</span><span class="n">modes1</span><span class="p">,</span> <span class="n">modes2</span><span class="p">),</span>
-                                <span class="n">compute_dtype</span><span class="o">=</span><span class="n">compute_dtype</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mat</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">column_resolution</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">modes1</span><span class="p">,</span> <span class="n">modes2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">compute_dtype</span><span class="p">,</span>
-                          <span class="n">init</span><span class="o">=</span><span class="n">Zero</span><span class="p">())</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">concat</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Concat</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">mul2d</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">weights</span><span class="p">):</span>
-        <span class="n">weight</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">out</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">data</span>
-        <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">):</span>
-        <span class="n">x_re</span> <span class="o">=</span> <span class="n">x</span>
-        <span class="n">x_im</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x_re</span><span class="p">)</span>
-        <span class="n">x_ft_re</span><span class="p">,</span> <span class="n">x_ft_im</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dft2_cell</span><span class="p">((</span><span class="n">x_re</span><span class="p">,</span> <span class="n">x_im</span><span class="p">))</span>
-
-        <span class="n">out_ft_re1</span> <span class="o">=</span> \
-            <span class="bp">self</span><span class="o">.</span><span class="n">mul2d</span><span class="p">(</span><span class="n">x_ft_re</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes1</span><span class="p">,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_re1</span><span class="p">)</span> \
-            <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mul2d</span><span class="p">(</span><span class="n">x_ft_im</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes1</span><span class="p">,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_im1</span><span class="p">)</span>
-        <span class="n">out_ft_im1</span> <span class="o">=</span> \
-            <span class="bp">self</span><span class="o">.</span><span class="n">mul2d</span><span class="p">(</span><span class="n">x_ft_re</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes1</span><span class="p">,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_im1</span><span class="p">)</span> \
-            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mul2d</span><span class="p">(</span><span class="n">x_ft_im</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes1</span><span class="p">,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_re1</span><span class="p">)</span>
-
-        <span class="n">out_ft_re2</span> <span class="o">=</span> \
-            <span class="bp">self</span><span class="o">.</span><span class="n">mul2d</span><span class="p">(</span><span class="n">x_ft_re</span><span class="p">[:,</span> <span class="p">:,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">modes1</span><span class="p">:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_re2</span><span class="p">)</span> \
-            <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mul2d</span><span class="p">(</span><span class="n">x_ft_im</span><span class="p">[:,</span> <span class="p">:,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">modes1</span><span class="p">:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_im2</span><span class="p">)</span>
-        <span class="n">out_ft_im2</span> <span class="o">=</span> \
-            <span class="bp">self</span><span class="o">.</span><span class="n">mul2d</span><span class="p">(</span><span class="n">x_ft_re</span><span class="p">[:,</span> <span class="p">:,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">modes1</span><span class="p">:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_im2</span><span class="p">)</span> \
-            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mul2d</span><span class="p">(</span><span class="n">x_ft_im</span><span class="p">[:,</span> <span class="p">:,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">modes1</span><span class="p">:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">modes2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_re2</span><span class="p">)</span>
-
-        <span class="n">batch_size</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="n">out_re</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">out_ft_re1</span><span class="p">,</span> <span class="n">mat</span><span class="p">,</span> <span class="n">out_ft_re2</span><span class="p">))</span>
-        <span class="n">out_im</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">out_ft_im1</span><span class="p">,</span> <span class="n">mat</span><span class="p">,</span> <span class="n">out_ft_im2</span><span class="p">))</span>
-
-        <span class="n">x</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idft2_cell</span><span class="p">((</span><span class="n">out_re</span><span class="p">,</span> <span class="n">out_im</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">x</span>
 
 
 <span class="k">class</span> <span class="nc">FNOBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
@@ -244,12 +165,13 @@
 <span class="sd">        out_channels (int): The number of channels in the output space.</span>
 <span class="sd">        resolution (int): The spatial resolution of the input.</span>
 <span class="sd">        modes (int): The number of low-frequency components to keep.</span>
-<span class="sd">        channels (int): The number of channels after dimension lifting of the input. Default: 20.</span>
-<span class="sd">        depths (int): The number of FNO layers. Default: 4.</span>
-<span class="sd">        mlp_ratio (int): The number of channels lifting ratio of the decoder layer. Default: 4.</span>
-<span class="sd">        compute_dtype (dtype.Number): The computation type of dense. Default mstype.float16.</span>
-<span class="sd">                Should be mstype.float16 or mstype.float32. mstype.float32 is recommended for the GPU backend,</span>
-<span class="sd">                mstype.float16 is recommended for the Ascend backend.</span>
+<span class="sd">        channels (int): The number of channels after dimension lifting of the input. Default: ``20``.</span>
+<span class="sd">        depths (int): The number of FNO layers. Default: ``4``.</span>
+<span class="sd">        mlp_ratio (int): The number of channels lifting ratio of the decoder layer. Default: ``4``.</span>
+<span class="sd">        compute_dtype (dtype.Number): The computation type of dense.</span>
+<span class="sd">            Default: ``mindspore.common.dtype.float32``.</span>
+<span class="sd">            Should be ``mindspore.common.dtype.float32`` or ``mindspore.common.dtype.float32``.</span>
+<span class="sd">            float32 is recommended for the GPU backend, float16 is recommended for the Ascend backend.</span>
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **x** (Tensor) - Tensor of shape :math:`(batch\_size, resolution, resolution, in\_channels)`.</span>

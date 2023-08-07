@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Navier-Stokes方程反问题 &mdash; MindSpore master 文档</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/translations.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="AI工业流体仿真模型——东方 御风" href="../data_driven/2D_steady.html" />
+    <link rel="prev" title="二维Taylor-Green涡流动" href="taylor_green2D.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">安装部署</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow_install.html">安装MindSpore Flow</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">特性</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../features/solve_pinns_by_mindflow.html">基于MindSpore Flow求解PINNs问题</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">物理驱动</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="burgers1D.html">一维Burgers问题</a></li>
+<li class="toctree-l1"><a class="reference internal" href="darcy2D.html">二维定常达西问题</a></li>
+<li class="toctree-l1"><a class="reference internal" href="navier_stokes2D.html">二维圆柱绕流</a></li>
+<li class="toctree-l1"><a class="reference internal" href="poisson_geometry.html">二维&amp;三维Poisson问题</a></li>
+<li class="toctree-l1"><a class="reference internal" href="taylor_green2D.html">二维Taylor-Green涡流动</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Navier-Stokes方程反问题</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#问题描述">问题描述</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#技术路径">技术路径</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#创建数据集">创建数据集</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#构建模型">构建模型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#优化器">优化器</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#invnavierstokes">InvNavierStokes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#模型训练">模型训练</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#模型推理及可视化">模型推理及可视化</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">数据驱动</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/2D_steady.html">AI工业流体仿真模型——东方 御风</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/burgers_FNO1D.html">基于FNO求解一维Burgers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/navier_stokes_FNO2D.html">基于FNO求解二维Navier-Stokes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/burgers_KNO1D.html">基于KNO求解一维Burgers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/navier_stokes_KNO2D.html">基于KNO求解二维Navier-Stokes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">数据机理融合</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../data_mechanism_fusion/pde_net.html">PDE-Net求解对流扩散方程</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">可微分CFD求解器</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cfd_solver/lax_tube.html">一维Lax激波管</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd_solver/sod_tube.html">一维Sod激波管</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd_solver/couette.html">二维库埃特流</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd_solver/riemann2d.html">二维黎曼问题</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.cell.html">mindflow.cell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.cfd.html">mindflow.cfd</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.common.html">mindflow.common</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.data.html">mindflow.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.geometry.html">mindflow.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.loss.html">mindflow.loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.operators.html">mindflow.operators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.pde.html">mindflow.pde</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../RELEASE.html">Release Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Navier-Stokes方程反问题</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/physics_driven/navier_stokes_inverse.ipynb.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars and line breaks on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+    white-space: pre;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt .copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+.jp-RenderedHTMLCommon table,
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.jp-RenderedHTMLCommon thead,
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+.jp-RenderedHTMLCommon tr,
+.jp-RenderedHTMLCommon th,
+.jp-RenderedHTMLCommon td,
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+.jp-RenderedHTMLCommon th,
+div.rendered_html th {
+  font-weight: bold;
+}
+.jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+.jp-RenderedHTMLCommon tbody tr:hover,
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="navier-stokes方程反问题">
+<h1>Navier-Stokes方程反问题<a class="headerlink" href="#navier-stokes方程反问题" title="永久链接至标题"></a></h1>
+<p><a class="reference external" href="https://obs.dualstack.cn-north-4.myhuaweicloud.com/mindspore-website/notebook/r2.1/mindflow/zh_cn/physics_driven/mindspore_navier_stokes_inverse.ipynb"><img alt="下载Notebook" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_notebook.png" /></a> <a class="reference external" href="https://obs.dualstack.cn-north-4.myhuaweicloud.com/mindspore-website/notebook/r2.1/mindflow/zh_cn/physics_driven/mindspore_navier_stokes_inverse.py"><img alt="下载样例代码" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_download_code.png" /></a> <a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.1/docs/mindflow/docs/source_zh_cn/physics_driven/navier_stokes_inverse.ipynb"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.png" /></a></p>
+<p>本案例要求<strong>MindSpore版本 &gt;= 2.0.0</strong>调用如下接口: <em>mindspore.jit，mindspore.jit_class，mindspore.jacrev</em>。</p>
+<section id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题"></a></h2>
+<p>Navier-Stokes方程是一组描述流体力学中流体速度和压力变化的偏微分方程。Navier-Stokes的反问题是指，在已知某些流体运动特征（如流量、速度等）的条件下，求解出能够产生这些运动特征的流体性质（如黏度、密度等）和流体边界条件（如壁面摩擦力等）的问题。与正问题（即已知流体性质和边界条件，求解流体的运动特征）不同，反问题的解决需要通过数值优化和逆推算法等方法进行求解。</p>
+<p>Navier-Stokes的反问题在工程和科学计算中具有广泛的应用，例如在航空、能源、地质、生物等领域中，可以用于优化流体设计、预测流体运动、诊断流体问题等。尽管Navier-Stokes的反问题非常具有挑战性，但是近年来随着计算机技术和数值方法的发展，已经取得了一定的进展。例如，可以通过使用高性能计算和基于机器学习的逆推算法等技术，加速反问题的求解过程，并提高求解精度。</p>
+</section>
+<section id="问题描述">
+<h2>问题描述<a class="headerlink" href="#问题描述" title="永久链接至标题"></a></h2>
+<p>与Navier-Stokes方程不同的是，在Navier-Stokes方程反问题中，存在两个未知的参数。Navier-Stokes方程的反问题形式如下：</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} = 0\]</div>
+<div class="math notranslate nohighlight">
+\[\frac{\partial u} {\partial t} + \theta_1 (u \frac{\partial u}{\partial x} + v \frac{\partial u}{\partial y}) = - \frac{\partial p}{\partial x} + \theta_2 (\frac{\partial^2u}{\partial x^2} + \frac{\partial^2u}{\partial y^2})\]</div>
+<div class="math notranslate nohighlight">
+\[\frac{\partial v} {\partial t} + \theta_1 (u \frac{\partial v}{\partial x} + v \frac{\partial v}{\partial y}) = - \frac{\partial p}{\partial y} + \theta_2 (\frac{\partial^2v}{\partial x^2} + \frac{\partial^2v}{\partial y^2})\]</div>
+<p>其中 <span class="math notranslate nohighlight">\(\theta 1\)</span> 和 <span class="math notranslate nohighlight">\(\theta 2\)</span> 是未知的参数。</p>
+<p>本案例利用PINNs方法学习位置和时间到相应流场物理量的映射，求解两个参数。</p>
+</section>
+<section id="技术路径">
+<h2>技术路径<a class="headerlink" href="#技术路径" title="永久链接至标题"></a></h2>
+<p>MindSpore Flow求解该问题的具体流程如下：</p>
+<ol class="arabic simple">
+<li><p>创建数据集。</p></li>
+<li><p>构建模型。</p></li>
+<li><p>优化器。</p></li>
+<li><p>InvNavierStokes。</p></li>
+<li><p>模型训练。</p></li>
+<li><p>模型推理及可视化</p></li>
+</ol>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span><span class="p">,</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span><span class="p">,</span> <span class="n">jit</span><span class="p">,</span> <span class="n">set_seed</span><span class="p">,</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">load_param_into_net</span>
+</pre></div>
+</div>
+</div>
+<p>下述 <code class="docutils literal notranslate"><span class="pre">src</span></code> 包可以在<a class="reference external" href="https://gitee.com/mindspore/mindscience/tree/r0.3/MindFlow/applications/physics_driven/navier_stokes_inverse/src">applications/physics_driven/inverse_navier_stokes/src</a> 下载。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindflow.cell</span> <span class="kn">import</span> <span class="n">MultiScaleFCSequential</span>
+<span class="kn">from</span> <span class="nn">mindflow.utils</span> <span class="kn">import</span> <span class="n">load_yaml_config</span>
+<span class="kn">from</span> <span class="nn">mindflow.pde</span> <span class="kn">import</span> <span class="n">sympy_to_mindspore</span><span class="p">,</span> <span class="n">PDEWithLoss</span>
+<span class="kn">from</span> <span class="nn">mindflow.loss</span> <span class="kn">import</span> <span class="n">get_loss_metric</span>
+
+<span class="kn">from</span> <span class="nn">src</span> <span class="kn">import</span> <span class="n">create_training_dataset</span><span class="p">,</span> <span class="n">create_test_dataset</span><span class="p">,</span> <span class="n">calculate_l2_error</span>
+
+<span class="n">set_seed</span><span class="p">(</span><span class="mi">123456</span><span class="p">)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">123456</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>下述<code class="docutils literal notranslate"><span class="pre">inverse_navier_stokes.yaml</span></code>文件可以在<a class="reference external" href="https://gitee.com/mindspore/mindscience/blob/r0.3/MindFlow/applications/physics_driven/navier_stokes_inverse/navier_stokes_inverse.yaml">applications/physics_driven/inverse_navier_stokes/navier_stokes_inverse.yaml</a>下载。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># set context for training: using graph mode for high performance training with GPU acceleration</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">load_yaml_config</span><span class="p">(</span><span class="s1">&#39;inverse_navier_stokes.yaml&#39;</span><span class="p">)</span>
+<span class="n">context</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;GPU&quot;</span><span class="p">,</span> <span class="n">device_id</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">use_ascend</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="n">attr_key</span><span class="o">=</span><span class="s1">&#39;device_target&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Ascend&quot;</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="创建数据集">
+<h2>创建数据集<a class="headerlink" href="#创建数据集" title="永久链接至标题"></a></h2>
+<p>在本案例中，训练数据和测试数据均从<a class="reference external" href="https://github.com/maziarraissi/PINNs/blob/master/main/Data/cylinder_nektar_wake.mat">原数据</a>中取样得到。</p>
+<p>下载训练与测试数据集：<a class="reference external" href="https://download.mindspore.cn/mindscience/mindflow/dataset/applications/physics_driven/inverse_navier_stokes/dataset">physics_driven/inverse_navier_stokes/dataset</a>。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># create dataset</span>
+<span class="n">inv_ns_train_dataset</span> <span class="o">=</span> <span class="n">create_training_dataset</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<span class="n">train_dataset</span> <span class="o">=</span> <span class="n">inv_ns_train_dataset</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;train_batch_size&quot;</span><span class="p">],</span>
+                                                    <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                    <span class="n">prebatched_data</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                    <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="c1"># create  test dataset</span>
+<span class="n">inputs</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">create_test_dataset</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+./inverse_navier_stokes/dataset
+get dataset path: ./inverse_navier_stokes/dataset
+check eval dataset length: (40, 100, 50, 3)
+</pre></div></div>
+</div>
+</section>
+<section id="构建模型">
+<h2>构建模型<a class="headerlink" href="#构建模型" title="永久链接至标题"></a></h2>
+<p>本示例使用一个简单的全连接网络，深度为6层，激活函数是<code class="docutils literal notranslate"><span class="pre">tanh</span></code>函数，每层有20个神经元。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">coord_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;geometry&quot;</span><span class="p">][</span><span class="s2">&quot;coord_min&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;geometry&quot;</span><span class="p">][</span><span class="s2">&quot;time_min&quot;</span><span class="p">]])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">coord_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;geometry&quot;</span><span class="p">][</span><span class="s2">&quot;coord_max&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;geometry&quot;</span><span class="p">][</span><span class="s2">&quot;time_max&quot;</span><span class="p">]])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">input_center</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">coord_max</span> <span class="o">+</span> <span class="n">coord_min</span><span class="p">))</span>
+<span class="n">input_scale</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">coord_max</span> <span class="o">-</span> <span class="n">coord_min</span><span class="p">))</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">MultiScaleFCSequential</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;in_channels&quot;</span><span class="p">],</span>
+                               <span class="n">out_channels</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;out_channels&quot;</span><span class="p">],</span>
+                               <span class="n">layers</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;layers&quot;</span><span class="p">],</span>
+                               <span class="n">neurons</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;neurons&quot;</span><span class="p">],</span>
+                               <span class="n">residual</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;residual&quot;</span><span class="p">],</span>
+                               <span class="n">act</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">,</span>
+                               <span class="n">num_scales</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                               <span class="n">input_scale</span><span class="o">=</span><span class="n">input_scale</span><span class="p">,</span>
+                               <span class="n">input_center</span><span class="o">=</span><span class="n">input_center</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="优化器">
+<h2>优化器<a class="headerlink" href="#优化器" title="永久链接至标题"></a></h2>
+<p>在构建优化器时，两个未知参数与模型的参数一起放入优化器中训练。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;load_ckpt&quot;</span><span class="p">]:</span>
+    <span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;load_ckpt_path&quot;</span><span class="p">])</span>
+    <span class="n">load_param_into_net</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+
+<span class="n">theta</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;theta&quot;</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">params</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">()</span>
+<span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;optimizer&quot;</span><span class="p">][</span><span class="s2">&quot;initial_lr&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="invnavierstokes">
+<h2>InvNavierStokes<a class="headerlink" href="#invnavierstokes" title="永久链接至标题"></a></h2>
+<p>下述<code class="docutils literal notranslate"><span class="pre">inv_Navier_Stokes</span></code> 方程定义了这个反问题,包含两个部分：控制方程和训连数据。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sympy</span> <span class="kn">import</span> <span class="n">diff</span><span class="p">,</span> <span class="n">Function</span><span class="p">,</span> <span class="n">symbols</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">numpy</span> <span class="k">as</span> <span class="n">mnp</span>
+
+<span class="k">class</span> <span class="nc">InvNavierStokes</span><span class="p">(</span><span class="n">PDEWithLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    2D inverse NavierStokes equation problem based on PDEWithLoss.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model (mindspore.nn.Cell): network for training.</span>
+<span class="sd">        params(mindspore.Tensor): parameter needs training</span>
+<span class="sd">        loss_fn (Union[str, Cell]): Define the loss function. Default: mse.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend`` ``GPU``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;mse&quot;</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">params_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">theta1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">theta2</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s1">&#39;theta1 theta2&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s1">&#39;x y t&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="s1">&#39;p&#39;</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_vars</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out_vars</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">theta1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">theta2</span><span class="p">]</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">InvNavierStokes</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params_val</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_nodes</span> <span class="o">=</span> <span class="n">sympy_to_mindspore</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_loss</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_vars</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">get_loss_metric</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">loss_fn</span>
+
+    <span class="k">def</span> <span class="nf">pde</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define governing equations based on sympy, abstract method.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict, user defined sympy symbolic equations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">momentum_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)</span> <span class="o">+</span> \
+                     <span class="bp">self</span><span class="o">.</span><span class="n">theta1</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">))</span> <span class="o">+</span> \
+                     <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> \
+                     <span class="bp">self</span><span class="o">.</span><span class="n">theta2</span> <span class="o">*</span> <span class="p">(</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="mi">2</span><span class="p">)))</span>
+        <span class="n">momentum_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)</span> <span class="o">+</span> \
+                     <span class="bp">self</span><span class="o">.</span><span class="n">theta1</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">))</span> <span class="o">+</span> \
+                     <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="o">-</span> \
+                     <span class="bp">self</span><span class="o">.</span><span class="n">theta2</span> <span class="o">*</span> <span class="p">(</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="mi">2</span><span class="p">)))</span>
+        <span class="n">continuty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+
+        <span class="n">equations</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;momentum_x&quot;</span><span class="p">:</span> <span class="n">momentum_x</span><span class="p">,</span> <span class="s2">&quot;momentum_y&quot;</span><span class="p">:</span> <span class="n">momentum_y</span><span class="p">,</span> <span class="s2">&quot;continuty&quot;</span><span class="p">:</span> <span class="n">continuty</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">equations</span>
+
+    <span class="k">def</span> <span class="nf">data_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define governing equations based on sympy, abstract method.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict, user defined sympy symbolic equations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">velocity_u</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">u</span>
+        <span class="n">velocity_v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span>
+        <span class="n">equations</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;velocity_u&quot;</span><span class="p">:</span> <span class="n">velocity_u</span><span class="p">,</span> <span class="s2">&quot;velocity_v&quot;</span><span class="p">:</span> <span class="n">velocity_v</span><span class="p">,</span> <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="n">p</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">equations</span>
+
+    <span class="k">def</span> <span class="nf">get_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pde_data</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        loss contains 2 parts,pde parts and data loss.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pde_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_node</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pde_nodes</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="n">pde_data</span><span class="p">)</span>
+        <span class="n">pde_residual</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Concat</span><span class="p">(</span><span class="mi">1</span><span class="p">)(</span><span class="n">pde_res</span><span class="p">)</span>
+        <span class="n">pde_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">pde_residual</span><span class="p">,</span> <span class="n">mnp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pde_residual</span><span class="p">))</span>
+
+        <span class="n">data_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_node</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_nodes</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">data_residual</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Concat</span><span class="p">(</span><span class="mi">1</span><span class="p">)(</span><span class="n">data_res</span><span class="p">)</span>
+        <span class="n">train_data_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">data_residual</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">pde_loss</span> <span class="o">+</span> <span class="n">train_data_loss</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="模型训练">
+<h2>模型训练<a class="headerlink" href="#模型训练" title="永久链接至标题"></a></h2>
+<p>使用<strong>MindSpore &gt;= 2.0.0</strong>的版本，可以使用函数式编程范式训练神经网络。</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">train</span><span class="p">():</span>
+    <span class="n">problem</span> <span class="o">=</span> <span class="n">InvNavierStokes</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_ascend</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">mindspore.amp</span> <span class="kn">import</span> <span class="n">DynamicLossScaler</span><span class="p">,</span> <span class="n">auto_mixed_precision</span><span class="p">,</span> <span class="n">all_finite</span>
+        <span class="n">loss_scaler</span> <span class="o">=</span> <span class="n">DynamicLossScaler</span><span class="p">(</span><span class="mi">1024</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="n">auto_mixed_precision</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;O3&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">pde_data</span><span class="p">,</span> <span class="n">train_points</span><span class="p">,</span> <span class="n">train_label</span><span class="p">):</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">get_loss</span><span class="p">(</span><span class="n">pde_data</span><span class="p">,</span> <span class="n">train_points</span><span class="p">,</span> <span class="n">train_label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">use_ascend</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_scaler</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">loss</span>
+
+    <span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="nd">@jit</span>
+    <span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">pde_data</span><span class="p">,</span> <span class="n">train_points</span><span class="p">,</span> <span class="n">train_label</span><span class="p">):</span>
+        <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">pde_data</span><span class="p">,</span> <span class="n">train_points</span><span class="p">,</span> <span class="n">train_label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">use_ascend</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_scaler</span><span class="o">.</span><span class="n">unscale</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">all_finite</span><span class="p">(</span><span class="n">grads</span><span class="p">):</span>
+                <span class="n">grads</span> <span class="o">=</span> <span class="n">loss_scaler</span><span class="o">.</span><span class="n">unscale</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+                <span class="n">loss</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">loss</span>
+
+    <span class="n">epochs</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;train_epochs&quot;</span><span class="p">]</span>
+    <span class="n">steps_per_epochs</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+    <span class="n">sink_process</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">data_sink</span><span class="p">(</span><span class="n">train_step</span><span class="p">,</span> <span class="n">train_dataset</span><span class="p">,</span> <span class="n">sink_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">param1_hist</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">param2_hist</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">epochs</span><span class="p">):</span>
+        <span class="c1"># train</span>
+        <span class="n">time_beg</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">steps_per_epochs</span><span class="p">):</span>
+            <span class="n">step_train_loss</span> <span class="o">=</span> <span class="n">sink_process</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;epoch: </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s2"> train loss: </span><span class="si">{</span><span class="n">step_train_loss</span><span class="si">}</span><span class="s2"> epoch time: </span><span class="si">{</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">time_beg</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000</span><span class="w"> </span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> ms&quot;</span><span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;eval_interval_epochs&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># if epoch % 10 ==0:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Params are</span><span class="si">{</span><span class="n">params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">param1_hist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">param2_hist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">calculate_l2_error</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">train</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;End-to-End total time: </span><span class="si">{}</span><span class="s2"> s&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+momentum_x: theta1*u(x, y, t)*Derivative(u(x, y, t), x) + theta1*v(x, y, t)*Derivative(u(x, y, t), y) - theta2*Derivative(u(x, y, t), (x, 2)) - theta2*Derivative(u(x, y, t), (y, 2)) + Derivative(p(x, y, t), x) + Derivative(u(x, y, t), t)
+    Item numbers of current derivative formula nodes: 6
+momentum_y: theta1*u(x, y, t)*Derivative(v(x, y, t), x) + theta1*v(x, y, t)*Derivative(v(x, y, t), y) - theta2*Derivative(v(x, y, t), (x, 2)) - theta2*Derivative(v(x, y, t), (y, 2)) + Derivative(p(x, y, t), y) + Derivative(v(x, y, t), t)
+    Item numbers of current derivative formula nodes: 6
+continuty: Derivative(u(x, y, t), x) + Derivative(v(x, y, t), y)
+    Item numbers of current derivative formula nodes: 2
+velocity_u: u(x, y, t)
+    Item numbers of current derivative formula nodes: 1
+velocity_v: v(x, y, t)
+    Item numbers of current derivative formula nodes: 1
+p: p(x, y, t)
+    Item numbers of current derivative formula nodes: 1
+epoch: 100 train loss: 0.04028289 epoch time: 2229.404 ms
+Params are[-0.09575531  0.00106778]
+    predict total time: 652.7423858642578 ms
+    l2_error, U:  0.17912744544874443 , V:  1.0003739133641472 , P:  0.7065071079210473 , Total:  0.3464922229721188
+==================================================================================================
+epoch: 200 train loss: 0.036820486 epoch time: 1989.347 ms
+Params are[-0.09443577  0.00024772]
+    predict total time: 205.59978485107422 ms
+    l2_error, U:  0.17490993243690725 , V:  1.0000642916277709 , P:  0.7122513574462407 , Total:  0.3447007384838206
+==================================================================================================
+epoch: 300 train loss: 0.038683612 epoch time: 2111.895 ms
+Params are[-0.08953815  0.00040177]
+    predict total time: 222.2282886505127 ms
+    l2_error, U:  0.17713679346188396 , V:  1.000105316860139 , P:  0.718292536660169 , Total:  0.34596943008999737
+==================================================================================================
+Params are[-0.08414971  0.00108538]
+    predict total time: 183.55488777160645 ms
+    l2_error, U:  0.17421055947839162 , V:  1.0021844256262489 , P:  0.7172107774589106 , Total:  0.34508045682750343
+... ...
+epoch: 9700 train loss: 0.00012139356 epoch time: 1816.661 ms
+Params are[0.9982705  0.01092069]
+    predict total time: 126.16825103759766 ms
+    l2_error, U:  0.010509542864484654 , V:  0.023635759087951035 , P:  0.029506766787788633 , Total:  0.012708719069239902
+==================================================================================================
+epoch: 9800 train loss: 0.00013328926 epoch time: 1790.342 ms
+Params are[0.9984688  0.01081933]
+    predict total time: 121.35672569274902 ms
+    l2_error, U:  0.009423471629415427 , V:  0.034303037318821124 , P:  0.03254805487768195 , Total:  0.01400324770722587
+==================================================================================================
+epoch: 9900 train loss: 0.00013010873 epoch time: 1805.052 ms
+Params are[0.9978893  0.01079915]
+    predict total time: 125.68926811218262 ms
+     l2_error, U:  0.009608467956285763 , V:  0.02630037021521753 , P:  0.029346654211944684 , Total:  0.012485673337358347
+==================================================================================================
+epoch: 10000 train loss: 0.00010107973 epoch time: 1809.868 ms
+Params are[0.9984444  0.01072927]
+    predict total time: 132.6577663421631 ms
+    l2_error, U:  0.008157992439025805 , V:  0.022894215240181922 , P:  0.028113136535916225 , Total:  0.010848400336992805
+==================================================================================================
+End-to-End total time: 27197.875846385956 s
+</pre></div></div>
+</div>
+</section>
+<section id="模型推理及可视化">
+<h2>模型推理及可视化<a class="headerlink" href="#模型推理及可视化" title="永久链接至标题"></a></h2>
+<p>训练后可对流场内所有数据点进行推理，并可视化相关结果。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">src</span> <span class="kn">import</span> <span class="n">visual</span>
+
+<span class="c1"># visualization</span>
+<span class="n">visual</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;train_epochs&quot;</span><span class="p">],</span> <span class="n">input_data</span><span class="o">=</span><span class="n">inputs</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/physics_driven_navier_stokes_inverse_21_0.png" src="../_images/physics_driven_navier_stokes_inverse_21_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">src</span> <span class="kn">import</span> <span class="n">plot_params</span>
+
+<span class="n">plot_params</span><span class="p">(</span><span class="n">param1_hist</span><span class="p">,</span> <span class="n">param2_hist</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Text(0, 0.5, &#39;value&#39;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/physics_driven_navier_stokes_inverse_22_1.png" src="../_images/physics_driven_navier_stokes_inverse_22_1.png" />
+</div>
+</div>
+<p>在本案例中，<span class="math notranslate nohighlight">\(\theta_1\)</span> 和 <span class="math notranslate nohighlight">\(\theta_2\)</span> 的标准值分别为1和0.01。</p>
+<p>Correct PDE:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(u_t + (u u_x + v u_x) = - p_x + 0.01(u_{xx} + u_{yy})\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(v_t + (u v_x + v v_x) = - p_y + 0.01(v_{xx} + v_{yy})\)</span></p></li>
+</ul>
+<p>Identified PDE:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(u_t + 0.9984444(u u_x + v u_x) = - p_x + 0.01072927(u_{xx} + u_{yy})\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(v_t + 0.9984444(u v_x + v v_x) = - p_y + 0.01072927(v_{xx} + v_{yy})\)</span></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="taylor_green2D.html" class="btn btn-neutral float-left" title="二维Taylor-Green涡流动" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="../data_driven/2D_steady.html" class="btn btn-neutral float-right" title="AI工业流体仿真模型——东方 御风" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 2022, MindSpore.</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+        <script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>
