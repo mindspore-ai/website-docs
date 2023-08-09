@@ -167,7 +167,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.communication._comm_helper</span> <span class="kn">import</span> <span class="n">Backend</span><span class="p">,</span> <span class="n">_get_rank_helper</span><span class="p">,</span> <span class="n">_get_size_helper</span><span class="p">,</span> \
     <span class="n">_get_world_rank_from_group_rank_helper</span><span class="p">,</span> <span class="n">_get_group_rank_from_world_rank_helper</span><span class="p">,</span> \
     <span class="n">_create_group_helper</span><span class="p">,</span> <span class="n">_destroy_group_helper</span><span class="p">,</span> <span class="n">HCCL_WORLD_COMM_GROUP</span><span class="p">,</span> <span class="n">NCCL_WORLD_COMM_GROUP</span><span class="p">,</span> \
-    <span class="n">MCCL_WORLD_COMM_GROUP</span><span class="p">,</span> <span class="n">_get_local_rank_helper</span><span class="p">,</span> <span class="n">_get_local_size_helper</span><span class="p">,</span> <span class="n">GlobalComm</span><span class="p">,</span> \
+    <span class="n">MCCL_WORLD_COMM_GROUP</span><span class="p">,</span> <span class="n">DEVICE_TO_BACKEND</span><span class="p">,</span> <span class="n">_get_local_rank_helper</span><span class="p">,</span> <span class="n">_get_local_size_helper</span><span class="p">,</span> <span class="n">GlobalComm</span><span class="p">,</span> \
     <span class="n">_check_mpi_envs</span><span class="p">,</span> <span class="n">_set_elegant_exit_handle</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">init_hccl</span><span class="p">,</span> <span class="n">finalize_hccl</span><span class="p">,</span> <span class="n">init_cluster</span><span class="p">,</span> <span class="n">MSContext</span><span class="p">,</span> <span class="n">ms_ctx_param</span>
 
@@ -249,9 +249,10 @@
 <span class="sd">        - The full name of MCCL is MindSpore Collective Communication Library.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        backend_name (str): Backend, using HCCL/NCCL/MCCL. HCCL should be used for Ascend hardware platforms and</span>
-<span class="sd">                            NCCL for GPU hardware platforms. If not set, inference is automatically made based on the</span>
-<span class="sd">                            hardware platform type (device_target). Default: ``None`` .</span>
+<span class="sd">        backend_name (str): Backend, using HCCL/NCCL/MCCL. HCCL should be used for Ascend hardware platforms,</span>
+<span class="sd">                            NCCL for GPU hardware platforms and MCCL for CPU hardware platforms.</span>
+<span class="sd">                            If not set, inference is automatically made based on the hardware</span>
+<span class="sd">                            platform type (device_target). Default: ``None`` .</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If `backend_name` is not a string.</span>
@@ -305,8 +306,8 @@
                 <span class="n">_set_elegant_exit_handle</span><span class="p">()</span>
                 <span class="k">return</span>
         <span class="k">if</span> <span class="n">device_target</span> <span class="o">!=</span> <span class="s2">&quot;Ascend&quot;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;For &#39;init&#39;, the argument  &#39;backend_name&#39; should be &#39;Ascend&#39; to init hccl, &quot;</span>
-                               <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">device_target</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;For &#39;init&#39;, the argument &#39;backend_name&#39; should be &#39;</span><span class="si">{}</span><span class="s2">&#39; to init &#39;</span><span class="si">{}</span><span class="s2">&#39;, &quot;</span>
+                               <span class="s2">&quot;but got &#39;hccl&#39;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">DEVICE_TO_BACKEND</span><span class="p">[</span><span class="n">device_target</span><span class="p">],</span> <span class="n">device_target</span><span class="p">))</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">host_init</span><span class="p">:</span>
             <span class="n">_check_parallel_envs</span><span class="p">()</span>
         <span class="n">GlobalComm</span><span class="o">.</span><span class="n">BACKEND</span> <span class="o">=</span> <span class="n">Backend</span><span class="p">(</span><span class="s2">&quot;hccl&quot;</span><span class="p">)</span>
@@ -314,8 +315,8 @@
         <span class="n">GlobalComm</span><span class="o">.</span><span class="n">WORLD_COMM_GROUP</span> <span class="o">=</span> <span class="n">HCCL_WORLD_COMM_GROUP</span>
     <span class="k">elif</span> <span class="n">backend_name</span> <span class="o">==</span> <span class="s2">&quot;nccl&quot;</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">device_target</span> <span class="o">!=</span> <span class="s2">&quot;GPU&quot;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;For &#39;init&#39;, the argument &#39;backend_name&#39; should be &#39;GPU&#39; to init nccl, &quot;</span>
-                               <span class="s2">&quot;but got &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">device_target</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;For &#39;init&#39;, the argument &#39;backend_name&#39; should be &#39;</span><span class="si">{}</span><span class="s2">&#39; to init &#39;</span><span class="si">{}</span><span class="s2">&#39;, &quot;</span>
+                               <span class="s2">&quot;but got &#39;nccl&#39;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">DEVICE_TO_BACKEND</span><span class="p">[</span><span class="n">device_target</span><span class="p">],</span> <span class="n">device_target</span><span class="p">))</span>
         <span class="n">init_cluster</span><span class="p">()</span>
         <span class="n">GlobalComm</span><span class="o">.</span><span class="n">BACKEND</span> <span class="o">=</span> <span class="n">Backend</span><span class="p">(</span><span class="s2">&quot;nccl&quot;</span><span class="p">)</span>
         <span class="n">GlobalComm</span><span class="o">.</span><span class="n">WORLD_COMM_GROUP</span> <span class="o">=</span> <span class="n">NCCL_WORLD_COMM_GROUP</span>
@@ -324,8 +325,8 @@
         <span class="n">GlobalComm</span><span class="o">.</span><span class="n">BACKEND</span> <span class="o">=</span> <span class="n">Backend</span><span class="p">(</span><span class="s2">&quot;mccl&quot;</span><span class="p">)</span>
         <span class="n">GlobalComm</span><span class="o">.</span><span class="n">WORLD_COMM_GROUP</span> <span class="o">=</span> <span class="n">MCCL_WORLD_COMM_GROUP</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;init&#39;, the argument &#39;backend_name&#39; must be one of &#39;hccl&#39;, &#39;nccl&#39; and &#39;mccl&#39;, &quot;</span>
-                        <span class="s2">&quot;but got &#39;backend_name&#39; : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backend_name</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;For &#39;init&#39;, the argument &#39;backend_name&#39; must be one of &#39;hccl&#39;, &#39;nccl&#39; and &#39;mccl&#39;, &quot;</span>
+                           <span class="s2">&quot;but got &#39;backend_name&#39; : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backend_name</span><span class="p">))</span>
 
     <span class="n">GlobalComm</span><span class="o">.</span><span class="n">INITED</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">_set_elegant_exit_handle</span><span class="p">()</span></div>
