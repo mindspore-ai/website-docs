@@ -196,6 +196,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.common._utils</span> <span class="kn">import</span> <span class="n">is_shape_unknown</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.mutable</span> <span class="kn">import</span> <span class="n">mutable</span>
 <span class="kn">from</span> <span class="nn">mindspore.common._register_for_adapter</span> <span class="kn">import</span> <span class="n">ms_adapter_registry</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.auto_dynamic_shape</span> <span class="kn">import</span> <span class="n">_AutoIdentifyDynamicShape</span>
 
 <span class="c1"># Store ms_function class compiled pipeline cache.</span>
 <span class="n">ms_compile_cache</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
@@ -432,195 +433,6 @@
     <span class="k">return</span> <span class="n">new_args</span>
 
 
-<span class="k">class</span> <span class="nc">_AutoIdentifyDynamicShape</span><span class="p">:</span>
-
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Represents a function auto identify dynamic shape.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">all_shape_cache</span> <span class="o">=</span> <span class="p">{}</span>
-
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">get_input_tensor_shape</span><span class="p">(</span><span class="n">args_list</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;get input tensor shape and type save as tensor, and make it value to 1&quot;&quot;&quot;</span>
-        <span class="n">tensor_list</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args_list</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
-                <span class="n">tmp_shape</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">shape</span>
-                <span class="n">tmp_type</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">dtype</span>
-                <span class="n">tensor_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PythonTensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">tmp_shape</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tmp_type</span><span class="p">))</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">tensor_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tensor_list</span><span class="p">)</span>
-
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">check_input_args</span><span class="p">(</span><span class="n">args_list</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;check input args&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">args_list</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
-
-        <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">args_list</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">elem</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">return</span> <span class="kc">False</span>
-
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">):</span>
-                <span class="k">return</span> <span class="kc">False</span>
-
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
-                <span class="k">return</span> <span class="kc">False</span>
-
-            <span class="k">if</span> <span class="n">elem</span><span class="o">.</span><span class="n">const_arg</span><span class="p">:</span>
-                <span class="k">return</span> <span class="kc">False</span>
-
-        <span class="k">return</span> <span class="kc">True</span>
-
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_is_tensor_equal</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">,</span> <span class="n">cache_tensor</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;check two tensor is equal&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">input_tensor</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">cache_tensor</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
-
-        <span class="k">if</span> <span class="n">input_tensor</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">cache_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
-
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">cache_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
-            <span class="k">return</span> <span class="kc">False</span>
-
-        <span class="k">return</span> <span class="kc">True</span>
-
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_is_all_input_shape_generalize</span><span class="p">(</span><span class="n">input_shape_tuple</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;check all input shapes need generalize&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">input_shape_tuple</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_shape_unknown</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
-                <span class="k">return</span> <span class="kc">False</span>
-        <span class="k">return</span> <span class="kc">True</span>
-
-
-    <span class="k">def</span> <span class="nf">auto_dynamic_generate_compile_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args_list</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;generate compile args in auto dynamic shape&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_enable_auto_identify_shape</span><span class="p">(</span><span class="n">args_list</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">args_list</span>
-
-        <span class="n">args_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">args_list</span><span class="p">)</span>
-        <span class="n">tensor_tuple</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_input_tensor_shape</span><span class="p">(</span><span class="n">args_list</span><span class="p">)</span>
-        <span class="n">shape_cache_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_shape_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">args_len</span><span class="p">)</span>
-        <span class="c1"># step1: init real_shape_cache, part_generalize_shape_cache, all_generalize_shape_cache.</span>
-        <span class="k">if</span> <span class="n">shape_cache_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">shape_cache_list</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">real_shape_cache</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-            <span class="n">real_shape_cache</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">tensor_tuple</span><span class="p">)</span>
-            <span class="n">shape_cache_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">real_shape_cache</span><span class="p">)</span>
-            <span class="n">part_generalize_shape_cache</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-            <span class="n">shape_cache_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">part_generalize_shape_cache</span><span class="p">)</span>
-            <span class="n">all_generalize_shape_cache</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-            <span class="n">shape_cache_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">all_generalize_shape_cache</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">all_shape_cache</span><span class="p">[</span><span class="n">args_len</span><span class="p">]</span> <span class="o">=</span> <span class="n">shape_cache_list</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">((</span><span class="sa">f</span><span class="s1">&#39;The real shape cache is empty, add it into real_shape_cache.&#39;</span><span class="p">))</span>
-            <span class="k">return</span> <span class="n">tensor_tuple</span>
-
-        <span class="c1"># step2: find cache in real_shape_cache.</span>
-        <span class="n">real_shape_cache</span> <span class="o">=</span> <span class="n">shape_cache_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">is_real_shape_exist</span><span class="p">,</span> <span class="n">real_shape_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_compile_args_in_shape_cache</span><span class="p">(</span><span class="n">real_shape_cache</span><span class="p">,</span> <span class="n">tensor_tuple</span><span class="p">,</span>
-                                                                                       <span class="s2">&quot;real&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">is_real_shape_exist</span> <span class="ow">and</span> <span class="n">real_shape_input</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">real_shape_input</span>
-
-        <span class="c1"># step3: if can not find cache in real_shape_cache, then generate it</span>
-        <span class="n">is_generalize_shape</span><span class="p">,</span> <span class="n">compile_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_do_generalize_shape</span><span class="p">(</span><span class="n">real_shape_cache</span><span class="p">,</span> <span class="n">tensor_tuple</span><span class="p">)</span>
-
-        <span class="c1"># step4: if input type change or rank change, save shape into real_shape_cache and then return</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_generalize_shape</span> <span class="ow">and</span> <span class="n">compile_args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">real_shape_cache</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">tensor_tuple</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">tensor_tuple</span>
-
-        <span class="c1"># step5: check whether all input tensor need generalize</span>
-        <span class="n">all_generalize_shape_cache</span> <span class="o">=</span> <span class="n">shape_cache_list</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_all_input_shape_generalize</span><span class="p">(</span><span class="n">compile_args</span><span class="p">):</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">all_generalize_shape_cache</span><span class="p">:</span>
-                <span class="n">all_generalize_shape_cache</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">compile_args</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">((</span><span class="sa">f</span><span class="s1">&#39;return all generalize shape cache.&#39;</span><span class="p">))</span>
-            <span class="k">return</span> <span class="n">compile_args</span>
-
-        <span class="c1"># step6: find compile_args in part_generalize_shape_cache</span>
-        <span class="n">part_generalize_shape_cache</span> <span class="o">=</span> <span class="n">shape_cache_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">part_generalize_shape_cache</span><span class="p">:</span>
-            <span class="n">part_generalize_shape_cache</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">compile_args</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">is_generalize_shape_exist</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_compile_args_in_shape_cache</span><span class="p">(</span><span class="n">part_generalize_shape_cache</span><span class="p">,</span>
-                                                                                  <span class="n">compile_args</span><span class="p">,</span> <span class="s2">&quot;part generalize&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_generalize_shape_exist</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">((</span><span class="sa">f</span><span class="s1">&#39;Can not find cache in part_generalize_shape_cache, add it into&#39;</span>
-                             <span class="s1">&#39; part_generalize_shape_cache.&#39;</span><span class="p">))</span>
-                <span class="n">part_generalize_shape_cache</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">compile_args</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">compile_args</span>
-
-
-    <span class="k">def</span> <span class="nf">_is_all_tensor_equal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_shape_tuple</span><span class="p">,</span> <span class="n">cache_shape_tuple</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;check two tuple is equal&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cache_shape_tuple</span><span class="p">):</span>
-            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_tensor_equal</span><span class="p">(</span><span class="n">input_shape_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">elem</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">res</span><span class="p">:</span>
-                <span class="k">return</span> <span class="kc">False</span>
-        <span class="k">return</span> <span class="kc">True</span>
-
-
-    <span class="k">def</span> <span class="nf">_is_enable_auto_identify_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args_list</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;is enable auto identify shape&quot;&quot;&quot;</span>
-        <span class="n">enable_auto_identify</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;MS_AUTO_DYNAMIC_SHAPE_ENABLE&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">enable_auto_identify</span><span class="p">:</span>
-            <span class="n">enable_auto_identify</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">if</span> <span class="p">((</span><span class="n">enable_auto_identify</span> <span class="ow">is</span> <span class="kc">False</span> <span class="ow">or</span> <span class="n">enable_auto_identify</span> <span class="o">==</span> <span class="s2">&quot;0&quot;</span><span class="p">))</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_input_args</span><span class="p">(</span><span class="n">args_list</span><span class="p">):</span>
-            <span class="k">return</span> <span class="kc">False</span>
-        <span class="k">return</span> <span class="kc">True</span>
-
-
-    <span class="k">def</span> <span class="nf">_find_compile_args_in_shape_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape_cache</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">,</span> <span class="n">cache_type</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;find compile args in real or part generalize shape cache&quot;&quot;&quot;</span>
-        <span class="n">is_exist</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">for</span> <span class="n">shapes</span> <span class="ow">in</span> <span class="n">shape_cache</span><span class="p">:</span>
-            <span class="n">is_exist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_all_tensor_equal</span><span class="p">(</span><span class="n">compile_args</span><span class="p">,</span> <span class="n">shapes</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">is_exist</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">((</span><span class="sa">f</span><span class="s1">&#39;Find cache in </span><span class="si">{</span><span class="n">cache_type</span><span class="si">}</span><span class="s1"> shape cache.&#39;</span><span class="p">))</span>
-                <span class="k">return</span> <span class="n">is_exist</span><span class="p">,</span> <span class="n">shapes</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">((</span><span class="sa">f</span><span class="s1">&#39;Can not find cache in </span><span class="si">{</span><span class="n">cache_type</span><span class="si">}</span><span class="s1"> shape cache.&#39;</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">is_exist</span><span class="p">,</span> <span class="kc">None</span>
-
-
-    <span class="k">def</span> <span class="nf">_do_generalize_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">real_shape_cache</span><span class="p">,</span> <span class="n">tensor_tuple</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;do generalize shape&quot;&quot;&quot;</span>
-        <span class="n">is_generalize_shape</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">for</span> <span class="n">real_shape</span> <span class="ow">in</span> <span class="n">real_shape_cache</span><span class="p">:</span>
-            <span class="n">generalize_shape</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">real_shape</span><span class="p">):</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tensor_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="ow">or</span> <span class="n">elem</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">tensor_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span>
-                    <span class="n">generalize_shape</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-                    <span class="k">break</span>
-                <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">is_shape_unknown</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_tensor_equal</span><span class="p">(</span><span class="n">tensor_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">elem</span><span class="p">):</span>
-                    <span class="n">generalize_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tensor_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">shape_value</span> <span class="o">=</span> <span class="p">[]</span>
-                    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">shape</span><span class="p">)):</span>
-                        <span class="n">shape_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-                    <span class="n">shape_tuple</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">shape_value</span><span class="p">)</span>
-                    <span class="n">generalize_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PythonTensor</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape_tuple</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tensor_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">)))</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">((</span><span class="sa">f</span><span class="s1">&#39;The </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1"> input tensor shape is </span><span class="si">{</span><span class="n">tensor_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1">, type is &#39;</span>
-                                 <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tensor_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s1">; in real cache shape is </span><span class="si">{</span><span class="n">elem</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1">, type is &#39;</span>
-                                 <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">elem</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s1">, the </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1"> input shape not equal, may generalize to </span><span class="si">{</span><span class="n">shape_tuple</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">))</span>
-
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">generalize_shape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">real_shape</span><span class="p">):</span>
-                <span class="n">is_generalize_shape</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="k">return</span> <span class="n">is_generalize_shape</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">generalize_shape</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">is_generalize_shape</span><span class="p">,</span> <span class="kc">None</span>
-
-
 <span class="k">class</span> <span class="nc">_MindsporeFunctionExecutor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Represents a function compiled by graph compiler.</span>
@@ -726,6 +538,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_enable_tuple_broaden</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
         <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">generate_arguments_key</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
         <span class="n">phase</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">update_phase_and_compile_args</span><span class="p">(</span><span class="n">compile_args</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">ms_compile_cache</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">phase</span>
 
@@ -806,7 +619,7 @@
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">verify_inputs_signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">,</span> <span class="n">args_list</span><span class="p">):</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The input args is incompatible with the args in `input_signature`!&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">compile_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">auto_dynamic_generate_compile_args</span><span class="p">(</span><span class="n">args_list</span><span class="p">)</span>
+            <span class="n">compile_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">auto_dynamic_generate_compile_args</span><span class="p">(</span><span class="n">args_list</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">compile_args</span>
 
     <span class="k">def</span> <span class="nf">_generate_run_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args_list</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
@@ -1642,6 +1455,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span> <span class="o">=</span> <span class="n">GraphExecutor_</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_py_exe_path</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_kernel_build_server_dir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">kernel_build_server</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span> <span class="o">=</span> <span class="n">_AutoIdentifyDynamicShape</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">init_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue_name</span><span class="p">,</span> <span class="n">dataset_size</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">dataset_types</span><span class="p">,</span> <span class="n">dataset_shapes</span><span class="p">,</span>
                      <span class="n">input_indexs</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s1">&#39;dataset&#39;</span><span class="p">,</span> <span class="n">need_run</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -1740,10 +1554,11 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">enable_tuple_broaden</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_enable_tuple_broaden</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">auto_dynamic_generate_compile_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">generate_arguments_key</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">arguments_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">obj</span><span class="o">.</span><span class="n">arguments_key</span>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">update_phase_and_compile_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">compile_cache</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_compiled</span><span class="p">(</span><span class="n">phase</span><span class="p">):</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%r</span><span class="s2"> graph has existed.&quot;</span><span class="p">,</span> <span class="n">phase</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">False</span>
