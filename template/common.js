@@ -91,9 +91,14 @@ $(function () {
                                                 ${sub.children
                                                     .map(function (subitem) {
                                                         return `
-                                                    <div class="docsVersion"><a class="versionM" href="${msHeader.headerNavLinks(
-                                                        subitem.id
-                                                    )}">${filterXSS(subitem.name)}  ${subitem.state&&`<span class="tag"><span class="tag-label">${filterXSS(subitem.state)}</span></span>`}</a></div>
+                                                    <div class="docsVersion">
+                                                        <a class="versionM" href="${subitem.url?subitem.url:msHeader.headerNavLinks(
+                                                            subitem.id
+                                                        )}" ${subitem.url?'target="_blank" rel="noopener noreferrer"': ''}>${filterXSS(subitem.name)}
+                                                        ${subitem.tags&&subitem.tags.map((tags)=>{
+                                                          return `<span class="tag ${tags.toLocaleLowerCase()}"><span class="tag-label">${filterXSS(tags)}</span></span>`
+                                                        })}</a>
+                                                    </div>
                                                     `
                                                     })
                                                     .join('')}
@@ -186,10 +191,14 @@ $(function () {
                                           .map(function (item) {
                                               if (item.children) {
                                                   return `${item.children
-                                                      .map(function (sub) {
-                                                          return `<a class="mobile-subnav-link" href="${msHeader.headerNavLinks(
-                                                              sub.id
-                                                          )}">${filterXSS(sub.name)} ${sub.state&&`<span class="tag"><span class="tag-label">${filterXSS(sub.state)}</span></span>`}</a>`
+                                                      .map(function (subitem) {
+                                                          return `<a class="mobile-subnav-link" href="${subitem.url?subitem.url:msHeader.headerNavLinks(
+                                                            subitem.id
+                                                          )}" ${subitem.url?'target="_blank" rel="noopener noreferrer"': ''}>${filterXSS(subitem.name)} 
+                                                          ${subitem.tags&&subitem.tags.map((tags)=>{
+                                                            return `<span class="tag ${tags.toLocaleLowerCase()}"><span class="tag-label">${filterXSS(tags)}</span></span>`
+                                                          })}
+                                                          </a>`
                                                       })
                                                       .join('')}`
                                               } else {

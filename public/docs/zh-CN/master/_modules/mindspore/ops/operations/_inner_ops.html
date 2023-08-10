@@ -171,6 +171,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">composite</span> <span class="k">as</span> <span class="n">C</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops.operations.array_ops</span> <span class="kn">import</span> <span class="n">Cast</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops.operations._scalar_ops</span> <span class="kn">import</span> <span class="n">bit_or</span><span class="p">,</span> <span class="n">bit_and</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.operations.comm_ops</span> <span class="kn">import</span> <span class="n">ReduceOp</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">signature</span> <span class="k">as</span> <span class="n">sig</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops.operations.math_ops</span> <span class="kn">import</span> <span class="n">_infer_shape_reduce</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">PrimitiveWithCheck</span><span class="p">,</span> <span class="n">PrimitiveWithInfer</span><span class="p">,</span> <span class="n">prim_attr_register</span><span class="p">,</span> <span class="n">Primitive</span><span class="p">,</span> <span class="n">_run_op</span>
@@ -180,7 +181,7 @@
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span>
-<span class="kn">from</span> <span class="nn">mindspore.communication.management</span> <span class="kn">import</span> <span class="n">GlobalComm</span>
+<span class="kn">from</span> <span class="nn">mindspore.communication.management</span> <span class="kn">import</span> <span class="n">GlobalComm</span><span class="p">,</span> <span class="n">get_rank</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_pynative_executor</span>
 <span class="kn">from</span> <span class="nn">mindspore.common._register_for_adapter</span> <span class="kn">import</span> <span class="n">ms_adapter_registry</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ops</span>
@@ -648,6 +649,66 @@
 
     <span class="k">def</span> <span class="nf">infer_dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_attr_dict</span><span class="p">()[</span><span class="s1">&#39;dtype&#39;</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">Reduce</span><span class="p">(</span><span class="n">PrimitiveWithInfer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reduce tensor across the processes in the specified communication group.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        Only process with destination rank receives the reduced output.</span>
+<span class="sd">        Other processes only get a tensor with shape [1], which has no mathematical meaning.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        dest_rank (int): Specifies the rank of the process that receives the reduced output.</span>
+<span class="sd">        op (str, optional): Specifies an operation used for element-wise reductions, like sum, prod, max, and min.</span>
+<span class="sd">                On the CPU, only &#39;sum&#39; is supported. Default: ``ReduceOp.SUM`` .</span>
+<span class="sd">        group (str, optional): The communication group to work on.</span>
+<span class="sd">            Default: &quot;hccl_world_group&quot; on Ascend, &quot;nccl_world_group&quot; on GPU.</span>
+
+<span class="sd">    Inputs:</span>
+<span class="sd">        - **input_x** (Tensor) - The shape of tensor is :math:`(x_1, x_2, ..., x_R)`.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore.ops as ops</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore.nn as nn</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.communication import init</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import Tensor</span>
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">        &gt;&gt;&gt; # Launch 4 processes.</span>
+<span class="sd">        &gt;&gt;&gt; init()</span>
+<span class="sd">        &gt;&gt;&gt; class ReduceNet(nn.Cell):</span>
+<span class="sd">        &gt;&gt;&gt;     def __init__(self):</span>
+<span class="sd">        &gt;&gt;&gt;         super(Net, self).__init__()</span>
+<span class="sd">        &gt;&gt;&gt;         self.reduce = ops.Reduce(dest_rank=1)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt;     def construct(self, x):</span>
+<span class="sd">        &gt;&gt;&gt;         out = self.reduce(x)</span>
+<span class="sd">        &gt;&gt;&gt;         return out</span>
+<span class="sd">        &gt;&gt;&gt; input = Tensor(np.ones([2, 8]).astype(np.float32))</span>
+<span class="sd">        &gt;&gt;&gt; net = ReduceNet()</span>
+<span class="sd">        &gt;&gt;&gt; output = net(input)</span>
+<span class="sd">        &gt;&gt;&gt; print(output)</span>
+<span class="sd">        Process with rank 1: [[4. 4. 4. 4. 4. 4. 4. 4.]</span>
+<span class="sd">                             [4. 4. 4. 4. 4. 4. 4. 4.]],</span>
+<span class="sd">        Other proesses: [0.].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@prim_attr_register</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dest_rank</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">ReduceOp</span><span class="o">.</span><span class="n">SUM</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="n">GlobalComm</span><span class="o">.</span><span class="n">WORLD_COMM_GROUP</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dest_rank</span> <span class="o">=</span> <span class="n">dest_rank</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">op</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="o">=</span> <span class="n">group</span>
+
+    <span class="k">def</span> <span class="nf">infer_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_shape</span><span class="p">):</span>
+        <span class="c1"># The process with dest_rank returns the reduced output.</span>
+        <span class="c1"># Other processes only gets a tensor with shape [1], which has no mathematical meaning.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_rank</span> <span class="o">==</span> <span class="n">get_rank</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">x_shape</span>
+        <span class="k">return</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">infer_dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_dtype</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x_dtype</span>
 
 
 <span class="k">class</span> <span class="nc">MatrixSetDiag</span><span class="p">(</span><span class="n">PrimitiveWithInfer</span><span class="p">):</span>

@@ -171,7 +171,7 @@
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">stat</span>
 <span class="kn">import</span> <span class="nn">threading</span>
-<span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">Thread</span><span class="p">,</span> <span class="n">Lock</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">Thread</span><span class="p">,</span> <span class="n">RLock</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">OrderedDict</span>
 <span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">BytesIO</span>
 
@@ -211,7 +211,7 @@
     <span class="n">_store_warm_up_ptr_by_tensor_list</span><span class="p">,</span> <span class="n">_cache_enable</span>
 <span class="kn">from</span> <span class="nn">mindspore.train._utils</span> <span class="kn">import</span> <span class="n">read_proto</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">load_mindir</span><span class="p">,</span> <span class="n">_encrypt</span><span class="p">,</span> <span class="n">_decrypt</span><span class="p">,</span> <span class="n">_is_cipher_file</span><span class="p">,</span> <span class="n">dynamic_obfuscate_mindir</span><span class="p">,</span> \
-    <span class="n">split_mindir</span>
+    <span class="n">split_mindir</span><span class="p">,</span> <span class="n">split_dynamic_mindir</span>
 <span class="kn">from</span> <span class="nn">..ops.operations._opaque_predicate_registry</span> <span class="kn">import</span> <span class="n">add_opaque_predicate</span><span class="p">,</span> <span class="n">clean_funcs</span>
 
 <span class="n">tensor_to_ms_type</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Int8&quot;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int8</span><span class="p">,</span> <span class="s2">&quot;UInt8&quot;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span> <span class="s2">&quot;Int16&quot;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int16</span><span class="p">,</span> <span class="s2">&quot;UInt16&quot;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">uint16</span><span class="p">,</span>
@@ -229,7 +229,7 @@
                          <span class="mi">5</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int16</span><span class="p">,</span> <span class="mi">6</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">,</span> <span class="mi">7</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="mi">10</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span>
                          <span class="mi">11</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="mi">12</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">uint32</span><span class="p">,</span> <span class="mi">13</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">uint64</span><span class="p">}</span>
 
-<span class="n">_ckpt_mutex</span> <span class="o">=</span> <span class="n">Lock</span><span class="p">()</span>
+<span class="n">_ckpt_mutex</span> <span class="o">=</span> <span class="n">RLock</span><span class="p">()</span>
 
 <span class="c1"># unit is KB</span>
 <span class="n">SLICE_SIZE</span> <span class="o">=</span> <span class="mi">512</span> <span class="o">*</span> <span class="mi">1024</span>
@@ -483,8 +483,8 @@
 
 <span class="k">def</span> <span class="nf">_check_save_obj_and_ckpt_file_name</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">ckpt_file_name</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check save_obj and ckpt_file_name for save_checkpoint.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;save_checkpoint&#39;, the parameter &#39;save_obj&#39; must be nn.Cell or list, &quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;save_checkpoint&#39;, the parameter &#39;save_obj&#39; must be nn.Cell, list or dict, &quot;</span>
                         <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">save_obj</span><span class="p">)))</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ckpt_file_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;save_checkpoint&#39;, the parameter </span><span class="si">{}</span><span class="s2"> for checkpoint file name is invalid,&quot;</span>
@@ -501,14 +501,15 @@
 
 <div class="viewcode-block" id="save_checkpoint"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.save_checkpoint.html#mindspore.save_checkpoint">[文档]</a><span class="k">def</span> <span class="nf">save_checkpoint</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">ckpt_file_name</span><span class="p">,</span> <span class="n">integrated_save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">async_save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">append_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">enc_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">enc_mode</span><span class="o">=</span><span class="s2">&quot;AES-GCM&quot;</span><span class="p">,</span> <span class="n">choice_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Save checkpoint to a specified file.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        save_obj (Union[Cell, list]): The cell object or data list(each element is a dictionary, like</span>
-<span class="sd">                                      [{&quot;name&quot;: param_name, &quot;data&quot;: param_data},...], the type of</span>
-<span class="sd">                                      param_name would be string, and the type of param_data would</span>
-<span class="sd">                                      be parameter or Tensor).</span>
+<span class="sd">        save_obj (Union[Cell, list, dict]): The object to be saved. The data type can be :class:`mindspore.nn.Cell`,</span>
+<span class="sd">            list, or dict. If a list, it can be the returned value of `Cell.trainable_params()`, or a list of dict</span>
+<span class="sd">            elements(each element is a dictionary, like [{&quot;name&quot;: param_name, &quot;data&quot;: param_data},...], the type of</span>
+<span class="sd">            `param_name` must be string, and the type of `param_data` must be parameter or Tensor); If dict,</span>
+<span class="sd">            it can be the returned value of `mindspore.load_checkpoint()`.</span>
 <span class="sd">        ckpt_file_name (str): Checkpoint file name. If the file name already exists, it will be overwritten.</span>
 <span class="sd">        integrated_save (bool): Whether to integrated save in automatic model parallel scene. Default: ``True`` .</span>
 <span class="sd">        async_save (bool): Whether to open an independent thread to save the checkpoint file. Default: ``False`` .</span>
@@ -520,7 +521,7 @@
 <span class="sd">                        mode, currently supports ``&quot;AES-GCM&quot;`` and ``&quot;AES-CBC&quot;`` and ``&quot;SM4-CBC&quot;`` .</span>
 <span class="sd">                        Default: ``&quot;AES-GCM&quot;`` .</span>
 <span class="sd">        choice_func (function) : A function for saving custom selected parameters. The input value of `choice_func` is</span>
-<span class="sd">                                 a parameter name in string type, and the return value is a bool.</span>
+<span class="sd">                                 a parameter name in string type, and the returned value is a bool.</span>
 <span class="sd">                                 If returns ``True`` , the Parameter that matching the custom condition will be saved.</span>
 <span class="sd">                                 If returns ``False`` , the Parameter that not matching the custom condition will not</span>
 <span class="sd">                                 be saved. Default: ``None`` .</span>
@@ -529,7 +530,7 @@
 <span class="sd">            - incremental (bool): Whether export checkpoint for MapParameter incrementally.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        TypeError: If the parameter `save_obj` is not `nn.Cell` or list type.</span>
+<span class="sd">        TypeError: If the parameter `save_obj` is not :class:`mindspore.nn.Cell` , list or dict type.</span>
 <span class="sd">        TypeError: If the parameter `integrated_save` or `async_save` is not bool type.</span>
 <span class="sd">        TypeError: If the parameter `ckpt_file_name` is not string type.</span>
 
@@ -558,75 +559,7 @@
     <span class="n">map_param_inc</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;incremental&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Execute the process of saving checkpoint files.&quot;</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">ge_init</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">ge_sync_data</span><span class="p">:</span>
-            <span class="kn">from</span> <span class="nn">mindspore.train.callback._callback</span> <span class="kn">import</span> <span class="n">set_cur_net</span>
-            <span class="n">set_cur_net</span><span class="p">(</span><span class="n">save_obj</span><span class="p">)</span>
-            <span class="n">save_obj</span><span class="o">.</span><span class="n">exec_checkpoint_graph</span><span class="p">()</span>
-        <span class="n">parameter_layout_dict</span> <span class="o">=</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">parameter_layout_dict</span>
-        <span class="k">if</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">parameter_layout_dict</span><span class="p">:</span>
-            <span class="n">parameter_layout_dict</span> <span class="o">=</span> <span class="n">_get_parameter_layout</span><span class="p">()</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">():</span>
-            <span class="n">save_obj</span><span class="o">.</span><span class="n">init_parameters_data</span><span class="p">()</span>
-        <span class="n">param_dict</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">():</span>
-            <span class="n">not_sliced</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">sliced</span>
-            <span class="n">is_graph_mode</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;mode&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span>
-            <span class="c1"># All parameters are initialized immediately under PyNative mode, skip this judgement.</span>
-            <span class="k">if</span> <span class="n">is_graph_mode</span> <span class="ow">and</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="n">not_sliced</span> <span class="ow">or</span> <span class="n">param</span><span class="o">.</span><span class="n">has_init</span><span class="p">):</span>
-                <span class="k">continue</span>
-            <span class="k">if</span> <span class="n">choice_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">choice_func</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
-                <span class="k">continue</span>
-            <span class="c1"># Add suffix for cache_enabled parameter, and then parameter can carry key info.</span>
-            <span class="c1"># Notice that suffix needs be removed when loading into net.</span>
-            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">cache_enable</span><span class="p">:</span>
-                <span class="n">param_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.__param_key__&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="n">param</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">param_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span>
-        <span class="n">param_list</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">if</span> <span class="n">append_dict</span> <span class="ow">and</span> <span class="s2">&quot;random_op&quot;</span> <span class="ow">in</span> <span class="n">append_dict</span><span class="p">:</span>
-            <span class="n">phase</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">save_obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">save_obj</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">arguments_key</span>
-            <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">compile_cache</span> <span class="ow">and</span> <span class="n">_executor</span><span class="o">.</span><span class="n">has_compiled</span><span class="p">(</span><span class="n">phase</span><span class="p">):</span>
-                <span class="n">random_byte</span> <span class="o">=</span> <span class="n">_executor</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">get_random_status</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
-                <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;random_op&quot;</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">random_byte</span><span class="p">})</span>
-            <span class="n">append_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;random_op&quot;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">param_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">each_param</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">key</span><span class="p">}</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">MapParameter</span><span class="p">):</span>
-                <span class="n">each_param</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
-                <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">each_param</span><span class="p">)</span>
-                <span class="k">continue</span>
-
-            <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">is_persistent_data</span><span class="p">():</span>
-                <span class="c1"># list save persistent_data: [Tensor, shape, type, param.key]</span>
-                <span class="n">param_data</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;persistent_data&quot;</span><span class="p">]</span>
-                <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
-                <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">param_info</span><span class="o">.</span><span class="n">origin_shape</span><span class="p">)</span>
-                <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
-                <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">offload_file_path</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
-                <span class="c1"># list save offload data: [Param, shape, type, param.key]</span>
-                <span class="n">param_data</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;offload_parameter&quot;</span><span class="p">]</span>
-                <span class="n">param_tensor</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">data</span>
-                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">parameter_layout_dict</span><span class="p">:</span>
-                    <span class="n">param_tensor</span> <span class="o">=</span> <span class="n">_get_merged_param_data</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">parameter_layout_dict</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">param_tensor</span><span class="p">,</span>
-                                                          <span class="n">integrated_save</span><span class="p">)</span>
-                <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param_tensor</span><span class="p">)</span>
-                <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-                <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">param_tensor</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
-                <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">param_data</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
-
-                <span class="c1"># in automatic model parallel scenario, some parameters were split to all the devices,</span>
-                <span class="c1"># which should be combined before saving</span>
-                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">parameter_layout_dict</span><span class="p">:</span>
-                    <span class="n">param_data</span> <span class="o">=</span> <span class="n">_get_merged_param_data</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">parameter_layout_dict</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">param_data</span><span class="p">,</span>
-                                                        <span class="n">integrated_save</span><span class="p">)</span>
-
-            <span class="n">each_param</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param_data</span>
-            <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">each_param</span><span class="p">)</span>
-        <span class="n">save_obj</span> <span class="o">=</span> <span class="n">param_list</span>
+    <span class="n">save_obj</span> <span class="o">=</span> <span class="n">_convert_save_obj_to_param_list</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">integrated_save</span><span class="p">,</span> <span class="n">append_dict</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">append_dict</span><span class="p">:</span>
         <span class="n">append_info_list</span> <span class="o">=</span> <span class="p">[]</span>
@@ -683,6 +616,121 @@
         <span class="n">_exec_save</span><span class="p">(</span><span class="n">ckpt_file_name</span><span class="p">,</span> <span class="n">data_list</span><span class="p">,</span> <span class="n">enc_key</span><span class="p">,</span> <span class="n">enc_mode</span><span class="p">,</span> <span class="n">map_param_inc</span><span class="p">)</span>
 
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Saving checkpoint process is finished.&quot;</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_convert_list_to_param_list</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a list of Parameter to param_list.&quot;&quot;&quot;</span>
+    <span class="n">param_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save_obj</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">param_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">param</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">save_obj</span> <span class="k">if</span> <span class="n">choice_func</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">choice_func</span><span class="p">(</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">])]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">choice_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">choice_func</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">each_param</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">param</span><span class="p">}</span>
+                <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">each_param</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For save_checkpoint, when save_obj is made up by list of Parameter,&quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;the param should be parameter, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">param</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">param_list</span>
+
+
+<span class="k">def</span> <span class="nf">_convert_dict_to_param_dict</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a dict of Parameter to param_list.&quot;&quot;&quot;</span>
+    <span class="n">param_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="n">Parameter</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">choice_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">choice_func</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">each_param</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">key</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">value</span><span class="p">}</span>
+            <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">each_param</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For save_checkpoint, when save_obj is made up by dict, the key should be str and&quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;value should be Parameter, but got the type of key is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="si">}</span><span class="s2"> and&quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;the type of value is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">param_list</span>
+
+
+<span class="k">def</span> <span class="nf">_convert_cell_param_and_names_to_dict</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert cell.parameters_and_names to OrderedDict.&quot;&quot;&quot;</span>
+    <span class="n">param_dict</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">():</span>
+        <span class="n">not_sliced</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">sliced</span>
+        <span class="n">is_graph_mode</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;mode&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span>
+        <span class="c1"># All parameters are initialized immediately under PyNative mode, skip this judgement.</span>
+        <span class="k">if</span> <span class="n">is_graph_mode</span> <span class="ow">and</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="n">not_sliced</span> <span class="ow">or</span> <span class="n">param</span><span class="o">.</span><span class="n">has_init</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">choice_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">choice_func</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="c1"># Add suffix for cache_enabled parameter, and then parameter can carry key info.</span>
+        <span class="c1"># Notice that suffix needs be removed when loading into net.</span>
+        <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">cache_enable</span><span class="p">:</span>
+            <span class="n">param_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.__param_key__&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="n">param</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">param_dict</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span>
+    <span class="k">return</span> <span class="n">param_dict</span>
+
+
+<span class="k">def</span> <span class="nf">_convert_cell_to_param_list</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">integrated_save</span><span class="p">,</span> <span class="n">append_dict</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert nn.Cell to param_list.&quot;&quot;&quot;</span>
+    <span class="n">param_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">parameter_layout_dict</span> <span class="o">=</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">parameter_layout_dict</span>
+    <span class="k">if</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">parameter_layout_dict</span><span class="p">:</span>
+        <span class="n">parameter_layout_dict</span> <span class="o">=</span> <span class="n">_get_parameter_layout</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">():</span>
+        <span class="n">save_obj</span><span class="o">.</span><span class="n">init_parameters_data</span><span class="p">()</span>
+    <span class="n">param_dict</span> <span class="o">=</span> <span class="n">_convert_cell_param_and_names_to_dict</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">append_dict</span> <span class="ow">and</span> <span class="s2">&quot;random_op&quot;</span> <span class="ow">in</span> <span class="n">append_dict</span><span class="p">:</span>
+        <span class="n">phase</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">save_obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">save_obj</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">arguments_key</span>
+        <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">save_obj</span><span class="o">.</span><span class="n">compile_cache</span> <span class="ow">and</span> <span class="n">_executor</span><span class="o">.</span><span class="n">has_compiled</span><span class="p">(</span><span class="n">phase</span><span class="p">):</span>
+            <span class="n">random_byte</span> <span class="o">=</span> <span class="n">_executor</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">get_random_status</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
+            <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;random_op&quot;</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">random_byte</span><span class="p">})</span>
+        <span class="n">append_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;random_op&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">param_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">each_param</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">key</span><span class="p">}</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">MapParameter</span><span class="p">):</span>
+            <span class="n">each_param</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">each_param</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">is_persistent_data</span><span class="p">():</span>
+            <span class="c1"># list save persistent_data: [Tensor, shape, type, param.key]</span>
+            <span class="n">param_data</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;persistent_data&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">param_info</span><span class="o">.</span><span class="n">origin_shape</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span> <span class="n">value</span><span class="o">.</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">offload_file_path</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="c1"># list save offload data: [Param, shape, type, param.key]</span>
+            <span class="n">param_data</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;offload_parameter&quot;</span><span class="p">]</span>
+            <span class="n">param_tensor</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">data</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">parameter_layout_dict</span><span class="p">:</span>
+                <span class="n">param_tensor</span> <span class="o">=</span> <span class="n">_get_merged_param_data</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">parameter_layout_dict</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">param_tensor</span><span class="p">,</span>
+                                                      <span class="n">integrated_save</span><span class="p">)</span>
+            <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param_tensor</span><span class="p">)</span>
+            <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">param_tensor</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+            <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">param_data</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+
+            <span class="c1"># in automatic model parallel scenario, some parameters were split to all the devices,</span>
+            <span class="c1"># which should be combined before saving</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">parameter_layout_dict</span><span class="p">:</span>
+                <span class="n">param_data</span> <span class="o">=</span> <span class="n">_get_merged_param_data</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">parameter_layout_dict</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">param_data</span><span class="p">,</span>
+                                                    <span class="n">integrated_save</span><span class="p">)</span>
+
+        <span class="n">each_param</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param_data</span>
+        <span class="n">param_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">each_param</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">param_list</span>
+
+
+<span class="k">def</span> <span class="nf">_convert_save_obj_to_param_list</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">integrated_save</span><span class="p">,</span> <span class="n">append_dict</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a save_obj to param_list.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_convert_list_to_param_list</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_convert_dict_to_param_dict</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_convert_cell_to_param_list</span><span class="p">(</span><span class="n">save_obj</span><span class="p">,</span> <span class="n">integrated_save</span><span class="p">,</span> <span class="n">append_dict</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_save_param_list_data</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
@@ -811,7 +859,7 @@
     <span class="k">return</span> <span class="n">graph</span></div>
 
 
-<span class="k">def</span> <span class="nf">export_split_mindir</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">export_split_mindir</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">device_num</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">rank_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dynamic</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Auto Split MindIR.</span>
 
@@ -819,6 +867,9 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        file_name (str): MindIR file name.</span>
+<span class="sd">        device_num (int): device number.</span>
+<span class="sd">        rank_id (int): rank id.</span>
+<span class="sd">        dynamic (bool): Indicates whether the model is a dynamic shape mindir model.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: MindIR file does not exist or `file_name` is not a string.</span>
@@ -826,11 +877,9 @@
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
-<span class="sd">        &gt;&gt;&gt; from mindspore.communication import init</span>
 <span class="sd">        &gt;&gt;&gt; context.set_context(mode=context.GRAPH_MODE)</span>
 <span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; init(backend_name=&quot;hccl&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; ms.export_split_mindir(&quot;net.mindir&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; ms.export_split_mindir(&quot;net.mindir&quot;, device_num=8, rank_id=0)</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -845,8 +894,11 @@
     <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
 
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Execute the process of export and split mindir.&quot;</span><span class="p">)</span>
-
-    <span class="n">graph</span> <span class="o">=</span> <span class="n">split_mindir</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">dynamic</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">dynamic</span><span class="p">:</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">split_dynamic_mindir</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">device_num</span><span class="p">,</span> <span class="n">rank_id</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">split_mindir</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">graph</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">_is_cipher_file</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
@@ -2619,7 +2671,8 @@
         <span class="k">return</span> <span class="n">merged_param</span>
     <span class="n">param_name</span> <span class="o">=</span> <span class="n">merged_param</span><span class="o">.</span><span class="n">name</span>
     <span class="n">tensor_layout</span> <span class="o">=</span> <span class="n">predict_strategy</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
-    <span class="n">split_tensor</span> <span class="o">=</span> <span class="n">_load_tensor</span><span class="p">(</span><span class="n">merged_param</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">tensor_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">tensor_layout</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">rank</span> <span class="o">=</span> <span class="n">get_rank</span><span class="p">()</span>
+    <span class="n">split_tensor</span> <span class="o">=</span> <span class="n">_load_tensor</span><span class="p">(</span><span class="n">merged_param</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">tensor_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">tensor_layout</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">rank</span><span class="p">)</span>
     <span class="n">requires_grad</span> <span class="o">=</span> <span class="n">merged_param</span><span class="o">.</span><span class="n">requires_grad</span>
     <span class="n">layerwise_parallel</span> <span class="o">=</span> <span class="n">merged_param</span><span class="o">.</span><span class="n">layerwise_parallel</span>
     <span class="n">split_param</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">split_tensor</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">requires_grad</span><span class="p">,</span> <span class="n">layerwise_parallel</span><span class="p">)</span>
