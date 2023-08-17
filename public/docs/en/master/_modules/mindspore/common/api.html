@@ -203,6 +203,8 @@
 <span class="n">ms_compile_cache</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 <span class="c1"># Store cell compiled pipeline cache.</span>
 <span class="n">cells_compile_cache</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="c1"># Store function compiled times information.</span>
+<span class="n">function_phases</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
 
 <span class="n">BROADCAST_PHASE</span> <span class="o">=</span> <span class="s2">&quot;_broadcast_&quot;</span>
 <span class="n">_PYNATIVE_PARALLEL_FUNC_NAME</span> <span class="o">=</span> <span class="s2">&quot;after_shard&quot;</span>
@@ -451,7 +453,6 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        The result of pipeline running in graph mode.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">ms_create_time</span><span class="p">,</span> <span class="n">input_signature</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jit_config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">init_pipeline</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="p">(</span><span class="n">types</span><span class="o">.</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">MethodType</span><span class="p">)):</span>
@@ -508,13 +509,15 @@
         <span class="n">compile_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_compile_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
         <span class="c1"># Restore the mutable attr for every arg.</span>
         <span class="n">compile_args</span> <span class="o">=</span> <span class="n">_restore_mutable_attr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">)</span>
-        <span class="n">generate_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_filename</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> \
-            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">)</span>
+        <span class="n">generate_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_filename</span> <span class="o">+</span> <span class="s2">&quot;.line&quot;</span> <span class="o">+</span> \
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span>
         <span class="k">if</span> <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">grad_flag</span><span class="p">():</span>
             <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s2">&quot;.grad&quot;</span>
         <span class="k">if</span> <span class="n">_is_pynative_parallel</span><span class="p">():</span>
             <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span><span class="p">[:</span><span class="n">generate_name</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">)))]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shard_parent_obj</span><span class="p">))</span>
-
+        <span class="c1"># The full Function name</span>
+        <span class="n">full_function_name</span> <span class="o">=</span> <span class="n">generate_name</span>
+        <span class="n">create_time</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
         <span class="c1"># Add key with obj</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__module__</span><span class="p">:</span>
@@ -524,13 +527,18 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="n">__parse_method__</span> <span class="o">=</span> <span class="n">method_name</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
                 <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span>
+                <span class="n">create_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_time</span><span class="p">)</span>
+                <span class="n">create_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_time</span><span class="p">)</span>
+
             <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">))</span>
+            <span class="n">full_function_name</span> <span class="o">=</span> <span class="n">generate_name</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Different instance of same class may use same memory(means same obj_id) at diff times.</span>
             <span class="c1"># To avoid unexpected phase matched, add create_time to generate_name.</span>
             <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_time</span><span class="p">)</span>
+            <span class="n">create_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_time</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;enable_tuple_broaden&quot;</span><span class="p">):</span>
@@ -542,6 +550,33 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">update_phase_and_compile_args</span><span class="p">(</span><span class="n">compile_args</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">ms_compile_cache</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">phase</span>
+
+        <span class="k">if</span> <span class="n">full_function_name</span> <span class="ow">in</span> <span class="n">function_phases</span><span class="p">:</span>
+            <span class="n">warning_times</span> <span class="o">=</span> <span class="mi">3</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">])</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="n">warning_times</span><span class="p">:</span>
+                <span class="k">def</span> <span class="nf">analysize</span><span class="p">(</span><span class="n">log</span><span class="p">):</span>
+                    <span class="n">time_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+                    <span class="n">key_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+                    <span class="n">tips</span> <span class="o">=</span> <span class="s2">&quot;For more details, get instructions about `jit` at &quot;</span> \
+                           <span class="s2">&quot;https://www.mindspore.cn/search?inputValue=jit. &quot;</span>
+                    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">log</span><span class="p">:</span>
+                        <span class="n">time_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">key_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">key_set</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">warning_times</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="s2">&quot;The args of the function ware always changed, &quot;</span> <span class="o">+</span> \
+                               <span class="s2">&quot;please make sure the shape or the type of args are not variable. &quot;</span> <span class="o">+</span> \
+                               <span class="n">tips</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">time_set</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">warning_times</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="s2">&quot;If the function is @jit, try to use @jit(compile_once=True) with risk. &quot;</span> <span class="o">+</span> \
+                               <span class="n">tips</span>
+                    <span class="k">return</span> <span class="n">tips</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The function &#39;</span><span class="si">{</span><span class="n">full_function_name</span><span class="si">}</span><span class="s2">&#39; has been compiled for &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">])</span><span class="si">}</span><span class="s2"> times. &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">analysize</span><span class="p">(</span><span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">])</span><span class="si">}</span><span class="s2"> &quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
 
         <span class="c1"># If enable compile cache, get the dependency files list and set to graph executor.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_compile_cache_dep_files</span><span class="p">()</span>
@@ -561,6 +596,8 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">is_compile</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Executor compile failed.&quot;</span><span class="p">)</span>
         <span class="n">ms_compile_cache</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
+        <span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">create_time</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Compile the function &#39;</span><span class="si">{</span><span class="n">full_function_name</span><span class="si">}</span><span class="s2">&#39; create time=</span><span class="si">{</span><span class="n">create_time</span><span class="si">}</span><span class="s2"> ,key=</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">phase</span>
 
     <span class="nd">@staticmethod</span>
@@ -662,7 +699,7 @@
     <span class="k">return</span> <span class="n">_get_obj_id</span><span class="p">(</span><span class="n">hash_input</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="jit"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.jit.html#mindspore.jit">[docs]</a><span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">input_signature</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hash_args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jit_config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="jit"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.jit.html#mindspore.jit">[docs]</a><span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">input_signature</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hash_args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jit_config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compile_once</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create a callable MindSpore graph from a Python function.</span>
 
@@ -739,11 +776,25 @@
 <span class="sd">        &gt;&gt;&gt; inputs = Tensor(np.ones([10, 10, 10]).astype(np.float32))</span>
 <span class="sd">        &gt;&gt;&gt; for i in range(10):</span>
 <span class="sd">        ...     closure_fn(inputs, func)</span>
+<span class="sd">        ...</span>
+<span class="sd">        ... # Set compile_once = True, otherwise the train_step will be compiled again.</span>
+<span class="sd">        &gt;&gt;&gt; def train(x):</span>
+<span class="sd">        ...     @jit(compile_once = True)</span>
+<span class="sd">        ...     def train_step(x):</span>
+<span class="sd">        ...         return ops.exp(x)</span>
+<span class="sd">        ...     for i in range(10):</span>
+<span class="sd">        ...         train_step(x)</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; inputs = Tensor(np.ones([10, 10, 10]).astype(np.float32))</span>
+<span class="sd">        &gt;&gt;&gt; for i in range(10):</span>
+<span class="sd">        ...     train(inputs)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">wrap_mindspore</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">hash_args</span><span class="p">:</span>
             <span class="n">hash_obj</span> <span class="o">=</span> <span class="n">_get_jit_hash</span><span class="p">(</span><span class="n">hash_args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">compile_once</span><span class="p">:</span>
+            <span class="n">hash_obj</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">hash_obj</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mf">1e9</span><span class="p">)</span>
 
@@ -791,6 +842,8 @@
 <span class="sd">            like functions or objects of class defined outside `fn`. Calling `fn` again with change of `hash_args`</span>
 <span class="sd">            will trigger recompilation. Default: ``None`` .</span>
 <span class="sd">        jit_config (JitConfig): Jit config for compile. Default: ``None`` .</span>
+<span class="sd">        compile_once(bool): The function would be compiled only once with risk even if the free variables were changed.</span>
+<span class="sd">            Default: ``False`` .</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Function, if `fn` is not None, returns a callable function that will execute the compiled function; If `fn` is</span>
