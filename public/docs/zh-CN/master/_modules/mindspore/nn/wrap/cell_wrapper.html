@@ -72,6 +72,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.experimental.html">mindspore.experimental</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API映射</span></p>
 <ul>
@@ -83,7 +84,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/overview.html">迁移指南概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/enveriment_preparation.html">环境准备与资料获取</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/analysis_and_preparation.html">模型分析与准备</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/typical_api_comparision.html">与PyTorch典型区别</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/typical_api_comparision.html">PyTorch对比</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/model_development/model_development.html">MindSpore网络搭建</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/debug_and_tune.html">调试调优</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/sample_code.html">网络迁移调试实例</a></li>
@@ -814,6 +815,47 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">ret</span> <span class="o">=</span> <span class="n">output</span>
         <span class="k">return</span> <span class="n">ret</span></div>
+
+<span class="k">class</span> <span class="nc">GradAccumulationCell</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrap the network with Micro Batch.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        network (Cell): The target network to wrap.</span>
+<span class="sd">        micro_size (int): MicroBatch size.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend`` ``GPU``</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; net = Net()</span>
+<span class="sd">        &gt;&gt;&gt; net = GradAccumulationCell(net, 4)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network</span><span class="p">,</span> <span class="n">micro_size</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GradAccumulationCell</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="n">network</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">micro_inputs</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span> <span class="o">=</span> <span class="n">micro_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">micro_size</span><span class="p">):</span>
+            <span class="n">micro_input</span> <span class="o">=</span> <span class="n">_MicroBatch</span><span class="p">(</span><span class="n">micro_size</span><span class="p">)</span>
+            <span class="n">micro_input</span><span class="o">.</span><span class="n">strided_slice</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;grad_accu_num&quot;</span><span class="p">,</span> <span class="n">micro_size</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">micro_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">micro_input</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Add</span><span class="p">()</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;forward_end&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">Cell</span><span class="p">)</span> <span class="ow">and</span> <span class="n">network</span><span class="o">.</span><span class="n">jit_config_dict</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_jit_config_dict</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">jit_config_dict</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span><span class="p">):</span>
+            <span class="n">micro_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">micro_inputs</span><span class="p">[</span><span class="n">i</span><span class="p">](</span><span class="n">i</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="p">(</span><span class="o">*</span><span class="n">micro_input</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ret</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_list</span><span class="p">[</span><span class="n">i</span><span class="p">](</span><span class="n">ret</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ret</span> <span class="o">=</span> <span class="n">output</span>
+        <span class="k">return</span> <span class="n">ret</span>
 
 
 <span class="k">def</span> <span class="nf">_pipeline_clear_grad</span><span class="p">(</span><span class="n">accu_grad</span><span class="p">,</span> <span class="n">grad</span><span class="p">):</span>

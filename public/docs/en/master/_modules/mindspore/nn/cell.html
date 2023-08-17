@@ -71,6 +71,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.experimental.html">mindspore.experimental</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Mapping</span></p>
 <ul>
@@ -82,7 +83,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/overview.html">Overview of Migration Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/enveriment_preparation.html">Environment Preparation and Information Acquisition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/analysis_and_preparation.html">Model Analysis and Preparation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/typical_api_comparision.html">Differences Between MindSpore and PyTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/typical_api_comparision.html">Differences between PyTorch and MindSpore</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/model_development/model_development.html">Constructing MindSpore Network</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/debug_and_tune.html">Debugging and Tuning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/sample_code.html">Network Migration Debugging Example</a></li>
@@ -180,8 +181,7 @@
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">init_pipeline</span><span class="p">,</span> <span class="n">update_func_graph_hyper_params</span><span class="p">,</span> <span class="n">Cell_</span><span class="p">,</span> <span class="n">FuncGraph</span><span class="p">,</span> <span class="n">MixedPrecisionType</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">Validator</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
-<span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_cell_graph_executor</span><span class="p">,</span> <span class="n">_pynative_executor</span><span class="p">,</span> <span class="n">_get_args_for_run</span><span class="p">,</span> <span class="n">cells_compile_cache</span><span class="p">,</span> \
-    <span class="n">_AutoIdentifyDynamicShape</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_cell_graph_executor</span><span class="p">,</span> <span class="n">_pynative_executor</span><span class="p">,</span> <span class="n">_get_args_for_run</span><span class="p">,</span> <span class="n">cells_compile_cache</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_generate_branch_control_input</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">ParameterTuple</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.tensor</span> <span class="kn">import</span> <span class="n">Tensor</span>
@@ -306,7 +306,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">to_float_fp16</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ge_init</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ge_sync_data</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span> <span class="o">=</span> <span class="n">_AutoIdentifyDynamicShape</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_check_and_refresh</span> <span class="o">=</span> <span class="kc">False</span>
 
 
     <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -776,7 +776,10 @@
         <span class="k">if</span> <span class="n">PackFunc</span><span class="o">.</span><span class="n">is_tracing</span><span class="p">():</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_tracefunc</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_names_and_refresh_name</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_is_check_and_refresh&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_check_and_refresh</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_names_and_refresh_name</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_check_and_refresh</span> <span class="o">=</span> <span class="kc">True</span>
+
         <span class="c1"># Run in Graph mode.</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;MS_JIT&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s1">&#39;0&#39;</span> <span class="ow">and</span> <span class="n">context</span><span class="o">.</span><span class="n">_get_mode</span><span class="p">()</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_check_construct_args</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
@@ -1083,9 +1086,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_shape_inputs</span> <span class="o">=</span> <span class="n">convert_inputs_to_dynamic</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_shape_inputs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">compile_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">auto_dynamic_generate_compile_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
             <span class="n">_cell_graph_executor</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">,</span>
-                                         <span class="n">jit_config_dict</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jit_config_dict</span><span class="p">,</span> <span class="o">*</span><span class="n">compile_args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                                         <span class="n">jit_config_dict</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jit_config_dict</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_check_compile_dynamic_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_shape_inputs</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">saved_dynamic_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_shape_inputs</span>
@@ -1484,7 +1486,7 @@
         <span class="k">for</span> <span class="n">cell_name</span><span class="p">,</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">cells</span><span class="p">:</span>
             <span class="n">params</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">par_name</span><span class="p">,</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">par</span><span class="o">.</span><span class="n">inited_param</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">par</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">par</span><span class="o">.</span><span class="n">inited_param</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">par</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">inited_param</span>
                 <span class="k">if</span> <span class="n">par</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">id</span><span class="p">(</span><span class="n">par</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">params_set</span><span class="p">:</span>
                     <span class="n">params_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">par</span><span class="p">))</span>
@@ -2432,8 +2434,8 @@
     <span class="k">def</span> <span class="nf">_run_tracefunc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot; Run Packed Cell in Pack.&quot;&quot;&quot;</span>
         <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mixed_precision_cast</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">PackFunc</span><span class="o">.</span><span class="n">current</span><span class="o">.</span><span class="n">is_pynative_mode</span> <span class="ow">or</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;bprop&quot;</span><span class="p">)</span> \
-                <span class="ow">or</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_pipeline_stage&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_flags</span><span class="p">():</span>
+        <span class="n">need_subgraph</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;bprop&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_pipeline_stage&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_flags</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">PackFunc</span><span class="o">.</span><span class="n">current</span><span class="o">.</span><span class="n">is_pynative_mode</span> <span class="ow">and</span> <span class="n">need_subgraph</span><span class="p">:</span>
             <span class="n">expander</span> <span class="o">=</span> <span class="n">PackExpander</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
             <span class="n">args</span> <span class="o">=</span> <span class="n">expander</span><span class="o">.</span><span class="n">begin_subgraph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
             <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">_convert_tensor</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>

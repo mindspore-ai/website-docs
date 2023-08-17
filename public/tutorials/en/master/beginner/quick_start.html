@@ -182,7 +182,7 @@ Successfully downloaded / unzipped to ./
 <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">datapipe</span><span class="p">(</span><span class="n">test_dataset</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Use <code class="docutils literal notranslate"><span class="pre">create_tuple_iterator</span></code> or <code class="docutils literal notranslate"><span class="pre">create_dict_iterator</span></code> to iterate over the dataset.</p>
+<p><a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/dataset/dataset_method/iterator/mindspore.dataset.Dataset.create_tuple_iterator.html">create_tuple_iterator</a> or <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/dataset/dataset_method/iterator/mindspore.dataset.Dataset.create_dict_iterator.html">create_dict_iterator</a> could be used to iterate over the dataset, printing the shape and dtype for <code class="docutils literal notranslate"><span class="pre">image</span></code> and <code class="docutils literal notranslate"><span class="pre">label</span></code>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">test_dataset</span><span class="o">.</span><span class="n">create_tuple_iterator</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shape of image [N, C, H, W]: </span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shape of label: </span><span class="si">{</span><span class="n">label</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">label</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -246,11 +246,6 @@ Shape of label: (64,) Int32
 </section>
 <section id="training-model">
 <h2>Training Model<a class="headerlink" href="#training-model" title="Permalink to this headline"></a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Instantiate loss function and optimizer</span>
-<span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
-<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">1e-2</span><span class="p">)</span>
-</pre></div>
-</div>
 <p>In model training, a complete training process (step) requires the following three steps:</p>
 <ol class="arabic simple">
 <li><p><strong>Forward calculation</strong>: model predicts results (logits) and finds the prediction loss (loss) with the correct label (label).</p></li>
@@ -260,19 +255,23 @@ Shape of label: (64,) Int32
 <p>MindSpore uses a functional automatic differentiation mechanism, implemented through the steps above:</p>
 <ol class="arabic simple">
 <li><p>Define forward calculation function.</p></li>
-<li><p>Obtain the gradient calculation function by function transformation.</p></li>
-<li><p>Define training functions, and perform forward computation, back propagation and parameter optimization.</p></li>
+<li><p>Obtain the gradient calculation function by function transformation, calling <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.value_and_grad.html">value_and_grad</a> for details.</p></li>
+<li><p>Define training functions, set to training mode by calling <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell.set_train">set_train</a> for setting of training mode, and perform forward computation, back propagation and parameter optimization.</p></li>
 </ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define forward function</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Instantiate loss function and optimizer</span>
+<span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">1e-2</span><span class="p">)</span>
+
+<span class="c1"># 1. Define forward function</span>
 <span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
     <span class="n">logits</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
     <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">logits</span>
 
-<span class="c1"># Get gradient function</span>
+<span class="c1"># 2. Get gradient function</span>
 <span class="n">grad_fn</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<span class="c1"># Define function of one-step training</span>
+<span class="c1"># 3. Define function of one-step training</span>
 <span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
     <span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
     <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
