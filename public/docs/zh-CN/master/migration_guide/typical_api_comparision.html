@@ -20,7 +20,7 @@
         <script src="../_static/translations.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
         <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script defer="defer" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
@@ -433,6 +433,18 @@ div.rendered_html tbody tr:hover {
 <section id="pytorch对比">
 <h1>PyTorch对比<a class="headerlink" href="#pytorch对比" title="永久链接至标题"></a></h1>
 <p><a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/master/zh_cn/migration_guide/mindspore_typical_api_comparision.ipynb"><img alt="下载Notebook" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_notebook.png" /></a> <a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/master/zh_cn/migration_guide/mindspore_typical_api_comparision.py"><img alt="下载样例代码" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_download_code.png" /></a> <a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/mindspore/source_zh_cn/migration_guide/typical_api_comparision.ipynb"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source.png" /></a></p>
+<section id="基础逻辑">
+<h2>基础逻辑<a class="headerlink" href="#基础逻辑" title="永久链接至标题"></a></h2>
+<p>PyTorch和MindSpore的基础逻辑如下图所示：</p>
+<p><img alt="flowchart" src="../_images/pytorch_mindspore_comparison.png" /></p>
+<p>可以看到， PyTorch和MindSpore在实现流程中一般都需要网络定义、正向计算、反向计算、梯度更新等步骤。</p>
+<ul class="simple">
+<li><p>网络定义：在网络定义中，一般会定义出需要的前向网络，损失函数和优化器。在Net()中定义前向网络，PyTorch的网络继承nn.Module；类似地，MindSpore的网络继承nn.Cell。在MindSpore中，损失函数和优化器除了使用MindSpore中提供的外，用户还可以使用自定义的优化器。可参考<a class="reference external" href="https://mindspore.cn/tutorials/zh-CN/master/advanced/modules.html">模型模块自定义</a>。可以使用functional/nn等接口拼接需要的前向网络、损失函数和优化器，详细接口用法可参照<a class="reference external" href="#接口对比">接口对比</a>。</p></li>
+<li><p>正向计算：运行实例化后的网络， 可以得到logit，将logit和target作为输入计算loss。需要注意的是，如果正向计算的函数有多个输出，在反向计算时需要注意多个输出对于计算结果的影响。</p></li>
+<li><p>反向计算：得到loss后，我们可以进行反向计算。在PyTorch中可使用loss.backward()计算梯度，在MindSpore中，先用mindspore.grad()定义出反向传播方程net_backward，再将输入传入net_backward中，即可计算梯度。如果正向计算的函数有多个输出，在反向计算时，可将has_aux设置为True，即可保证只有第一个输出参与求导，其它输出值将直接返回。对于反向计算中接口用法区别详见<a class="reference external" href="#自动微分对比">自动微分对比</a>。</p></li>
+<li><p>梯度更新：将计算后的梯度更新到网络的Parameters中。在PyTorch中使用optim.step()；在MindSpore中，将Parameter的梯度传入定义好的optim中，即可完成梯度更新。</p></li>
+</ul>
+</section>
 <section id="接口对比">
 <h2>接口对比<a class="headerlink" href="#接口对比" title="永久链接至标题"></a></h2>
 <section id="tensorparameter">
@@ -712,10 +724,261 @@ div.rendered_html tbody tr:hover {
 <h3>梯度求导<a class="headerlink" href="#梯度求导" title="永久链接至标题"></a></h3>
 <p>梯度求导涉及的算子和接口差异主要是由 MindSpore 和 PyTorch 自动微分原理不同引起的。</p>
 </section>
+<section id="torch.autograd.backward">
+<h3>torch.autograd.backward<a class="headerlink" href="#torch.autograd.backward" title="永久链接至标题"></a></h3>
+<p><a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.autograd.backward.html">torch.autograd.backward</a>对于一个标量，调用它的backward方法后会根据链式法则自动计算出叶子节点的梯度值。对于向量和矩阵，需要定义grad_tensor来计算矩阵的梯度。 通常在调用一次backward后，PyTorch会自动把计算图销毁，所以要想对某个变量重复调用backward，则需要将retain_graph参数设置为True。 若需要计算更高阶的梯度，需要将create_graph设置为True。 z.backward()和torch.autograd.backward(z)两种表达等价。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== tensor.backward ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;x.grad before backward&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;y.grad before backward&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="n">z</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;x.grad&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;y.grad&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.autograd.backward ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;x.grad&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;y.grad&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== tensor.backward ===
+x.grad before backward None
+y.grad before backward None
+z tensor(3., grad_fn=&lt;AddBackward0&gt;)
+x.grad tensor(2.)
+y.grad tensor(1.)
+=== torch.autograd.backward ===
+z tensor(3., grad_fn=&lt;AddBackward0&gt;)
+x.grad tensor(2.)
+y.grad tensor(1.)
+</pre></div></div>
+</div>
+<p>可以看到，在调用backward函数之前，x.grad和y.grad函数为空。而backward计算过后，x.grad和y.grad分别代表导数计算后的值。</p>
+<p>该接口在MindSpore中用mindspore.grad实现。上述PyTorch用例可转化为：</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== mindspore.grad ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">0</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+<span class="n">out1</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">1</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out1&quot;</span><span class="p">,</span> <span class="n">out1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== mindspore.grad ===
+out 2.0
+out1 1.0
+</pre></div></div>
+</div>
+<p>若上述net有多个输出，需要注意网络多输出对于求梯度的影响。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== mindspore.grad 多个output ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">0</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+<span class="n">out1</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">1</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out1&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== mindspore.grad 多个output ===
+out 3.0
+out1 3.0
+</pre></div></div>
+</div>
+<p>PyTorch不支持此种表达：</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.autograd.backward 不支持多个output ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;x.grad&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;y.grad&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== torch.autograd.backward 不支持多个output ===
+z tensor(3., grad_fn=&lt;AddBackward0&gt;)
+x.grad tensor(2.)
+y.grad tensor(1.)
+</pre></div></div>
+</div>
+<p>因此， 若要在MindSpore只对第一个输出求梯度，在MindSpore中需要使用has_aux参数。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== mindspore.grad has_aux ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+<span class="n">grad_fcn</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">grad_fcn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+<span class="n">grad_fcn1</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">grad_fcn1</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== mindspore.grad has_aux ===
+out 2.0
+out 1.0
+</pre></div></div>
+</div>
+</section>
+<section id="torch.autograd.grad">
+<h3>torch.autograd.grad<a class="headerlink" href="#torch.autograd.grad" title="永久链接至标题"></a></h3>
+<p><a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.autograd.grad.html">torch.autograd.grad</a>此接口与torch.autograd.backward基本一致。两者的区别为：前者是直接修改各个 Tensor 的 grad 属性，后者是返回参数的梯度值列表。因此在迁移到MindSpore时，可同样参考上述用例。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.autograd.grad ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="n">out1</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out1&quot;</span><span class="p">,</span> <span class="n">out1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== torch.autograd.grad ===
+out (tensor(2.),)
+out1 (tensor(1.),)
+</pre></div></div>
+</div>
+</section>
 <section id="torch.no_grad">
 <h3>torch.no_grad<a class="headerlink" href="#torch.no_grad" title="永久链接至标题"></a></h3>
 <p>在 PyTorch 中，默认情况下，执行正向计算时会记录反向传播所需的信息，在推理阶段或无需反向传播网络中，这一操作是冗余的，会额外耗时，因此，PyTorch 提供了<code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> 来取消该过程。</p>
 <p>而 MindSpore 只有在调用<code class="docutils literal notranslate"><span class="pre">grad</span></code>才会根据正向图结构来构建反向图，正向执行时不会记录任何信息，所以 MindSpore 并不需要该接口，也可以理解为 MindSpore 的正向计算均在<code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> 情况下进行的。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.no_grad ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z.requires_grad&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z.requires_grad&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== torch.no_grad ===
+z.requires_grad True
+z.requires_grad False
+</pre></div></div>
+</div>
+</section>
+<section id="torch.enable_grad">
+<h3>torch.enable_grad<a class="headerlink" href="#torch.enable_grad" title="永久链接至标题"></a></h3>
+<p>若 PyTorch 开启了 <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> 禁用了梯度计算，可以使用此接口启用。</p>
+<p>而 MindSpore 只有在调用<code class="docutils literal notranslate"><span class="pre">grad</span></code>才会根据正向图结构来构建反向图，正向执行时不会记录任何信息，所以 MindSpore 并不需要该接口，也可以理解为 MindSpore 的反向计算均在<code class="docutils literal notranslate"><span class="pre">torch.enable_grad</span></code> 情况下进行的。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.no_grad ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z.requires_grad&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z.requires_grad&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== torch.no_grad ===
+z.requires_grad False
+z.requires_grad True
+</pre></div></div>
+</div>
 </section>
 <section id="retain-graph">
 <h3>retain_graph<a class="headerlink" href="#retain-graph" title="永久链接至标题"></a></h3>
@@ -1072,6 +1335,5 @@ div.rendered_html tbody tr:hover {
           SphinxRtdTheme.Navigation.enable(true);
       });
   </script> 
-        <script async="async" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 </body>
 </html>

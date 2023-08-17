@@ -270,8 +270,227 @@ Enable comile_cache cost time: 0.09379792213439941
 <h2>如何优化执行性能<a class="headerlink" href="#如何优化执行性能" title="Permalink to this headline"></a></h2>
 <section id="使用jit-class">
 <h3>使用jit_class<a class="headerlink" href="#使用jit-class" title="Permalink to this headline"></a></h3>
-<p>使用场景：定义jit_class代替自定义Class，提高执行性能。</p>
-<p>其他内容待补充。</p>
+<p>使用场景：使用<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>装饰器修饰自定义类，提高执行性能。jit_class应用于静态图模式，在动态图模式下，<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>会被忽略，不影响动态图模式的执行逻辑。</p>
+<section id="jit-class的介绍">
+<h4>jit_class的介绍<a class="headerlink" href="#jit-class的介绍" title="Permalink to this headline"></a></h4>
+<p>用户在网络脚本中定义一个类时，可以写成继承于<code class="docutils literal notranslate"><span class="pre">Cell</span></code>的类、自定义类、<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>修饰的类，它们的用法和区别如下：</p>
+<ul>
+<li><p>继承于Cell的类</p>
+<p>Cell是MindSpore中神经网络的基本构成单元，模型或者神经网络层应当继承该类。静态图模式下，使用<code class="docutils literal notranslate"><span class="pre">Cell</span></code>类并且在<code class="docutils literal notranslate"><span class="pre">construct</span></code>函数中编写执行代码，此时<code class="docutils literal notranslate"><span class="pre">construct</span></code>函数的代码会被编译成静态计算图。</p>
+</li>
+<li><p>自定义类</p>
+<p>定义自定义类后，可以对类进行实例化、调用类对象的属性和方法，请参考<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/note/static_graph_syntax_support.html#%E6%94%AF%E6%8C%81%E8%87%AA%E5%AE%9A%E4%B9%89%E7%B1%BB%E7%9A%84%E4%BD%BF%E7%94%A8">自定义类的使用</a>。相比于<code class="docutils literal notranslate"><span class="pre">Cell</span></code>的类定义，自定义类更贴近用户调用Python类的使用习惯。自定义类在静态图模式下的实现方式与<code class="docutils literal notranslate"><span class="pre">Cell</span></code>不同，例如，调用自定义类对象的函数方法时，其函数方法中的代码不会被编译成静态计算图，而是通过Python解释器进行解释执行。</p>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>修饰的类</p>
+<p>为了兼顾用户的Python使用习惯和静态图编译带来的性能优势，提供了<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>装饰器。给自定义类修饰<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>装饰器后，该类的函数代码会被编译成静态计算图，基于图优化、静态图整图下沉等技术，编译器可以针对计算图进行全局的优化，从而获得较好的执行性能。</p>
+</li>
+</ul>
+<p>在静态图模式下，通过使用<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>修饰自定义类，用户可以创建、调用该类的实例，并且可以获取其属性和方法。</p>
+</section>
+<section id="jit-class装饰器的使用">
+<h4>jit_class装饰器的使用<a class="headerlink" href="#jit-class装饰器的使用" title="Permalink to this headline"></a></h4>
+<p>jit_class装饰器仅支持修饰自定义类，不支持修饰继承于<code class="docutils literal notranslate"><span class="pre">Cell</span></code>的类。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">InnerNet</span><span class="p">:</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">InnerNet</span><span class="p">()</span><span class="o">.</span><span class="n">value</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>运行结果如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[1 2 3]
+</pre></div>
+</div>
+<p>如果jit_class修饰继承于<code class="docutils literal notranslate"><span class="pre">Cell</span></code>的类，将会报错。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>报错信息如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>TypeError: Decorator jit_class is used for user-defined classes and cannot be used for nn.Cell: Net&lt;&gt;.
+</pre></div>
+</div>
+<p>jit_class支持自定义类嵌套使用、自定义类与<code class="docutils literal notranslate"><span class="pre">Cell</span></code>嵌套使用的场景。需要注意的是，类继承时，如果父类使用了jit_class，子类也会具有jit_class的能力。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">Inner</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">InnerNet</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inner</span> <span class="o">=</span> <span class="n">Inner</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inner_net</span> <span class="o">=</span> <span class="n">InnerNet</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_net</span><span class="o">.</span><span class="n">inner</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>运行结果如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[1 2 3]
+</pre></div>
+</div>
+</section>
+<section id="获取类的属性和方法">
+<h4>获取类的属性和方法<a class="headerlink" href="#获取类的属性和方法" title="Permalink to this headline"></a></h4>
+<p>支持通过类名或类实例调用属性和方法。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">InnerNet</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">val</span>
+
+    <span class="k">def</span> <span class="nf">act</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inner_net</span> <span class="o">=</span> <span class="n">InnerNet</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_net</span><span class="o">.</span><span class="n">number</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_net</span><span class="o">.</span><span class="n">act</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>运行结果如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>12
+</pre></div>
+</div>
+</section>
+<section id="创建类的实例">
+<h4>创建类的实例<a class="headerlink" href="#创建类的实例" title="Permalink to this headline"></a></h4>
+<p>对于将会被编译成静态计算图的函数，如<code class="docutils literal notranslate"><span class="pre">Cell</span></code>的<code class="docutils literal notranslate"><span class="pre">construct</span></code>函数、<code class="docutils literal notranslate"><span class="pre">&#64;jit</span></code>修饰的函数或前两者调用的子函数，如果需要在函数内创建<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>所修饰的类的实例，参数要求为常量。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">InnerNet</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">val</span> <span class="o">+</span> <span class="mi">3</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">net</span> <span class="o">=</span> <span class="n">InnerNet</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">net</span><span class="o">.</span><span class="n">number</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>运行结果如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>5
+</pre></div>
+</div>
+</section>
+<section id="调用类的实例">
+<h4>调用类的实例<a class="headerlink" href="#调用类的实例" title="Permalink to this headline"></a></h4>
+<p>调用<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>所修饰的类的实例时，将会调用该类的<code class="docutils literal notranslate"><span class="pre">__call__</span></code>函数方法。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">InnerNet</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">number</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">net</span> <span class="o">=</span> <span class="n">InnerNet</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>运行结果如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>10
+</pre></div>
+</div>
+<p>如果该类没有定义<code class="docutils literal notranslate"><span class="pre">__call__</span></code>函数，将会报错提示。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">InnerNet</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">number</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">net</span> <span class="o">=</span> <span class="n">InnerNet</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>报错信息如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>RumtimeError: MsClassObject: &#39;InnerNet&#39; has no __call__ function, please check the code.
+</pre></div>
+</div>
+</section>
 </section>
 <section id="使用select算子">
 <h3>使用select算子<a class="headerlink" href="#使用select算子" title="Permalink to this headline"></a></h3>
