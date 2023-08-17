@@ -84,7 +84,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/overview.html">迁移指南概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/enveriment_preparation.html">环境准备与资料获取</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/analysis_and_preparation.html">模型分析与准备</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/typical_api_comparision.html">与PyTorch典型区别</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/typical_api_comparision.html">PyTorch对比</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/model_development/model_development.html">MindSpore网络搭建</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/debug_and_tune.html">调试调优</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../migration_guide/sample_code.html">网络迁移调试实例</a></li>
@@ -175,7 +175,8 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops.operations.comm_ops</span> <span class="kn">import</span> <span class="n">ReduceOp</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">signature</span> <span class="k">as</span> <span class="n">sig</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops.operations.math_ops</span> <span class="kn">import</span> <span class="n">_infer_shape_reduce</span>
-<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">PrimitiveWithCheck</span><span class="p">,</span> <span class="n">PrimitiveWithInfer</span><span class="p">,</span> <span class="n">prim_attr_register</span><span class="p">,</span> <span class="n">Primitive</span><span class="p">,</span> <span class="n">_run_op</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">PrimitiveWithCheck</span><span class="p">,</span> <span class="n">PrimitiveWithInfer</span><span class="p">,</span> <span class="n">prim_attr_register</span><span class="p">,</span> <span class="n">Primitive</span><span class="p">,</span>\
+    <span class="n">_run_op</span><span class="p">,</span> <span class="n">_check_contains_variable</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Tensor</span> <span class="k">as</span> <span class="n">Tensor_</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">typing</span>
@@ -2096,16 +2097,32 @@
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;string&#39;</span><span class="p">])</span>
 
+
     <span class="k">def</span> <span class="nf">__infer__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">str_</span><span class="p">,</span> <span class="o">*</span><span class="n">var</span><span class="p">):</span>
-        <span class="n">str_value</span> <span class="o">=</span> <span class="n">str_</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span>
+        <span class="k">def</span> <span class="nf">check_variable</span><span class="p">(</span><span class="n">str_</span><span class="p">,</span> <span class="n">var</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_check_contains_variable</span><span class="p">(</span><span class="n">str_</span><span class="p">[</span><span class="s1">&#39;dtype&#39;</span><span class="p">],</span> <span class="n">str_</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]):</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">var</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_check_contains_variable</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">&#39;dtype&#39;</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]):</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+
+        <span class="k">if</span> <span class="n">check_variable</span><span class="p">(</span><span class="n">str_</span><span class="p">,</span> <span class="n">var</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">string</span><span class="p">,</span> <span class="s1">&#39;shape&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+
+
+        <span class="n">str_value</span> <span class="o">=</span> <span class="n">str_</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
         <span class="n">var_value</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">str_value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">str_</span><span class="p">[</span><span class="s2">&quot;dtype&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;str.format not support to input a variable.&quot;</span><span class="p">)</span>
+
         <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">var</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;dtype&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;str.format not support to input a variable.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;dtype&quot;</span><span class="p">],</span> <span class="n">typing</span><span class="o">.</span><span class="n">Keyword</span><span class="p">):</span>
+                <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span>
             <span class="n">var_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span>
-        <span class="n">value</span> <span class="o">=</span> <span class="n">str_value</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">var_value</span><span class="p">)</span>
+
+        <span class="n">value</span> <span class="o">=</span> <span class="n">str_value</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">var_value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="n">mstype</span><span class="o">.</span><span class="n">string</span><span class="p">,</span> <span class="s1">&#39;shape&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">value</span><span class="p">}</span>
 
 

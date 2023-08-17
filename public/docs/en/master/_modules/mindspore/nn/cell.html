@@ -83,7 +83,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/overview.html">Overview of Migration Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/enveriment_preparation.html">Environment Preparation and Information Acquisition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/analysis_and_preparation.html">Model Analysis and Preparation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/typical_api_comparision.html">Differences Between MindSpore and PyTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/typical_api_comparision.html">Differences between PyTorch and MindSpore</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/model_development/model_development.html">Constructing MindSpore Network</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/debug_and_tune.html">Debugging and Tuning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../migration_guide/sample_code.html">Network Migration Debugging Example</a></li>
@@ -306,6 +306,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">to_float_fp16</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ge_init</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ge_sync_data</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_check_and_refresh</span> <span class="o">=</span> <span class="kc">False</span>
 
 
     <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -775,7 +776,10 @@
         <span class="k">if</span> <span class="n">PackFunc</span><span class="o">.</span><span class="n">is_tracing</span><span class="p">():</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_tracefunc</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_names_and_refresh_name</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_is_check_and_refresh&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_check_and_refresh</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_names_and_refresh_name</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_check_and_refresh</span> <span class="o">=</span> <span class="kc">True</span>
+
         <span class="c1"># Run in Graph mode.</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;MS_JIT&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s1">&#39;0&#39;</span> <span class="ow">and</span> <span class="n">context</span><span class="o">.</span><span class="n">_get_mode</span><span class="p">()</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_check_construct_args</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
@@ -1482,7 +1486,7 @@
         <span class="k">for</span> <span class="n">cell_name</span><span class="p">,</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">cells</span><span class="p">:</span>
             <span class="n">params</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">par_name</span><span class="p">,</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">par</span><span class="o">.</span><span class="n">inited_param</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">par</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">par</span><span class="o">.</span><span class="n">inited_param</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">par</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">inited_param</span>
                 <span class="k">if</span> <span class="n">par</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">id</span><span class="p">(</span><span class="n">par</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">params_set</span><span class="p">:</span>
                     <span class="n">params_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">par</span><span class="p">))</span>
