@@ -619,6 +619,89 @@ you can use the <a class="reference external" href="https://www.mindspore.cn/doc
 <span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
 </pre></div>
 </div>
+<ol class="arabic simple" start="3">
+<li><p>If a function decorated with a &#64;jit decorator is called in a custom class, an error will be reported. In this scenario, it is recommended to add &#64;jit_class decorators to custom classes in the network and avoid the JIT Fallback feature. For more use of custom classes, please refer to <a class="reference external" href="https://www.mindspore.cn/docs/en/master/note/static_graph_syntax_support.html#supporting-the-use-of-custom-classes">Supporting the Use of Custom Classes</a>. The use of jit_class decorators can be referred to <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/optimize/static_graph_expert_programming.html#use-jit_class">Use jit_class</a></p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">InnerNet</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">+</span> <span class="n">x</span>
+
+<span class="k">class</span> <span class="nc">CustomNet</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">OutNet</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">net</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">net</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">call_net</span> <span class="o">=</span> <span class="n">InnerNet</span><span class="p">()</span>
+<span class="n">custom_net</span> <span class="o">=</span> <span class="n">CustomNet</span><span class="p">(</span><span class="n">call_net</span><span class="p">)</span>
+<span class="n">out_net</span> <span class="o">=</span> <span class="n">OutNet</span><span class="p">(</span><span class="n">custom_net</span><span class="p">)</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">out_net</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out:&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The result is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Nested execution during JIT execution for &#39;InnerNet.construct&#39; is not supported when &#39;OuterNet.construct&#39; compile and execute.
+</pre></div>
+</div>
+<p>It is recommended to change it to the following code:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">InnerNet</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">+</span> <span class="n">x</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="k">class</span> <span class="nc">CustomNet</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">OutNet</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">net</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">net</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">call_net</span> <span class="o">=</span> <span class="n">InnerNet</span><span class="p">()</span>
+<span class="n">custom_net</span> <span class="o">=</span> <span class="n">CustomNet</span><span class="p">(</span><span class="n">call_net</span><span class="p">)</span>
+<span class="n">out_net</span> <span class="o">=</span> <span class="n">OutNet</span><span class="p">(</span><span class="n">custom_net</span><span class="p">)</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">out_net</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out:&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
 <br/>
 <p><font size=3><strong>Q: What can I do if an error “ValueError: The value Parameter (name=name_a, shape=(1,), dtype=Float32, requires_grad=True) , its name ‘name_a’ already exists. Please set a unique name for the parameter.” is reported? What does it mean?</strong></font></p>
 <p>A: The graph mode requires the name of the parameter to be unique. If there are two or more Parameters with the same name, the network cannot distinguish different objects, which will cause errors. We can troubleshoot the Parameters with the same name in the script from the following angles, and set a unique name for the Parameter in it.</p>
