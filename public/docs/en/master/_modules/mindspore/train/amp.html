@@ -167,8 +167,8 @@
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
-<span class="kn">from</span> <span class="nn">mindspore.nn.wrap.cell_wrapper</span> <span class="kn">import</span> <span class="n">_TrainPipelineAccuStepCell</span>
-<span class="kn">from</span> <span class="nn">mindspore.nn.wrap.loss_scale</span> <span class="kn">import</span> <span class="n">_TrainPipelineWithLossScaleCell</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn.wrap.cell_wrapper</span> <span class="kn">import</span> <span class="n">_TrainGradAccuStepCell</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn.wrap.loss_scale</span> <span class="kn">import</span> <span class="n">_TrainGradAccuWithLossScaleCell</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_get_pipeline_stages</span>
 <span class="kn">from</span> <span class="nn">mindspore.train.loss_scale_manager</span> <span class="kn">import</span> <span class="n">DynamicLossScaleManager</span><span class="p">,</span> <span class="n">LossScaleManager</span>
@@ -599,6 +599,13 @@
         <span class="n">network</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">network</span>
 
+<span class="k">def</span> <span class="nf">_is_grad_accumulation</span><span class="p">(</span><span class="n">mcell</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">mcell</span><span class="o">.</span><span class="n">cls_name</span> <span class="o">==</span> <span class="s2">&quot;GradAccumulationCell&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">mcell</span><span class="o">.</span><span class="n">cells</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">_is_grad_accumulation</span><span class="p">(</span><span class="n">cell</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span>
 
 <div class="viewcode-block" id="build_train_network"><a class="viewcode-back" href="../../../api_python/amp/mindspore.amp.build_train_network.html#mindspore.amp.build_train_network">[docs]</a><span class="k">def</span> <span class="nf">build_train_network</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;O0&#39;</span><span class="p">,</span> <span class="n">boost_level</span><span class="o">=</span><span class="s1">&#39;O0&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -699,8 +706,8 @@
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only `loss_scale_manager=None` or &quot;</span>
                                  <span class="s2">&quot;`loss_scale_manager=FixedLossScaleManager(drop_overflow_update=False)`&quot;</span>
                                  <span class="s2">&quot;are supported on device `CPU`. &quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">_get_pipeline_stages</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">network</span> <span class="o">=</span> <span class="n">_TrainPipelineWithLossScaleCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span>
+            <span class="k">if</span> <span class="n">_get_pipeline_stages</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">_is_grad_accumulation</span><span class="p">(</span><span class="n">network</span><span class="p">):</span>
+                <span class="n">network</span> <span class="o">=</span> <span class="n">_TrainGradAccuWithLossScaleCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span>
                                                           <span class="n">scale_sense</span><span class="o">=</span><span class="n">update_cell</span><span class="p">)</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
             <span class="k">elif</span> <span class="n">enable_boost</span><span class="p">:</span>
                 <span class="n">network</span> <span class="o">=</span> <span class="n">boost</span><span class="o">.</span><span class="n">BoostTrainOneStepWithLossScaleCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span>
@@ -709,8 +716,8 @@
                 <span class="n">network</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">TrainOneStepWithLossScaleCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span>
                                                            <span class="n">scale_sense</span><span class="o">=</span><span class="n">update_cell</span><span class="p">)</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">network</span>
-    <span class="k">if</span> <span class="n">_get_pipeline_stages</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">network</span> <span class="o">=</span> <span class="n">_TrainPipelineAccuStepCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_get_pipeline_stages</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">_is_grad_accumulation</span><span class="p">(</span><span class="n">network</span><span class="p">):</span>
+        <span class="n">network</span> <span class="o">=</span> <span class="n">_TrainGradAccuStepCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
     <span class="k">elif</span> <span class="n">enable_boost</span><span class="p">:</span>
         <span class="n">network</span> <span class="o">=</span> <span class="n">boost</span><span class="o">.</span><span class="n">BoostTrainOneStepCell</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">loss_scale</span><span class="p">)</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
