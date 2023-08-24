@@ -87,19 +87,18 @@ if [ ${DO_BUILD} == "true" ];then
   if [ ${VERSION} == "master" ];then
     # shellcheck disable=SC2034
     BUILD_PATH="daily"
-    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --theme="/root/workspace/website-docs/template"
+    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --single_generate="${SINGLE_GENERATE}" --theme="/root/workspace/website-docs/template"
   else
-    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}" --theme="/root/workspace/website-docs/template"
-
+    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}" --single_generate="${SINGLE_GENERATE}" --theme="/root/workspace/website-docs/template"
   fi
 
   # shellcheck disable=SC2164
   cd /root/workspace/docs/tools/generate_html/${BUILD_PATH}/output
   cp -f common.css /root/workspace/website-docs/public/
   cp -f common.js /root/workspace/website-docs/public/
-  cp -f h5_docs.css /root/workspace/website-docs/public/
-  cp -f menu_en.json /root/workspace/website-docs/public/
-  cp -f menu_zh-CN.json /root/workspace/website-docs/public/
+  cp -f config.json /root/workspace/website-docs/public/
+  cp -f docs-menu.json /root/workspace/website-docs/public/
+  cp -f header.json /root/workspace/website-docs/public/
   cp -f msVersion.json /root/workspace/website-docs/public/
 
   delete_old
