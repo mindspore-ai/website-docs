@@ -87,9 +87,9 @@ if [ ${DO_BUILD} == "true" ];then
   if [ ${VERSION} == "master" ];then
     # shellcheck disable=SC2034
     BUILD_PATH="daily"
-    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --single_generate="${SINGLE_GENERATE}" --theme="/root/workspace/website-docs/template"
+    python run.py --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --theme="/root/workspace/website-docs/template"
   else
-    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}" --single_generate="${SINGLE_GENERATE}" --theme="/root/workspace/website-docs/template"
+    python run.py --version="${VERSION}" --user="${USER}" --pd="${PD}" --wgetdir="${WGETDIR}" --release_url="${RELEASE_URL}" --theme="/root/workspace/website-docs/template"
   fi
 
   # shellcheck disable=SC2164
