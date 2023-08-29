@@ -2,8 +2,8 @@ import sys
 import requests
 import json
 
-url = 'https://gitee.com/api/v5/repos/mindspore/website-docs/pulls'
 access_token = sys.argv[1]
+url = sys.argv[2]
 data = {
     "access_token": access_token,
     "title": "dev sync to master",
@@ -23,7 +23,7 @@ if response.status_code == 201:
     number = response.json()['number']
     print("pr nubmer: " + str(number))
 
-    pullUrl = 'https://gitee.com/api/v5/repos/mindspore/website-docs/pulls/' + str(number) + '/merge'
+    pullUrl = url + '/' + str(number) + '/merge'
     pullData = {
         "access_token": access_token,
         "merge_method": "merge"
