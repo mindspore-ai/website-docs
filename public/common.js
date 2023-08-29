@@ -43,7 +43,7 @@ $(function () {
                         reject(e)
                     },
                 })
-            })
+            }).catch((e) => {});
         }
         // 二级菜单
         function createSubMenu() {
@@ -70,6 +70,21 @@ $(function () {
 
         //初始化header
         const msHeader = {
+            headerTags:function(tags){
+              return `${
+                  tags && tags.length > 0
+                      ? tags.map((item) => {
+                            if(item.toLocaleLowerCase() === 'outlink'){
+                              return `<em class="outlink"></em>`
+                            }else{
+                              return `<span class="ms-tag ${item.toLocaleLowerCase()}">
+                                  <span class="ms-tag-label">${filterXSS(item)}</span>
+                              </span>`
+                            }
+                        }).join('')
+                      : ''
+              }`
+            },
             pcHeader: function () {
                 return `<header class="header">
   <nav class="header-wapper header-wapper-top">
@@ -118,7 +133,10 @@ $(function () {
                                             sub.openType === undefined
                                                 ? '_self'
                                                 : sub.openType
-                                        }" href="${filterXSS(isEn ? sub.href.en : sub.href.zh)}">${filterXSS(isEn ? sub.label.en : sub.label.zh)}</a></li>`
+                                        }" href="${filterXSS(isEn ? sub.href.en : sub.href.zh)}">
+                                        ${filterXSS(isEn ? sub.label.en : sub.label.zh)}
+                                        ${msHeader.headerTags(sub.tags)}
+                                        </a></li>`
                                     })
                                     .join('')}
                             </ul>
@@ -156,8 +174,8 @@ $(function () {
           <div class="theme-change"><i class="icon-theme light"></i></div>
       </div>
   </nav>
-
-<nav class="header-wapper header-wapper-lite header-wapper-docs" >
+<div class="header-menu">
+<nav class="header-wapper  header-wapper-docs" >
 <div class="header-nav">
   <div class="header-nav-info">
     ${
@@ -171,7 +189,7 @@ $(function () {
       ${createSubMenu()}
     </div>
     </div>
-  </div></nav><div class="header-nav-layer">
+  </div></nav></div><div class="header-nav-layer">
   <div class="header-nav-content">
     ${
         docsMenuData &&
@@ -194,15 +212,8 @@ $(function () {
                                                   subitem.id
                                               )
                                     }" ${subitem.link ? 'target="_blank" rel="noopener noreferrer"' : ''}>${filterXSS(subitem.name)}
-                                  ${
-                                      subitem.tags && subitem.tags.length > 0
-                                          ? subitem.tags.map((tags) => {
-                                                return `<span class="ms-tag ${tags.toLocaleLowerCase()}"><span class="ms-tag-label">${filterXSS(
-                                                    tags
-                                                )}</span></span>`
-                                            })
-                                          : ''
-                                  }</a>`
+                                    ${msHeader.headerTags(subitem.tags)}
+                                  </a>`
                                   })
                                   .join('')}
                           </div>
@@ -1381,33 +1392,32 @@ $(function () {
 
         // 换肤
         function initTheme() {
-            const themeStyle = localStorage.getItem('ms-theme')
-            const themeIcon = $('.theme-change i')
-            const html = document.getElementsByTagName('html')[0]
-            themeIcon.removeClass('dark light')
-            if (!themeStyle) {
-                localStorage.getItem('ms-theme', 'light')
-                html.classList.add('light')
-                themeIcon.addClass('light')
-            } else {
-                html.classList.add(themeStyle)
-                themeIcon.addClass(themeStyle)
-            }
+          const themeStyle = localStorage.getItem('ms-theme')
+          const themeIcon = $('.theme-change i')
+          const documentElement = document.documentElement;
+          themeIcon.removeClass('dark light')
+          if (!themeStyle) {
+              localStorage.getItem('ms-theme', 'light')
+              documentElement.removeAttribute('data-o-theme');
+              themeIcon.addClass('light')
+          } else {
+              documentElement.setAttribute('data-o-theme', themeStyle);
+              themeIcon.addClass(themeStyle)
+          }
 
-            themeIcon.click(function () {
-                let theme = 'light'
-                const _body = $('html')
-                if ($(this).hasClass('light')) {
-                    theme = 'dark'
-                    $(this).addClass('dark').removeClass('light')
-                    _body.addClass('dark').removeClass('light')
-                } else {
-                    theme = 'light'
-                    $(this).addClass('light').removeClass('dark')
-                    _body.addClass('light').removeClass('dark')
-                }
-                localStorage.setItem('ms-theme', theme)
-            })
+          themeIcon.click(function () {
+              let theme = 'light'
+              if ($(this).hasClass('light')) {
+                  theme = 'dark'
+                  $(this).addClass('dark').removeClass('light')
+                  documentElement.setAttribute('data-o-theme', theme);
+              } else {
+                  theme = 'light'
+                  $(this).addClass('light').removeClass('dark')
+                  documentElement.removeAttribute('data-o-theme');
+              }
+              localStorage.setItem('ms-theme', theme)
+          })
         }
 
         const initPage = async function () {
