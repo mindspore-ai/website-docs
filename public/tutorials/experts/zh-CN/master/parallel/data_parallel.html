@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>数据并行 &mdash; MindSpore master documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>数据并行 &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
@@ -19,7 +19,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Parameter Server模式" href="parameter_server_training.html" />
+    <link rel="next" title="半自动并行" href="semi_auto_parallel.html" />
     <link rel="prev" title="并行模式" href="parallel_mode.html" /> 
 </head>
 
@@ -51,6 +51,7 @@
 <li class="toctree-l1"><a class="reference internal" href="startup_method.html">分布式并行启动方式</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="parallel_mode.html">并行模式</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">数据并行</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semi_auto_parallel.html">半自动并行</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parameter_server_training.html">Parameter Server模式</a></li>
 </ul>
 </li>
@@ -162,9 +163,12 @@
 <section id="概述">
 <h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline"></a></h2>
 <p>数据并行是最常用的并行训练方式，用于加速模型训练和处理大规模数据集。在数据并行模式下，训练数据被划分成多份，然后将每份数据分配到不同的计算节点上，例如多卡或者多台设备。每个节点独立地处理自己的数据子集，并使用相同的模型进行前向传播和反向传播，最终对所有节点的梯度进行同步后，进行模型参数更新。</p>
+<blockquote>
+<div><p>数据并行支持的硬件平台包括Ascend、GPU和CPU，此外还同时支持PyNative模式和Graph模式。</p>
+</div></blockquote>
 <p>相关接口：</p>
 <ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.DATA_PARALLEL)</span></code>：设置数据并行模式；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.DATA_PARALLEL)</span></code>：设置数据并行模式。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code>：进行多卡梯度聚合。</p></li>
 </ol>
 </section>
@@ -179,10 +183,10 @@
 <p>数据并行的核心在于将数据集在样本维度拆分并下发到不同的卡上。在<code class="docutils literal notranslate"><span class="pre">mindspore.dataset</span></code>模块提供的所有数据集加载接口中都有<code class="docutils literal notranslate"><span class="pre">num_shards</span></code>和<code class="docutils literal notranslate"><span class="pre">shard_id</span></code>两个参数，它们用于将数据集拆分为多份并循环采样的方式，采集<code class="docutils literal notranslate"><span class="pre">batch</span></code>大小的数据到各自的卡上，当出现数据量不足的情况时将会从头开始采样。</p>
 </li>
 <li><p>网络构图</p>
-<p>数据并行网络的书写方式与单机网络没有差别，这是因为在正反向传播（Forward propagation &amp; Backward propagation）过程中各卡的模型间是独立执行的，只是保持了相同的网络结构。唯一需要特别注意的是为了保证各卡间训练同步，相应的网络参数初始化值应当是一致的，在<code class="docutils literal notranslate"><span class="pre">DATA_PRALLEL</span></code>模式下可以通过设置seed或通过使能<code class="docutils literal notranslate"><span class="pre">parameter_broadcast</span></code>达到多卡间权重初始化一致的目的。</p>
+<p>数据并行网络的书写方式与单卡网络没有差别，这是因为在正反向传播（Forward propagation &amp; Backward propagation）过程中各卡的模型间是独立执行的，只是保持了相同的网络结构。唯一需要特别注意的是为了保证各卡间训练同步，相应的网络参数初始化值应当是一致的，在<code class="docutils literal notranslate"><span class="pre">DATA_PRALLEL</span></code>模式下可以通过设置seed或通过使能<code class="docutils literal notranslate"><span class="pre">parameter_broadcast</span></code>达到多卡间权重初始化一致的目的。</p>
 </li>
 <li><p>梯度聚合（Gradient aggregation）</p>
-<p>数据并行理论上应该实现和单机一致的训练效果，为了保证计算逻辑的一致性，通过调用<code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code>接口，在梯度计算完成后自动插入<code class="docutils literal notranslate"><span class="pre">AllReduce</span></code>算子实现各卡间的梯度聚合操作。MindSpore设置了<code class="docutils literal notranslate"><span class="pre">mean</span></code>开关，用户可以选择是否要对求和后的梯度值进行求平均操作，也可以将其视为超参项。</p>
+<p>数据并行理论上应该实现和单卡一致的训练效果，为了保证计算逻辑的一致性，通过调用<code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code>接口，在梯度计算完成后自动插入<code class="docutils literal notranslate"><span class="pre">AllReduce</span></code>算子实现各卡间的梯度聚合操作。MindSpore设置了<code class="docutils literal notranslate"><span class="pre">mean</span></code>开关，用户可以选择是否要对求和后的梯度值进行求平均操作，也可以将其视为超参项。</p>
 </li>
 <li><p>参数更新（Parameter update）</p>
 <p>因为引入了梯度聚合操作，所以各卡的模型会以相同的梯度值一起进入参数更新步骤。</p>
@@ -191,7 +195,7 @@
 </section>
 <section id="操作实践">
 <h2>操作实践<a class="headerlink" href="#操作实践" title="Permalink to this headline"></a></h2>
-<p>下面以Ascend单机8卡为例，进行数据并行操作说明：</p>
+<p>下面以Ascend或者GPU单机8卡为例，进行数据并行操作说明：</p>
 <section id="样例代码说明">
 <h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="Permalink to this headline"></a></h3>
 <blockquote>
@@ -206,21 +210,15 @@
     ...
 </pre></div>
 </div>
-<p>其中，<code class="docutils literal notranslate"><span class="pre">rank_table_8pcs.json</span></code>是配置Ascend多卡环境的组网信息文件。<code class="docutils literal notranslate"><span class="pre">distributed_data_parallel.py</span></code>是定义网络结构和训练过程的脚本。<code class="docutils literal notranslate"><span class="pre">run.sh</span></code>是执行脚本。</p>
+<p>其中，<code class="docutils literal notranslate"><span class="pre">distributed_data_parallel.py</span></code>是定义网络结构和训练过程的脚本。<code class="docutils literal notranslate"><span class="pre">run.sh</span></code>是执行脚本。</p>
 </section>
 <section id="配置分布式环境">
 <h3>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="Permalink to this headline"></a></h3>
-<blockquote>
-<div><p>数据并行支持的硬件平台包括Ascend、GPU和CPU，此外还同时支持PyNative模式和Graph模式。</p>
-</div></blockquote>
-<p>通过MindSpore提供的context接口指定运行模式、运行设备、运行卡号、并行模式等，并通过init初始化HCCL通信。数据并行模式，还需要设置<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>、<code class="docutils literal notranslate"><span class="pre">gradients_mean</span></code>。</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<p>通过context接口可以指定运行模式、运行设备、运行卡号等，与单卡脚本不同，并行脚本还需指定并行模式<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>为数据并行模式，并通过init初始化HCCL或NCCL通信。在数据并行模式还需要设置<code class="docutils literal notranslate"><span class="pre">gradients_mean</span></code>指定梯度聚合方式。此处不设置<code class="docutils literal notranslate"><span class="pre">device_target</span></code>会自动指定为MindSpore包对应的后端硬件设备。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
 
-<span class="n">device_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;DEVICE_ID&#39;</span><span class="p">))</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;Ascend&quot;</span><span class="p">)</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">device_id</span><span class="o">=</span><span class="n">device_id</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
 <span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">DATA_PARALLEL</span><span class="p">,</span> <span class="n">gradients_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">init</span><span class="p">()</span>
 <span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
@@ -239,7 +237,7 @@
 <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MnistDataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">num_shards</span><span class="o">=</span><span class="n">rank_size</span><span class="p">,</span> <span class="n">shard_id</span><span class="o">=</span><span class="n">rank_id</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>其中，与单机不同的是，在数据集接口需要传入<code class="docutils literal notranslate"><span class="pre">num_shards</span></code>和<code class="docutils literal notranslate"><span class="pre">shard_id</span></code>参数，分别对应卡的数量和逻辑序号，建议通过<code class="docutils literal notranslate"><span class="pre">mindspore.communication</span></code>接口获取：</p>
+<p>其中，与单卡不同的是，在数据集接口需要传入<code class="docutils literal notranslate"><span class="pre">num_shards</span></code>和<code class="docutils literal notranslate"><span class="pre">shard_id</span></code>参数，分别对应卡的数量和逻辑序号，建议通过<code class="docutils literal notranslate"><span class="pre">mindspore.communication</span></code>接口获取：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">get_rank</span></code>：获取当前设备在集群中的ID。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">get_group_size</span></code>：获取集群数量。</p></li>
@@ -248,7 +246,8 @@
 <div><p>数据并行场景加载数据集时，建议对每卡指定相同的数据集文件，若是各卡加载的数据集不同，可能会影响计算精度。</p>
 </div></blockquote>
 <p>完整的数据处理代码：</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">get_rank</span><span class="p">,</span> <span class="n">get_group_size</span>
 
 <span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
@@ -273,7 +272,7 @@
 </section>
 <section id="定义网络">
 <h3>定义网络<a class="headerlink" href="#定义网络" title="Permalink to this headline"></a></h3>
-<p>数据并行模式下，网络定义方式与单机写法一致，网络的主要结构如下：</p>
+<p>数据并行模式下，网络定义方式与单卡网络写法一致，网络的主要结构如下：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 
 <span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
@@ -299,7 +298,7 @@
 </section>
 <section id="训练网络">
 <h3>训练网络<a class="headerlink" href="#训练网络" title="Permalink to this headline"></a></h3>
-<p>在这一步，我们需要定义损失函数、优化器以及训练过程。与单机不同的地方在于，数据并行模式还需要增加<code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code>接口，来对所有卡的梯度进行聚合，该接口第一个参数为需要更新的网络参数：</p>
+<p>在这一步，我们需要定义损失函数、优化器以及训练过程。与单卡模型不同的地方在于，数据并行模式还需要增加<code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code>接口，来对所有卡的梯度进行聚合，该接口第一个参数为需要更新的网络参数：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
 
 <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
@@ -328,8 +327,6 @@
 <section id="运行单机八卡脚本">
 <h3>运行单机八卡脚本<a class="headerlink" href="#运行单机八卡脚本" title="Permalink to this headline"></a></h3>
 <p>接下来通过命令调用对应的脚本，以<code class="docutils literal notranslate"><span class="pre">mpirun</span></code>启动方式，8卡的分布式训练脚本为例，进行分布式训练：</p>
-<p>用户首先需要安装OpenMPI，下载OpenMPI-4.1.4源码<a class="reference external" href="https://www.open-mpi.org/software/ompi/v4.1/">openmpi-4.1.4.tar.gz</a>。参考<a class="reference external" href="https://www.open-mpi.org/faq/?category=building#easy-build">OpenMPI官网教程</a>安装。</p>
-<p>然后启动分布式训练脚本：</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run.sh
 </pre></div>
 </div>
@@ -361,7 +358,7 @@ epoch: 0 step: 30, loss is 2.2938071
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="parallel_mode.html" class="btn btn-neutral float-left" title="并行模式" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="parameter_server_training.html" class="btn btn-neutral float-right" title="Parameter Server模式" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="semi_auto_parallel.html" class="btn btn-neutral float-right" title="半自动并行" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

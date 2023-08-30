@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Data Parallel &mdash; MindSpore master documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>Data Parallel &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
@@ -18,7 +18,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Parameter Server Mode" href="parameter_server_training.html" />
+    <link rel="next" title="Semi-automatic Parallel" href="semi_auto_parallel.html" />
     <link rel="prev" title="Parallel Mode" href="parallel_mode.html" /> 
 </head>
 
@@ -50,6 +50,7 @@
 <li class="toctree-l1"><a class="reference internal" href="startup_method.html">Distributed Parallel Startup Methods</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="parallel_mode.html">Parallel Mode</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Data Parallel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semi_auto_parallel.html">Semi-automatic Parallel</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parameter_server_training.html">Parameter Server Mode</a></li>
 </ul>
 </li>
@@ -161,6 +162,9 @@
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h2>
 <p>Data parallel is the most commonly used parallel training approach for accelerating model training and handling large-scale datasets. In data parallel mode, the training data is divided into multiple copies and then each copy is assigned to a different compute node, such as multiple cards or multiple devices. Each node processes its own subset of data independently and uses the same model for forward and backward propagation, and ultimately performs model parameter updates after synchronizing the gradients of all nodes.</p>
+<blockquote>
+<div><p>Hardware platforms supported for data parallelism include Ascend, GPU and CPU, in addition to both PyNative and Graph modes.</p>
+</div></blockquote>
 <p>Related interfaces are as follows:</p>
 <ol class="arabic simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.DATA_PARALLEL)</span></code>: Set the data parallel mode.</p></li>
@@ -178,10 +182,10 @@
 <p>The core of data parallel lies in splitting the dataset in sample dimensions and sending it down to different cards. In all dataset loading interfaces provided by the <code class="docutils literal notranslate"><span class="pre">mindspore.dataset</span></code> module, there are <code class="docutils literal notranslate"><span class="pre">num_shards</span></code> and <code class="docutils literal notranslate"><span class="pre">shard_id</span></code> parameters which are used to split the dataset into multiple copies and cycle through the samples in a way that collects <code class="docutils literal notranslate"><span class="pre">batch</span></code> data to their respective cards, and will start from the beginning when there is a shortage of data.</p>
 </li>
 <li><p>Network composition</p>
-<p>The data parallel network is written in a way that does not differ from the stand-alone network, due to the fact that during forward propagation &amp; backward propagation the models of each card are executed independently from each other, only the same network structure is maintained. The only thing we need to pay special attention to is that in order to ensure the training synchronization between cards, the corresponding network parameter initialization values should be the same. In <code class="docutils literal notranslate"><span class="pre">DATA_PRALLEL</span></code> mode, we can set seed or enable <code class="docutils literal notranslate"><span class="pre">parameter_broadcast</span></code> to achieve the same initialization of weights between multiple cards.</p>
+<p>The data parallel network is written in a way that does not differ from the single-card network, due to the fact that during forward propagation &amp; backward propagation the models of each card are executed independently from each other, only the same network structure is maintained. The only thing we need to pay special attention to is that in order to ensure the training synchronization between cards, the corresponding network parameter initialization values should be the same. In <code class="docutils literal notranslate"><span class="pre">DATA_PRALLEL</span></code> mode, we can set seed or enable <code class="docutils literal notranslate"><span class="pre">parameter_broadcast</span></code> to achieve the same initialization of weights between multiple cards.</p>
 </li>
 <li><p>Gradient aggregation</p>
-<p>Data parallel should theoretically achieve the same training effect as the stand-alone machine. In order to ensure the consistency of the computational logic, the gradient aggregation operation between cards is realized by calling the <code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code> interface, which automatically inserts the <code class="docutils literal notranslate"><span class="pre">AllReduce</span></code> operator after the gradient computation is completed. MindSpore sets the <code class="docutils literal notranslate"><span class="pre">mean</span></code> switch, which allows the user to choose whether to perform an average operation on the summed gradient values, or to treat them as hyperparameters.</p>
+<p>Data parallel should theoretically achieve the same training effect as the single-card machine. In order to ensure the consistency of the computational logic, the gradient aggregation operation between cards is realized by calling the <code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code> interface, which automatically inserts the <code class="docutils literal notranslate"><span class="pre">AllReduce</span></code> operator after the gradient computation is completed. MindSpore sets the <code class="docutils literal notranslate"><span class="pre">mean</span></code> switch, which allows the user to choose whether to perform an average operation on the summed gradient values, or to treat them as hyperparameters.</p>
 </li>
 <li><p>Parameter update</p>
 <p>Because of the introduction of the gradient aggregation operation, the models of each card will enter the parameter update step together with the same gradient values.</p>
@@ -190,7 +194,7 @@
 </section>
 <section id="operation-practice">
 <h2>Operation Practice<a class="headerlink" href="#operation-practice" title="Permalink to this headline"></a></h2>
-<p>The following is an illustration of data parallel operation using the Ascend single-machine 8-card as an example:</p>
+<p>The following is an illustration of data parallel operation using the Ascend or GPU single-machine 8-card as an example:</p>
 <section id="sample-code-description">
 <h3>Sample Code Description<a class="headerlink" href="#sample-code-description" title="Permalink to this headline"></a></h3>
 <blockquote>
@@ -205,21 +209,15 @@
     ...
 </pre></div>
 </div>
-<p>Among them, <code class="docutils literal notranslate"><span class="pre">rank_table_8pcs.json</span></code> is the network information file to configure the Ascend multi-card environment. <code class="docutils literal notranslate"><span class="pre">distributed_data_parallel.py</span></code> is the script that defines the network structure and training process. <code class="docutils literal notranslate"><span class="pre">run.sh</span></code> is the execution script.</p>
+<p>Among them, <code class="docutils literal notranslate"><span class="pre">distributed_data_parallel.py</span></code> is the script that defines the network structure and training process. <code class="docutils literal notranslate"><span class="pre">run.sh</span></code> is the execution script.</p>
 </section>
 <section id="configuring-distributed-environments">
 <h3>Configuring Distributed Environments<a class="headerlink" href="#configuring-distributed-environments" title="Permalink to this headline"></a></h3>
-<blockquote>
-<div><p>Hardware platforms supported for data parallel include Ascend, GPUs and CPUs, in addition to both PyNative and Graph modes.</p>
-</div></blockquote>
-<p>Specify the run mode, run device, run card number, and parallel mode through the context interface provided by MindSpore, and initialize HCCL communication through init. For data parallel mode, you also need to set <code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>, <code class="docutils literal notranslate"><span class="pre">gradients_mean</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<p>The context interface allows you to specify the run mode, run device, run card number. Unlike single-card scripts, parallel scripts also need to specify the parallel mode <code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code> for data parallel mode and initialize HCCL or NCCL communication through init. In data parallel mode, you also need to set <code class="docutils literal notranslate"><span class="pre">gradients_mean</span></code> to specify the gradient aggregation method. If <code class="docutils literal notranslate"><span class="pre">device_target</span></code> is not set here, it is automatically specified as the backend hardware device corresponding to the MindSpore package.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
 
-<span class="n">device_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;DEVICE_ID&#39;</span><span class="p">))</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;Ascend&quot;</span><span class="p">)</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">device_id</span><span class="o">=</span><span class="n">device_id</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
 <span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">DATA_PARALLEL</span><span class="p">,</span> <span class="n">gradients_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">init</span><span class="p">()</span>
 <span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
@@ -238,7 +236,7 @@
 <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MnistDataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">num_shards</span><span class="o">=</span><span class="n">rank_size</span><span class="p">,</span> <span class="n">shard_id</span><span class="o">=</span><span class="n">rank_id</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Unlike stand-alone, the <code class="docutils literal notranslate"><span class="pre">num_shards</span></code> and <code class="docutils literal notranslate"><span class="pre">shard_id</span></code> parameters need to be passed in the dataset interface, corresponding to the number of cards and the logical serial number, respectively, and it is recommended to obtain them through the <code class="docutils literal notranslate"><span class="pre">mindspore.communication</span></code> interface:</p>
+<p>Unlike single-card, the <code class="docutils literal notranslate"><span class="pre">num_shards</span></code> and <code class="docutils literal notranslate"><span class="pre">shard_id</span></code> parameters need to be passed in the dataset interface, corresponding to the number of cards and the logical serial number, respectively, and it is recommended to obtain them through the <code class="docutils literal notranslate"><span class="pre">mindspore.communication</span></code> interface:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">get_rank</span></code>: Obtain the ID of the current device in the cluster.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">get_group_size</span></code>: Obtain the number of clusters.</p></li>
@@ -247,7 +245,8 @@
 <div><p>When loading datasets for data parallel scenarios, it is recommended that the same dataset file be specified for each card. If different datasets are loaded for each card, the computational accuracy may be affected.</p>
 </div></blockquote>
 <p>The complete data processing code:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">get_rank</span><span class="p">,</span> <span class="n">get_group_size</span>
 
 <span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
@@ -272,7 +271,7 @@
 </section>
 <section id="defining-network">
 <h3>Defining Network<a class="headerlink" href="#defining-network" title="Permalink to this headline"></a></h3>
-<p>In data parallel mode, the network is defined in the same way as stand-alone, and the main structure of the network is as follows:</p>
+<p>In data parallel mode, the network is defined in the same way as single-card network, and the main structure of the network is as follows:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 
 <span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
@@ -298,7 +297,7 @@
 </section>
 <section id="training-network">
 <h3>Training Network<a class="headerlink" href="#training-network" title="Permalink to this headline"></a></h3>
-<p>In this step, we need to define the loss function, the optimizer, and the training process. The difference with stand-alone is that the data parallel mode also requires the addition of the <code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code> interface to aggregate the gradients of all cards. The first parameter of the network is the network parameter to be updated:</p>
+<p>In this step, we need to define the loss function, the optimizer, and the training process. The difference with single-card model is that the data parallel mode also requires the addition of the <code class="docutils literal notranslate"><span class="pre">mindspore.nn.DistributedGradReducer()</span></code> interface to aggregate the gradients of all cards. The first parameter of the network is the network parameter to be updated:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
 
 <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
@@ -327,8 +326,6 @@
 <section id="running-single-machine-eight-card-script">
 <h3>Running Single-machine Eight-card Script<a class="headerlink" href="#running-single-machine-eight-card-script" title="Permalink to this headline"></a></h3>
 <p>Next, the corresponding scripts are invoked by commands, using the <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> startup method and the 8-card distributed training script as an example of distributed training:</p>
-<p>Users need to install OpenMPI first, download the OpenMPI-4.1.4 source code <a class="reference external" href="https://www.open-mpi.org/software/ompi/v4.1/">openmpi-4.1.4.tar.gz</a>. Refer to <a class="reference external" href="https://www.open-mpi.org/faq/?category=building#easy-build">OpenMPI official website tutorial</a> to install it.</p>
-<p>Then start the distributed training script:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run.sh
 </pre></div>
 </div>
@@ -360,7 +357,7 @@ epoch: 0 step: 30, loss is 2.2938071
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="parallel_mode.html" class="btn btn-neutral float-left" title="Parallel Mode" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="parameter_server_training.html" class="btn btn-neutral float-right" title="Parameter Server Mode" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="semi_auto_parallel.html" class="btn btn-neutral float-right" title="Semi-automatic Parallel" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

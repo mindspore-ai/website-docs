@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Optimizer Parallel &mdash; MindSpore master documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>Optimizer Parallel &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
@@ -18,8 +18,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Recomputation" href="recompute.html" />
-    <link rel="prev" title="Pipeline Parallel" href="pipeline_parallel.html" /> 
+    <link rel="next" title="Pipeline Parallel" href="pipeline_parallel.html" />
+    <link rel="prev" title="Operator-level Parallelism" href="operator_parallel.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -48,7 +48,17 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Distributed Parallelism Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="startup_method.html">Distributed Parallel Startup Methods</a></li>
-<li class="toctree-l1"><a class="reference internal" href="parallel_mode.html">Parallel Mode</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="parallel_mode.html">Parallel Mode</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="data_parallel.html">Data Parallel</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="semi_auto_parallel.html">Semi-automatic Parallel</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="operator_parallel.html">Operator-level Parallelism</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Optimizer Parallel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pipeline_parallel.html">Pipeline Parallel</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="parameter_server_training.html">Parameter Server Mode</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="basic_cases.html">Distributed Basic Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="operator_parallel.html">Operator-level Parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline_parallel.html">Pipeline Parallel</a></li>
@@ -116,6 +126,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="parallel_mode.html">Parallel Mode</a> &raquo;</li>
+          <li><a href="semi_auto_parallel.html">Semi-automatic Parallel</a> &raquo;</li>
       <li>Optimizer Parallel</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/parallel/optimizer_parallel.md.txt" rel="nofollow"> View page source</a>
@@ -157,7 +169,7 @@
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h2>
 <p>When performing data parallel training, the parameter update part of the model is computed redundantly across cards. Optimizer parallelism can effectively reduce memory consumption and improve network performance on large-scale networks (e.g., Bert, GPT) by spreading the computation of the optimizer to the cards of the data parallel dimension.</p>
 <p>In data parallel mode to enable optimizer parallelism, the framework will spread the parameters to be updated to different cards, and then do weight sharing among clusters by Broadcast operator after each update. It should be noted that the number of parameters should be greater than the number of machines, and currently only Lamb and AdamWeightDecay optimizers are supported.</p>
-<p>In auto_parallel or semi_auto_parallel mode to enable optimizer parallelism, if the parameters after slicing strategy have duplicate slices between machines and the highest dimension of the shape is divisible by the cardinality of the duplicate slices, the framework saves the parameters as minimal slices and updates them in the optimizer. All optimizers are supported in this mode.</p>
+<p>In AUTO_PARALLEL or SEMI_AUTO_PARALLEL mode to enable optimizer parallelism, if the parameters after slicing strategy have duplicate slices between machines and the highest dimension of the shape is divisible by the cardinality of the duplicate slices, the framework saves the parameters as minimal slices and updates them in the optimizer. All optimizers are supported in this mode.</p>
 <table class="colwidths-auto docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"><p>Parallel mode</p></th>
@@ -180,6 +192,14 @@
 </tbody>
 </table>
 <p>In either mode, the optimizer parallelism does not affect the compute graph of the original forward and backward network, but only the compute volume and compute logic of the parameter updates.</p>
+<blockquote>
+<div><p>Hardware platforms supported by the optimizer parallel model include Ascend, GPU, and need to be run in Graph mode.</p>
+</div></blockquote>
+<p>Related interfaces:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL,</span> <span class="pre">enable_parallel_optimizer=True)</span></code>: Set semi-automatic parallel mode and enable optimizer parallel, must be called before initializing the network. When <code class="docutils literal notranslate"><span class="pre">enable_parallel_optimizer</span></code> is turned on, the optimizer slices by default for all <strong>parameters occupying no less than 64KB</strong> of memory. See <code class="docutils literal notranslate"><span class="pre">Advanced</span> <span class="pre">Interfaces</span></code> in this chapter.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Cell.set_comm_fusion(NUM)</span></code>: In full/semi-automatic mode, each parameter generates a corresponding AllGather operation and ReduceScatter operation. These communication operators are automatically inserted by the auto-parallel framework. However, as the number of parameters increases, the number of corresponding communication operators also increases, and the scheduling and startup of operators generated by communication operations incurs more overhead. Therefore, it is possible to manually configure fusion markers for the AllGather and ReduceScatter operations corresponding to parameters within each <code class="docutils literal notranslate"><span class="pre">cell</span></code> through the <code class="docutils literal notranslate"><span class="pre">set_comm_fusion</span></code> method provided by <code class="docutils literal notranslate"><span class="pre">cell</span></code> in order to improve communication efficiency.</p></li>
+</ol>
 </section>
 <section id="basic-principles">
 <h2>Basic Principles<a class="headerlink" href="#basic-principles" title="Permalink to this headline"></a></h2>
@@ -197,52 +217,166 @@
 </section>
 <section id="operation-practice">
 <h2>Operation Practice<a class="headerlink" href="#operation-practice" title="Permalink to this headline"></a></h2>
+<p>The following is an illustration of optimizer parallel operation using an Ascend or GPU single-machine 8-card example:</p>
 <section id="sample-code-description">
 <h3>Sample Code Description<a class="headerlink" href="#sample-code-description" title="Permalink to this headline"></a></h3>
 <blockquote>
-<div><p>You can download the full sample code here:</p>
-<p><a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/distributed_optimizer_parallel">https://gitee.com/mindspore/docs/tree/master/docs/sample_code/distributed_optimizer_parallel</a>.</p>
+<div><p>Download the full sample code: <a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/distributed_optimizer_parallel">distributed_optimizer_parallel</a>.</p>
 </div></blockquote>
 <p>The directory structure is as follows:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ sample_code
     ├─ distributed_optimizer_parallel
-        ├── fusion_example.py
-        ├── rank_table_2pcs.json
-        ├── rank_table_8pcs.json
-        └── run_fusion_example.sh
+       ├── distributed_optimizer_parallel.py
+       └── run.sh
+    ...
 </pre></div>
 </div>
-<p>The role of each file is as follows:</p>
-<ul class="simple">
-<li><p>fusion_example.py: Sample code fused by optimizer, illustrating how to configure the fusion flag for the optimizer.</p></li>
-<li><p>rank_table_2pcs.json: 2-card configuration file of RANK_TABLE_FILE.</p></li>
-<li><p>rank_table_8pcs.json: 8-card configuration file of RANK_TABLE_FILE.</p></li>
-<li><p>run_fusion_example.sh: Startup script for optimizer fusion code.</p></li>
-</ul>
+<p>Among them, <code class="docutils literal notranslate"><span class="pre">distributed_optimizer_parallel.py</span></code> is the script that defines the network structure and the training process. <code class="docutils literal notranslate"><span class="pre">run.sh</span></code> is the execution script.</p>
 </section>
-<section id="turning-on-optimizer-parallel">
-<h3>Turning on Optimizer Parallel<a class="headerlink" href="#turning-on-optimizer-parallel" title="Permalink to this headline"></a></h3>
-<p>The <code class="docutils literal notranslate"><span class="pre">enable_parallel_optimizer</span></code> option is provided in <code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context</span></code>. Configure it to True to enable optimizer parallelism. By default, optimizer slicing is performed for all parameters that <strong>take up no less than 64KB</strong> of memory.</p>
+<section id="configuring-the-distributed-environment">
+<h3>Configuring the Distributed Environment<a class="headerlink" href="#configuring-the-distributed-environment" title="Permalink to this headline"></a></h3>
+<p>Specify the run mode, run device, run card number through the context interface. Unlike single-card scripts, parallel scripts also need to specify the parallel mode <code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code> to be semi-automatic parallel mode, and initialize HCCL or NCCL communication through init. In addition, optimizer parallel should be turned on, configuring <code class="docutils literal notranslate"><span class="pre">enable_parallel_optimizer=True</span></code>. If <code class="docutils literal notranslate"><span class="pre">device_target</span></code> is not set here, it will be automatically specified as the backend hardware device corresponding to the MindSpore package.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">enable_parallel_optimizer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">SEMI_AUTO_PARALLEL</span><span class="p">,</span> <span class="n">enable_parallel_optimizer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">init</span><span class="p">()</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="configurating-parameter-optimizer-parallel">
-<h3>Configurating Parameter Optimizer Parallel<a class="headerlink" href="#configurating-parameter-optimizer-parallel" title="Permalink to this headline"></a></h3>
-<p>In addition, the user can customize whether optimizer slicing is performed in certain parameters. Parameter provides a <code class="docutils literal notranslate"><span class="pre">parallel_optimizer</span></code> parameter to configure whether optimizer slicing is performed in current parameters. So the user configures whether to turn on optimizer parallelism for each parameter individually, as follows:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
-<span class="n">param</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">))),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;weight1&#39;</span><span class="p">,</span> <span class="n">parallel_optimizer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<section id="loading-the-dataset">
+<h3>Loading the Dataset<a class="headerlink" href="#loading-the-dataset" title="Permalink to this headline"></a></h3>
+<p>In the optimizer parallel scenario, the dataset is loaded in the same way as single-card is loaded, with the following code:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 
-<span class="c1"># Another way to set the parallel_optimizer attribute</span>
-<span class="n">param2</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">))),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;weight2&#39;</span><span class="p">)</span>
-<span class="n">param2</span><span class="o">.</span><span class="n">parallel_optimizer</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;create dataset&quot;&quot;&quot;</span>
+    <span class="n">dataset_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DATA_PATH&quot;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MnistDataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">)</span>
+    <span class="n">image_transforms</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">Rescale</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">255.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="p">(</span><span class="mf">0.1307</span><span class="p">,),</span> <span class="n">std</span><span class="o">=</span><span class="p">(</span><span class="mf">0.3081</span><span class="p">,)),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">HWC2CHW</span><span class="p">()</span>
+    <span class="p">]</span>
+    <span class="n">label_transform</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">TypeCast</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">image_transforms</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">label_transform</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dataset</span>
+
+<span class="n">data_set</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The optimizer parallel feature also provides the configuration dictionary <code class="docutils literal notranslate"><span class="pre">parallel_optimizer_config</span></code>. By configuring different key values in the context, different effects can be achieved:</p>
+</section>
+<section id="defining-the-network">
+<h3>Defining the Network<a class="headerlink" href="#defining-the-network" title="Permalink to this headline"></a></h3>
+<p>The optimizer parallel network structure is essentially the same as the single card network structure, with the difference being the addition of a configuration for communication operator fusion:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span><span class="o">.</span><span class="n">set_comm_fusion</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span><span class="o">.</span><span class="n">set_comm_fusion</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span><span class="o">.</span><span class="n">set_comm_fusion</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">logits</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">Network</span><span class="p">()</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>Here communication fusion is configured for different layers in order to reduce the communication cost. Details can be found in <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/comm_fusion.html">Communication Operator Fusion</a>.</p>
+</div></blockquote>
+</section>
+<section id="training-the-network">
+<h3>Training the Network<a class="headerlink" href="#training-the-network" title="Permalink to this headline"></a></h3>
+<p>In this step, we need to define the loss function, the optimizer, and the training process, which is the same as that of the single-card:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">1e-2</span><span class="p">)</span>
+<span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">logits</span>
+
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">):</span>
+    <span class="p">(</span><span class="n">loss_value</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+    <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss_value</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">data_set</span><span class="p">:</span>
+        <span class="n">loss_output</span> <span class="o">=</span> <span class="n">train_step</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;epoch: </span><span class="si">%s</span><span class="s2">, step: </span><span class="si">%s</span><span class="s2">, loss is </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">loss_output</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+</section>
+<section id="running-the-single-machine-eight-card-script">
+<h3>Running the Single-machine Eight-card Script<a class="headerlink" href="#running-the-single-machine-eight-card-script" title="Permalink to this headline"></a></h3>
+<p>Next, the corresponding scripts are invoked by commands, using the <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> startup method and the 8-card distributed training script as an example of distributed training:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run.sh
+</pre></div>
+</div>
+<p>After training, the log files are saved to the <code class="docutils literal notranslate"><span class="pre">log_output</span></code> directory, where part of the file directory structure is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ log_output
+    └─ 1
+        ├─ rank.0
+        |   └─ stdout
+        ├─ rank.1
+        |   └─ stdout
+...
+</pre></div>
+</div>
+<p>The results are saved in <code class="docutils literal notranslate"><span class="pre">log_output/1/rank.*/stdout</span></code>, and example is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0, step: 0, loss is 2.3024087
+epoch: 0, step: 10, loss is 2.2921634
+epoch: 0, step: 20, loss is 2.278274
+epoch: 0, step: 30, loss is 2.2537143
+epoch: 0, step: 40, loss is 2.1638
+epoch: 0, step: 50, loss is 1.984318
+epoch: 0, step: 60, loss is 1.6061916
+epoch: 0, step: 70, loss is 1.20966
+epoch: 0, step: 80, loss is 0.98156196
+epoch: 0, step: 90, loss is 0.77229893
+epoch: 0, step: 100, loss is 0.6854114
+...
+</pre></div>
+</div>
+<p>Other startup methods such as dynamic networking and <code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">table</span></code> startup can be found in <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/startup_method.html">startup methods</a>.</p>
+</section>
+</section>
+<section id="advanced-interfaces">
+<h2>Advanced Interfaces<a class="headerlink" href="#advanced-interfaces" title="Permalink to this headline"></a></h2>
+<ol class="arabic">
+<li><p><code class="docutils literal notranslate"><span class="pre">parallel_optimizer_config</span></code>: The optimizer parallel feature also provides a configuration dictionary <code class="docutils literal notranslate"><span class="pre">parallel_optimizer_config={}</span></code>. Different effects can be achieved by configuring different key values in <code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context()</span></code>:</p>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">gradient_accumulation_shard(bool)</span></code>: If True, the cumulative gradient variables will be sliced on the data parallelism. When accumulating gradients, an additional communication (ReduceScatter) will be introduced in each accumulation iteration to ensure computational consistency, but saves a large amount of compute device memory (e.g. GPU video memory), thus allowing the model to be trained in larger batches. This configuration is valid only if the model is set in pipelined parallel training or gradient accumulation and has a data parallel dimension. The default value is True.</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">gradient_accumulation_shard</span></code>: If True, the cumulative gradient variables will be sliced on the data parallelism. When accumulating gradients, an additional communication (ReduceScatter) will be introduced in each accumulation iteration to ensure computational consistency, but saves a large amount of compute device memory (e.g. GPU video memory), thus allowing the model to be trained in larger batches. This configuration is valid only if the model is set in pipelined parallel training or gradient accumulation and has a data parallel dimension. The default value is True.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_optimizer_config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;gradient_accumulation_shard&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="n">enable_parallel_optimizer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
@@ -259,132 +393,19 @@
 </div>
 </li>
 </ul>
-</section>
-<section id="configuring-communication-fusion">
-<h3>Configuring Communication Fusion<a class="headerlink" href="#configuring-communication-fusion" title="Permalink to this headline"></a></h3>
-<p>In the section Configurating Parameter Optimizer Parallel, we describe how to configure the optimizer parallelism property for each parameter. In full/semi-automatic mode, each parameter generates a corresponding AllGather operation and a ReduceScatter operation. These communication operators are inserted automatically by the auto-parallel framework. However, as the number of parameters increases, the number of corresponding communication operator increases, and the communication operations generate more overhead for both operator scheduling and startup. Therefore, fusion tokens can be configured for the AllGather and ReduceScatter operations corresponding to the parameters within each <code class="docutils literal notranslate"><span class="pre">cell</span></code> through the <code class="docutils literal notranslate"><span class="pre">set_comm_fusion</span></code> method provided by the <code class="docutils literal notranslate"><span class="pre">cell</span></code>.</p>
-<p>As shown in the following code, the <code class="docutils literal notranslate"><span class="pre">set_comm_fusion</span></code> method is called for the instantiated DenseLayer to set the fusion value for each layer.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;Parallel Optimizer Fusion Example&quot;&quot;&quot;</span>
-<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
-<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Parameter.parallel_optimizer</span></code>: This interface also allows the user to customize whether certain weights are sliced by the optimizer, as shown below:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
-<span class="n">init</span><span class="p">()</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">SEMI_AUTO_PARALLEL</span><span class="p">,</span> <span class="n">enable_parallel_optimizer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">param</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">))),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;weight1&#39;</span><span class="p">,</span> <span class="n">parallel_optimizer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<span class="k">class</span> <span class="nc">DenseLayer</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A base layer with two dense layer&quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">input_mapping</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">output_mapping</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_mapping</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_mapping</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;An network with many dense layers&quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span> <span class="o">=</span> <span class="n">DenseLayer</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span> <span class="o">=</span> <span class="n">DenseLayer</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span> <span class="o">=</span> <span class="n">DenseLayer</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span><span class="o">.</span><span class="n">set_comm_fusion</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span><span class="o">.</span><span class="n">set_comm_fusion</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span><span class="o">.</span><span class="n">set_comm_fusion</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">x</span>
-
-<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">():</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The parameter </span><span class="si">{</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;s fusion id is </span><span class="si">{</span><span class="n">item</span><span class="o">.</span><span class="n">comm_fusion</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="c1"># Another way to set the parallel_optimizer attribute</span>
+<span class="n">param2</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">))),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;weight2&#39;</span><span class="p">)</span>
+<span class="n">param2</span><span class="o">.</span><span class="n">parallel_optimizer</span> <span class="o">=</span> <span class="kc">False</span>
 </pre></div>
 </div>
-<p>The corresponding output is as follows, indicating the funsion value for each layer of the particular dense:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>The parameter layer1.input_mapping.weight&#39;s fusion id is 0
-The parameter layer1.input_mapping.bias&#39;s fusion id is 0
-The parameter layer1.output_mapping.weight&#39;s fusion id is 0
-The parameter layer1.output_mapping.bias&#39;s fusion id is 0
-The parameter layer2.input_mapping.weight&#39;s fusion id is 1
-The parameter layer2.input_mapping.bias&#39;s fusion id is 1
-The parameter layer2.output_mapping.weight&#39;s fusion id is 1
-The parameter layer2.output_mapping.bias&#39;s fusion id is 1
-The parameter layer3.input_mapping.weight&#39;s fusion id is 2
-The parameter layer3.input_mapping.bias&#39;s fusion id is 2
-The parameter layer3.output_mapping.weight&#39;s fusion id is 2
-The parameter layer3.output_mapping.bias&#39;s fusion id is 2
-</pre></div>
-</div>
-<blockquote>
-<div><p>In the flow of the compilation diagram, the same fusion tags and are the same communication operations are fused into one communication operation. Thus, the number of communication operations is reduced. For communication operators with fusion mark as 0, they are not fused in the optimization process.</p>
-</div></blockquote>
-<p>When the optimizer slicing is turned on, a corresponding communication operator is generated for each parameter in the network. However, frequent calls to the communication operators will cause more operator startup consumption. MindSpore provides the most efficient way to reduce the number of communication operators by fusing them into a single communication operator, but this leads to a waste of computational resources. For example, after fusing all the communication operators into one operator, in the current training iteration, after the convergence of the slicing parameters is completed, the NPU performs the forward computation of the network, which will cause the device to wait.</p>
-<p>To avoid these problems, the network parameters can be grouped and fused: the communication of the next group of parameters is performed at the same time as the computation performed by the previous group of parameters, allowing the computation and communication to be hidden from each other. This is the reason why the above code sets different fusion values for <code class="docutils literal notranslate"><span class="pre">layer2</span></code> and <code class="docutils literal notranslate"><span class="pre">layer3</span></code>.</p>
-</section>
-<section id="running-the-code">
-<h3>Running the Code<a class="headerlink" href="#running-the-code" title="Permalink to this headline"></a></h3>
-<p>The above code needs to be configured with distributed variables before it can run. The Ascend environment needs to be configured with RANK_TABLE_FILE, RANK_ID and DEVICE_ID. For the configuration process, refer to <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/train_ascend.html#configuring-distributed-environment-variables">here</a>. GPU environment needs to configure <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/train_gpu.html#configuring-distributed-environment">OpenMPI</a>、NCCL和<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/train_gpu.html#multi-host-training">HOST_FILE</a>. For the configuration process, refer to <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/train_gpu.html#configuring-distributed-environment">here</a>.</p>
-<p>Environment variables related to ascend distributed are:</p>
-<ul class="simple">
-<li><p>RANK_TABLE_FILE: Path to the network information file. The rank_table_file file can be generated by using hccl_tools.py in the models code repository, which can be obtained from <a class="reference external" href="https://gitee.com/mindspore/models/tree/master/utils/hccl_tools">here</a>.</p></li>
-<li><p>DEVICE_ID: The actual serial number of the current card on the machine.</p></li>
-<li><p>RANK_ID: The logical serial number of the current card.</p></li>
-</ul>
-<p>The environment variable related to GPU distributed is:</p>
-<ul class="simple">
-<li><p>HOST_FILE: Describes the IP and number of devices for multi-card training. Each line of the file has the format [hostname] slots=[slotnum], and hostname can be an ip or hostname. Note that the username needs to be the same on different machines, but the hostname cannot be the same.</p></li>
-</ul>
-<p>The user can access the above script in this document via <a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/distributed_optimizer_parallel">here</a>. Execute the following <code class="docutils literal notranslate"><span class="pre">bash</span></code> script to run the program and output the log in the device0/train.log0 file.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
-<span class="nb">set</span><span class="w"> </span>-e
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==============================================================================================================&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Please run the script as: &quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;bash run_fusion_example.sh DATA_PATH RANK_SIZE&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;For example: bash run_fusion_example.sh 8&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;It is better to use the absolute path.&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;This example is expected to run on the Ascend environment.&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==============================================================================================================&quot;</span>
-<span class="nv">RANK_SIZE</span><span class="o">=</span><span class="nv">$1</span>
-
-<span class="nv">EXEC_PATH</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
-
-test_dist_8pcs<span class="o">()</span>
-<span class="o">{</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">RANK_TABLE_FILE</span><span class="o">=</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span>/rank_table_8pcs.json
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">RANK_SIZE</span><span class="o">=</span><span class="m">8</span>
-<span class="o">}</span>
-
-test_dist_2pcs<span class="o">()</span>
-<span class="o">{</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">RANK_TABLE_FILE</span><span class="o">=</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span>/rank_table_2pcs.json
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">RANK_SIZE</span><span class="o">=</span><span class="m">2</span>
-<span class="o">}</span>
-
-test_dist_<span class="si">${</span><span class="nv">RANK_SIZE</span><span class="si">}</span>pcs
-
-<span class="k">for</span><span class="o">((</span><span class="nv">i</span><span class="o">=</span><span class="m">0</span><span class="p">;</span>i&lt;<span class="si">${</span><span class="nv">RANK_SIZE</span><span class="si">}</span><span class="p">;</span>i++<span class="o">))</span>
-<span class="k">do</span>
-<span class="w">    </span>rm<span class="w"> </span>-rf<span class="w"> </span>device<span class="nv">$i</span>
-<span class="w">    </span>mkdir<span class="w"> </span>device<span class="nv">$i</span>
-<span class="w">    </span>cp<span class="w"> </span>./fusion_example.py<span class="w"> </span>./device<span class="nv">$i</span>
-<span class="w">    </span><span class="nb">cd</span><span class="w"> </span>./device<span class="nv">$i</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">DEVICE_ID</span><span class="o">=</span><span class="nv">$i</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">RANK_ID</span><span class="o">=</span><span class="nv">$i</span>
-<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;start training for device </span><span class="nv">$i</span><span class="s2">&quot;</span>
-<span class="w">    </span>env<span class="w"> </span>&gt;<span class="w"> </span>env<span class="nv">$i</span>.log
-<span class="w">    </span>pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./fusion_example.py<span class="w"> </span>&gt;<span class="w"> </span>train.log<span class="nv">$i</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
-<span class="w">    </span><span class="nb">cd</span><span class="w"> </span>../
-<span class="k">done</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;The program launch succeed, the log is under device0/train.log0.&quot;</span>
-</pre></div>
-</div>
-<p>After configuring RANK_TABLE_FILE in the current directory, the following command requires the user to have 8 Ascend 910 devices. Run the command as follows:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_fusion_example.sh<span class="w"> </span><span class="m">8</span>
-</pre></div>
-</div>
-</section>
+</li>
+</ol>
 </section>
 </section>
 
@@ -392,8 +413,8 @@ test_dist_<span class="si">${</span><span class="nv">RANK_SIZE</span><span class
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="pipeline_parallel.html" class="btn btn-neutral float-left" title="Pipeline Parallel" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="recompute.html" class="btn btn-neutral float-right" title="Recomputation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="operator_parallel.html" class="btn btn-neutral float-left" title="Operator-level Parallelism" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="pipeline_parallel.html" class="btn btn-neutral float-right" title="Pipeline Parallel" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
