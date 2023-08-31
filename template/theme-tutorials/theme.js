@@ -13,7 +13,7 @@
   oLink.rel = 'stylesheet'
   oLink.href = origin + '/common.css'
 
-  s.parentNode.insertBefore(hm, s)
+  s.appendChild(hm, s)
   s.appendChild(oLink, s)
 })()
 

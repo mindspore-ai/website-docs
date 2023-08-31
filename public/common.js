@@ -130,9 +130,9 @@ $(function () {
                               ${item.children
                                   .map(function (sub) {
                                       return `<li><a target="${
-                                          sub.openType === undefined
-                                              ? '_self'
-                                              : sub.openType
+                                          sub.jumOut
+                                              ? '_blank'
+                                              : '_self'
                                       }" href="${filterXSS(isEn ? sub.href.en : sub.href.zh)}">
                                       ${filterXSS(isEn ? sub.label.en : sub.label.zh)}
                                       ${msHeader.headerTags(sub.tags)}
@@ -147,10 +147,10 @@ $(function () {
         }
     </div>
     <div class="header-nav navbar-tools" >
-        <div class="searchInput"><span class="search-icon"></span></span><input
+        <div class="header-search"><div class="search-input"><span class="search-icon"></span></span><input
                 class="search-val" placeholder="${
                     isEn ? 'Site-wide search' : '搜索...'
-                }"><span class="close-icon"></div>
+                }"><span class="close-icon"></div></div>
         <div class="dropdown">
             <a href="${filterXSS(
                 newNavPath
@@ -211,7 +211,8 @@ $(function () {
                                           : msHeader.headerNavLinks(
                                                 subitem.id
                                             )
-                                  }" ${subitem.link ? 'target="_blank" rel="noopener noreferrer"' : ''}>${filterXSS(subitem.name)}
+                                  }" ${subitem.link ? 'target="_blank" rel="noopener noreferrer"' : ''}>
+                                  ${filterXSS(subitem.name)}
                                   ${msHeader.headerTags(subitem.tags)}
                                 </a>`
                                 })
@@ -349,11 +350,19 @@ $(function () {
               // 点击关闭搜索框
               $('.close-icon').on('click', function () {
                   $('.search-val').val('')
+                  $(this).hide();
               })
               // 获取搜索框的值并传递到搜索页面
-              $('.search-val').on('keydown', function (e) {
+              const searchInput = $('.search-input');
+              $('.search-val').focus(()=>{
+                searchInput.addClass('current')
+              }).blur(()=>{
+                searchInput.removeClass('current')
+              }).on('keydown', function (e) {
                   const val = $(this).val()
-                  val !== '' && $('.close-icon').show()
+                  if(val !== ''){
+                    $('.close-icon').show()
+                  }
                   if (e.keyCode === 13 && val !== '') {
                       window.location.href =
                           searchUrl + '?inputValue=' + encodeURIComponent(val)
@@ -362,12 +371,13 @@ $(function () {
 
               const ratingLayer = $('.rating-layer')
               $('.rating-label').on('click', function () {
-                  ratingLayer.show().append(msFotter.rateLayer)
+                if(ratingLayer.hasClass('show')) return
+                  ratingLayer.addClass('show').show().append(msFotter.rateLayer)
                   msFotter.documentEvaluationFn()
               })
 
-              $('.page-rating .rating-close').on('click', function () {
-                  ratingLayer.hide().empty()
+              $('.rating-layer .rating-close').on('click', function () {
+                  ratingLayer.removeClass('show').hide().empty()
               })
 
               // 文档菜单
@@ -395,6 +405,7 @@ $(function () {
                   })
           },
           h5HeaderMethods: function () {
+            const searchUrl = isEn ? '/search/en' : '/search'
               $('.rating-label').on('click', function () {
                   body.prepend(
                       msHeader.dialogLayer(msFotter.fontmatter.helpforyou)
@@ -447,7 +458,7 @@ $(function () {
               })
 
               $('.h5.docs-menu-icon').on('click', function () {
-                  let title = isEn ? 'document directory' : '文档目录'
+                  let title = isEn ? 'Document Directory' : '文档目录'
                   body.prepend(msHeader.dialogLayer(title))
                   $('#mask').show()
                   $('#dialog-content').append($('.header-nav-content').html())
@@ -790,7 +801,7 @@ $(function () {
               })
 
               $('.page-rating .rating-close').on('click', function () {
-                  ratingLayer.hide().empty()
+                  ratingLayer.hide().removeClass('show').empty()
               })
           },
       }
@@ -900,13 +911,14 @@ $(function () {
                   $('.o-layer-dialog').remove()
               } else {
                   $('.header').css('display', 'block')
-                  $('#mask').css('display', 'none')
+                  $('#mask').remove()
                   $('.wy-nav-side').css('left', '0')
 
                   if (h5Head || h5footer || navh5) {
                       h5Head.remove()
                       h5footer.remove()
                       navh5.remove()
+                      $('.rating-h5').remove()
                   }
                   if (pcfooter === null) {
                       $('.wy-nav-content').append(msFotter.pcFootHTML)
