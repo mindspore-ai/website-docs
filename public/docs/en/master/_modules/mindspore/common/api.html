@@ -237,7 +237,11 @@
             <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">_convert_python_data</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">data</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">dict</span><span class="p">((</span><span class="n">_convert_python_data</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="n">_convert_python_data</span><span class="p">(</span><span class="n">value</span><span class="p">))</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="c1"># Keep the dict object not change.</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">_convert_python_data</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="n">_convert_python_data</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">data</span>
     <span class="k">return</span> <span class="n">data</span>
 
 
@@ -551,31 +555,18 @@
             <span class="k">return</span> <span class="n">phase</span>
 
         <span class="k">if</span> <span class="n">full_function_name</span> <span class="ow">in</span> <span class="n">function_phases</span><span class="p">:</span>
-            <span class="n">warning_times</span> <span class="o">=</span> <span class="mi">3</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">])</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="n">warning_times</span><span class="p">:</span>
-                <span class="k">def</span> <span class="nf">analysize</span><span class="p">(</span><span class="n">log</span><span class="p">):</span>
-                    <span class="n">time_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-                    <span class="n">key_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-                    <span class="n">tips</span> <span class="o">=</span> <span class="s2">&quot;For more details, get instructions about `jit` at &quot;</span> \
-                           <span class="s2">&quot;https://www.mindspore.cn/search?inputValue=jit. &quot;</span>
-                    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">log</span><span class="p">:</span>
-                        <span class="n">time_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-                        <span class="n">key_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-
-                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">key_set</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">warning_times</span><span class="p">:</span>
-                        <span class="k">return</span> <span class="s2">&quot;The args of the function ware always changed, &quot;</span> <span class="o">+</span> \
-                               <span class="s2">&quot;please make sure the shape or the type of args are not variable. &quot;</span> <span class="o">+</span> \
-                               <span class="n">tips</span>
-                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">time_set</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">warning_times</span><span class="p">:</span>
-                        <span class="k">return</span> <span class="s2">&quot;If the function is @jit, try to use @jit(compile_once=True) with risk. &quot;</span> <span class="o">+</span> \
-                               <span class="n">tips</span>
-                    <span class="k">return</span> <span class="n">tips</span>
+            <span class="n">warning_times</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">warning_times</span><span class="p">:</span>
+                <span class="n">tips</span> <span class="o">=</span> <span class="s2">&quot;Try to decorate the function with @jit(hash_args=...) &quot;</span> \
+                       <span class="s2">&quot;or @jit(compile_once=True). &quot;</span> \
+                       <span class="s2">&quot;For more details, get instructions about `jit` at &quot;</span> \
+                       <span class="s2">&quot;https://www.mindspore.cn/search?inputValue=jit.&quot;</span>
 
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The function &#39;</span><span class="si">{</span><span class="n">full_function_name</span><span class="si">}</span><span class="s2">&#39; has been compiled for &quot;</span>
                                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">])</span><span class="si">}</span><span class="s2"> times. &quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">analysize</span><span class="p">(</span><span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">])</span><span class="si">}</span><span class="s2"> &quot;</span><span class="p">)</span>
+                               <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tips</span><span class="si">}</span><span class="s2"> &quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+            <span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 
         <span class="c1"># If enable compile cache, get the dependency files list and set to graph executor.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_compile_cache_dep_files</span><span class="p">()</span>
@@ -586,7 +577,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_jit_config</span><span class="p">(</span><span class="n">jit_config_dict</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Set an attribute to fn as an identifier.</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="s2">&quot;__jit_function__&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
             <span class="n">is_compile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="s2">&quot;__jit_function__&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_weights_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="n">parameters_dict</span><span class="p">())</span>
@@ -600,7 +594,7 @@
         <span class="k">if</span> <span class="nb">any</span><span class="p">((</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">full_function_name</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">ignore_dirs</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">phase</span>
 
-        <span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">create_time</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
+        <span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">create_time</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Compile the function &#39;</span><span class="si">{</span><span class="n">full_function_name</span><span class="si">}</span><span class="s2">&#39; create time=</span><span class="si">{</span><span class="n">create_time</span><span class="si">}</span><span class="s2"> ,key=</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">phase</span>
 
@@ -656,7 +650,10 @@
                                    <span class="sa">f</span><span class="s2">&quot;be &#39;sens&#39; and added it to compile args.&quot;</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">args_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">compile_args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">)</span>
-                <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">set_dynamic_input</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">compile_args</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">set_dynamic_input</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">compile_args</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">set_dynamic_input</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="o">*</span><span class="n">compile_args</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">verify_inputs_signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">,</span> <span class="n">args_list</span><span class="p">):</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The input args is incompatible with the args in `input_signature`!&quot;</span><span class="p">)</span>
@@ -1662,7 +1659,7 @@
             <span class="n">obj</span><span class="o">.</span><span class="n">parameter_layout_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">get_parameter_layout</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">parallel_parameter_name_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">get_parallel_parameter_name_list</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="s2">&quot;export&quot;</span> <span class="ow">in</span> <span class="n">phase</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">&quot;export.air&quot;</span> <span class="ow">in</span> <span class="n">phase</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_build_data_graph</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">phase</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">True</span>

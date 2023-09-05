@@ -128,6 +128,7 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
 
 <span class="kn">from</span> <span class="nn">mindspore_lite._checkparam</span> <span class="kn">import</span> <span class="n">check_isinstance</span>
 <span class="kn">from</span> <span class="nn">mindspore_lite.context</span> <span class="kn">import</span> <span class="n">Context</span>
@@ -342,6 +343,16 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">ret</span><span class="o">.</span><span class="n">IsOk</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;build_from_file failed! Error is </span><span class="si">{</span><span class="n">ret</span><span class="o">.</span><span class="n">ToString</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
+    <span class="k">def</span> <span class="nf">get_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Obtains all output information Tensors of the model.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list[TensorMeta], the output TensorMeta list of the model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pylint: disable=useless-super-delegation</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_outputs</span><span class="p">()</span>
+
 <div class="viewcode-block" id="Model.get_inputs"><a class="viewcode-back" href="../../mindspore_lite/mindspore_lite.Model.html#mindspore_lite.Model.get_inputs">[文档]</a>    <span class="k">def</span> <span class="nf">get_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Obtains all input Tensors of the model.</span>
@@ -358,12 +369,14 @@
         <span class="c1"># pylint: disable=useless-super-delegation</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Model.predict"><a class="viewcode-back" href="../../mindspore_lite/mindspore_lite.Model.html#mindspore_lite.Model.predict">[文档]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+<div class="viewcode-block" id="Model.predict"><a class="viewcode-back" href="../../mindspore_lite/mindspore_lite.Model.html#mindspore_lite.Model.predict">[文档]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Inference model.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            inputs (list[Tensor]): A list that includes all input Tensors in order.</span>
+<span class="sd">            inputs (list[Tensor], optional): A list that includes all output Tensors in order,</span>
+<span class="sd">                this tensor include output data buffer.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            list[Tensor], the output Tensor list of the model.</span>
@@ -430,7 +443,21 @@
 <span class="sd">            outputs&#39; shape:  (1,1001)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># pylint: disable=useless-super-delegation</span>
-        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;inputs must be list or tuple, but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">inputs</span><span class="p">)))</span>
+        <span class="n">model_input_tensors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">model_input_tensors</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;inputs size is wrong.&quot;</span><span class="p">)</span>
+        <span class="n">inputs_tensor</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">in_tensor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_tensor</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                <span class="n">model_input_tensors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_data_from_numpy</span><span class="p">(</span><span class="n">in_tensor</span><span class="p">)</span>
+                <span class="n">inputs_tensor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model_input_tensors</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
+                <span class="n">inputs_tensor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">in_tensor</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;inputs element must be Tensor, of numpy.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">inputs_tensor</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Model.resize"><a class="viewcode-back" href="../../mindspore_lite/mindspore_lite.Model.html#mindspore_lite.Model.resize">[文档]</a>    <span class="k">def</span> <span class="nf">resize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">dims</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>

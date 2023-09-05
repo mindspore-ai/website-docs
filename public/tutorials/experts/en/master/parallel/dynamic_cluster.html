@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic Cluster Startup Method &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>Dynamic Cluster &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
@@ -18,7 +18,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Performing Distributed Training on K8S Clusters" href="ms_operator.html" />
+    <link rel="next" title="mpirun Startup" href="mpirun.html" />
     <link rel="prev" title="Distributed Parallel Startup Methods" href="startup_method.html" /> 
 </head>
 
@@ -48,8 +48,9 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Distributed Parallelism Overview</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="startup_method.html">Distributed Parallel Startup Methods</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Dynamic Cluster Startup Method</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ms_operator.html">Performing Distributed Training on K8S Clusters</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Dynamic Cluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mpirun.html">mpirun Startup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rank_table.html">rank table Startup</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="parallel_mode.html">Parallel Mode</a></li>
@@ -121,7 +122,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="startup_method.html">Distributed Parallel Startup Methods</a> &raquo;</li>
-      <li>Dynamic Cluster Startup Method</li>
+      <li>Dynamic Cluster</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/parallel/dynamic_cluster.md.txt" rel="nofollow"> View page source</a>
       </li>
@@ -155,169 +156,218 @@
     text-align: unset;
 }
 </style>
-<section id="dynamic-cluster-startup-method">
-<h1>Dynamic Cluster Startup Method<a class="headerlink" href="#dynamic-cluster-startup-method" title="Permalink to this headline"></a></h1>
+<section id="dynamic-cluster">
+<h1>Dynamic Cluster<a class="headerlink" href="#dynamic-cluster" title="Permalink to this headline"></a></h1>
 <p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/tutorials/experts/source_en/parallel/dynamic_cluster.md"><img alt="View Source On Gitee" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source_en.png" /></a></p>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h2>
-<p>For reliability requirements during training, MindSpore provides <strong>dynamic cluster</strong> features that enable users to start Ascend/GPU/CPU distributed training tasks without relying on any third-party library (OpenMPI) and without any modification to the training script. We recommend users to use this startup method in preference. Users can click <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/startup_method.html">Multi-Card Startup Method</a> to check the support of multi-card startup method on different platforms.</p>
-<p>OpenMPI synchronizes data on the Host side and clustering between processes in a distributed training scenario. The MindSpore <strong>Dynamic Cluster</strong> feature replaces the OpenMPI capability by <strong>reusing the Parameter Server mode training architecture</strong>, which can be found in the <a class="reference external" href="https://mindspore.cn/tutorials/experts/en/master/parallel/parameter_server_training.html">Parameter Server Mode</a> training tutorial.</p>
+<p>For reliability requirements during training, MindSpore provides <strong>dynamic cluster</strong> features that enable users to start Ascend/GPU/CPU distributed training tasks without relying on any third-party library (OpenMPI) and without any modification to the training script. We recommend users to use this startup method in preference.</p>
+<p>The MindSpore <strong>Dynamic Cluster</strong> feature replaces the OpenMPI capability by <strong>reusing the Parameter Server mode training architecture</strong>, which can be found in the <a class="reference external" href="https://mindspore.cn/tutorials/experts/en/master/parallel/parameter_server_training.html">Parameter Server Mode</a> training tutorial.</p>
 <p>The <strong>Dynami Cluster</strong> feature starts multiple MindSpore training processes as <code class="docutils literal notranslate"><span class="pre">Workers</span></code>, and starts an additional <code class="docutils literal notranslate"><span class="pre">Scheduler</span></code> for cluster and disaster recovery. The user only needs to make a few changes to the startup script to perform distributed training.</p>
 <blockquote>
-<div><p>Dynamic cluster startup scripts can be quickly migrated between multiple hardware platforms without additional modifications.</p>
+<div><p>Dynamic cluster supports Ascend, GPU and CPU, so the dynamic cluster startup script can be quickly migrated between multiple hardware platforms without additional modifications. In addition, dynamic cluster needs to run in Graph mode.</p>
 </div></blockquote>
-</section>
-<section id="precautions">
-<h2>Precautions<a class="headerlink" href="#precautions" title="Permalink to this headline"></a></h2>
-<ul class="simple">
-<li><p>Dynamic cluster does not currently support <code class="docutils literal notranslate"><span class="pre">PyNative</span></code> mode.</p></li>
-</ul>
-</section>
-<section id="environment-variables">
-<h2>Environment Variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline"></a></h2>
-<p>Several environment variables need to be exported before the training script can be started for dynamic cluster, as shown in the following table:</p>
+<p>The relevant environment variables:</p>
 <table align="center">
     <tr>
         <th align="left">Environment Variables</th>
-        <th align="left">Functions</th>
-        <th align="left">Types</th>
-        <th align="left">Values</th>
-        <th align="left">Descriptions</th>
+        <th align="left">Function</th>
+        <th align="left">Type</th>
+        <th align="left">Value</th>
+        <th align="left">Description</th>
     </tr>
     <tr>
         <td align="left">MS_ROLE</td>
-        <td align="left">Specify this process role.</td>
+        <td align="left">Specifies the role of this process.</td>
         <td align="left">String</td>
         <td align="left">
             <ul>
-                <li>MS_SCHED: Represents a Scheduler process. Only one Scheduler is started for a training task, responsible for cluster, disaster recovery, etc. <b>No training code is executed</b>.</li>
-                <li>MS_WORKER: Represents the Worker process, and generally sets the distributed training process to this role.</li>
-                <li>MS_PSERVER: Represents Parameter Server process. This role is only available in Parameter Server mode. For more details, refer to <a href="https://mindspore.cn/tutorials/experts/en/master/parallel/parameter_server_training.html">Parameter Server Mode</a>.</li>
+                <li>MS_SCHED: represents the Scheduler process. A training task starts only one Scheduler, which is responsible for networking, disaster recovery, etc., and <b>does not execute training code</b>.</li>
+                <li>MS_WORKER: Represents the Worker process, which generally sets up the distributed training process for this role.</li>
+                <li>MS_PSERVER: represents the Parameter Server process. Only in Parameter Server mode this role is effective. Please refer to <a href="https://mindspore.cn/tutorials/experts/en/master/parallel/parameter_server_training.html">Parameter Server Mode</a>.</li>
             </ul>
         </td>
-        <td align="left">The Worker and Parameter Server processes will register with the Scheduler process to complete the cluster.</td>
+        <td align="left">The Worker and Parameter Server processes register with the Scheduler process to complete the networking.</td>
     </tr>
     <tr>
         <td align="left">MS_SCHED_HOST</td>
-        <td align="left">Specify IP address of Scheduler.</td>
+        <td align="left">Specifies the IP address of the Scheduler.</td>
         <td align="left">String</td>
-        <td align="left">Legitimate IP address.</td>
+        <td align="left">Legal IP address.</td>
         <td align="left">The current version does not support IPv6 addresses.</td>
     </tr>
     <tr>
         <td align="left">MS_SCHED_PORT</td>
-        <td align="left">Specify the Scheduler binding port number.</td>
+        <td align="left">Specifies the Scheduler binding port number.</td>
         <td align="left">Integer</td>
         <td align="left">Port number in the range of 1024 to 65535.</td>
         <td align="left"></td>
     </tr>
     <tr>
         <td align="left">MS_NODE_ID</td>
-        <td align="left">Specify the ID of this process, unique within the cluster.</td>
+        <td align="left">Specifies the ID of this process, unique within the cluster.</td>
         <td align="left">String</td>
         <td align="left">Represents the unique ID of this process, which is automatically generated by MindSpore by default.</td>
         <td align="left">
-            MS_NODE_ID needs to be set in the following cases, but in general it does not need to be set and is automatically generated by MindSpore:
+            MS_NODE_ID needs to be set in the following cases. Normally it does not need to be set and is automatically generated by MindSpore:
             <ul>
-                <li>Start disaster recovery scenario: The current process ID needs to be obtained for disaster recovery so as to re-register with Scheduler.</li>
-                <li>Start GLOG log redirection scenario: In order to ensure that each training process log is saved independently, you need to set the process ID as the log saving path suffix.</li>
-                <li>Specify process rank id scenario: Users can specify the rank id of this process by setting MS_NODE_ID to some integer.</li>
+                <li>Enable Disaster Recovery Scenario: Disaster recovery requires obtaining the current process ID and thus re-registering with the Scheduler.</li>
+                <li>Enable GLOG log redirection scenario: In order to ensure that the logs of each training process are saved independently, it is necessary to set the process ID, which is used as the log saving path suffix.</li>
+                <li>Specify process rank id scenario: users can specify the rank id of this process by setting MS_NODE_ID to some integer.</li>
             </ul>
         </td>
     </tr>
     <tr>
         <td align="left">MS_WORKER_NUM</td>
-        <td align="left">Specify the number of processes whose role is MS_WORKER.</td>
+        <td align="left">Specifies the number of processes with the role MS_WORKER.</td>
         <td align="left">Integer</td>
-        <td align="left">The integer greater than 0.</td>
+        <td align="left">Integer greater than 0.</td>
         <td align="left">
-            The number of Worker processes started by the user should be equal to the value of this environment variable. If it is less than this value, the cluster will fail, while if it is more than this value, the Scheduler process will complete the cluster according to the Worker registration order, and the extra Worker processes will fail to start.
+            The number of Worker processes started by the user should be equal to the value of this environment variable. If it is less than this value, the networking fails. If it is greater than this value, the Scheduler process will complete the networking according to the order of Worker registration, and the redundant Worker processes will fail to start.
         </td>
     </tr>
     <tr>
         <td align="left">MS_SERVER_NUM</td>
-        <td align="left">Specify the number of processes whose role is MS_PSERVER.</td>
+        <td align="left">Specifies the number of processes with the role MS_PSERVER.</td>
         <td align="left">Integer</td>
-        <td align="left">The integer greater than 0.</td>
-        <td align="left">Only set Parameter Server training mode.</td>
+        <td align="left">Integer greater than 0.</td>
+        <td align="left">Only set in Parameter Server training mode.</td>
     </tr>
     <tr>
         <td align="left">MS_ENABLE_RECOVERY</td>
         <td align="left">Turn on disaster recovery.</td>
         <td align="left">Integer</td>
-        <td align="left">1 means on, and 0 means off. The default is 0.</td>
+        <td align="left">1 for on, 0 for off. The default is 0.</td>
         <td align="left"></td>
     </tr>
     <tr>
         <td align="left">MS_RECOVERY_PATH</td>
         <td align="left">Persistent path folder.</td>
         <td align="left">String</td>
-        <td align="left">Legitimate user directory.</td>
-        <td align="left">The Worker and Scheduler processes perform the necessary persistence during execution, such as the node information used to recover the cluster and the intermediate state of the training service, and save it through files.</td>
+        <td align="left">Legal user directory.</td>
+        <td align="left">The Worker and Scheduler processes perform the necessary persistence during execution, such as node information for restoring the networking and training the intermediate state of the service, and are saved via files.</td>
     </tr>
     <tr>
         <td align="left">MS_HCCL_CM_INIT</td>
-        <td align="left">Whether to initialize the HCCL using the CM method.</td>
+        <td align="left">Whether to use the CM method to initialize the HCCL.</td>
         <td align="left">Integer</td>
-        <td align="left">1 means on, and 0 means off. The default is 0.</td>
-        <td align="left">It is recommended that this environment variable be on only on <b>Ascend hardware platforms with a high number of communication domains</b>. Turning on this environment variable reduces the memory footprint of the HCCL collective communication library, and training tasks are executed in the same way as `rank table` starts.</td>
+        <td align="left">1 for yes, 0 for no. The default is 0.</td>
+        <td align="left">This environment variable is only recommended to be turned on for <b>Ascend hardware platforms with a large number of communication domains</b>. Turning on this environment variable reduces the memory footprint of the HCCL collection of communication libraries, and the training tasks are executed in the same way as `rank table` startup method.</td>
     </tr>
 </table>
 <blockquote>
-<div><p>The above environment variables should be set before each process starts and the contents of <code class="docutils literal notranslate"><span class="pre">MS_SCHED_HOST</span></code>, <code class="docutils literal notranslate"><span class="pre">MS_SCHED_PORT</span></code> and <code class="docutils literal notranslate"><span class="pre">MS_WORKER_NUM</span></code> should be consistent, otherwise the network will fail due to the inconsistent configuration of each process.</p>
+<div><p>The environment variables <code class="docutils literal notranslate"><span class="pre">MS_SCHED_HOST</span></code>, <code class="docutils literal notranslate"><span class="pre">MS_SCHED_PORT</span></code>, and <code class="docutils literal notranslate"><span class="pre">MS_WORKER_NUM</span></code> need to be consistent in their contents, or else the networking will fail due to the inconsistency in the configurations of the processes.</p>
 </div></blockquote>
 </section>
-<section id="executing-training-tasks">
-<h2>Executing Training Tasks<a class="headerlink" href="#executing-training-tasks" title="Permalink to this headline"></a></h2>
-<p>Since the <strong>Dynamic Cluster</strong> startup script can be consistent across hardware platforms, the following is an example of how to write a startup script using 8-card distributed training on a GPU hardware platform only:</p>
+<section id="operation-practice">
+<h2>Operation Practice<a class="headerlink" href="#operation-practice" title="Permalink to this headline"></a></h2>
+<p>Dynamic cluster startup scripts are consistent across hardware platforms. The following is an example of how to write a startup script for Ascend:</p>
 <blockquote>
-<div><p>The running directory of sample: <a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/distributed_training">distributed_training</a></p>
+<div><p>The running directory of sample: <a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/startup_method">startup_method</a>.</p>
 </div></blockquote>
-<section id="1-preparing-python-training-scripts">
-<h3>1. Preparing Python Training Scripts<a class="headerlink" href="#1-preparing-python-training-scripts" title="Permalink to this headline"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
-<span class="kn">from</span> <span class="nn">mindspore.train</span> <span class="kn">import</span> <span class="n">CheckpointConfig</span><span class="p">,</span> <span class="n">ModelCheckpoint</span>
-<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
-
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-    <span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;GPU&quot;</span><span class="p">)</span>
-    <span class="n">init</span><span class="p">()</span>
-    <span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">DATA_PARALLEL</span><span class="p">,</span> <span class="n">gradients_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="o">...</span>
+<p>The directory structure is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ sample_code
+    ├─ startup_method
+       ├── net.py
+       ├── run_dynamic_cluster.sh
+       ├── run_dynamic_cluster_1.sh
+       ├── run_dynamic_cluster_2.sh
+    ...
 </pre></div>
 </div>
-<p>where</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">mode=GRAPH_MODE</span></code>: To use distributed training, you need to specify the running mode as graph mode (the current version of <strong>Dynamic Cluster</strong> feature does not support PyNative mode).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">init()</span></code>: Initializing the cluster. Initialize the collective communication library (NCCL in this case) according to the backend specified in the <code class="docutils literal notranslate"><span class="pre">set_context</span></code> interface, and complete the distributed training initialization operation.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ms.ParallelMode.DATA_PARALLEL</span></code>: Set the training mode to data parallel mode.</p></li>
-</ul>
-<p>Dynamic cluster also supports <strong>secure encrypted channel</strong> features and supports <code class="docutils literal notranslate"><span class="pre">TLS/SSL</span></code> protocols to meet users’ security needs. By default, the secure encrypted channel is off. If you need to turn it on, you can call init() only after the secure encrypted channel is configured correctly through <code class="docutils literal notranslate"><span class="pre">set_ps_context</span></code>, otherwise the initialization of the cluster will fail. If you want to use the secure encrypted channel, please configure:</p>
-<p><code class="docutils literal notranslate"><span class="pre">set_ps_context(config_file_path=&quot;/path/to/config_file.json&quot;,</span> <span class="pre">enable_ssl=True,</span> <span class="pre">client_password=&quot;123456&quot;,</span> <span class="pre">server_password=&quot;123456&quot;)</span></code></p>
-<blockquote>
-<div><p>For the detailed parameter configuration descriptions, refer to <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.set_ps_context.html#mindspore.set_ps_context">mindspore.set_ps_context</a> and and the <a class="reference internal" href="#security-authentication"><span class="std std-doc">Security Authentication</span></a> section of this document.</p>
-</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">net.py</span></code> is defining the network structure and training process, and <code class="docutils literal notranslate"><span class="pre">run_dynamic_cluster.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">run_dynamic_cluster_1.sh</span></code> and <code class="docutils literal notranslate"><span class="pre">run_dynamic_cluster_2.sh</span></code> are executing scripts.</p>
+<section id="1-preparing-python-training-scripts">
+<h3>1. Preparing Python Training Scripts<a class="headerlink" href="#1-preparing-python-training-scripts" title="Permalink to this headline"></a></h3>
+<p>Here, as an example of data parallel, a recognition network is trained for the MNIST dataset, and the network structure and training process are consistent with that of the data parallel network.</p>
+<p>First specify the operation mode, hardware device, etc. Unlike single card scripts, parallel scripts also need to specify configuration items such as parallel mode and initialize HCCL or NCCL communication via init. If you don’t set <code class="docutils literal notranslate"><span class="pre">device_target</span></code> here, it will be automatically specified as the backend hardware device corresponding to the MindSpore package.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">DATA_PARALLEL</span><span class="p">,</span> <span class="n">gradients_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">init</span><span class="p">()</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then build the following network:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">logits</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Network</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Finally, the dataset is processed and the training process is defined:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">get_rank</span><span class="p">,</span> <span class="n">get_group_size</span>
+
+<span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
+    <span class="n">dataset_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DATA_PATH&quot;</span><span class="p">)</span>
+    <span class="n">rank_id</span> <span class="o">=</span> <span class="n">get_rank</span><span class="p">()</span>
+    <span class="n">rank_size</span> <span class="o">=</span> <span class="n">get_group_size</span><span class="p">()</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MnistDataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">num_shards</span><span class="o">=</span><span class="n">rank_size</span><span class="p">,</span> <span class="n">shard_id</span><span class="o">=</span><span class="n">rank_id</span><span class="p">)</span>
+    <span class="n">image_transforms</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">Rescale</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">255.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="p">(</span><span class="mf">0.1307</span><span class="p">,),</span> <span class="n">std</span><span class="o">=</span><span class="p">(</span><span class="mf">0.3081</span><span class="p">,)),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">HWC2CHW</span><span class="p">()</span>
+    <span class="p">]</span>
+    <span class="n">label_transform</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">TypeCast</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">image_transforms</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">label_transform</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dataset</span>
+
+<span class="n">data_set</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span>
+<span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">1e-2</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">logits</span>
+
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">grad_reducer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">DistributedGradReducer</span><span class="p">(</span><span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">data_set</span><span class="p">:</span>
+        <span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_reducer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+        <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;epoch: </span><span class="si">%s</span><span class="s2">, step: </span><span class="si">%s</span><span class="s2">, loss is </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">loss</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
 </section>
 <section id="2-preparing-the-startup-script">
 <h3>2. Preparing the Startup Script<a class="headerlink" href="#2-preparing-the-startup-script" title="Permalink to this headline"></a></h3>
 <section id="single-machine-multi-card">
 <h4>Single-Machine Multi-Card<a class="headerlink" href="#single-machine-multi-card" title="Permalink to this headline"></a></h4>
-<p>The content of the single-machine multi-card startup script <code class="docutils literal notranslate"><span class="pre">run_gpu_cluster.sh</span></code> is as follows. Before starting the Worker and Scheduler, you need to add the relevant environment variable settings:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
-
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==========================================&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Please run the script as: &quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;bash run_gpu_cluster.sh DATA_PATH&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;For example: bash run_gpu_cluster.sh /path/dataset&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;It is better to use the absolute path.&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;===========================================&quot;</span>
-<span class="nv">DATA_PATH</span><span class="o">=</span><span class="nv">$1</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">DATA_PATH</span><span class="si">}</span>
+<p>The content of the single-machine multi-card startup script <a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/sample_code/startup_method/run_dynamic_cluster.sh">run_dynamic_cluster.sh</a> is as follows. Taking the single-machine 8-card as an example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">EXEC_PATH</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>!<span class="w"> </span>-d<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span><span class="s2">/MNIST_Data&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>!<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span><span class="s2">/MNIST_Data.zip&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span>wget<span class="w"> </span>http://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/MNIST_Data.zip
+<span class="w">    </span><span class="k">fi</span>
+<span class="w">    </span>unzip<span class="w"> </span>MNIST_Data.zip
+<span class="k">fi</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span>/MNIST_Data/train/
 
 rm<span class="w"> </span>-rf<span class="w"> </span>device
 mkdir<span class="w"> </span>device
-cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>./resnet.py<span class="w"> </span>./device
-<span class="nb">cd</span><span class="w"> </span>./device
 <span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;start training&quot;</span>
 
 <span class="c1"># Start 8 Worker training processes in a loop</span>
@@ -328,7 +378,7 @@ cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w">
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_PORT</span><span class="o">=</span><span class="m">8118</span><span class="w">       </span><span class="c1"># Set Scheduler port</span>
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_ROLE</span><span class="o">=</span>MS_WORKER<span class="w">        </span><span class="c1"># Set the started process to the MS_WORKER role</span>
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_NODE_ID</span><span class="o">=</span><span class="nv">$i</span><span class="w">                      </span><span class="c1"># Set process id, optional</span>
-<span class="w">    </span>pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>&gt;<span class="w"> </span>worker_<span class="nv">$i</span>.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">                             </span><span class="c1"># Start training script</span>
+<span class="w">    </span>python<span class="w"> </span>./net.py<span class="w"> </span>&gt;<span class="w"> </span>device/worker_<span class="nv">$i</span>.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">                            </span><span class="c1"># Start training script</span>
 <span class="k">done</span>
 
 <span class="c1"># Start 1 Scheduler process</span>
@@ -336,36 +386,46 @@ cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w">
 <span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_HOST</span><span class="o">=</span><span class="m">127</span>.0.0.1<span class="w">      </span><span class="c1"># Set the Scheduler IP address to the local loop address</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_PORT</span><span class="o">=</span><span class="m">8118</span><span class="w">           </span><span class="c1"># Set Scheduler port</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">MS_ROLE</span><span class="o">=</span>MS_SCHED<span class="w">             </span><span class="c1"># Set the started process to the MS_SCHED role</span>
-pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>&gt;<span class="w"> </span>scheduler.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">     </span><span class="c1"># Start training script</span>
+python<span class="w"> </span>./net.py<span class="w"> </span>&gt;<span class="w"> </span>device/scheduler.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">     </span><span class="c1"># Start training script</span>
 </pre></div>
 </div>
 <blockquote>
 <div><p>The training scripts for the Scheduler and Worker processes are identical in content and startup method, because the internal processes of the two roles are handled differently in MindSpore. Users simply pull up the process in the normal training manner, without modifying the Python code by role. This is one of the reasons why dynamic cluster startup scripts can be consistent across multiple hardware platforms.</p>
 </div></blockquote>
 <p>A single-machine 8-card distributed training can be executed by executing the following command:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./run_gpu_cluster.sh<span class="w"> </span>/path/to/dataset/
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_dynamic_cluster.sh
+</pre></div>
+</div>
+<p>The script will run in the background, the log file will be saved to the device directory and the result will be saved in the worker_*.log and is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0, step: 0, loss is 2.3499548
+epoch: 0, step: 10, loss is 1.6682479
+epoch: 0, step: 20, loss is 1.4237018
+epoch: 0, step: 30, loss is 1.0437132
+epoch: 0, step: 40, loss is 1.0643986
+epoch: 0, step: 50, loss is 1.1021575
+epoch: 0, step: 60, loss is 0.8510884
+epoch: 0, step: 70, loss is 1.0581372
+epoch: 0, step: 80, loss is 1.0076828
+epoch: 0, step: 90, loss is 0.88950706
+...
 </pre></div>
 </div>
 </section>
 <section id="multi-machine-multi-card">
 <h4>Multi-Machine Multi-Card<a class="headerlink" href="#multi-machine-multi-card" title="Permalink to this headline"></a></h4>
 <p>The startup script needs to be split in the multi-machine training scenario. The following is an example of performing 2-machine 8-card training, with each machine executing the startup 4 Worker:</p>
-<p>The script <code class="docutils literal notranslate"><span class="pre">run_gpu_cluster_1.sh</span></code> starts 1 <code class="docutils literal notranslate"><span class="pre">Scheduler</span></code> and <code class="docutils literal notranslate"><span class="pre">Worker1</span></code> to <code class="docutils literal notranslate"><span class="pre">Worker4</span></code> on node 1:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
-
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==========================================&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Please run the script as: &quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;bash run_gpu_cluster.sh DATA_PATH&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;For example: bash run_gpu_cluster.sh /path/dataset&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;It is better to use the absolute path.&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;===========================================&quot;</span>
-<span class="nv">DATA_PATH</span><span class="o">=</span><span class="nv">$1</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">DATA_PATH</span><span class="si">}</span>
+<p>The script <a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/sample_code/startup_method/run_dynamic_cluster_1.sh">run_dynamic_cluster_1.sh</a> starts 1 <code class="docutils literal notranslate"><span class="pre">Scheduler</span></code> and <code class="docutils literal notranslate"><span class="pre">Worker1</span></code> to <code class="docutils literal notranslate"><span class="pre">Worker4</span></code> on node 1:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">EXEC_PATH</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>!<span class="w"> </span>-d<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span><span class="s2">/MNIST_Data&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>!<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span><span class="s2">/MNIST_Data.zip&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span>wget<span class="w"> </span>http://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/MNIST_Data.zip
+<span class="w">    </span><span class="k">fi</span>
+<span class="w">    </span>unzip<span class="w"> </span>MNIST_Data.zip
+<span class="k">fi</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span>/MNIST_Data/train/
 
 rm<span class="w"> </span>-rf<span class="w"> </span>device
 mkdir<span class="w"> </span>device
-cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>./resnet.py<span class="w"> </span>./device
-<span class="nb">cd</span><span class="w"> </span>./device
 <span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;start training&quot;</span>
 
 <span class="c1"># Start Worker1 to Worker4, 4 Worker training processes in a loop</span>
@@ -376,7 +436,7 @@ cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w">
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_PORT</span><span class="o">=</span><span class="m">8118</span><span class="w">                 </span><span class="c1"># Set the Scheduler port</span>
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_ROLE</span><span class="o">=</span>MS_WORKER<span class="w">                  </span><span class="c1"># Set the startup process to the MS_WORKER role</span>
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_NODE_ID</span><span class="o">=</span><span class="nv">$i</span><span class="w">                      </span><span class="c1"># Set process id, optional</span>
-<span class="w">    </span>pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>&gt;<span class="w"> </span>worker_<span class="nv">$i</span>.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">                                       </span><span class="c1"># Start training script</span>
+<span class="w">    </span>python<span class="w"> </span>./net.py<span class="w"> </span>&gt;<span class="w"> </span>device/worker_<span class="nv">$i</span>.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">                                    </span><span class="c1"># Start training script</span>
 <span class="k">done</span>
 
 <span class="c1"># Start 1 Scheduler process on node 1</span>
@@ -384,25 +444,21 @@ cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w">
 <span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_HOST</span><span class="o">=</span>&lt;node_1<span class="w"> </span>ip<span class="w"> </span>address&gt;<span class="w">      </span><span class="c1"># Set the Scheduler IP address to the Node 1 IP address</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_PORT</span><span class="o">=</span><span class="m">8118</span><span class="w">                     </span><span class="c1"># Set the Scheduler port</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">MS_ROLE</span><span class="o">=</span>MS_SCHED<span class="w">                       </span><span class="c1"># Set the startup process to the MS_SCHED role</span>
-pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>&gt;<span class="w"> </span>scheduler.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">     </span><span class="c1"># Start training script</span>
+python<span class="w"> </span>./net.py<span class="w"> </span>&gt;<span class="w"> </span>device/scheduler.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">    </span><span class="c1"># Start training script</span>
 </pre></div>
 </div>
-<p>The script <code class="docutils literal notranslate"><span class="pre">run_gpu_cluster_2.sh</span></code> starts <code class="docutils literal notranslate"><span class="pre">Worker5</span></code> to <code class="docutils literal notranslate"><span class="pre">Worker8</span></code> on node 2 (without executing Scheduler):</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
-
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==========================================&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Please run the script as: &quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;bash run_gpu_cluster.sh DATA_PATH&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;For example: bash run_gpu_cluster.sh /path/dataset&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;It is better to use the absolute path.&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;===========================================&quot;</span>
-<span class="nv">DATA_PATH</span><span class="o">=</span><span class="nv">$1</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">DATA_PATH</span><span class="si">}</span>
+<p>The script <a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/sample_code/startup_method/run_dynamic_cluster_2.sh">run_dynamic_cluster_2.sh</a> starts <code class="docutils literal notranslate"><span class="pre">Worker5</span></code> to <code class="docutils literal notranslate"><span class="pre">Worker8</span></code> on node 2 (without executing Scheduler):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">EXEC_PATH</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>!<span class="w"> </span>-d<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span><span class="s2">/MNIST_Data&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>!<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span><span class="s2">/MNIST_Data.zip&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span>wget<span class="w"> </span>http://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/MNIST_Data.zip
+<span class="w">    </span><span class="k">fi</span>
+<span class="w">    </span>unzip<span class="w"> </span>MNIST_Data.zip
+<span class="k">fi</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">EXEC_PATH</span><span class="si">}</span>/MNIST_Data/train/
 
 rm<span class="w"> </span>-rf<span class="w"> </span>device
 mkdir<span class="w"> </span>device
-cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>./resnet.py<span class="w"> </span>./device
-<span class="nb">cd</span><span class="w"> </span>./device
 <span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;start training&quot;</span>
 
 <span class="c1"># Start Worker5 to Worker8, 4 Worker training processes in a loop</span>
@@ -413,7 +469,7 @@ cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w">
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_PORT</span><span class="o">=</span><span class="m">8118</span><span class="w">                 </span><span class="c1"># Set the Scheduler port</span>
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_ROLE</span><span class="o">=</span>MS_WORKER<span class="w">                  </span><span class="c1"># Set the startup process to the MS_WORKER role</span>
 <span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_NODE_ID</span><span class="o">=</span><span class="nv">$i</span><span class="w">                      </span><span class="c1"># Set process id, optional</span>
-<span class="w">    </span>pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w"> </span>&gt;<span class="w"> </span>worker_<span class="nv">$i</span>.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">                                       </span><span class="c1"># Start training script</span>
+<span class="w">    </span>python<span class="w"> </span>./net.py<span class="w"> </span>&gt;<span class="w"> </span>device/worker_<span class="nv">$i</span>.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span><span class="w">                             </span><span class="c1"># Start training script</span>
 <span class="k">done</span>
 </pre></div>
 </div>
@@ -422,132 +478,26 @@ cp<span class="w"> </span>./resnet50_distributed_training_gpu.py<span class="w">
 To keep the inter-node network connected, use the <code class="docutils literal notranslate"><span class="pre">telnet</span> <span class="pre">&lt;scheduler</span> <span class="pre">ip&gt;</span> <span class="pre">&lt;scheduler</span> <span class="pre">port&gt;</span></code> command to test whether this node is connected to the started Scheduler node.</p>
 </div></blockquote>
 <p>Execute on Node 1:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./run_gpu_cluster_1.sh<span class="w"> </span>/path/to/dataset/
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_dynamic_cluster_1.sh
 </pre></div>
 </div>
 <p>Execute on Node 2:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./run_gpu_cluster_2.sh<span class="w"> </span>/path/to/dataset/
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_dynamic_cluster_2.sh
 </pre></div>
 </div>
 <p>That is, you can perform 2-machine 8-card distributed training tasks.</p>
-<blockquote>
-<div><p>The above startup scripts are consistent across <code class="docutils literal notranslate"><span class="pre">Ascend</span></code> and <code class="docutils literal notranslate"><span class="pre">CPU</span></code> hardware platforms, and only hardware-related code modifications such as <code class="docutils literal notranslate"><span class="pre">device_target</span></code> in the Python training scripts is performed, and we can execute dynamic cluster distributed training.</p>
-</div></blockquote>
 </section>
-</section>
-<section id="3-execution-results">
-<h3>3. Execution Results<a class="headerlink" href="#3-execution-results" title="Permalink to this headline"></a></h3>
-<p>The script will run in the background and the log file will be saved to the current directory. A total of 10 epochs are run, each of which has 234 steps. The results about the Loss part are saved in worker_*.log. After grep out the loss value, the example is as follows:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 1 step: 234, loss is 2.0084016
-epoch: 2 step: 234, loss is 1.6407638
-epoch: 3 step: 234, loss is 1.6164391
-epoch: 4 step: 234, loss is 1.6838071
-epoch: 5 step: 234, loss is 1.6320667
-epoch: 6 step: 234, loss is 1.3098773
-epoch: 7 step: 234, loss is 1.3515002
-epoch: 8 step: 234, loss is 1.2943741
-epoch: 9 step: 234, loss is 1.2316195
-epoch: 10 step: 234, loss is 1.1533381
-</pre></div>
-</div>
 </section>
 </section>
 <section id="disaster-recovery">
 <h2>Disaster Recovery<a class="headerlink" href="#disaster-recovery" title="Permalink to this headline"></a></h2>
-<p>Model training requires high reliability and serviceability of distributed training architecture. MindSpore supports disaster recovery under data parallelism, and the training tasks continue to be executed normally after the processes in the cluster (multiple Workers and 1 Scheduler) of the multi-card data parallel training scenario exit abnormally and are pulled up again.</p>
-<p>Scenario constraints:
-In graph mode, <code class="docutils literal notranslate"><span class="pre">MindData</span></code> is used for data sink mode training. Data parallel mode is turned on, and the Worker process is pulled up using the non-<code class="docutils literal notranslate"><span class="pre">OpenMPI</span></code> approach described above.</p>
-<p>In the above scenario, if a node is interrupted during the training process, it is guaranteed that the training can continue after pulling up the corresponding script of the corresponding process for the same environment variables (<code class="docutils literal notranslate"><span class="pre">MS_ENABLE_RECOVERY</span></code> and <code class="docutils literal notranslate"><span class="pre">MS_RECOVERY_PATH</span></code>), and the accuracy convergence is not affected.</p>
-<ol class="arabic">
-<li><p>Enable disaster recovery:</p>
-<p>Enabling disaster recovery through environment variables:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_ENABLE_RECOVERY</span><span class="o">=</span><span class="m">1</span><span class="w">                 </span><span class="c1"># Enable disaster recovery</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_RECOVERY_PATH</span><span class="o">=</span>/path/to/recovery/<span class="w">  </span><span class="c1"># Configure the persistence path file</span>
-</pre></div>
-</div>
-</li>
-<li><p>Configure the checkpoint save interval. The sample is as follows:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore.train</span> <span class="kn">import</span> <span class="n">ModelCheckpoint</span><span class="p">,</span> <span class="n">CheckpointConfig</span>
-
-<span class="n">ckptconfig</span> <span class="o">=</span> <span class="n">CheckpointConfig</span><span class="p">(</span><span class="n">save_checkpoint_steps</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">keep_checkpoint_max</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-<span class="n">ckpoint_cb</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="s2">&quot;./ckpt_of_rank_/&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">get_rank</span><span class="p">()),</span> <span class="n">config</span><span class="o">=</span><span class="n">ckptconfig</span><span class="p">)</span>
-</pre></div>
-</div>
-</li>
-</ol>
-<p>Each worker is enabled to save checkpoint and use different paths (e.g., the directory in the above sample is set using rank id to ensure that the paths are not the same) to prevent conflicts in saving checkpoints with the same name. The checkpoint is used for abnormal process recovery and normal process rollback. The rollback of training means that each Worker in the cluster is restored to the state corresponding to the latest checkpoint, while the data side is also rolled back to the corresponding step, and then training continues. The interval between checkpoint saves is configurable, which determines the granularity of disaster recovery. The smaller the interval, the smaller the number of steps rolled back to the checkpoint saved last time, but frequent checkpoint saves may also affect training efficiency. The larger the interval, the opposite effect. keep_checkpoint_max is set to at least 2 (to prevent checkpoint save failures).</p>
-<blockquote>
-<div><p>The running directory of sample: <a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/distributed_training">distributed_training</a>.</p>
-</div></blockquote>
-<p>The scripts involved are <code class="docutils literal notranslate"><span class="pre">run_gpu_cluster_recovery.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">resnet50_distributed_training_gpu_recovery.py</span></code>, and <code class="docutils literal notranslate"><span class="pre">resnet.py</span></code>. The script contents <code class="docutils literal notranslate"><span class="pre">run_gpu_cluster_recovery.sh</span></code> are as follows:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
-
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==========================================&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Please run the script as: &quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;bash run_gpu_cluster_recovery.sh DATA_PATH&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;For example: bash run_gpu_cluster_recovery.sh /path/dataset&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;It is better to use the absolute path.&quot;</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;===========================================&quot;</span>
-<span class="nv">DATA_PATH</span><span class="o">=</span><span class="nv">$1</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">DATA_PATH</span><span class="si">}</span>
-
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_ENABLE_RECOVERY</span><span class="o">=</span><span class="m">1</span><span class="w">                 </span><span class="c1"># Enable disaster recovery</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_RECOVERY_PATH</span><span class="o">=</span>/path/to/recovery/<span class="w">  </span><span class="c1"># Configure the persistence path file</span>
-
-rm<span class="w"> </span>-rf<span class="w"> </span>device
-mkdir<span class="w"> </span>device
-cp<span class="w"> </span>./resnet50_distributed_training_gpu_recovery.py<span class="w"> </span>./resnet.py<span class="w"> </span>./device
-<span class="nb">cd</span><span class="w"> </span>./device
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;start training&quot;</span>
-
-<span class="c1"># Start 1 Scheduler process</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_WORKER_NUM</span><span class="o">=</span><span class="m">8</span><span class="w">              </span><span class="c1"># Set the number of Worker processes in the cluster to 8</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_HOST</span><span class="o">=</span><span class="m">127</span>.0.0.1<span class="w">      </span><span class="c1"># Set the Scheduler IP address to the local loop address</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_PORT</span><span class="o">=</span><span class="m">8118</span><span class="w">           </span><span class="c1"># Set Scheduler port</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_ROLE</span><span class="o">=</span>MS_SCHED<span class="w">             </span><span class="c1"># Set the started process to the MS_SCHED role</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_NODE_ID</span><span class="o">=</span>sched<span class="w">             </span><span class="c1"># Set Node ID as &#39;sched&#39;</span>
-pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu_recovery.py<span class="w"> </span>&gt;<span class="w"> </span>scheduler.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
-
-<span class="c1"># Start 8 Worker training process in a loop</span>
-<span class="k">for</span><span class="o">((</span><span class="nv">i</span><span class="o">=</span><span class="m">0</span><span class="p">;</span>i&lt;<span class="m">8</span><span class="p">;</span>i++<span class="o">))</span><span class="p">;</span>
-<span class="k">do</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_WORKER_NUM</span><span class="o">=</span><span class="m">8</span><span class="w">              </span><span class="c1"># Set the number of Worker processes in the cluster to 8</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_HOST</span><span class="o">=</span><span class="m">127</span>.0.0.1<span class="w">      </span><span class="c1"># Set the Scheduler IP address to the local loop address</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_PORT</span><span class="o">=</span><span class="m">8118</span><span class="w">           </span><span class="c1"># Set Scheduler port</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_ROLE</span><span class="o">=</span>MS_WORKER<span class="w">            </span><span class="c1"># Set the started process to the MS_WORKER role</span>
-<span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">MS_NODE_ID</span><span class="o">=</span>worker_<span class="nv">$i</span><span class="w">         </span><span class="c1"># Set Node ID as &#39;worker_$i&#39;</span>
-<span class="w">    </span>pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu_recovery.py<span class="w"> </span>&gt;<span class="w"> </span>worker_<span class="nv">$i</span>.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
-<span class="k">done</span>
-</pre></div>
-</div>
-<p>Before starting Worker and Scheduler, you need to add relevant environment variables settings, such as IP and Port of Scheduler, and whether the role of the current process is Worker or Scheduler.</p>
-<p>Execute the following command to start a single-machine 8-card data parallel training</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_gpu_cluster_recovery.sh<span class="w"> </span>/path/to/dataset/
-</pre></div>
-</div>
-<p>Distributed training starts, and if an abnormal case is encountered during training, such as a process quitting abnormally, and then restarting the corresponding process, the training process can be recovered:
-For example, if the Scheduler process abnormally exits during training, the following command can be executed to restart the Scheduler:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">DATA_PATH</span><span class="o">=</span>YOUR_DATA_PATH
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_ENABLE_RECOVERY</span><span class="o">=</span><span class="m">1</span><span class="w">                </span><span class="c1"># Enable disaster recovery</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_RECOVERY_PATH</span><span class="o">=</span>/path/to/recovery/<span class="w"> </span><span class="c1"># Configure the persistence path file</span>
-
-<span class="nb">cd</span><span class="w"> </span>./device
-
-<span class="c1"># 启动1个Scheduler进程</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_WORKER_NUM</span><span class="o">=</span><span class="m">8</span><span class="w">              </span><span class="c1"># Set the number of Worker processes in the cluster to 8</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_HOST</span><span class="o">=</span><span class="m">127</span>.0.0.1<span class="w">      </span><span class="c1"># Set the Scheduler IP address to the local loop address</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_SCHED_PORT</span><span class="o">=</span><span class="m">8118</span><span class="w">           </span><span class="c1"># Set Scheduler port</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_ROLE</span><span class="o">=</span>MS_SCHED<span class="w">             </span><span class="c1"># Set the started process to the MS_SCHED role</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">MS_NODE_ID</span><span class="o">=</span>sched<span class="w">             </span><span class="c1"># Set Node ID as &#39;sched&#39;</span>
-pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </span>./resnet50_distributed_training_gpu_recovery.py<span class="w"> </span>&gt;<span class="w"> </span>scheduler.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
-</pre></div>
-</div>
-<p>Worker and Scheduler cluster is automatically restored.</p>
-<p>Worker processes with abnormal exit are handled in a similar way (Note: Worker processes with abnormal exit need to wait 30s before pulling up to resume training. Before that, Scheduler rejects Worker with the same node id to register again in order to prevent network jitter and malicious registration).</p>
+<p>Dynamic cluster supports disaster recovery under data parallel. In a parallel training scenario with multi-card data, if a process quits abnormally, the training can be continued after pulling up the corresponding script of the corresponding process again, and the accuracy convergence will not be affected. Disaster recovery configuration and samples can be found in the <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/fault_recover.html">Fault Recovery</a> tutorial.</p>
 </section>
 <section id="security-authentication">
 <h2>Security Authentication<a class="headerlink" href="#security-authentication" title="Permalink to this headline"></a></h2>
-<p>To support SSL security authentication between nodes/processes, to enable security authentication, configure <code class="docutils literal notranslate"><span class="pre">enable_ssl=True</span></code> via the Python API <code class="docutils literal notranslate"><span class="pre">mindspore.set_ps_context</span></code> (defaults to False when not passed in, indicating that SSL security authentication is not enabled). The config.json configuration file specified by config_file_path needs to add the following fields:</p>
+<p>Dynamic cluster also supports the <strong>Secure Encrypted Channel</strong> feature, which supports the <code class="docutils literal notranslate"><span class="pre">TLS/SSL</span></code> protocol to satisfy users security needs. By default, the secure encrypted channel is turned off. If you need to turn it on, call init() only after configuring the secure encrypted channel correctly via <code class="docutils literal notranslate"><span class="pre">set_ps_context</span></code>, otherwise the initialization of the networking will fail. If you want to use the secure Encrypted channel, please configure it:</p>
+<p><code class="docutils literal notranslate"><span class="pre">set_ps_context(config_file_path=&quot;/path/to/config_file.json&quot;,</span> <span class="pre">enable_ssl=True,</span> <span class="pre">client_password=&quot;123456&quot;,</span> <span class="pre">server_password=&quot;123456&quot;)</span></code></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">config.json</span></code> configuration file specified by <code class="docutils literal notranslate"><span class="pre">config_file_path</span></code> needs to add the following fields:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;server_cert_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;server.p12&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;crl_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span>
@@ -559,12 +509,12 @@ pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </spa
 </pre></div>
 </div>
 <ul class="simple">
-<li><p>server_cert_path: The path to the p12 file (SSL-specific certificate file) that contains the cipher text of the certificate and the secret key on the server side.</p></li>
-<li><p>The file path to the revocation list (used to distinguish invalid untrusted certificates from valid trusted certificates).</p></li>
-<li><p>client_cert_path: The client contains the path to the p12 file (SSL-specific certificate file) with the cipher text of the certificate and secret key.</p></li>
-<li><p>ca_cert_path: The path to root certificate</p></li>
-<li><p>cipher_list: Cipher suite (list of supported SSL encrypted types)</p></li>
-<li><p>cert_expire_warning_time_in_da: The warning time of certificate expiration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">server_cert_path</span></code>: The path to the p12 file (SSL-specific certificate file) that contains the cipher text of the certificate and the secret key on the server side.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">crl_path</span></code>: The file path to the revocation list (used to distinguish invalid untrusted certificates from valid trusted certificates).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">client_cert_path</span></code>: The client contains the path to the p12 file (SSL-specific certificate file) with the cipher text of the certificate and secret key.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ca_cert_path</span></code>: The path to root certificate</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cipher_list</span></code>: Cipher suite (list of supported SSL encrypted types)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cert_expire_warning_time_in_da</span></code>: The warning time of certificate expiration.</p></li>
 </ul>
 <p>The secret key in the p12 file is stored in cipher text, and the password needs to be passed in when starting. Please refer to the Python API <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.set_ps_context.html#mindspore.set_ps_context">mindspore.set_ps_context</a> for the <code class="docutils literal notranslate"><span class="pre">client_password</span></code> and <code class="docutils literal notranslate"><span class="pre">server_password</span></code> fields.</p>
 </section>
@@ -575,7 +525,7 @@ pytest<span class="w"> </span>-s<span class="w"> </span>-v<span class="w"> </spa
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="startup_method.html" class="btn btn-neutral float-left" title="Distributed Parallel Startup Methods" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ms_operator.html" class="btn btn-neutral float-right" title="Performing Distributed Training on K8S Clusters" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="mpirun.html" class="btn btn-neutral float-right" title="mpirun Startup" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

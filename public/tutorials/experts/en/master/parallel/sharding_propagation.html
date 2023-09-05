@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sharding Propagation &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>Sharding Strategy Propagation Algorithm &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
@@ -18,8 +18,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Heterogeneous Storage" href="memory_offload.html" />
-    <link rel="prev" title="Saving and Loading Models in Hybrid Parallel Mode" href="save_load.html" /> 
+    <link rel="next" title="Double Recursive Strategy Search Algorithm" href="sapp.html" />
+    <link rel="prev" title="Automatic Parallel" href="auto_parallel.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -66,8 +66,9 @@
 <li class="toctree-l2"><a class="reference internal" href="fault_recover.html">Distributed Fault Recovery</a></li>
 <li class="toctree-l2"><a class="reference internal" href="resilience_train_and_predict.html">Distributed Resilience Training and Inference</a></li>
 <li class="toctree-l2"><a class="reference internal" href="save_load.html">Saving and Loading Models in Hybrid Parallel Mode</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Sharding Propagation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Sharding Strategy Propagation Algorithm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="memory_offload.html">Heterogeneous Storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="multiple_mix.html">Multi-dimensional Hybrid Parallel Case Based on Double Recursive Search</a></li>
 </ul>
 </li>
 </ul>
@@ -128,8 +129,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="distributed_case.html">Distributed High-Level Configuration Case</a> &raquo;</li>
-      <li>Sharding Propagation</li>
+          <li><a href="parallel_mode.html">Parallel Mode</a> &raquo;</li>
+          <li><a href="auto_parallel.html">Automatic Parallel</a> &raquo;</li>
+      <li>Sharding Strategy Propagation Algorithm</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/parallel/sharding_propagation.md.txt" rel="nofollow"> View page source</a>
       </li>
@@ -163,41 +165,24 @@
     text-align: unset;
 }
 </style>
-<section id="sharding-propagation">
-<h1>Sharding Propagation<a class="headerlink" href="#sharding-propagation" title="Permalink to this headline"></a></h1>
+<section id="sharding-strategy-propagation-algorithm">
+<h1>Sharding Strategy Propagation Algorithm<a class="headerlink" href="#sharding-strategy-propagation-algorithm" title="Permalink to this headline"></a></h1>
 <p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/tutorials/experts/source_en/parallel/sharding_propagation.md"><img alt="View Source On Gitee" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source_en.png" /></a></p>
-<section id="background">
-<h2>Background<a class="headerlink" href="#background" title="Permalink to this headline"></a></h2>
-<p>Distributed operator, Tensor Layout, and Tensor Redistribution are fundamental concepts in op-level parallelism of MindSpore. In <a class="reference external" href="https://www.mindspore.cn/docs/en/master/design/distributed_training_design.html#semi-automatic-parallelism">here</a>, these concepts are introduced by examples. Here, we formally define them.</p>
-<p>In op-level parallelism, we conduct SPMD (Single Program Multiple Data) style parallelism, that is, a single program is produced for all partitions. MindSpore transforms a stand-alone program to a parallel one. The transformation is fine-grained in the sense that each operator in the stand-alone program is substituted by (a) distributed operator(s), guaranteeing that the substitution is mathematically equivalent.</p>
-<section id="distributed-operator">
-<h3>Distributed Operator<a class="headerlink" href="#distributed-operator" title="Permalink to this headline"></a></h3>
-<p>Distributed Operator: together, the distributed operators running on multiple devices preserve the same semantics of the stand-alone counterpart. That is, given the same input, the distributed operators’ output is the same as the stand-alone counterpart.</p>
-<p>Say a matrix multiplication (MatMul) operator with two matrix X and W as input: Y = MatMul(X, W) is to be parallelized on 4 devices. If matrix X has copies on 4 devices, and W is split into 4 copies by column, one for each device, then the distributed operator corresponding to the stand-alone version of the MatMul operator is also MatMul, that is, MatMul operator is executed on each device. If X is split into 4 parts according to the column, W is cut into 4 parts by row, and each device gets a shard of X and W, then the distributed operator corresponding to the stand-alone version of the MatMul operator is MatMul-&gt;AllReduce, that is, the two operators of MatMul and AllReduce will be executed sequentially on each device to ensure mathematical equivalence.</p>
-<p>Besides the SP (Single Program) part, MD (Multiple Data) part also needs to be specified. Before that, we first define the Sharding Strategy.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h2>
+<p>The sharding strategy propagation algorithm means that the user only needs to manually define the strategies for a few key operators, and the strategies for the rest of the operators in the computation graph are automatically generated by the algorithm. Because the strategies of the key operators have been defined, the cost model of the algorithm mainly describes the redistribution cost between operators, and the optimization objective is to minimize the cost of the whole graph redistribution. Because the main operator strategy has been defined, which is equivalent to compress the search space, the search time of this scheme is shorter, and its strategy performance relies on the definition of the key operator strategy, so it still requires the user to have some ability to analyze the definition strategy.</p>
+<blockquote>
+<div><p>Hardware platforms supported by the sharding strategy propagation algorithm include Ascend, GPU, in addition to both PyNative mode and Graph mode.</p>
+</div></blockquote>
+<p>Related interfaces:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.AUTO_PARALLEL,</span> <span class="pre">search_mode=&quot;sharding_propagation&quot;)</span></code>: Set the parallel mode to auto-parallel and the search mode to the sharding strategy propagation algorithm.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.nn.Cell.shard()</span></code> and <code class="docutils literal notranslate"><span class="pre">mindspore.ops.Primitive.shard()</span></code>: Specifies the operator sharding strategy, and the strategy for the rest of the operators is derived by the propagation algorithm. Currently the <code class="docutils literal notranslate"><span class="pre">mindspore.nn.Cell.shard()</span></code> interface needs to be used in PyNative mode.</p></li>
+</ol>
+<p>In summary, the sharding strategy propagation algorithm requires the user to manually configure the sharding strategy of the key operator.</p>
 </section>
-<section id="sharding-strategy">
-<h3>Sharding Strategy<a class="headerlink" href="#sharding-strategy" title="Permalink to this headline"></a></h3>
-<p>Sharding Strategy: a Sharding Strategy for an operator is a two-dimensional array, specifying how many partitions to split each dimension of each input tensor for the operator.</p>
-<p>From the sharding strategy, you can derive the <strong>Tensor Layout</strong> to describe how tensors are distributed across devices.</p>
-</section>
-<section id="tensor-layout">
-<h3>Tensor Layout<a class="headerlink" href="#tensor-layout" title="Permalink to this headline"></a></h3>
-<p>Tensor Layout: given a Sharding Strategy for an operator, the <strong>Tensor Layout</strong> is inferred to describe the distributions of the input tensors of the operator, which includes the <strong>Logical Device Matrix</strong> and the <strong>Tensor Map</strong>. The Logical Device Matrix is an one-dimensional array, describing how devices are arranged for the operator. The Tensor Map the dimensions of input tensors to dimensions of the device matrix, indicating that input tensors are partitioned across the Logical Device Matrix.</p>
-<p>Use again the MatMul operator Y = MatMul(X, W). We configure the operator with Sharding Strategy [[2, 1], [1, 4]] and the corresponding Tensor Layout information is demonstrated in the following figure. X is partitioned into 2 parts along the row dimension, and W is partitioned into 4 parts along the column dimension (figure (b)). From the Sharding Strategy, the Logical Device Matrix and the Tensor Map are inferred, as shown in figure (c). The coordinates are also determined to describe the locations of devices in the Logical Device Matrix, based on which the distributions of tensors are determined. From the ‘2’ column in the coordinate table, Device 0—3 are assigned X<sub>0</sub>, while Device 4—7 are assigned X<sub>1</sub>. From the ‘4’ column in the coordinate table, Device 0 and Device 4 are assigned W<sub>0</sub>, Device 1 and Device 5 are assigned W<sub>1</sub>, Device 2 and Device 6 are assigned W<sub>2</sub>, and Device 3 and Device 7 are assigned W<sub>3</sub>. As a result, the local computation is determined, as shown in figure (d).</p>
-<p><img alt="tensor_layout" src="../_images/tensor_layout.png" /></p>
-<p>For two consecutive operators that are dependent, the Tensor Layouts defined by two operators may be inconsistent, due to either Logical Device Matrix or Tensor Map. We propose an algorithm, called <strong>Tensor Redistribution</strong>, that transforms the inconsistent Tensor Layout. We omit the algorithm here, and only give a definition.</p>
-</section>
-<section id="tensor-redistribution">
-<h3>Tensor Redistribution<a class="headerlink" href="#tensor-redistribution" title="Permalink to this headline"></a></h3>
-<p>Tensor Redistribution: given two inconsistent Tensor Layouts of a tensor, Tensor Redistribution is an algorithm that can transform from the source Tensor Layout to the target Tensor Layout, with minimum communication cost.</p>
-<p>Here, the communication cost is measured by the bytes that each device transmits.</p>
-<p>Say a two-operator example: Z = MatMul(X, W), O = MatMul(Z, Y). To make Tensor Redistribution effective, two operators are configured Sharding Strategies so that the Tensor Layouts of Z are inconsistent, as shown in the following figure. In figure (a), the output of the first MatMul is row partitioned, while the second MatMul requires that Z are full-sized. Therefore, an AllGather is inferred by Tensor Redistribution to perform the transformation[1]. In figure (b), the output tensor Z of the first matrix multiplication operator is row-sliced, while the second matrix multiplicator requires that the tensor Z be split by columns, so the tensor redistribution derivation needs to be inserted here to complete the conversion.</p>
-<p><img alt="tensor_redistribution" src="../_images/tensor_redistribution.png" /></p>
-</section>
-</section>
-<section id="sharding-propagation-1">
-<h2>Sharding Propagation<a class="headerlink" href="#sharding-propagation-1" title="Permalink to this headline"></a></h2>
+<section id="basic-principles">
+<h2>Basic Principles<a class="headerlink" href="#basic-principles" title="Permalink to this headline"></a></h2>
 <p>Given a computation graph, <strong>Sharding Propagation</strong> is a functionality that propagates the Sharding Strategies from configured operator to the whole graph, with the goal of minimizing the communication cost in Tensor Redistribution.</p>
 <p>The input of Sharding Propagation is a computation graph, in which nodes represent operators, and edges encode the data-dependency relationship of operators. From a model definition with some operators configured Sharding Strategies, Sharding Propagation executes as follows:</p>
 <ol class="arabic simple">
@@ -210,124 +195,253 @@
 </section>
 <section id="how-to-use-sharding-propagation-in-mindspore">
 <h2>How to use Sharding Propagation in MindSpore<a class="headerlink" href="#how-to-use-sharding-propagation-in-mindspore" title="Permalink to this headline"></a></h2>
+<p>The following is an illustration of the sharding strategy propagation operation using an Ascend or GPU stand-alone 8-card example:</p>
 <section id="sample-code-description">
 <h3>Sample Code Description<a class="headerlink" href="#sample-code-description" title="Permalink to this headline"></a></h3>
 <blockquote>
-<div><p>Download the complete sample code:</p>
-<p><a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/sharding_propagation">https://gitee.com/mindspore/docs/tree/master/docs/sample_code/sharding_propagation</a>.</p>
+<div><p>Download the complete sample code: <a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/sharding_propagation">sharding_propagation</a>.</p>
 </div></blockquote>
-<p>The directory structure is as follows, where <code class="docutils literal notranslate"><span class="pre">rank_table_8pcs.json</span></code> is the IP configuration for Ascend devices (see <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/train_ascend.html#configuring-distributed-environment-variables">here</a> for the explanation), <code class="docutils literal notranslate"><span class="pre">train.py</span></code> is the model definition, and <code class="docutils literal notranslate"><span class="pre">run.sh</span></code> is the execution script.</p>
+<p>The directory structure is as follows:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ sample_code
-    ├─ sharding_propagatinon
-       ├── rank_table_8pcs.json
-       ├── run.sh
+    ├─ sharding_propagation
        ├── train.py
+       └── run.sh
     ...
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">train.py</span></code> is the script that defines the network structure and the training process. <code class="docutils literal notranslate"><span class="pre">run.sh</span></code> is the execution script.</p>
 </section>
-<section id="model-definition">
-<h3>Model definition<a class="headerlink" href="#model-definition" title="Permalink to this headline"></a></h3>
-<p>We use the FeedForward Network (<code class="docutils literal notranslate"><span class="pre">FFN</span></code>) as an example.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">FFN</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<section id="configuring-distributed-environment">
+<h3>Configuring Distributed Environment<a class="headerlink" href="#configuring-distributed-environment" title="Permalink to this headline"></a></h3>
+<p>Specify the run mode, run device, run card number through the context interface. Unlike single card scripts, parallel scripts also need to specify the parallel mode <code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code> as auto-parallel mode, the search mode <code class="docutils literal notranslate"><span class="pre">search_mode</span></code> as double recursive strategy, and initialize HCCL or NCCL communication through init. The <code class="docutils literal notranslate"><span class="pre">device_target</span></code> is automatically specified as the backend hardware device corresponding to the MindSpore package.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">save_graphs</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">AUTO_PARALLEL</span><span class="p">,</span> <span class="n">search_mode</span><span class="o">=</span><span class="s2">&quot;sharding_propagation&quot;</span><span class="p">)</span>
+<span class="n">init</span><span class="p">()</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="loading-the-dataset">
+<h3>Loading the Dataset<a class="headerlink" href="#loading-the-dataset" title="Permalink to this headline"></a></h3>
+<p>The dataset is loaded in the same way as that of the stand-alone, with the following code:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+
+<span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
+    <span class="n">dataset_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DATA_PATH&quot;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MnistDataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">)</span>
+    <span class="n">image_transforms</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">Rescale</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">255.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="p">(</span><span class="mf">0.1307</span><span class="p">,),</span> <span class="n">std</span><span class="o">=</span><span class="p">(</span><span class="mf">0.3081</span><span class="p">,)),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">HWC2CHW</span><span class="p">()</span>
+    <span class="p">]</span>
+    <span class="n">label_transform</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">TypeCast</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">image_transforms</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">label_transform</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dataset</span>
+
+<span class="n">data_set</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="defining-the-network">
+<h3>Defining the Network<a class="headerlink" href="#defining-the-network" title="Permalink to this headline"></a></h3>
+<p>The definition of the network is exemplified by the FeedForward Network (<code class="docutils literal notranslate"><span class="pre">FFN</span></code>), which is distinguished from a single cardinality network by the addition of the sharding strategy of the <code class="docutils literal notranslate"><span class="pre">ops.MatMul()</span></code> operator:</p>
+<blockquote>
+<div><p>Currently only slicing the ops operator is supported in Graph mode.</p>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span>
+
+<span class="k">class</span> <span class="nc">Dense</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dense1</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dense2</span><span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">out_channels</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+        <span class="c1"># matmul i.e., the operator that is sliced</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MatMul</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Add</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="k">class</span> <span class="nc">FFN</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dense1</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dense2</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dense1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dense2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">FFN</span><span class="p">()</span>
+<span class="c1"># Configure the matmul operator sharding strategy in sense1 as ((2, 1), (1, 4))</span>
+<span class="n">net</span><span class="o">.</span><span class="n">dense1</span><span class="o">.</span><span class="n">matmul</span><span class="o">.</span><span class="n">shard</span><span class="p">(((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
 </pre></div>
 </div>
 </section>
-<section id="configuring-the-sharding-propagation">
-<h3>Configuring the Sharding Propagation<a class="headerlink" href="#configuring-the-sharding-propagation" title="Permalink to this headline"></a></h3>
-<p>Annotate Sharding Strategy for a <code class="docutils literal notranslate"><span class="pre">MatMul</span></code> operator in <code class="docutils literal notranslate"><span class="pre">FFN</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">dense1</span><span class="o">.</span><span class="n">matmul</span><span class="o">.</span><span class="n">shard</span><span class="p">(((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
-</pre></div>
-</div>
-<p>Configure the search_mode as <code class="docutils literal notranslate"><span class="pre">sharding_propagation</span></code> in Auto_Parallel mode:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="s2">&quot;auto_parallel&quot;</span><span class="p">,</span> <span class="n">search_mode</span><span class="o">=</span><span class="s2">&quot;sharding_propagation&quot;</span><span class="p">)</span>
+<section id="training-the-network">
+<h3>Training the Network<a class="headerlink" href="#training-the-network" title="Permalink to this headline"></a></h3>
+<p>In this step, we need to define the loss function, the optimizer, and the training process, which is partially the same as that of the single card:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+<span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">logits</span>
+
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">):</span>
+    <span class="p">(</span><span class="n">loss_value</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+    <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss_value</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">data_set</span><span class="p">:</span>
+        <span class="n">loss_output</span> <span class="o">=</span> <span class="n">train_step</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;epoch: </span><span class="si">%s</span><span class="s2">, step: </span><span class="si">%s</span><span class="s2">, loss is </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">loss_output</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
 </pre></div>
 </div>
 </section>
-<section id="training-the-model-and-checking-the-sharding-strategies">
-<h3>Training the Model and Checking the Sharding Strategies<a class="headerlink" href="#training-the-model-and-checking-the-sharding-strategies" title="Permalink to this headline"></a></h3>
-<p>Run the command <code class="docutils literal notranslate"><span class="pre">bash</span> <span class="pre">run.sh</span> <span class="pre">8</span></code>. By setting the context: <code class="docutils literal notranslate"><span class="pre">save_graphs=2</span></code>, the IR graphs in the compilation process are saved. We choose the IRs corresponding to device 0.</p>
-<p>In <code class="docutils literal notranslate"><span class="pre">step_parallel_begin_xxx.ir</span></code>, each computation operator is annotated with a Sharding Strategy:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>...
-  %3(x) = MatMul(%1, %2) {instance name: matmul} primitive_attrs: {input_names: [x1, x2], out_strategy: None, transpose_x2: false, transpose_b: false, in_strategy: ((2, 1), (1, 4)), output_names: [output], transpose_a: false, transpose_x1: false}
- {in_strategy: ((2, 1), (1, 4))}      : (&lt;Tensor[Float32], (64, 64)&gt;, &lt;Tensor[Float32], (64, 64)&gt;) -&gt; (&lt;Tensor[Float32], (64, 64)&gt;)
-  %4([CNode]453) = Load($(@1_construct_wrapper.298:para4_dense1.bias), %para15_u)
-      : (&lt;Ref[Tensor(F32)], (64)&gt;, &lt;UMonad&gt;) -&gt; (&lt;Tensor[Float32], (64)&gt;)
-  %5(x) = Add(%3, %4) {instance name: add} primitive_attrs: {output_names: [output], input_names: [x, y]}
- {in_strategy: ((2, 4), (4))}      : (&lt;Tensor[Float32], (64, 64)&gt;, &lt;Tensor[Float32], (64)&gt;) -&gt; (&lt;Tensor[Float32], (64, 64)&gt;)
-  %6(x) = ReLU(%5) {instance name: relu} primitive_attrs: {output_names: [output], input_names: [x]}
- {in_strategy: ((2, 4))}      : (&lt;Tensor[Float32], (64, 64)&gt;) -&gt; (&lt;Tensor[Float32], (64, 64)&gt;)
-  %7([CNode]447) = Load($(@1_construct_wrapper.298:para5_dense2.weight), %para15_u)
-      : (&lt;Ref[Tensor(F32)], (64, 64)&gt;, &lt;UMonad&gt;) -&gt; (&lt;Tensor[Float32], (64, 64)&gt;)
-  %8(x) = MatMul(%6, %7) {instance name: matmul} primitive_attrs: {output_names: [output], transpose_a: false, input_names: [x1, x2], transpose_x2: false, transpose_x1: false, transpose_b: false}
- {in_strategy: ((2, 4), (4, 1))}      : (&lt;Tensor[Float32], (64, 64)&gt;, &lt;Tensor[Float32], (64, 64)&gt;) -&gt; (&lt;Tensor[Float32], (64, 64)&gt;)
-  %9([CNode]449) = Load($(@1_construct_wrapper.298:para6_dense2.bias), %para15_u)
-      : (&lt;Ref[Tensor(F32)], (64)&gt;, &lt;UMonad&gt;) -&gt; (&lt;Tensor[Float32], (64)&gt;)
-  %10(x) = Add(%8, %9) {instance name: add} primitive_attrs: {output_names: [output], input_names: [x, y]}
- {in_strategy: ((2, 4), (4))}      : (&lt;Tensor[Float32], (64, 64)&gt;, &lt;Tensor[Float32], (64)&gt;) -&gt; (&lt;Tensor[Float32], (64, 64)&gt;)
+<section id="running-a-stand-alone-eight-card-script">
+<h3>Running a Stand-alone Eight-Card Script<a class="headerlink" href="#running-a-stand-alone-eight-card-script" title="Permalink to this headline"></a></h3>
+<p>Next, the corresponding scripts are invoked by commands, using the <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> startup method and the 8-card distributed training script as an example of distributed training:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run.sh
+</pre></div>
+</div>
+<p>After training, the log files are saved to the <code class="docutils literal notranslate"><span class="pre">log_output</span></code> directory. Set context: <code class="docutils literal notranslate"><span class="pre">save_graphs=2</span></code> in <code class="docutils literal notranslate"><span class="pre">train.py</span></code>, and you can print out the IR graphs of the compilation process, where some of the file directories are structured as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>├─ log_output
+|   └─ 1
+|       ├─ rank.0
+|       |   └─ stdout
+|       ├─ rank.1
+|       |   └─ stdout
+|       ...
+├─ rank_0
+|   ├─ step_parallel_begin_xxxx.ir
+|   ├─ xx_validate_xxx.ir
+|   ...
+├─ rank_1
+|   ├─ step_parallel_begin_xxxx.ir
+|   ├─ xx_validate_xxx.ir
+|   ...
 ...
 </pre></div>
 </div>
-<p>In <code class="docutils literal notranslate"><span class="pre">xx_validate_xxx.ir</span></code>, each input and output tensor in the computation operator is sliced according to the Sharding Strategy.</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>...
-  %2(equivx) = MatMul(%0, %1) {instance name: matmul} primitive_attrs: {input_names: [x1, x2], out_strategy: None, transpose_x2: false, transpose_b: false, in_strategy: ((2, 1), (1, 4)), output_names: [output], transpose_a: false, transpose_x1: false}
- {in_strategy: ((2, 1), (1, 4))}      : (&lt;Tensor[Float32], (32, 64)&gt;, &lt;Tensor[Float32], (64, 16)&gt;) -&gt; (&lt;Tensor[Float32], (32, 16)&gt;)
-      # In file ./train.py(33)/        x = self.matmul(x, self.weight)/
-  %3(equiv[CNode]453) = Load(%para4_dense1.bias, U)
-      : (&lt;Ref[Tensor(F32)], (16)&gt;, &lt;UMonad&gt;) -&gt; (&lt;Tensor[Float32], (16)&gt;)
-  %4(equivx) = Add(%2, %3) {instance name: add} primitive_attrs: {output_names: [output], input_names: [x, y]}
- {in_strategy: ((2, 4), (4))}      : (&lt;Tensor[Float32], (32, 16)&gt;, &lt;Tensor[Float32], (16)&gt;) -&gt; (&lt;Tensor[Float32], (32, 16)&gt;)
-      # In file ./train.py(34)/        x = self.add(x, self.bias)/
-  %5(equivx) = ReLU(%4) {instance name: relu} primitive_attrs: {output_names: [output], input_names: [x]}
- {in_strategy: ((2, 4))}      : (&lt;Tensor[Float32], (32, 16)&gt;) -&gt; (&lt;Tensor[Float32], (32, 16)&gt;)
-      # In file ./train.py(48)/        x = self.relu(x)/
-  %6(equiv[CNode]447) = Load(%para5_dense2.weight, U)
-      : (&lt;Ref[Tensor(F32)], (16, 64)&gt;, &lt;UMonad&gt;) -&gt; (&lt;Tensor[Float32], (16, 64)&gt;)
-  %7(equivx) = MatMul(%5, %6) {instance name: matmul} primitive_attrs: {output_names: [output], transpose_a: false, input_names: [x1, x2], transpose_x2: false, transpose_x1: false, transpose_b: false}
- {in_strategy: ((2, 4), (4, 1))}      : (&lt;Tensor[Float32], (32, 16)&gt;, &lt;Tensor[Float32], (16, 64)&gt;) -&gt; (&lt;Tensor[Float32], (32, 64)&gt;)
-      # In file ./train.py(33)/        x = self.matmul(x, self.weight)/
-  %8(equiv[CNode]493) = AllReduce(%7) {instance name: forward_op_4025687080669949636} primitive_attrs: {group: 4-6301172352641561019, fusion: 0, op: sum, group_ranks: 0-1-2-3, index: 0}
-      : (&lt;Tensor[Float32], (32, 64)&gt;) -&gt; (&lt;Tensor[Float32], (32, 64)&gt;)
-  %9(equiv[CNode]492) = StridedSlice(%8, (0, 0), (32, 16), (1, 1)) {instance name: redistribution_op_145462406996255498StridedSlice} primitive_attrs: {new_axis_mask: 0, shrink_axis_mask: 0, end_mask: 0, input_names: [x, begin, end, strides], output_names: [output], keep_value_node_input: true, begin_mask: 0, ellipsis_mask: 0}
-      : (&lt;Tensor[Float32], (32, 64)&gt;, &lt;Tuple[Int64*2]&gt;, &lt;Tuple[Int64*2]&gt;, &lt;Tuple[Int64*2]&gt;) -&gt; (&lt;Tensor[Float32], (32, 16)&gt;)
-  %10(equiv[CNode]449) = Load(%para6_dense2.bias, U)
-      : (&lt;Ref[Tensor(F32)], (16)&gt;, &lt;UMonad&gt;) -&gt; (&lt;Tensor[Float32], (16)&gt;)
-  %11(equivx) = Add(%9, %10) {instance name: add} primitive_attrs: {output_names: [output], input_names: [x, y]}
- {in_strategy: ((2, 4), (4))}      : (&lt;Tensor[Float32], (32, 16)&gt;, &lt;Tensor[Float32], (16)&gt;) -&gt; (&lt;Tensor[Float32], (32, 16)&gt;)
+<p>The part of Loss results are saved in <code class="docutils literal notranslate"><span class="pre">log_output/1/rank.*/stdout</span></code>, and the example is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0, step: 0, loss is 2.3016691
+epoch: 0, step: 100, loss is 2.2160375
+epoch: 0, step: 200, loss is 1.7746857
+epoch: 0, step: 300, loss is 1.0550221
+epoch: 0, step: 400, loss is 0.763592
+epoch: 0, step: 500, loss is 0.5714973
+epoch: 0, step: 600, loss is 0.4949431
+epoch: 0, step: 700, loss is 0.4682496
+epoch: 0, step: 800, loss is 0.29194525
+epoch: 0, step: 900, loss is 0.43532845
+epoch: 0, step: 1000, loss is 0.46586612
 ...
 </pre></div>
 </div>
-</section>
+<p>In <code class="docutils literal notranslate"><span class="pre">step_parallel_begin_xxxx.ir</span></code>, you can see that each computational operator is configured with a sharding strategy:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>...
+  %4(logits) = MatMul(%2, %3) {instance name: matmul} primitive_attrs: {input_names: [x1, x2], out_strategy: None, transpose_x2: Bool(0), transpose_b: Bool(0), in_strategy: ((2, 1), (1, 4)), output_names: [output], transpose_a: Bool(0), transpose_x1: Bool(0)} {in_strategy: ((2, 1), (1, 4))}
+      : (&lt;Tensor[Float32], (256, 784)&gt;, &lt;Tensor[Float32], (784, 64)&gt;) -&gt; (&lt;Tensor[Float32], (256, 64)&gt;)
+      # Scope: (Default)
+  %5([CNode]1647) = Load($(@1_train_step.1349:para4_dense1.bias), %para16_u)
+      : (&lt;Ref[Tensor[Float32]], (64), ref_key=:dense1.bias&gt;, &lt;UMonad, NoShape&gt;) -&gt; (&lt;Tensor[Float32], (64)&gt;)
+      # Scope: (Default)
+  %6(logits) = Add(%4, %5) {instance name: add} primitive_attrs: {output_names: [output], input_names: [x, y]} {in_strategy: ((2, 4), (4))}
+      : (&lt;Tensor[Float32], (256, 64)&gt;, &lt;Tensor[Float32], (64)&gt;) -&gt; (&lt;Tensor[Float32], (256, 64)&gt;)
+      # Scope: (Default)
+  %7(logits) = ReLU(%6) {instance name: relu} primitive_attrs: {output_names: [output], input_names: [x]} {in_strategy: ((2, 4))}
+      : (&lt;Tensor[Float32], (256, 64)&gt;) -&gt; (&lt;Tensor[Float32], (256, 64)&gt;)
+      # Scope: (Default)
+  %8([CNode]1641) = Load($(@1_train_step.1349:para5_dense2.weight), %para16_u)
+      : (&lt;Ref[Tensor[Float32]], (64, 10), ref_key=:dense2.weight&gt;, &lt;UMonad, NoShape&gt;) -&gt; (&lt;Tensor[Float32], (64, 10)&gt;)
+      # Scope: (Default)
+  %9(logits) = MatMul(%7, %8) {instance name: matmul} primitive_attrs: {output_names: [output], transpose_a: Bool(0), input_names: [x1, x2], transpose_x2: Bool(0), transpose_x1: Bool(0), transpose_b: Bool(0)} {in_strategy: ((2, 4), (4, 1))}
+      : (&lt;Tensor[Float32], (256, 64)&gt;, &lt;Tensor[Float32], (64, 10)&gt;) -&gt; (&lt;Tensor[Float32], (256, 10)&gt;)
+      # Scope: (Default)
+...
+</pre></div>
+</div>
+<p>For example, for the first MatMul operator, the input strategy in_strategy has been configured as ((2, 1), (1, 4)), and the sharding strategy of Add operator is configured as ((2, 4), (4)).</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>(&lt;Tensor[Float32], (256, 784)&gt;, &lt;Tensor[Float32], (784, 64)&gt;) -&gt; (&lt;Tensor[Float32], (256, 64)&gt;)
+</pre></div>
+</div>
+<p>represents the original input of the operator. For the first MatMul operator, the first and second input shapes are (256, 784), (784, 64) respectively and the output shape is (256, 64).</p>
+<p>In <code class="docutils literal notranslate"><span class="pre">xx_validate_xxx.ir</span></code>, you can see that the input and output tensor of each operator is sliced:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>...
+  %3(equiv[CNode]4) = MatMul(%1, %2) {instance name: matmul} primitive_attrs: {input_names: [x1, x2], out_strategy: None, transpose_x2: Bool(0), transpose_b: Bool(0), in_strategy: ((2, 1), (1, 4)), output_names: [output], transpose_a: Bool(0), transpose_x1: Bool(0)} cnode_attrs: {related_comm_node_id: &quot;30707&quot;} cnode_primal_attrs: {unique_id: &quot;31021&quot;, related_fusion_key: &quot;all_reduce_2-511848487187618470_1&quot;, related_node_id: &quot;28192&quot;} {in_strategy: ((2, 1), (1, 4))}
+      : (&lt;Tensor[Float32], (128, 784)&gt;, &lt;Tensor[Float32], (784, 16)&gt;) -&gt; (&lt;Tensor[Float32], (128, 16)&gt;)
+      # Scope: (Default)
+      # In file train.py:40/        x = self.matmul(x, self.weight)/
+  %4(equiv[CNode]1647) = Load(%para4_dense1.bias, U) cnode_primal_attrs: {unique_id: &quot;31025&quot;}
+      : (&lt;Ref[Tensor[Float32]], (16), ref_key=:dense1.bias&gt;, &lt;UMonad, NoShape&gt;) -&gt; (&lt;Tensor[Float32], (16)&gt;)
+      # Scope: (Default)
+  %5(equiv[CNode]4) = Add(%3, %4) primitive_attrs: {output_names: [output], input_names: [x, y]} cnode_attrs: {related_comm_node_id: &quot;30709&quot;} cnode_primal_attrs: {unique_id: &quot;31020&quot;, related_fusion_key: &quot;all_reduce_2-511848487187618470_1&quot;, related_node_id: &quot;28190&quot;} {in_strategy: ((2, 4), (4))}
+      : (&lt;Tensor[Float32], (128, 16)&gt;, &lt;Tensor[Float32], (16)&gt;) -&gt; (&lt;Tensor[Float32], (128, 16)&gt;)
+      # Scope: (Default)
+      # In file train.py:41/        x = self.add(x, self.bias)/
+  %6(equiv[CNode]4) = ReLU(%5) {instance name: relu} primitive_attrs: {output_names: [output], input_names: [x]} cnode_primal_attrs: {unique_id: &quot;31008&quot;} {in_strategy: ((2, 4))}
+      : (&lt;Tensor[Float32], (128, 16)&gt;) -&gt; (&lt;Tensor[Float32], (128, 16)&gt;)
+      # Scope: (Default)
+      # In file train.py:58/        x = self.relu(x)/
+  %7(equiv[CNode]1641) = Load(%para5_dense2.weight, U) cnode_primal_attrs: {unique_id: &quot;31018&quot;}
+      : (&lt;Ref[Tensor[Float32]], (16, 10), ref_key=:dense2.weight&gt;, &lt;UMonad, NoShape&gt;) -&gt; (&lt;Tensor[Float32], (16, 10)&gt;)
+      # Scope: (Default)
+  %8(equiv[CNode]4) = MatMul(%6, %7) {instance name: matmul} primitive_attrs: {output_names: [output], transpose_a: Bool(0), input_names: [x1, x2], transpose_x2: Bool(0), transpose_x1: Bool(0), transpose_b: Bool(0)} cnode_attrs: {related_comm_node_id: &quot;30724&quot;} cnode_primal_attrs: {unique_id: &quot;31015&quot;, related_fusion_key: &quot;all_reduce_2-511848487187618470_1&quot;, related_node_id: &quot;28180&quot;} {in_strategy: ((2, 4), (4, 1))}
+      : (&lt;Tensor[Float32], (128, 16)&gt;, &lt;Tensor[Float32], (16, 10)&gt;) -&gt; (&lt;Tensor[Float32], (128, 10)&gt;)
+      # Scope: (Default)
+      # In file train.py:40/        x = self.matmul(x, self.weight)/
+...
+</pre></div>
+</div>
+<p>For the first MatMul operator, after its inputs are sliced according to the strategy ((2, 1), (1, 4)), the shapes of the first and second inputs are sliced into (128, 784), (784, 16) from the original (256, 784), (784, 64), respectively, and thus the output shape of (128, 16) is obtained.</p>
+<p>Other startup methods such as dynamic networking and <code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">table</span></code> startup can be found in <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/parallel/startup_method.html">startup methods</a>.</p>
 </section>
 <section id="empirical-principles-on-configuring-sharding-strategies">
-<h2>Empirical Principles on Configuring Sharding Strategies<a class="headerlink" href="#empirical-principles-on-configuring-sharding-strategies" title="Permalink to this headline"></a></h2>
+<h3>Empirical Principles on Configuring Sharding Strategies<a class="headerlink" href="#empirical-principles-on-configuring-sharding-strategies" title="Permalink to this headline"></a></h3>
 <p>Given a new model with numerous operators, from the user’s perspective, a key problem is to determine which operators should be configured, with what sharding strategies. Since the goal of Sharding Propagation is to minimize Tensor Redistribution cost, instead of finding the global minima of end-to-end step time, it is crucial to configure proper sharding strategies for “key operators”. There is no compulsory standard specifying which operators must be configured. However, based on our experience of training large models, there are indeed some principles guiding users to annotate shardings. Here, we list three principles, which may be useful for new users.</p>
 <section id="configuring-parameter-involved-operators">
-<h3>Configuring Parameter-involved Operators<a class="headerlink" href="#configuring-parameter-involved-operators" title="Permalink to this headline"></a></h3>
+<h4>Configuring Parameter-involved Operators<a class="headerlink" href="#configuring-parameter-involved-operators" title="Permalink to this headline"></a></h4>
 <p>The sharding strategies for parameters are important especially for large models, since parameter-induced memory consumption is the majority of total memory consumption. Therefore, parameter-involved operators usually need to explicitly configure the sharding strategies. In the following examples in the figure, Gather and MatMul involving weights are configured shardings, while other operators are not. These correspond the data-parallel Embedding layer and hybrid-parallel FeedForward Layer in <a class="reference external" href="https://gitee.com/mindspore/mindformers/tree/master/mindformers/modules">mindformers</a>, respectively.</p>
 <p><img alt="sp_case1" src="../_images/sp_case1.png" /></p>
 </section>
-<section id="configure-dimension-manipulation-operators">
-<h3>Configure dimension-manipulation operators<a class="headerlink" href="#configure-dimension-manipulation-operators" title="Permalink to this headline"></a></h3>
+<section id="configuring-dimension-manipulation-operators">
+<h4>Configuring Dimension-manipulation Operators<a class="headerlink" href="#configuring-dimension-manipulation-operators" title="Permalink to this headline"></a></h4>
 <p>In deep learning frameworks, operators can be broadly classified into two categories: semantically simple dimension-preserving operators and dimension-manipulation operators. Sharding Propagation could easily propagate shardings from inputs to outputs for dimension-preserving operators. However, for dimension-manipulation operators, explicit annotations should be configured to express users’ intuition, to avoid Sharding Propagation to derive non-user-desired shardings. In the following figure, ReduceMean and MatMul operators are configured shardings.</p>
 <p><img alt="sp_case2" src="../_images/sp_case2.png" /></p>
 </section>
-<section id="configure-parallelism-changing-boundary-operators">
-<h3>Configure parallelism-changing-boundary operators<a class="headerlink" href="#configure-parallelism-changing-boundary-operators" title="Permalink to this headline"></a></h3>
+<section id="configuring-parallel-changing-boundary-operators">
+<h4>Configuring Parallel-changing-boundary Operators<a class="headerlink" href="#configuring-parallel-changing-boundary-operators" title="Permalink to this headline"></a></h4>
 <p>For a model like ResNet, different parts of the model may prefer different parallelisms: front part uses data parallelism, while tail part uses model parallelism. This is achieved by annotating parallelism-changing boundary operators. In the example of following figure, the first MatMul propagates the data-parallelism sharding to the front part, while the second MatMul propagates the model-parallelism sharding to the tail part.</p>
 <p><img alt="sp_case3" src="../_images/sp_case3.png" /></p>
 <p>Users should not only understand the main idea of Sharding Propagation, but also have a preferred parallelism for their training models. If there is a sharding strategy inferred by Sharding Propagation that is conflict with your intuition, just add the preferred sharding to the operator. It indeed needs some trial-and-errors to acquire the satisfactory configuration.</p>
+</section>
 </section>
 </section>
 </section>
@@ -336,8 +450,8 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="save_load.html" class="btn btn-neutral float-left" title="Saving and Loading Models in Hybrid Parallel Mode" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="memory_offload.html" class="btn btn-neutral float-right" title="Heterogeneous Storage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="auto_parallel.html" class="btn btn-neutral float-left" title="Automatic Parallel" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sapp.html" class="btn btn-neutral float-right" title="Double Recursive Strategy Search Algorithm" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
