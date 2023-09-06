@@ -8,8 +8,8 @@ $(function () {
       const enPath = isEn ? 'en' : ''
       const pathPrefix = pathname.split(lang)
       const currentVersion = pathPrefix[1].split('/')[0]
-      const pagePath = pathPrefix[0] + lang + currentVersion
-
+      const pagePath = pathPrefix[0] + lang + currentVersion;
+      let isDark = localStorage.getItem('ms-theme') === 'dark';
       function curVersion(version = '') {
           return version.startsWith('r') ? version.slice(1) : version
       }
@@ -89,10 +89,10 @@ $(function () {
               return `<header class="header">
 <nav class="header-wapper header-wapper-top">
     <div class="header-nav" style="display: flex;">
-        <a href="/${enPath}" class="logo">
-            <img src="/pic/${
-                isEn ? 'logo_black_en.png' : 'logo_black.png'
-            }" alt="logo" />
+        <a href="/${enPath}" class="logo " >
+            <img class="logo-img" src="/pic/${
+                isEn ?'logo_black_en':'logo_black'
+            }.png" alt="logo" />
         </a>
         ${
             headerMenuData &&
@@ -192,7 +192,7 @@ $(function () {
 </div></nav></div><div class="header-nav-layer">
 <div class="header-nav-content">
   ${
-      docsMenuData &&
+    !pathname.startsWith('/tutorials')? docsMenuData &&
       docsMenuData
           .map(function (item) {
               return `<div class="docsNew-column">
@@ -220,7 +220,7 @@ $(function () {
                         </div>
                     </div>`
           })
-          .join('')
+          .join(''):''
   }
 </div></header>`
           },
@@ -371,13 +371,13 @@ $(function () {
 
               const ratingLayer = $('.rating-layer')
               $('.rating-label').on('click', function () {
-                if(ratingLayer.hasClass('show')) return
-                  ratingLayer.addClass('show').show().append(msFotter.rateLayer)
+                if(ratingLayer.hasClass('on')) return
+                  ratingLayer.addClass('on').append(msFotter.rateLayer)
                   msFotter.documentEvaluationFn()
               })
 
               $('.rating-layer .rating-close').on('click', function () {
-                  ratingLayer.removeClass('show').hide().empty()
+                  ratingLayer.removeClass('on').empty()
               })
 
               // 文档菜单
@@ -794,14 +794,14 @@ $(function () {
                             ${msFotter.fontmatter.ratingSuccess}</div>`
                           )
                       $('.evaluateTitle').hide()
-                      setTimeout(() => {
-                          ratingLayer.hide().empty().removeClass('show')
-                      }, 1000)
+                      // setTimeout(() => {
+                      //     ratingLayer.empty().removeClass('on')
+                      // }, 1000)
                   }
               })
 
               $('.page-rating .rating-close').on('click', function () {
-                  ratingLayer.hide().removeClass('show').empty()
+                  ratingLayer.removeClass('on').empty()
               })
           },
       }
@@ -1407,7 +1407,8 @@ $(function () {
         const themeStyle = localStorage.getItem('ms-theme')
         const themeIcon = $('.theme-change i')
         const documentElement = document.documentElement;
-        themeIcon.removeClass('dark light')
+        themeIcon.removeClass('dark light');
+        let img;
         if (!themeStyle) {
             localStorage.getItem('ms-theme', 'light')
             documentElement.removeAttribute('data-o-theme');
@@ -1416,6 +1417,9 @@ $(function () {
             documentElement.setAttribute('data-o-theme', themeStyle);
             themeIcon.addClass(themeStyle)
         }
+        isDark = themeStyle === 'dark';
+        img = isEn?isDark?'logo.png':'logo_black_en.png':isDark?'logo_dark.png':'logo_black.png';
+        $('.logo-img').attr('src','/pic/'+img);
 
         themeIcon.click(function () {
             let theme = 'light'
@@ -1429,6 +1433,9 @@ $(function () {
                 documentElement.removeAttribute('data-o-theme');
             }
             localStorage.setItem('ms-theme', theme)
+            isDark = theme === 'dark';
+            let img = isEn?isDark?'logo.png':'logo_black_en.png':isDark?'logo_dark.png':'logo_black.png';
+            $('.logo-img').attr('src','/pic/'+img);
         })
       }
 
