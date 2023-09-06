@@ -795,7 +795,7 @@ $(function () {
                           )
                       $('.evaluateTitle').hide()
                       setTimeout(() => {
-                          ratingLayer.hide().empty()
+                          ratingLayer.hide().empty().removeClass('show')
                       }, 1000)
                   }
               })
@@ -902,7 +902,7 @@ $(function () {
               let h5footer = document.getElementById('h5_footer')
               let pcfooter = document.getElementById('footer')
               let navh5 = document.getElementById('nav-h5')
-              if (width < 768) {
+              if (width < 1000) {
                   $('#mask').css('display', 'none')
                   $('.wy-nav-side').css({ left: '-90%', transition: '0s' })
                   if (h5Head === null) {
@@ -1222,7 +1222,7 @@ $(function () {
                   const nextDescnames = $(this)
                       .closest('dt')
                       .next()
-                      .find('.descname>.pre')
+                      .find('.descname>.pre:not(.method .descname>.pre):not(.property .descname>.pre)')
                   if (nextDescnames.length) {
                       const navLi3 = nextDescnames
                           .map(function () {
