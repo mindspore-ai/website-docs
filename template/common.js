@@ -898,7 +898,7 @@ $(function () {
               let id = h2List[i].parentNode.id
                   .replace(/\(([^).']*)\)/g, '$1')
                   .replace(/\“|\”|\'/g, '')
-              let h3 = $('#' + id + ' ' + 'h3')
+              let h3 = document.getElementById(id).querySelectorAll('h3');
               if (h3.length > 0) {
                   navLi2 = ''
                   navLi3 = ''
