@@ -797,29 +797,6 @@ $(function () {
           blockquoteList.addClass('noteStyle')
       }
 
-      //隐藏内容里面的toc
-      // 当p标签里有文本时，不隐藏；仅存在a标签时才隐藏
-      let accessable = true
-      $('.document section>h1')
-          .siblings('ul.simple')
-          .first()
-          .find('li>p')
-          .each(function (idx, pElm) {
-              let obj = $(pElm).clone()
-              obj.find(':nth-child(n)').remove()
-              if (obj.text().length) {
-                  accessable = false
-              }
-              if (!accessable) {
-                  return
-              }
-          })
-      if (accessable) {
-          $('.document section>h1')
-              .siblings('ul.simple')
-              .first()
-              .css('display', 'none')
-      }
       function resolveText(text) {
           return isEn ? `Search in ${text} `:`"${text}" 内搜索`
       }
@@ -898,7 +875,7 @@ $(function () {
               let id = h2List[i].parentNode.id
                   .replace(/\(([^).']*)\)/g, '$1')
                   .replace(/\“|\”|\'/g, '')
-              let h3 = $('#' + id + ' ' + 'h3')
+              let h3 = document.getElementById(id).querySelectorAll('h3');
               if (h3.length > 0) {
                   navLi2 = ''
                   navLi3 = ''
