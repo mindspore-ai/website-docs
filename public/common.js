@@ -797,6 +797,7 @@ $(function () {
           blockquoteList.addClass('noteStyle')
       }
 
+
       function resolveText(text) {
           return isEn ? `Search in ${text} `:`"${text}" 内搜索`
       }
