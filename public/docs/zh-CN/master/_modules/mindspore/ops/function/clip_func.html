@@ -7,6 +7,7 @@
       <link rel="stylesheet" href="../../../../_static/css/bootstrap.min.css" type="text/css" />
       <link rel="stylesheet" href="../../../../_static/css/training.css" type="text/css" /><link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <script src="../../../../_static/js/theme.js"></script>
   <!--[if lt IE 9]>
     <script src="../../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -18,7 +19,6 @@
         <script src="../../../../_static/js/training.js"></script>
         <script src="../../../../_static/translations.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script src="../../../../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../../../../genindex.html" />
     <link rel="search" title="搜索" href="../../../../search.html" /> 
 </head>
@@ -170,6 +170,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.nn.cell</span> <span class="kn">import</span> <span class="n">Cell</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.tensor</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">jit</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">_primexpr</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">Validator</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops._primitive_cache</span> <span class="kn">import</span> <span class="n">_get_cache_prim</span>
@@ -191,6 +192,16 @@
 <span class="n">expand_dims</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">ExpandDims</span><span class="p">()</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;grad_scale&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
 <span class="n">get_square_sum</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">MultitypeFuncGraph</span><span class="p">(</span><span class="s2">&quot;get_square_sum&quot;</span><span class="p">)</span>
 <span class="n">apply_global_norm</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">MultitypeFuncGraph</span><span class="p">(</span><span class="s2">&quot;apply_global_norm&quot;</span><span class="p">)</span>
+
+
+<span class="nd">@jit</span>
+<span class="k">def</span> <span class="nf">_cal_total_norm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">norm_type</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">norm_type</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">):</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">data</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">total_norm</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">hyper_map</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">total_norm</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">hyper_map</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">norm</span><span class="p">,</span> <span class="n">x</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">total_norm</span>
 
 
 <div class="viewcode-block" id="clip_by_norm"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.clip_by_norm.html#mindspore.ops.clip_by_norm">[文档]</a><span class="k">def</span> <span class="nf">clip_by_norm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">max_norm</span><span class="p">,</span> <span class="n">norm_type</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">error_if_nonfinite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -223,19 +234,20 @@
 <span class="sd">         [0.14695495 0.07773139 0.0105063 ]</span>
 <span class="sd">         [0.8826814  0.0554626  0.40198016]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">is_tensor</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
         <span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">norm_type</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">):</span>
-        <span class="n">total_norm</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">x</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">total_norm</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">F</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]))</span>
+        <span class="n">is_tensor</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">total_norm</span> <span class="o">=</span> <span class="n">_cal_total_norm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">norm_type</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">error_if_nonfinite</span> <span class="ow">and</span> <span class="n">F</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">total_norm</span><span class="o">.</span><span class="n">isnan</span><span class="p">(),</span> <span class="n">total_norm</span><span class="o">.</span><span class="n">isinf</span><span class="p">()):</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For clip_by_norm, the total norm of order </span><span class="si">{</span><span class="n">norm_type</span><span class="si">}</span><span class="s2"> from input is non-finite.&quot;</span><span class="p">)</span>
     <span class="n">clip_coef</span> <span class="o">=</span> <span class="n">max_norm</span> <span class="o">/</span> <span class="p">(</span><span class="n">total_norm</span> <span class="o">+</span> <span class="mf">1e-6</span><span class="p">)</span>
-    <span class="n">ret</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">if</span> <span class="n">clip_coef</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">x</span><span class="p">:</span>
-            <span class="n">ret</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">clip_coef</span><span class="p">))</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">hyper_map</span><span class="p">(</span><span class="n">partial_op</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">mul</span><span class="p">,</span> <span class="n">clip_coef</span><span class="p">),</span> <span class="n">x</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">x</span>
+    <span class="k">if</span> <span class="n">is_tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ret</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">ret</span></div>
 
 

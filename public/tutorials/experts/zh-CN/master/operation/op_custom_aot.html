@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aot类型自定义算子进阶用法 &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <script src="../_static/js/theme.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/translations.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="下沉模式" href="../optimize/execution_opt.html" />
+    <link rel="prev" title="自定义算子注册" href="op_custom_adv.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">分布式并行</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/overview.html">分布式并行总览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/startup_method.html">分布式并行启动方式</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/data_parallel.html">数据并行</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/semi_auto_parallel.html">半自动并行</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/auto_parallel.html">自动并行</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/manual_parallel.html">手动并行</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/parameter_server_training.html">参数服务器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/model_save_load.html">模型保存与加载</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/recover.html">故障恢复</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/optimize_technique.html">优化方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/platform_differences.html">不同平台差异</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/others.html">实验特性</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/distributed_case.html">分布式高阶配置案例</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">自定义算子</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="op_custom.html">自定义算子（基于Custom表达）</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ms_kernel.html">MindSpore Hybrid 语法规范</a></li>
+<li class="toctree-l1"><a class="reference internal" href="op_custom_adv.html">自定义算子注册</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">aot类型自定义算子进阶用法</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#aot类型自定义算子进阶用法特性简介">aot类型自定义算子进阶用法特性简介</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#aot类型自定义算子的自动编译">aot类型自定义算子的自动编译</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#aot类型自定义算子的属性和中间变量">aot类型自定义算子的属性和中间变量</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#aot类型自定义算子的动态shape支持">aot类型自定义算子的动态shape支持</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#aot类型自定义算子进阶用法接口简介">aot类型自定义算子进阶用法接口简介</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#主函数">主函数</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#初始化函数">初始化函数</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#shape推导函数">Shape推导函数</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#算子属性注册python">算子属性注册（Python）</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#aot类型自定义算子进阶用法用例">aot类型自定义算子进阶用法用例</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#算子实现文件ccuda测-kernelcc">算子实现文件（C++/CUDA测）:kernel.cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#算子属性类">算子属性类</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#算子初始化函数">算子初始化函数</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#算子shape推导函数">算子Shape推导函数</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#算子计算函数主函数">算子计算函数（主函数）</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#算子定义文件-test-custom-aotpy">算子定义文件:test_custom_aot.py</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#算子注册">算子注册</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#算子定义">算子定义</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#算子调用">算子调用</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">性能优化</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/zh-CN/master/performance_profiling.html">Profiling↗</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/execution_opt.html">下沉模式</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/op_overload.html">静态图网络编译性能优化</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/graph_fusion_engine.html">使能图算融合</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/op_compilation.html">算子增量编译</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/mem_reuse.html">内存复用</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">算法优化</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累积</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/thor.html">二阶优化</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">高阶函数式编程</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../vmap/vmap.html">自动向量化Vmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../func_programming/Jacobians_Hessians.html">使用函数变换计算雅可比矩阵和黑塞矩阵</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../func_programming/per_sample_gradients.html">Per-sample-gradients</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">数据处理</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/augment.html">自动数据增强</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/cache.html">单节点数据缓存</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/optimize.html">数据处理性能优化</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">模型推理</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../infer/inference.html">模型推理总览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/model_compression.html">模型压缩</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">复杂问题调试</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../debug/dump.html">Dump功能调试</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/aoe.html">AOE调优工具</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/rdr.html">Running Data Recorder</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/fault_recover.html">故障恢复</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>aot类型自定义算子进阶用法</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/operation/op_custom_aot.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="aot类型自定义算子进阶用法">
+<h1>aot类型自定义算子进阶用法<a class="headerlink" href="#aot类型自定义算子进阶用法" title="Permalink to this headline"></a></h1>
+<p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/tutorials/experts/source_zh_cn/operation/op_custom_aot.md"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source.png" /></a></p>
+<section id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline"></a></h2>
+<p>aot类型的自定义算子采用预编译的方式，要求网络开发者基于特定接口，手写算子实现函数对应的源码文件，并提前将源码文件编译为动态链接库，然后在网络运行时框架会自动调用执行动态链接库中的函数。aot类型的自定义算子支持GPU平台的CUDA语言，和CPU平台的C和C++语言。关于aot类型的自定义算子开发的基础知识请参考<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/operation/op_custom.html#aot%E7%B1%BB%E5%9E%8B%E7%9A%84%E8%87%AA%E5%AE%9A%E4%B9%89%E7%AE%97%E5%AD%90%E5%BC%80%E5%8F%91">基础教程</a>。</p>
+<p>本教程中，我们将展示aot类型自定义算子的进阶功能，包括</p>
+<ul class="simple">
+<li><p>aot类型自定义算子的自编译功能；</p></li>
+<li><p>aot类型自定义算子的属性和中间变量；</p></li>
+<li><p>aot类型自定义算子的动态shape支持。</p></li>
+</ul>
+<p>对于下面用例的完整代码，请查阅<a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/master/tests/st/ops/graph_kernel/custom/test_custom_aot_fused.py">这里</a>。</p>
+</section>
+<section id="aot类型自定义算子进阶用法特性简介">
+<h2>aot类型自定义算子进阶用法特性简介<a class="headerlink" href="#aot类型自定义算子进阶用法特性简介" title="Permalink to this headline"></a></h2>
+<section id="aot类型自定义算子的自动编译">
+<h3>aot类型自定义算子的自动编译<a class="headerlink" href="#aot类型自定义算子的自动编译" title="Permalink to this headline"></a></h3>
+<p>当用户的aot类型自定义算子文件为单一文件，且编译时不需要自定义的编译选项时，可以使用自动编译功能。如此，用户可以给自定义算子提供算子实现的源文件，MindSpore会自动把源文件编译成二进制库进行调用。当前该功能支持基于GCC的C++文件编译和基于NVCC的CUDA文件编译。在使用自动编译功能的时候，有如下几点需要说明：</p>
+<ul class="simple">
+<li><p>MindSpore识别自动编译的方式为文件名后缀。为了使用自动编译功能，请使用后缀为<code class="docutils literal notranslate"><span class="pre">cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">cc</span></code>或者<code class="docutils literal notranslate"><span class="pre">cu</span></code>的源文件。其他情况MindSpore将处理为二进制库的路径。</p></li>
+<li><p>自动编译的结果在文件夹akg_kernel_meta下。</p></li>
+<li><p>默认编译选项为：</p>
+<ul>
+<li><p>C++: <code class="docutils literal notranslate"><span class="pre">g++</span> <span class="pre">-std=c++17</span> <span class="pre">--shared</span> <span class="pre">-fPIC</span> <span class="pre">-D_GLIBCXX_USE_CXX11_ABI=0</span> <span class="pre">-I./</span> <span class="pre">-o</span> <span class="pre">$object_path,</span> <span class="pre">$source_path</span></code></p></li>
+<li><p>CUDA 10: <code class="docutils literal notranslate"><span class="pre">nvcc</span> <span class="pre">--shared</span> <span class="pre">-Xcompiler</span> <span class="pre">-fPIC</span> <span class="pre">-O3</span> <span class="pre">-gencode</span> <span class="pre">arch=compute_70,</span> <span class="pre">code=sm_70</span> <span class="pre">--use_fast_math</span> <span class="pre">--expt-relaxed-constexpr</span> <span class="pre">-D_GLIBCXX_USE_CXX11_ABI=0</span> <span class="pre">-I./</span> <span class="pre">-o</span> <span class="pre">$object_path,</span> <span class="pre">$source_path</span></code></p></li>
+<li><p>CUDA 11（或者更高版本）: <code class="docutils literal notranslate"><span class="pre">nvcc</span> <span class="pre">--shared</span> <span class="pre">-Xcompiler</span> <span class="pre">-fPIC</span> <span class="pre">-O3</span> <span class="pre">-gencode</span> <span class="pre">arch=compute_80,</span> <span class="pre">code=sm_80</span> <span class="pre">--use_fast_math</span> <span class="pre">--expt-relaxed-constexpr</span> <span class="pre">-D_GLIBCXX_USE_CXX11_ABI=0</span> <span class="pre">-I./</span> <span class="pre">-o</span> <span class="pre">$object_path,</span> <span class="pre">$source_path</span></code></p></li>
+</ul>
+</li>
+<li><p>由于MindSpore需要使用<code class="docutils literal notranslate"><span class="pre">-D_GLIBCXX_USE_CXX11_ABI=0</span></code>的编译选项，GPU平台下请避免使用版本低于10.1.168的CUDA软件栈。</p></li>
+</ul>
+</section>
+<section id="aot类型自定义算子的属性和中间变量">
+<h3>aot类型自定义算子的属性和中间变量<a class="headerlink" href="#aot类型自定义算子的属性和中间变量" title="Permalink to this headline"></a></h3>
+<p>常用的算子当中，不少算子带有属性，比如convlution的kernel size、padding和strides。带有不同属性值的算子有着相同的计算逻辑，唯一的区别是初始化时赋予属性不同的数值。此外，在算子的计算过程中，可能需要一些额外的内存空间储存中间变量。下面的计算为例，如果我们考虑<code class="docutils literal notranslate"><span class="pre">input_1</span></code>和<code class="docutils literal notranslate"><span class="pre">input_2</span></code>计算<code class="docutils literal notranslate"><span class="pre">output</span></code>如下公式：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>  <span class="n">tmp</span> <span class="o">=</span> <span class="n">Add</span><span class="p">(</span><span class="n">input_1</span><span class="p">,</span> <span class="n">input_2</span><span class="p">)</span>
+  <span class="n">output</span> <span class="o">=</span> <span class="n">ReduceSum</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">keep_dims</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>这里，我们需要在算子中添加如下中间变量和属性以在计算函数中使用，包括</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tmp</span></code>为中间变量，记录加法的中间结果；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">axis</span></code>是类型为<code class="docutils literal notranslate"><span class="pre">int</span></code>的属性，<code class="docutils literal notranslate"><span class="pre">keep_dims</span></code>是类型为<code class="docutils literal notranslate"><span class="pre">bool</span></code>的属性。</p></li>
+</ul>
+<p>aot类型的自定义算子提供属性功能，如此，我们可以通过一套源码定义一类自定义算子。这类有着相同的计算逻辑，而通过算子初始化的时候对属性赋值达到不同的计算效果。此外，为了让MindSpore统一管理内存的分配和释放，aot类型的自定义算子提供了接口，指定中间变量占内存的大小，由MindSpore申请内存供计算使用。</p>
+</section>
+<section id="aot类型自定义算子的动态shape支持">
+<h3>aot类型自定义算子的动态shape支持<a class="headerlink" href="#aot类型自定义算子的动态shape支持" title="Permalink to this headline"></a></h3>
+<p>动态Shape，指的是算子输入或者输出的形状依赖于具体的运算，无法在编译期提前计算得出。具体来说分两种情况：算子输入的形状在编译期未知和算子输出的形状依赖具体输入的值。算子输入的形状在编译期未知的场景较为常见。任何算子，无论其计算逻辑如何，只要在支持动态shape输入的网络中使用，都需要支持这种场景。</p>
+<p>当前自定义算子aot模式支持算子输入的形状在编译期未知的动态shape场景，通过定义c++版本的shape推导函数支持自定义算子该场景下的类型推导。</p>
+<p>值得注意的是，目前自定义算子尚不支持算子输出的形状依赖具体输入的值的动态shape场景。</p>
+</section>
+</section>
+<section id="aot类型自定义算子进阶用法接口简介">
+<h2>aot类型自定义算子进阶用法接口简介<a class="headerlink" href="#aot类型自定义算子进阶用法接口简介" title="Permalink to this headline"></a></h2>
+<section id="主函数">
+<h3>主函数<a class="headerlink" href="#主函数" title="Permalink to this headline"></a></h3>
+<p>源码文件中，算子实现函数的主函数必须满足如下规范：</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">FuncName</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">nparam</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">**</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">ndims</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="o">**</span><span class="n">shapes</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">dtypes</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">stream</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">extra</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>其中，函数名<code class="docutils literal notranslate"><span class="pre">FuncName</span></code>可替换成任意有效函数名。返回值为int类型，约定0表示正常退出，非0表示发生异常。参数列表的含义如下：</p>
+<ul class="simple">
+<li><p>nparam (int): 输入，输出和中间变量总数。比如算子有2个输入，1个输出，1个中间变量，则nparam的值为4。</p></li>
+<li><p>params (void **): 输入，输出和中间变量指针数组。比如算子有2个输入，1个输出，1个中间变量，那么params[0]指向第一个输入数据，params[1]指向第二个输入数据的内存，params[2]指向输出数据的内存，params[3]指向中间变量的内存。</p></li>
+<li><p>ndims (int *): 输入，输出和中间变量shape维度数组。比如params[i]是个shape[1024, 1024]的张量，则ndims[i]的值为2。</p></li>
+<li><p>shapes (int64_t **): 输入，输出和中间变量shape数组。比如params[i]是个shape[1024, 1024]的张量，则shapes[i][0]的值为1024，shapes[i][1]的值为1024。</p></li>
+<li><p>dtypes (const char **): 输入，输出和中间变量数据类型数组。dtypes里的元素取值可为：”float32”、”float16”、”float”、”float64”、”int”、”int8”、”int16”、”int32”、”int64”、”uint”、”uint8”、”uint16”、”uint32”、”uint64”和”bool”。</p></li>
+<li><p>stream (void *): CUDA流指针，仅定义GPU算子实现时需要。</p></li>
+<li><p>extra_void (void *): 属性相关数据结构指针。</p></li>
+</ul>
+</section>
+<section id="初始化函数">
+<h3>初始化函数<a class="headerlink" href="#初始化函数" title="Permalink to this headline"></a></h3>
+<p>为了支持算子属性和中间变量，我们需要定义算子初始化函数。算子初始化函数定义必须满足如下规范：</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">FuncNameInit</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">ndims</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="o">**</span><span class="n">shapes</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">dtypes</span><span class="p">,</span><span class="w"> </span><span class="n">AotExtra</span><span class="w"> </span><span class="o">*</span><span class="n">extra</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>其中，函数名<code class="docutils literal notranslate"><span class="pre">FuncName</span></code>为算子主函数的名字。返回值为int类型，约定0表示正常退出，非0表示发生异常。参数列表的含义如下：</p>
+<ul class="simple">
+<li><p>ndims (int *): 输入输出shape维度数组。</p></li>
+<li><p>shapes (int64_t **): 输入输出shape数组。</p></li>
+<li><p>dtypes (const char **): 输入输出数据类型数组。</p></li>
+<li><p>extra (AotExtra *): 用于带属性的自定义算子扩展。其中<code class="docutils literal notranslate"><span class="pre">AotExtra</span></code>类型定义在MindSpore提供的头文件<a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/master/tests/st/ops/graph_kernel/custom/aot_test_files/custom_aot_extra.h">custom_aot_extra.h</a>。</p></li>
+</ul>
+</section>
+<section id="shape推导函数">
+<h3>Shape推导函数<a class="headerlink" href="#shape推导函数" title="Permalink to this headline"></a></h3>
+<p>为了支持动态shape，aot类型的自定义算子中需要加入C++版本的shape推导函数。算子shape推导函数定义必须满足如下规范：</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">FuncNameInferShape</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">ndims</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="o">**</span><span class="n">shapes</span><span class="p">,</span><span class="w"> </span><span class="n">AotExtra</span><span class="w"> </span><span class="o">*</span><span class="n">extra</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>其中，函数名<code class="docutils literal notranslate"><span class="pre">FuncName</span></code>为算子主函数的名字。返回值为<code class="docutils literal notranslate"><span class="pre">std::vector&lt;int64_t&gt;</span></code>类型，为输出的shape。参数列表的含义如下：</p>
+<ul class="simple">
+<li><p>ndims (int *): 输入shape维度数组。</p></li>
+<li><p>shapes (int64_t **): 输入shape数组。</p></li>
+<li><p>extra (AotExtra *): 用于带属性的自定义算子扩展。其中<code class="docutils literal notranslate"><span class="pre">AotExtra</span></code>类型定义在MindSpore提供的头文件<a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/master/tests/st/ops/graph_kernel/custom/aot_test_files/custom_aot_extra.h">custom_aot_extra.h</a>。</p></li>
+</ul>
+</section>
+<section id="算子属性注册python">
+<h3>算子属性注册（Python）<a class="headerlink" href="#算子属性注册python" title="Permalink to this headline"></a></h3>
+<p>算子属性的在初始化时的赋值通过算子注册文件实现。对于每一个属性，我们为算子注册文件创建一个<code class="docutils literal notranslate"><span class="pre">attr</span></code>，设置属性名和属性的值。其注册方法为</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">attr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">param_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">value_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>其参数含义参见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/api_python/ops/mindspore.ops.CustomRegOp.html#mindspore-ops-customregop">CustomRegOp</a>相关接口文档。其中，在aot类型自定义算子注册时，我们注册时需要注意一下四个参数：</p>
+<ul class="simple">
+<li><p>name: aot类型自定义算子的属性的名称；</p></li>
+<li><p>param_type: 属性的参数类型。对于aot类型自定义算子的属性，这个输入固定为”required“，即必选参数；</p></li>
+<li><p>value_type: 属性的数值类型。对于aot类型自定义算子的属性，这个输入可以为具体的数值类型，也可以是”all”，即不限定类型；</p></li>
+<li><p>最后一个输入需要指定输入名为<code class="docutils literal notranslate"><span class="pre">value=</span></code>，输入的值为属性的值。</p></li>
+</ul>
+</section>
+</section>
+<section id="aot类型自定义算子进阶用法用例">
+<h2>aot类型自定义算子进阶用法用例<a class="headerlink" href="#aot类型自定义算子进阶用法用例" title="Permalink to this headline"></a></h2>
+<p>下面我们用一个Add和ReduceSum的融合算子用例来介绍aot类型自定义算子的进阶用法。该算子先把两个输入相加，在对某个轴计算求和操作，其基本计算逻辑如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>  <span class="n">tmp</span> <span class="o">=</span> <span class="n">Add</span><span class="p">(</span><span class="n">input_1</span><span class="p">,</span> <span class="n">input_2</span><span class="p">)</span>
+  <span class="n">output</span> <span class="o">=</span> <span class="n">ReduceSum</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">keep_dims</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>这里，我们需要在算子中添加如下中间变量和属性以在计算函数中使用，包括</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tmp</span></code>为中间变量，记录加法的中间结果；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">axis</span></code>是类型为<code class="docutils literal notranslate"><span class="pre">int</span></code>的属性，<code class="docutils literal notranslate"><span class="pre">keep_dims</span></code>是类型为<code class="docutils literal notranslate"><span class="pre">bool</span></code>的属性。</p></li>
+</ul>
+<section id="算子实现文件ccuda测-kernelcc">
+<h3>算子实现文件（C++/CUDA测）:kernel.cc<a class="headerlink" href="#算子实现文件ccuda测-kernelcc" title="Permalink to this headline"></a></h3>
+<p>为了实现算子，我们创建源文件<code class="docutils literal notranslate"><span class="pre">kernel.cc</span></code>，包括以下一个算子属性类<code class="docutils literal notranslate"><span class="pre">add_reduce_kernel_attr</span></code>和三个函数：<code class="docutils literal notranslate"><span class="pre">CustomKernelInit</span></code>、<code class="docutils literal notranslate"><span class="pre">CustomKernelInferShape</span></code>和<code class="docutils literal notranslate"><span class="pre">CustomKernel</span></code>。</p>
+<section id="算子属性类">
+<h4>算子属性类<a class="headerlink" href="#算子属性类" title="Permalink to this headline"></a></h4>
+<p>首先我们定义一个数据结构贮存算子属性，该数据接口继承自<code class="docutils literal notranslate"><span class="pre">AotKernelData</span></code>。<code class="docutils literal notranslate"><span class="pre">AotKernelData</span></code>是自定义算子属性数据结构的统一基类，通过下载MindSpore提供的头文件<a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/master/tests/st/ops/graph_kernel/custom/aot_test_files/custom_aot_extra.h">custom_aot_extra.h</a>放在源文件同一目录下并在文件前<code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&quot;custom_aot_extra.h&quot;</span></code>便可以使用相关接口。</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;vector&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;custom_aot_extra.h&quot;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">add_reduce_kernel_attr</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">AotKernelData</span><span class="w"> </span><span class="p">{</span>
+<span class="w"> </span><span class="k">public</span><span class="o">:</span>
+<span class="w">  </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">axis</span><span class="p">;</span>
+<span class="w">  </span><span class="kt">bool</span><span class="w"> </span><span class="n">keep_dim</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>这里我们在属性类<code class="docutils literal notranslate"><span class="pre">add_kernel</span></code>定义了：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">axis</span></code>：成员变量，类型为<code class="docutils literal notranslate"><span class="pre">int64_t</span></code>；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">keep_dim</span></code>：成员变量，类型为<code class="docutils literal notranslate"><span class="pre">bool</span></code>；</p></li>
+</ul>
+</section>
+<section id="算子初始化函数">
+<h4>算子初始化函数<a class="headerlink" href="#算子初始化函数" title="Permalink to this headline"></a></h4>
+<p>定义完算子属性类后，我们定义算子初始化函数。值得注意是，这里的初始化函数名<code class="docutils literal notranslate"><span class="pre">CustomKernelInit</span></code>对应，那么下面对应函数的前缀应该都为<code class="docutils literal notranslate"><span class="pre">CustomKernel</span></code>。</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">CustomKernelInit</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">ndims</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="o">**</span><span class="n">shapes</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">dtypes</span><span class="p">,</span><span class="w"> </span><span class="n">AotExtra</span><span class="w"> </span><span class="o">*</span><span class="n">extra</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kt">size_t</span><span class="w"> </span><span class="n">workspace_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">ndims</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">workspace_size</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">size_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">workspace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">workspace_size</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nf">sizeof</span><span class="p">(</span><span class="kt">float</span><span class="p">)};</span>
+<span class="w">  </span><span class="n">extra</span><span class="o">-&gt;</span><span class="n">SetWorkSpace</span><span class="p">(</span><span class="n">workspace</span><span class="p">);</span>
+
+<span class="w">  </span><span class="n">add_reduce_kernel_attr</span><span class="w"> </span><span class="o">*</span><span class="n">kernel_data_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">add_reduce_kernel_attr</span><span class="p">;</span>
+<span class="w">  </span><span class="n">kernel_data_ptr</span><span class="o">-&gt;</span><span class="n">axis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">extra</span><span class="o">-&gt;</span><span class="n">Attr</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;axis&quot;</span><span class="p">);</span>
+<span class="w">  </span><span class="n">kernel_data_ptr</span><span class="o">-&gt;</span><span class="n">keep_dim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">extra</span><span class="o">-&gt;</span><span class="n">Attr</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;keep_dim&quot;</span><span class="p">);</span>
+<span class="w">  </span><span class="n">extra</span><span class="o">-&gt;</span><span class="n">SetKernelData</span><span class="p">(</span><span class="n">kernel_data_ptr</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>这里我们需要一个中间变量<code class="docutils literal notranslate"><span class="pre">workspace</span></code>记录加法的中间结果，操作方式如下：</p>
+<ol class="arabic simple">
+<li><p>计算<code class="docutils literal notranslate"><span class="pre">workspace</span></code>需要的内存大小：这里<code class="docutils literal notranslate"><span class="pre">workspace</span></code>的shape和第一个输入一样，因此先用<code class="docutils literal notranslate"><span class="pre">workspace_size</span> <span class="pre">*=</span> <span class="pre">shapes[0][i]</span></code>计算出<code class="docutils literal notranslate"><span class="pre">workspace</span></code>中元素的个数，再用<code class="docutils literal notranslate"><span class="pre">workspace_size</span> <span class="pre">*</span> <span class="pre">sizeof(float)</span></code>计算内存大小（这里默认元素类型为float);</p></li>
+<li><p>把所有中间变量的内存大小储存在一个<code class="docutils literal notranslate"><span class="pre">std::vector&lt;size_t&gt;</span></code>类型的对象内：<code class="docutils literal notranslate"><span class="pre">std::vector&lt;size_t&gt;</span> <span class="pre">workspace</span> <span class="pre">=</span> <span class="pre">{workspace_size</span> <span class="pre">*</span> <span class="pre">sizeof(float)};</span></code>。这里因为只有一个中间变量，该向量只有一个元素；</p></li>
+<li><p>通过<code class="docutils literal notranslate"><span class="pre">AotExtra</span> <span class="pre">*extra</span></code>的<code class="docutils literal notranslate"><span class="pre">SetWorkSpace</span></code>设置中间变量内存大小：<code class="docutils literal notranslate"><span class="pre">extra-&gt;SetWorkSpace(workspace)</span></code>。</p></li>
+</ol>
+<p>另外我们需要获得两个属性<code class="docutils literal notranslate"><span class="pre">axis</span></code>和<code class="docutils literal notranslate"><span class="pre">keep_dim</span></code>的值，操作方式如下：</p>
+<ol class="arabic simple">
+<li><p>创建一个<code class="docutils literal notranslate"><span class="pre">add_reduce_kernel_attr</span></code>对象指针：<code class="docutils literal notranslate"><span class="pre">add_reduce_kernel_attr</span> <span class="pre">*kernel_ptr</span> <span class="pre">=</span> <span class="pre">new</span> <span class="pre">add_reduce_kernel_attr</span></code>。</p></li>
+<li><p>从<code class="docutils literal notranslate"><span class="pre">extra</span></code>中获取对应属性的值贮存在<code class="docutils literal notranslate"><span class="pre">kernel_ptr</span></code>中的成员变量中：<code class="docutils literal notranslate"><span class="pre">kernel_data_ptr-&gt;axis</span> <span class="pre">=</span> <span class="pre">extra-&gt;Attr&lt;int64_t&gt;(&quot;axis&quot;);</span> <span class="pre">kernel_data_ptr-&gt;keep_dim</span> <span class="pre">=</span> <span class="pre">extra-&gt;Attr&lt;bool&gt;(&quot;keep_dim&quot;);</span></code>。这里<code class="docutils literal notranslate"><span class="pre">reduce_axis</span></code>和<code class="docutils literal notranslate"><span class="pre">keep_dim</span></code>分别为<code class="docutils literal notranslate"><span class="pre">int</span></code>和<code class="docutils literal notranslate"><span class="pre">bool</span></code>类型，我们用<code class="docutils literal notranslate"><span class="pre">extra-&gt;Attr&lt;T&gt;(std::string</span> <span class="pre">name)</span></code>接口的对应模板获取该类型属性的值。</p>
+<ul class="simple">
+<li><p>这里<code class="docutils literal notranslate"><span class="pre">T</span></code>支持类型为：<code class="docutils literal notranslate"><span class="pre">bool</span></code>、<code class="docutils literal notranslate"><span class="pre">string</span></code>、<code class="docutils literal notranslate"><span class="pre">int64_t</span></code>、<code class="docutils literal notranslate"><span class="pre">float</span></code>、<code class="docutils literal notranslate"><span class="pre">std::vector&lt;int64_t&gt;</span></code>、<code class="docutils literal notranslate"><span class="pre">std::vector&lt;float&gt;</span></code>、<code class="docutils literal notranslate"><span class="pre">std::vector&lt;std::vector&lt;int64_t&gt;&gt;</span></code>和<code class="docutils literal notranslate"><span class="pre">std::vector&lt;std::vector&lt;float&gt;&gt;</span></code>。</p></li>
+</ul>
+</li>
+<li><p>把<code class="docutils literal notranslate"><span class="pre">kernel_ptr</span></code>存在<code class="docutils literal notranslate"><span class="pre">extra</span></code>中供算子计算时使用：<code class="docutils literal notranslate"><span class="pre">extra-&gt;SetKernelData(kernel_ptr)</span></code>。</p></li>
+</ol>
+</section>
+<section id="算子shape推导函数">
+<h4>算子Shape推导函数<a class="headerlink" href="#算子shape推导函数" title="Permalink to this headline"></a></h4>
+<p>为了定义动态shape场景，我们定义C++版本的算子Shape推导函数如下。值得注意是，这里的算子Shape推导函数名<code class="docutils literal notranslate"><span class="pre">CustomKernelInferShape</span></code>和上面的初始化函数名<code class="docutils literal notranslate"><span class="pre">CustomKernelInit</span></code>的前缀均为前缀<code class="docutils literal notranslate"><span class="pre">CustomKernel</span></code>。</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;vector&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;custom_aot_extra.h&quot;</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CustomKernelInferShape</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">ndims</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="o">**</span><span class="n">shapes</span><span class="p">,</span><span class="w"> </span><span class="n">AotExtra</span><span class="w"> </span><span class="o">*</span><span class="n">extra</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">kDynRankSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-2</span><span class="p">;</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">kDynRankSize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">{</span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]};</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">axis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">extra</span><span class="o">-&gt;</span><span class="n">Attr</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;axis&quot;</span><span class="p">);</span>
+<span class="w">  </span><span class="kt">bool</span><span class="w"> </span><span class="n">keep_dim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">extra</span><span class="o">-&gt;</span><span class="n">Attr</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;keep_dim&quot;</span><span class="p">);</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">keep_dim</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">axis</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]};</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">{</span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">1</span><span class="p">};</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">{</span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">axis</span><span class="p">]};</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>在上面的例子中，我们要注意：</p>
+<ul class="simple">
+<li><p>根据MindSpore的规范，动态shape输入分为dynamic shape和dynamic rank两种情况，对应的shape输入分别为：</p>
+<ul>
+<li><p>dynamic shape：输入的某一维的大小未知，用-1表示。例如输入的shape为[1024, -1, 1024]，表示输入为一个三维张量，第一维和第三维长度为1024，第二维长度位置；</p></li>
+<li><p>dynamic rank：输入的维度的个数位置，输入的shape固定为[-2, ]。</p></li>
+</ul>
+</li>
+<li><p>为了支持C++的shape推导函数，需要处理输入为dynamic shape和dynamic rank的场景。例如上面的例子，如果输入为dynamic rank，那么输出也是dynamic rank。因此我们判断输入为[-2, ]时，直接返回[-2, ]。</p></li>
+<li><p>对于输出shape依赖属性的场景，可以通过<code class="docutils literal notranslate"><span class="pre">extra-&gt;Attr&lt;T&gt;(std::string</span> <span class="pre">name)</span></code>模板接口获取属性。</p></li>
+</ul>
+</section>
+<section id="算子计算函数主函数">
+<h4>算子计算函数（主函数）<a class="headerlink" href="#算子计算函数主函数" title="Permalink to this headline"></a></h4>
+<p>算子计算函数的接口规范和不带属性的自定义算子一样。值得注意是，这里的算子主函数名<code class="docutils literal notranslate"><span class="pre">CustomKernel</span></code>需要和上面的初始化函数名<code class="docutils literal notranslate"><span class="pre">CustomKernelInit</span></code>及算子Shape推导函数名<code class="docutils literal notranslate"><span class="pre">CustomKernelInferShape</span></code>对应。主函数和上面两个函数一起组成源文件<code class="docutils literal notranslate"><span class="pre">kernel.cc</span></code>。</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">CustomKernel</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">nparam</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">**</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">ndims</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="o">**</span><span class="n">shapes</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">dtypes</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">stream</span><span class="p">,</span>
+<span class="w">                         </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">extra_void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">OUTPUT_INDEX</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+
+<span class="w">  </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">input_1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">  </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">input_2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">  </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">2</span><span class="p">]);</span>
+<span class="w">  </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">tmp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">3</span><span class="p">]);</span>
+
+<span class="w">  </span><span class="c1">// Add</span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">in_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">ndims</span><span class="p">[</span><span class="n">OUTPUT_INDEX</span><span class="p">];</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">in_size</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="n">OUTPUT_INDEX</span><span class="p">][</span><span class="n">i</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">in_size</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">tmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input_1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">input_2</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="c1">// ReduceSum</span>
+<span class="w">  </span><span class="n">AotExtra</span><span class="w"> </span><span class="o">*</span><span class="n">extra</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">AotExtra</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">extra_void</span><span class="p">);</span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">kernel_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">add_reduce_kernel_attr</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">extra</span><span class="o">-&gt;</span><span class="n">KernelData</span><span class="p">());</span>
+<span class="w">  </span><span class="kt">bool</span><span class="w"> </span><span class="n">keep_dim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_ptr</span><span class="o">-&gt;</span><span class="n">keep_dim</span><span class="p">;</span>
+<span class="w">  </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">axis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_ptr</span><span class="o">-&gt;</span><span class="n">axis</span><span class="p">;</span>
+<span class="w">  </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">input_dim_1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">keep_dim</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">ext</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">axis</span><span class="p">];</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">output</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">ext</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="kt">int</span><span class="w"> </span><span class="n">idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input_dim_1</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">axis</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">axis</span><span class="p">))</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">axis</span><span class="p">;</span>
+<span class="w">      </span><span class="n">output</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">output</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">tmp</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>在计算Add时我们使用了算子的中间变量，操作如下：</p>
+<ol class="arabic simple">
+<li><p>把<code class="docutils literal notranslate"><span class="pre">params</span></code>数组中的指针依次类型转化为<code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">*</span></code>。根据上面接口的介绍，数组中的元素依次为：两个输入的地址指针(<code class="docutils literal notranslate"><span class="pre">input_1</span></code>和<code class="docutils literal notranslate"><span class="pre">input_2</span></code>)，一个输出的地址指针(<code class="docutils literal notranslate"><span class="pre">output</span></code>)，以及一个中间变量的地址指针(<code class="docutils literal notranslate"><span class="pre">tmp</span></code>)；</p></li>
+<li><p>把两个输入相加的结果存在中间变量中：<code class="docutils literal notranslate"><span class="pre">tmp[i]</span> <span class="pre">=</span> <span class="pre">input_1[i]</span> <span class="pre">+</span> <span class="pre">input_2[i]</span></code>。</p></li>
+</ol>
+<p>在计算ReduceSum时我们使用了算子的属性值，操作如下：</p>
+<ol class="arabic simple">
+<li><p>把<code class="docutils literal notranslate"><span class="pre">extra_void</span></code>类型转化为<code class="docutils literal notranslate"><span class="pre">AotExtra</span></code>类型指针：<code class="docutils literal notranslate"><span class="pre">AotExtra</span> <span class="pre">*extra</span> <span class="pre">=</span> <span class="pre">static_cast&lt;AotExtra</span> <span class="pre">*&gt;(extra_void)</span></code>。</p></li>
+<li><p>从<code class="docutils literal notranslate"><span class="pre">extra</span></code>中获取初始化函数中创立的<code class="docutils literal notranslate"><span class="pre">kernel_ptr</span></code>对象指针：<code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">kernel_ptr</span> <span class="pre">=</span> <span class="pre">static_cast&lt;add_reduce_kernel_attr</span> <span class="pre">*&gt;(extra-&gt;KernelData())</span></code>。这里<code class="docutils literal notranslate"><span class="pre">extra-&gt;KernelData()</span></code>获得的是一个void对象指针，需要再进一步类型转化为<code class="docutils literal notranslate"><span class="pre">kernel_ptr</span></code>对象指针。</p></li>
+<li><p>使用<code class="docutils literal notranslate"><span class="pre">kernel_ptr</span></code>中储存的属性值进行计算：<code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">keep_dim</span> <span class="pre">=</span> <span class="pre">kernel_ptr-&gt;keep_dim;</span> <span class="pre">int64_t</span> <span class="pre">axis</span> <span class="pre">=</span> <span class="pre">kernel_ptr-&gt;axis;</span></code>。这里我们从<code class="docutils literal notranslate"><span class="pre">kernel_ptr</span></code>获得变量<code class="docutils literal notranslate"><span class="pre">keep_dim</span></code>和<code class="docutils literal notranslate"><span class="pre">axis</span></code>进行计算。</p></li>
+</ol>
+</section>
+</section>
+<section id="算子定义文件-test-custom-aotpy">
+<h3>算子定义文件:test_custom_aot.py<a class="headerlink" href="#算子定义文件-test-custom-aotpy" title="Permalink to this headline"></a></h3>
+<p>为了在MindSpore中添加aot类型的自定义算子调用上面函数，我们创建文件<code class="docutils literal notranslate"><span class="pre">test_custom_aot.py</span></code>。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span><span class="p">,</span> <span class="n">Tensor</span>
+<span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Cell</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">DataType</span><span class="p">,</span> <span class="n">CustomRegOp</span>
+
+<span class="k">class</span> <span class="nc">ReduceDynNet</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out_types</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">keep_dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ReduceDynNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">reduce_cpu_info</span> <span class="o">=</span> <span class="n">CustomRegOp</span><span class="p">(</span><span class="s2">&quot;reduce_kernel_cpu&quot;</span><span class="p">)</span> \
+            <span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;x1&quot;</span><span class="p">)</span> \
+            <span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;x2&quot;</span><span class="p">)</span> \
+            <span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">)</span> \
+            <span class="o">.</span><span class="n">dtype_format</span><span class="p">(</span><span class="n">DataType</span><span class="o">.</span><span class="n">None_None</span><span class="p">,</span> <span class="n">DataType</span><span class="o">.</span><span class="n">None_None</span><span class="p">,</span> <span class="n">DataType</span><span class="o">.</span><span class="n">None_None</span><span class="p">)</span> \
+            <span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="s2">&quot;axis&quot;</span><span class="p">,</span> <span class="s2">&quot;required&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span> \
+            <span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="s2">&quot;keep_dim&quot;</span><span class="p">,</span> <span class="s2">&quot;required&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">keep_dim</span><span class="p">)</span> \
+            <span class="o">.</span><span class="n">target</span><span class="p">(</span><span class="s2">&quot;CPU&quot;</span><span class="p">)</span> \
+            <span class="o">.</span><span class="n">get_op_info</span><span class="p">()</span>
+        <span class="c1"># 由于上面定义了C++版本的shape推导函数，这里的ouptut_shape可以为`None`</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">program</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Custom</span><span class="p">(</span><span class="s2">&quot;./kernel.cc:CustomKernel&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">out_types</span><span class="p">,</span> <span class="s2">&quot;aot&quot;</span><span class="p">,</span> <span class="n">reg_info</span><span class="o">=</span><span class="n">reduce_cpu_info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">program</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>该文件中的<code class="docutils literal notranslate"><span class="pre">ReduceDynNet</span></code>包括算子注册和算子定义两个部分。</p>
+<section id="算子注册">
+<h4>算子注册<a class="headerlink" href="#算子注册" title="Permalink to this headline"></a></h4>
+<p>算子属性的在初始化时的赋值通过算子注册文件实现。关于自定义算子注册的函数，参见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/api_python/ops/mindspore.ops.CustomRegOp.html#mindspore-ops-customregop">CustomRegOp</a>相关文档。对于每一个属性，我们为算子注册文件<code class="docutils literal notranslate"><span class="pre">reduce_cpu_info</span></code>创建一个<code class="docutils literal notranslate"><span class="pre">attr</span></code>，设置属性名和属性的值。</p>
+<p>这里每一个<code class="docutils literal notranslate"><span class="pre">attr</span></code>项有四个输入：第一个为名字，如<code class="docutils literal notranslate"><span class="pre">&quot;axis&quot;</span></code>或<code class="docutils literal notranslate"><span class="pre">&quot;keep_dim&quot;</span></code>；中间两个为<code class="docutils literal notranslate"><span class="pre">&quot;required&quot;</span></code>和<code class="docutils literal notranslate"><span class="pre">&quot;all&quot;</span></code>；最后一个输入需要指定输入名为<code class="docutils literal notranslate"><span class="pre">value=</span></code>，输入的值为属性的值，例如这里<code class="docutils literal notranslate"><span class="pre">value=axis</span></code>和<code class="docutils literal notranslate"><span class="pre">value=keep_dim</span></code>。这里我们从网络的输入确定这两个参数的值，这两个值应该和上面初始化函数和shape推导函数中使用的<code class="docutils literal notranslate"><span class="pre">extra-&gt;Attr&lt;T&gt;</span></code>模板接口的类型匹配。</p>
+<p>此外，如果我们需要定义多个算子注册文件，需要使用不同的算子文件名，即<code class="docutils literal notranslate"><span class="pre">CustomRegOp</span></code>的入参，这里为<code class="docutils literal notranslate"><span class="pre">&quot;add_with_attr_kernel_cpu&quot;</span></code>。如果需要定义另一个算子原型相同但是属性值不同的算子时，该名字不能重复。</p>
+</section>
+<section id="算子定义">
+<h4>算子定义<a class="headerlink" href="#算子定义" title="Permalink to this headline"></a></h4>
+<p>上面Python文件中通过自定义算子统一接口<code class="docutils literal notranslate"><span class="pre">Custom</span></code>定义了aot类型的自定义算子：<code class="docutils literal notranslate"><span class="pre">self.program</span> <span class="pre">=</span> <span class="pre">ops.Custom(&quot;./kernel.cc:CustomKernel&quot;,</span> <span class="pre">None,</span> <span class="pre">out_types,</span> <span class="pre">&quot;aot&quot;,</span> <span class="pre">reg_info=reduce_cpu_info)</span></code>。因为我们前面定了C++版本的shape推导函数之后，这里的<code class="docutils literal notranslate"><span class="pre">ouptut_shape</span></code>可以为<code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<p>值得注意的是，这里的算子定义中我们直接使用源文件名<code class="docutils literal notranslate"><span class="pre">./kernel.cc</span></code>，如此我们采用MindSpore提供的自动编译功能。注意这个时候要保证环境中存在对应的编译器（这里为g++，gpu环境的cu文件则需要nvcc)。</p>
+</section>
+</section>
+<section id="算子调用">
+<h3>算子调用<a class="headerlink" href="#算子调用" title="Permalink to this headline"></a></h3>
+<p>作为测试，我们给<code class="docutils literal notranslate"><span class="pre">test_custom_aot.py</span></code>文件添加<code class="docutils literal notranslate"><span class="pre">__main__</span></code>函数如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">keep_dim</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;CPU&quot;</span><span class="p">)</span>
+
+    <span class="n">input_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">input_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="n">test</span> <span class="o">=</span> <span class="n">ReduceDynNet</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">keep_dim</span><span class="p">)</span>
+    <span class="n">dyn_x</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="c1"># set the net to dynamic shape</span>
+    <span class="n">test</span><span class="o">.</span><span class="n">set_inputs</span><span class="p">(</span><span class="n">dyn_x</span><span class="p">,</span> <span class="n">dyn_x</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">test</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">input_x</span><span class="p">),</span><span class="n">Tensor</span><span class="p">(</span><span class="n">input_y</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>执行文件调用算子：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>test_custom_aot.py
+</pre></div>
+</div>
+<p>执行结果：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[10. 10. 10. 10.]
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="op_custom_adv.html" class="btn btn-neutral float-left" title="自定义算子注册" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../optimize/execution_opt.html" class="btn btn-neutral float-right" title="下沉模式" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, MindSpore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+</body>
+</html>

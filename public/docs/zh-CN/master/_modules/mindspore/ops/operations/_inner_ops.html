@@ -7,6 +7,7 @@
       <link rel="stylesheet" href="../../../../_static/css/bootstrap.min.css" type="text/css" />
       <link rel="stylesheet" href="../../../../_static/css/training.css" type="text/css" /><link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <script src="../../../../_static/js/theme.js"></script>
   <!--[if lt IE 9]>
     <script src="../../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -18,7 +19,6 @@
         <script src="../../../../_static/js/training.js"></script>
         <script src="../../../../_static/translations.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script src="../../../../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../../../../genindex.html" />
     <link rel="search" title="搜索" href="../../../../search.html" /> 
 </head>
@@ -2855,6 +2855,88 @@
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="k">class</span> <span class="nc">SelectView</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select tensor of view</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@prim_attr_register</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;input_tensor&#39;</span><span class="p">,</span> <span class="s1">&#39;input_indices&#39;</span><span class="p">,</span> <span class="s1">&#39;axis&#39;</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">])</span>
+
+
+<span class="k">class</span> <span class="nc">CopyWithSlice</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Copy data to discontinuous tensor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@prim_attr_register</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s1">&#39;side_effect_mem&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">])</span>
+
+
+<span class="k">class</span> <span class="nc">MoeFFN</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The MoeFFN computation is similar to Feed-Forward Network, it contains matmul + gelu + matmul.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        activation (string): The activation type, set to &#39;fastgelu&#39; or &#39;gelu&#39;.</span>
+<span class="sd">        Only support &#39;fastgelu&#39; for now. Default: &quot;fastgelu&quot;.</span>
+
+<span class="sd">    Inputs:</span>
+<span class="sd">        - **x** (Tensor) - The input tensor with data type of int8, float16.</span>
+<span class="sd">          Input tensor of shape :math:`(batch\_size * seq\_length, hidden\_size)`.</span>
+<span class="sd">        - **expert_tokens** (Tensor]) - The expert tokens tensor with data type of int64.</span>
+<span class="sd">          Expert tokens tensor of shape :math:`(16,)`. For example, `(2, 1, 0, .., 9)`</span>
+<span class="sd">          indicate that the 0th expert deals with 2 tokens, the 1th expert deals with 1 tokens,</span>
+<span class="sd">          the 2th expert do noting and so on.</span>
+<span class="sd">        - **weight1** (Tensor) - The weight1 tensor with data type of float16.</span>
+<span class="sd">          Weight1 tensor of shape :math:`(expert\_num, hidden\_size, ffn\_hidden\_size)`.</span>
+<span class="sd">        - **bias1** (Tensor) - The bias1 tensor with data type of float16.</span>
+<span class="sd">          Bias1 tensor of shape :math:`(expert\_num, ffn\_hidden\_size)`.</span>
+<span class="sd">        - **weight2** (Tensor) - The weight2 tensor with data type of float16.</span>
+<span class="sd">          Weight2 tensor of shape :math:`(expert\_num, ffn\_hidden\_size, hidden\_size)`.</span>
+<span class="sd">        - **bias2** (Tensor) - The bias2 tensor with data type of float16.</span>
+<span class="sd">          Bias2 tensor of shape :math:`(expert\_num, hidden\_size)`.</span>
+<span class="sd">        - **scale** (Tensor) - The scale tensor with data type of float16. Not enable now.</span>
+<span class="sd">        - **offset** (Tensor) - The offset tensor with data type of float16. Not enable now.</span>
+<span class="sd">        - **deq_scale1** (Tensor) - The deq_scale1 tensor with data type of float16. Not enable now.</span>
+<span class="sd">        - **deq_scale2** (Tensor) - The deq_scale2 tensor with data type of float16. Not enable now.</span>
+
+<span class="sd">    Outputs:</span>
+<span class="sd">        Tensor of shape :math:`(batch\_size * seq\_length, hidden\_size)`. With data type of float16.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend``</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.ops.operations import _inner_ops</span>
+<span class="sd">        &gt;&gt;&gt; b = 4</span>
+<span class="sd">        &gt;&gt;&gt; s = 128</span>
+<span class="sd">        &gt;&gt;&gt; h = 1024</span>
+<span class="sd">        &gt;&gt;&gt; h_f = 4 * h</span>
+<span class="sd">        &gt;&gt;&gt; e = 16</span>
+<span class="sd">        &gt;&gt;&gt; x = Tensor(np.random.randn(b * s, h).astype(np.float16))</span>
+<span class="sd">        &gt;&gt;&gt; expert_tokens = Tensor(np.random.randn(e).astype(np.int64))</span>
+<span class="sd">        &gt;&gt;&gt; w1 = Tensor(np.random.randn(e, h, h_f).astype(np.float16))</span>
+<span class="sd">        &gt;&gt;&gt; bias1 = Tensor(np.random.randn(e, h_f).astype(np.float16))</span>
+<span class="sd">        &gt;&gt;&gt; w2 = Tensor(np.random.randn(e, h_f, h).astype(np.float16))</span>
+<span class="sd">        &gt;&gt;&gt; bias2 = Tensor(np.random.randn(e, h).astype(np.float16))</span>
+<span class="sd">        &gt;&gt;&gt; moe_ffn = _inner_ops.MoeFFN(&quot;fastgelu&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; output = moe_ffn(x, w1, bias1, w2, bias2)</span>
+<span class="sd">        &gt;&gt;&gt; print(output)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@prim_attr_register</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">activation</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize MoeFFN.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;expert_tokens&quot;</span><span class="p">,</span> <span class="s2">&quot;weight1&quot;</span><span class="p">,</span> <span class="s2">&quot;bias1&quot;</span><span class="p">,</span>
+                                        <span class="s2">&quot;weight2&quot;</span><span class="p">,</span> <span class="s2">&quot;bias2&quot;</span><span class="p">,</span> <span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="s2">&quot;deq_scale1&quot;</span>
+                                        <span class="s2">&quot;deq_scale2&quot;</span><span class="p">],</span>
+                                <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">activation</span>
 </pre></div>
 
            </div>

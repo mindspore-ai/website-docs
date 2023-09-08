@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MindSpore Hybrid Syntax Specification &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <script src="../_static/js/theme.js"></script>
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -15,7 +16,6 @@
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Custom Operator Registration" href="op_custom_adv.html" />
@@ -37,22 +37,14 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Static Graph Usage Sepecifications</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../network/control_flow.html">Process Control Statements</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../network/jit_class.html">Calling the Custom Class</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../network/constexpr.html">Construct Constants In the Network</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../network/dependency_control.html">Dependency Control</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Distributed Parallel</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Distributed Parallel</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../parallel/overview.html">Distributed Parallelism Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel/startup_method.html">Distributed Parallel Startup Methods</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel/parallel_mode.html">Parallel Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/model_save_load.html">Model Saving and Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel/recover.html">Fault Recovery</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel/basic_cases.html">Distributed Basic Cases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../parallel/operator_parallel.html">Operator-level Parallelism</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../parallel/pipeline_parallel.html">Pipeline Parallel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../parallel/optimizer_parallel.html">Optimizer Parallel</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel/recompute.html">Recomputation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel/host_device_training.html">Host&amp;Device Heterogeneous</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel/parameter_server_training.html">Parameter Server Mode</a></li>
@@ -74,9 +66,11 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#frequent-error-messages-and-error-attributions">Frequent Error Messages and Error Attributions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example：three-dim-tensor-add-operator-based-on-hybrid">Example：Three Dim Tensor Add Operator Based on Hybrid</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="op_custom_adv.html">Custom Operator Registration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="op_custom_aot.html">Advanced usage of aot-type custom operators</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Performance Optimization</span></p>
 <ul>
@@ -428,6 +422,68 @@ Users can write codes like writing Python expressions.</p>
 </ul>
 </li>
 </ul>
+</section>
+<section id="example：three-dim-tensor-add-operator-based-on-hybrid">
+<h2>Example：Three Dim Tensor Add Operator Based on Hybrid<a class="headerlink" href="#example：three-dim-tensor-add-operator-based-on-hybrid" title="Permalink to this headline"></a></h2>
+<p>Firstly we define a function for three dim tensor add with MindSpore Hybrid DSL.
+Notice that:</p>
+<ul class="simple">
+<li><p>the output tensor is defined with the keyword <code class="docutils literal notranslate"><span class="pre">output_tensor</span></code> like <code class="docutils literal notranslate"><span class="pre">output_tensor(shape,</span> <span class="pre">dtype)</span></code>;</p></li>
+<li><p>all the computation is scalar-based, and we need all indices for elements in tensors;</p></li>
+<li><p>like Python we define a loop with the keyword <code class="docutils literal notranslate"><span class="pre">range</span></code>.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@kernel</span>
+<span class="k">def</span> <span class="nf">tensor_add_3d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">output_tensor</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="c1">#    1. we need a three dim loops</span>
+    <span class="c1">#    2. the extent of i&#39;th loop is x.shape[i]</span>
+    <span class="c1">#    3. we need to write the elementwise computation such as x[i, j, k] + y[i, j, k]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+</div>
+<p>Next we define a custom op with the above function by DSL.
+Notice that the function based on <code class="docutils literal notranslate"><span class="pre">kernel</span></code>, we can use the automatic shape and data type derivation.
+Thus we give the input of <code class="docutils literal notranslate"><span class="pre">func</span></code> only with the default value of <code class="docutils literal notranslate"><span class="pre">func_type</span></code> as <code class="docutils literal notranslate"><span class="pre">&quot;hybrid&quot;</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tensor_add_3d_op</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Custom</span><span class="p">(</span><span class="n">func</span> <span class="o">=</span> <span class="n">tensor_add_3d</span><span class="p">)</span>
+<span class="n">input_tensor_x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">input_tensor_y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">result_cus</span> <span class="o">=</span> <span class="n">tensor_add_3d_op</span><span class="p">(</span><span class="n">input_tensor_x</span><span class="p">,</span> <span class="n">input_tensor_y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result_cus</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Meanwhile we can check the result via the mode of <code class="docutils literal notranslate"><span class="pre">pyfunc</span></code>.
+Without redefining the function of <code class="docutils literal notranslate"><span class="pre">tensor_add_3d</span></code>, we change the input of <code class="docutils literal notranslate"><span class="pre">func_type</span></code> directly to <code class="docutils literal notranslate"><span class="pre">&quot;pyfunc&quot;</span></code>.
+Notice that in <code class="docutils literal notranslate"><span class="pre">pyfunc</span></code> mode we need to write type derivation function.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">infer_shape_py</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span>
+
+<span class="k">def</span> <span class="nf">infer_dtype_py</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">tensor_add_3d_py_func</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Custom</span><span class="p">(</span><span class="n">func</span> <span class="o">=</span> <span class="n">tensor_add_3d</span><span class="p">,</span>
+                                   <span class="n">out_shape</span> <span class="o">=</span> <span class="n">infer_shape_py</span><span class="p">,</span>
+                                   <span class="n">out_dtype</span> <span class="o">=</span> <span class="n">infer_dtype_py</span><span class="p">,</span>
+                                   <span class="n">func_type</span> <span class="o">=</span> <span class="s2">&quot;pyfunc&quot;</span><span class="p">)</span>
+
+<span class="n">result_pyfunc</span> <span class="o">=</span> <span class="n">tensor_add_3d_py_func</span><span class="p">(</span><span class="n">input_tensor_x</span><span class="p">,</span> <span class="n">input_tensor_y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result_pyfunc</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then we have the following result, namely the sum of two input tensors.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span> [[[3. 3. 3. 3.]
+  [3. 3. 3. 3.]
+  [3. 3. 3. 3.]]
+
+ [[3. 3. 3. 3.]
+  [3. 3. 3. 3.]
+  [3. 3. 3. 3.]]]
+</pre></div>
+</div>
 </section>
 </section>
 
