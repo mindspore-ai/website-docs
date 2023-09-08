@@ -906,9 +906,7 @@
 
 
 <div class="viewcode-block" id="constexpr"><a class="viewcode-back" href="../../../api_python/ops/mindspore.ops.constexpr.html#mindspore.ops.constexpr">[文档]</a><span class="k">def</span> <span class="nf">constexpr</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">get_instance</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reuse_result</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Creates a PrimitiveWithInfer operator that can infer the value at compile time. We can use it to define a function</span>
-<span class="sd">    to compute constant value using the constants in the constructor.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Used to calculate constant in graph copmpiling process and improve compile performance in GRAPH_MODE.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        fn (function): A `fn` use as the infer_value of the output operator. Default: ``None`` .</span>
@@ -922,22 +920,27 @@
 <span class="sd">            and the warning message will raised if the parameter is not const value. Default: ``True`` .</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; from mindspore.ops import constexpr</span>
-<span class="sd">        &gt;&gt;&gt; a = (1, 2)</span>
-<span class="sd">        &gt;&gt;&gt; # make an operator to calculate tuple len</span>
-<span class="sd">        &gt;&gt;&gt; @constexpr</span>
-<span class="sd">        ... def tuple_len(x):</span>
-<span class="sd">        ...     return len(x)</span>
+
+<span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">        &gt;&gt;&gt; # define a constant calculate function with for loop inside and use use constexpr to accelerate the compile</span>
+<span class="sd">        &gt;&gt;&gt; # process.</span>
+<span class="sd">        &gt;&gt;&gt; @ms.constexpr</span>
+<span class="sd">        ... def for_loop_calculate(range_num):</span>
+<span class="sd">        ...     out = 0</span>
+<span class="sd">        ...     for i in range(range_num):</span>
+<span class="sd">        ...         if i %2 == 0 and i % 7 != 0:</span>
+<span class="sd">        ...             out = out + i</span>
+<span class="sd">        ...     return out // range_num</span>
 <span class="sd">        ...</span>
-<span class="sd">        &gt;&gt;&gt; print(tuple_len(a))</span>
-<span class="sd">        2</span>
-<span class="sd">        &gt;&gt;&gt; # make an operator class to calculate tuple len</span>
-<span class="sd">        &gt;&gt;&gt; @constexpr(get_instance=False, name=&quot;TupleLen&quot;)</span>
-<span class="sd">        ... def tuple_len_class(x):</span>
-<span class="sd">        ...     return len(x)</span>
+<span class="sd">        &gt;&gt;&gt; # construct a net and run with GRAPH_MODE.</span>
+<span class="sd">        &gt;&gt;&gt; @ms.jit</span>
+<span class="sd">        ... def my_func(x):</span>
+<span class="sd">        ...     new_shape = for_loop_calculate(100000)</span>
+<span class="sd">        ...     return ms.ops.broadcast_to(x, (new_shape, ))</span>
 <span class="sd">        ...</span>
-<span class="sd">        &gt;&gt;&gt; print(tuple_len_class()(a))</span>
-<span class="sd">        2</span>
+<span class="sd">        &gt;&gt;&gt; out = my_func(ms.Tensor([1]))</span>
+<span class="sd">        &gt;&gt;&gt; print(out.shape)</span>
+<span class="sd">        &gt;&gt;&gt; (21428, )</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">deco</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
@@ -994,6 +997,7 @@
 <span class="sd">        reuse_result (bool): If ``True`` , the operator will be executed once and reuse the result next time,</span>
 <span class="sd">                             otherwise the operator will always be executed. Default: ``True`` .</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">def</span> <span class="nf">deco</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Decorator for CompileOp.&quot;&quot;&quot;</span>
 

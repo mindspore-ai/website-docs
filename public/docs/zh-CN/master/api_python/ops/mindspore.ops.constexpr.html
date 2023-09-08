@@ -209,22 +209,26 @@
 </dd>
 </dl>
 <p><strong>样例：</strong></p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">constexpr</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># make an operator to calculate tuple len</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nd">@constexpr</span>
-<span class="gp">... </span><span class="k">def</span> <span class="nf">tuple_len</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-<span class="gp">... </span>    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># define a constant calculate function with for loop inside and use use constexpr to accelerate the compile</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># process.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nd">@ms</span><span class="o">.</span><span class="n">constexpr</span>
+<span class="gp">... </span><span class="k">def</span> <span class="nf">for_loop_calculate</span><span class="p">(</span><span class="n">range_num</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">out</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="gp">... </span>    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">range_num</span><span class="p">):</span>
+<span class="gp">... </span>        <span class="k">if</span> <span class="n">i</span> <span class="o">%</span><span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">7</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+<span class="gp">... </span>            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">+</span> <span class="n">i</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="n">out</span> <span class="o">//</span> <span class="n">range_num</span>
 <span class="gp">...</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">tuple_len</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
-<span class="go">2</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># make an operator class to calculate tuple len</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nd">@constexpr</span><span class="p">(</span><span class="n">get_instance</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;TupleLen&quot;</span><span class="p">)</span>
-<span class="gp">... </span><span class="k">def</span> <span class="nf">tuple_len_class</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-<span class="gp">... </span>    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># construct a net and run with GRAPH_MODE.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+<span class="gp">... </span><span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">new_shape</span> <span class="o">=</span> <span class="n">for_loop_calculate</span><span class="p">(</span><span class="mi">100000</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="n">ms</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">new_shape</span><span class="p">,</span> <span class="p">))</span>
 <span class="gp">...</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">tuple_len_class</span><span class="p">()(</span><span class="n">a</span><span class="p">))</span>
-<span class="go">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">out</span> <span class="o">=</span> <span class="n">my_func</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([</span><span class="mi">1</span><span class="p">]))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">(</span><span class="mi">21428</span><span class="p">,</span> <span class="p">)</span>
 </pre></div>
 </div>
 </dd></dl>
