@@ -572,44 +572,6 @@ $(function () {
               beianLink: 'https://beian.miit.gov.cn',
               beian: ['粤A2-20044005号', '粤公网安备 44030702002890号'],
               aboutTitle: isEn ? 'Follow us' : '关注我们',
-              aboutList: {
-                  zh: [
-                      {
-                          name: '打开微信扫一扫',
-                          img: './pic/code/weixin.jpg',
-                      },
-                      {
-                          name: '打开Bilibili扫一扫',
-                          img: './pic/code/bilibili.png',
-                      },
-                      {
-                          name: '打开抖音扫一扫',
-                          img: './pic/code/douyin.png',
-                      },
-                      {
-                          name: '打开QQ扫一扫',
-                          img: './pic/code/QQ.png',
-                      },
-                  ],
-                  en: [
-                      {
-                          name: 'Twitter',
-                          img: './pic/code/twitter.png',
-                      },
-                      {
-                          name: 'YouTube',
-                          img: './pic/code/youTube.png',
-                      },
-                      {
-                          name: 'LinkedIn',
-                          img: './pic/code/linkedIn.png',
-                      },
-                      {
-                          name: 'Reddit',
-                          img: './pic/code/reddit.png',
-                      },
-                  ],
-              },
               menu: [
                   {
                       name: isEn ? 'Security' : '安全',
@@ -628,23 +590,6 @@ $(function () {
                       path: `/privacy${enPath}`,
                   },
               ],
-          },
-          // 文档反馈链接
-          getQuestionHref: function () {
-              let url = ''
-              if (
-                  pathname.startsWith('/docs/') &&
-                  pathname.indexOf('/api_python/') > -1
-              ) {
-                  url =
-                      configIP.GITEE_URL +
-                      '/mindspore/mindspore/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0'
-              } else {
-                  url =
-                      configIP.GITEE_URL +
-                      '/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0'
-              }
-              return url
           },
           rateLayer: function () {
               const helpForScores = [
@@ -668,8 +613,7 @@ $(function () {
                 </svg>
                 </div>
                 <div class="wordScore">${score}</div>
-              </li>
-            `
+              </li> `
               )
               .join('')}
         </ul>`
@@ -794,9 +738,9 @@ $(function () {
                             ${msFotter.fontmatter.ratingSuccess}</div>`
                           )
                       $('.evaluateTitle').hide()
-                      // setTimeout(() => {
-                      //     ratingLayer.empty().removeClass('on')
-                      // }, 1000)
+                      setTimeout(() => {
+                          ratingLayer.empty().removeClass('on')
+                      }, 1000)
                   }
               })
 
@@ -808,11 +752,11 @@ $(function () {
       // 复制代码
       function codeClipboard() {
           // 实现复制粘贴功能
-          $('pre>span:first-of-type').append(
-              '<button class="btn1"><img src="/pic/copy.png"/></button><button class="btn3"><img src="/pic/copySuc.png"/></button><span class="copybg">Copy</span>'
-          )
+          $('pre>span:first-of-type').append('<em class="copy-btn" data-tooltip="copy"><i class="icon-copy"></i></em>')
 
-          $('.btn1').click(function () {
+          $('.copy-btn').click(function () {
+              let that = $(this);
+              $(this).attr('data-tooltip',isEn?'Copy Success!':'复制成功！');
               let domTemp = $(this).parent().parent()[0].cloneNode(true)
               domTemp.querySelectorAll('.go').forEach((item) => item.remove())
               let Url2 = domTemp.innerText.replace('Copy', '')
@@ -856,25 +800,10 @@ $(function () {
               oInput.select() // 选择对象
               document.execCommand('Copy') // 执行浏览器复制命令
               oInput.class = 'oInput'
-              oInput.style.display = 'none'
-              $(this).css('display', 'none')
-              $(this).next().css('display', 'block')
-              $('.copybg').css('display', 'none')
+              oInput.style.display = 'none';
               setTimeout(function () {
-                  $('.btn3').css('display', 'none')
-                  $('.btn1').css('display', 'block')
+                that.attr('data-tooltip','copy');
               }, 1000)
-          })
-          $('.btn1').mouseenter(function (e) {
-              e.currentTarget.childNodes[0].attributes[0].value =
-                  '/pic/copyHover.png'
-              e.currentTarget.nextSibling.nextSibling.className =
-                  'copybg showCopyBg'
-          })
-          $('.btn1').mouseleave(function (e) {
-              e.currentTarget.childNodes[0].attributes[0].value =
-                  '/pic/copy.png'
-              e.currentTarget.nextSibling.nextSibling.className = 'copybg'
           })
       }
 
@@ -1032,7 +961,7 @@ $(function () {
                   let id = h2List[i].parentNode.id
                       .replace(/\(([^).']*)\)/g, '$1')
                       .replace(/\“|\”|\'/g, '')
-                  let h3 = $('#' + id + ' ' + 'h3')
+                  let h3 = document.getElementById(id).querySelectorAll('h3');
                   if (h3.length > 0) {
                       navLi2 = ''
                       navLi3 = ''
@@ -1046,15 +975,10 @@ $(function () {
                                   h3[i].parentNode.querySelectorAll('h4')
                               for (let k = 0; k < navLi4Array.length; k++) {
                                   navLi4 +=
-                                      '<li><span class="line"></span><a title="' +
-                                      filterXSS(navLi4Array[k].innerText) +
-                                      '" href=\'#' +
-                                      filterXSS(
-                                          navLi4Array[k].parentNode.id
-                                      ) +
-                                      "'>" +
-                                      filterXSS(navLi4Array[k].innerText) +
-                                      '</a></li>'
+                                      `<li><span class="line"></span>
+                                        <a title="${navLi4Array[k].innerText}" href='#${filterXSS(navLi4Array[k].parentNode.id)}'>
+                                        ${filterXSS(navLi4Array[k].innerText)}</a>
+                                      </li>`
                               }
                               navLi3 +=
                                   '<li><span class="line"></span><a title="' +
