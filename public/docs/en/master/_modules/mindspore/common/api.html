@@ -7,17 +7,11 @@
       <link rel="stylesheet" href="../../../_static/css/bootstrap.min.css" type="text/css" />
       <link rel="stylesheet" href="../../../_static/css/training.css" type="text/css" /><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-  <script src="../../../_static/js/theme.js"></script>
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  
-        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/underscore.js"></script>
-        <script src="../../../_static/doctools.js"></script>
-        <script src="../../../_static/js/training.js"></script>
-        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+  <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script><script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/js/theme.js"></script><script src="../../../_static/underscore.js"></script><script src="../../../_static/doctools.js"></script><script src="../../../_static/js/training.js"></script><script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" /> 
 </head>
@@ -196,7 +190,8 @@
 <span class="kn">from</span> <span class="nn">mindspore.common._utils</span> <span class="kn">import</span> <span class="n">is_shape_unknown</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.mutable</span> <span class="kn">import</span> <span class="n">mutable</span>
 <span class="kn">from</span> <span class="nn">mindspore.common._register_for_adapter</span> <span class="kn">import</span> <span class="n">ms_adapter_registry</span>
-<span class="kn">from</span> <span class="nn">mindspore.common.auto_dynamic_shape</span> <span class="kn">import</span> <span class="n">_AutoIdentifyDynamicShape</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.auto_dynamic_shape</span> <span class="kn">import</span> <span class="n">get_auto_dynamic_shape_args</span><span class="p">,</span> <span class="n">update_auto_dynamic_shape_phase</span><span class="p">,</span> \
+    <span class="n">get_auto_dynamic_shape_args_with_check_input_signature</span><span class="p">,</span> <span class="n">update_auto_dynamic_shape_phase_with_check_input_signature</span>
 
 <span class="c1"># Store ms_function class compiled pipeline cache.</span>
 <span class="n">ms_compile_cache</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
@@ -471,7 +466,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span> <span class="o">=</span> <span class="n">GraphExecutor_</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_create_time</span> <span class="o">=</span> <span class="n">ms_create_time</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">jit_config_dict</span> <span class="o">=</span> <span class="n">jit_config</span><span class="o">.</span><span class="n">jit_config_dict</span> <span class="k">if</span> <span class="n">jit_config</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span> <span class="o">=</span> <span class="n">_AutoIdentifyDynamicShape</span><span class="p">()</span>
+
 
     <span class="nd">@_wrap_func</span>
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -500,6 +495,7 @@
 
         <span class="k">return</span> <span class="n">output</span>
 
+
     <span class="k">def</span> <span class="nf">compile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns pipeline for the given args.&quot;&quot;&quot;</span>
         <span class="c1"># Check whether hook function registered on Cell object.</span>
@@ -510,17 +506,24 @@
                                <span class="sa">f</span><span class="s2">&quot;pynative mode and remove &#39;jit&#39; decorator.&quot;</span><span class="p">)</span>
         <span class="c1"># Chose dynamic shape tensors or actual input tensors as compile args.</span>
         <span class="n">compile_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_compile_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+            <span class="n">key_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">))</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">key_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">))</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_time</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">grad_flag</span><span class="p">():</span>
+            <span class="n">key_id</span> <span class="o">=</span> <span class="n">key_id</span> <span class="o">+</span> <span class="s2">&quot;.grad&quot;</span>
+
+        <span class="n">compile_args</span> <span class="o">=</span> <span class="n">get_auto_dynamic_shape_args_with_check_input_signature</span><span class="p">(</span><span class="n">compile_args</span><span class="p">,</span> <span class="n">key_id</span><span class="p">,</span>
+                                                                              <span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">)</span>
+
         <span class="c1"># Restore the mutable attr for every arg.</span>
         <span class="n">compile_args</span> <span class="o">=</span> <span class="n">_restore_mutable_attr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">)</span>
-        <span class="n">generate_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_filename</span> <span class="o">+</span> <span class="s2">&quot;.line&quot;</span> <span class="o">+</span> \
-            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span>
-        <span class="k">if</span> <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">grad_flag</span><span class="p">():</span>
-            <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s2">&quot;.grad&quot;</span>
-        <span class="k">if</span> <span class="n">_is_pynative_parallel</span><span class="p">():</span>
-            <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span><span class="p">[:</span><span class="n">generate_name</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">)))]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shard_parent_obj</span><span class="p">))</span>
+        <span class="n">generate_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_generate_name</span><span class="p">()</span>
         <span class="c1"># The full Function name</span>
         <span class="n">full_function_name</span> <span class="o">=</span> <span class="n">generate_name</span>
         <span class="n">create_time</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
         <span class="c1"># Add key with obj</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__module__</span><span class="p">:</span>
@@ -550,7 +553,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_enable_tuple_broaden</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
         <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">generate_arguments_key</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
         <span class="n">phase</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">update_phase_and_compile_args</span><span class="p">(</span><span class="n">compile_args</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">update_auto_dynamic_shape_phase_with_check_input_signature</span><span class="p">(</span><span class="n">compile_args</span><span class="p">,</span> <span class="n">key_id</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">ms_compile_cache</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">phase</span>
 
@@ -609,6 +614,17 @@
                 <span class="n">opt_param</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
 
 
+    <span class="k">def</span> <span class="nf">_get_generate_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;get generate name.&quot;&quot;&quot;</span>
+        <span class="n">generate_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_filename</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> \
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">grad_flag</span><span class="p">():</span>
+            <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s2">&quot;.grad&quot;</span>
+        <span class="k">if</span> <span class="n">_is_pynative_parallel</span><span class="p">():</span>
+            <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span><span class="p">[:</span><span class="n">generate_name</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">)))]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shard_parent_obj</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">generate_name</span>
+
+
     <span class="k">def</span> <span class="nf">_set_compile_cache_dep_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># If enable compile cache, get the dependency files list</span>
         <span class="n">enable_compile_cache</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;enable_compile_cache&quot;</span><span class="p">)</span>
@@ -657,8 +673,6 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">verify_inputs_signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">,</span> <span class="n">args_list</span><span class="p">):</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The input args is incompatible with the args in `input_signature`!&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">compile_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">auto_dynamic_generate_compile_args</span><span class="p">(</span><span class="n">args_list</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">compile_args</span>
 
     <span class="k">def</span> <span class="nf">_generate_run_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args_list</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
@@ -1523,7 +1537,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span> <span class="o">=</span> <span class="n">GraphExecutor_</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_py_exe_path</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_kernel_build_server_dir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">kernel_build_server</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span> <span class="o">=</span> <span class="n">_AutoIdentifyDynamicShape</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">init_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue_name</span><span class="p">,</span> <span class="n">dataset_size</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">dataset_types</span><span class="p">,</span> <span class="n">dataset_shapes</span><span class="p">,</span>
                      <span class="n">input_indexs</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s1">&#39;dataset&#39;</span><span class="p">,</span> <span class="n">need_run</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -1616,17 +1629,19 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">__parse_method__</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span>
                 <span class="s1">&#39;The class </span><span class="si">{}</span><span class="s1"> dose not have method </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">__parse_method__</span><span class="p">))</span>
+        <span class="n">key_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">get_auto_dynamic_shape_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">key_id</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;enable_tuple_broaden&quot;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">enable_tuple_broaden</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Convert the network.&quot;</span><span class="p">,</span> <span class="n">do_convert</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_enable_tuple_broaden</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
-        <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">auto_dynamic_generate_compile_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">generate_arguments_key</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">arguments_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">obj</span><span class="o">.</span><span class="n">arguments_key</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">auto_identify_dynamic_shape</span><span class="o">.</span><span class="n">update_phase_and_compile_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">update_auto_dynamic_shape_phase</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">key_id</span><span class="p">,</span> <span class="n">phase</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">compile_cache</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_compiled</span><span class="p">(</span><span class="n">phase</span><span class="p">):</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%r</span><span class="s2"> graph has existed.&quot;</span><span class="p">,</span> <span class="n">phase</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">False</span>

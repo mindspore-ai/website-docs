@@ -7,17 +7,11 @@
       <link rel="stylesheet" href="../../../../_static/css/bootstrap.min.css" type="text/css" />
       <link rel="stylesheet" href="../../../../_static/css/training.css" type="text/css" /><link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
-  <script src="../../../../_static/js/theme.js"></script>
   <!--[if lt IE 9]>
     <script src="../../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  
-        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
-        <script src="../../../../_static/jquery.js"></script>
-        <script src="../../../../_static/underscore.js"></script>
-        <script src="../../../../_static/doctools.js"></script>
-        <script src="../../../../_static/js/training.js"></script>
-        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+  <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script><script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/js/theme.js"></script><script src="../../../../_static/underscore.js"></script><script src="../../../../_static/doctools.js"></script><script src="../../../../_static/js/training.js"></script><script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../search.html" /> 
 </head>
@@ -177,6 +171,10 @@
 <span class="sd">            if the program get `batch_num` during training, `data_size` will be set to `batch_num`,</span>
 <span class="sd">            otherwise `data_size` will be used. Default: ``None`` .</span>
 
+<span class="sd">        data_time (bool): Whether to sow the average time of fetching data in Host.</span>
+<span class="sd">            Note that data fetch and network compute are processed sequentially in non dataset sink mode, while</span>
+<span class="sd">            they are asynchronous in dataset sink mode. Default: ``False`` .</span>
+
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If data_size is not positive int.</span>
 
@@ -197,10 +195,38 @@
 <span class="sd">        &gt;&gt;&gt; model.train(10, dataset, callbacks=time_monitor)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data_time</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">TimeMonitor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data_size</span> <span class="o">=</span> <span class="n">data_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">epoch_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_time</span> <span class="o">=</span> <span class="n">data_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_time_sum</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_time_start</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_sink</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">original_args</span><span class="p">()[</span><span class="s2">&quot;dataset_sink_mode&quot;</span><span class="p">]</span>
+        <span class="n">Validator</span><span class="o">.</span><span class="n">check_bool</span><span class="p">(</span><span class="n">data_time</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TimeMonitor.on_train_step_begin"><a class="viewcode-back" href="../../../../api_python/train/mindspore.train.TimeMonitor.html#mindspore.train.TimeMonitor.on_train_step_begin">[docs]</a>    <span class="k">def</span> <span class="nf">on_train_step_begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_context</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Record time at the beginning of step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            run_context (RunContext): Context of the process running. For more details,</span>
+<span class="sd">                    please refer to :class:`mindspore.train.RunContext`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_time</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_sink</span><span class="p">(</span><span class="n">run_context</span><span class="p">):</span>
+            <span class="n">interval</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_time_start</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_time_sum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_time_sum</span> <span class="o">+</span> <span class="n">interval</span></div>
+
+<div class="viewcode-block" id="TimeMonitor.on_train_step_end"><a class="viewcode-back" href="../../../../api_python/train/mindspore.train.TimeMonitor.html#mindspore.train.TimeMonitor.on_train_step_end">[docs]</a>    <span class="k">def</span> <span class="nf">on_train_step_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_context</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Record time at the end of step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            run_context (RunContext): Context of the process running. For more details,</span>
+<span class="sd">                    please refer to :class:`mindspore.train.RunContext`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_time</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_sink</span><span class="p">(</span><span class="n">run_context</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_time_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="TimeMonitor.epoch_begin"><a class="viewcode-back" href="../../../../api_python/train/mindspore.train.TimeMonitor.html#mindspore.train.TimeMonitor.epoch_begin">[docs]</a>    <span class="k">def</span> <span class="nf">epoch_begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_context</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -210,7 +236,10 @@
 <span class="sd">            run_context (RunContext): Context of the process running. For more details,</span>
 <span class="sd">                    please refer to :class:`mindspore.train.RunContext`.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">epoch_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">epoch_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_time</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_sink</span><span class="p">(</span><span class="n">run_context</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_time_sum</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_time_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="TimeMonitor.epoch_end"><a class="viewcode-back" href="../../../../api_python/train/mindspore.train.TimeMonitor.html#mindspore.train.TimeMonitor.epoch_end">[docs]</a>    <span class="k">def</span> <span class="nf">epoch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_context</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -231,8 +260,25 @@
         <span class="n">Validator</span><span class="o">.</span><span class="n">check_positive_int</span><span class="p">(</span><span class="n">step_size</span><span class="p">)</span>
 
         <span class="n">step_seconds</span> <span class="o">=</span> <span class="n">epoch_seconds</span> <span class="o">/</span> <span class="n">step_size</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> epoch time: </span><span class="si">{:5.3f}</span><span class="s2"> ms, per step time: </span><span class="si">{:5.3f}</span><span class="s2"> ms&quot;</span><span class="o">.</span><span class="n">format</span>
-              <span class="p">(</span><span class="n">mode</span><span class="o">.</span><span class="n">title</span><span class="p">(),</span> <span class="n">epoch_seconds</span><span class="p">,</span> <span class="n">step_seconds</span><span class="p">),</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div></div>
+
+        <span class="n">train_log</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> epoch time: </span><span class="si">{:5.3f}</span><span class="s2"> ms, per step time: </span><span class="si">{:5.3f}</span><span class="s2"> ms&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">mode</span><span class="o">.</span><span class="n">title</span><span class="p">(),</span> <span class="n">epoch_seconds</span><span class="p">,</span> <span class="n">step_seconds</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_time</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_sink</span><span class="p">(</span><span class="n">run_context</span><span class="p">):</span>
+            <span class="n">data_step_seconds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_time_sum</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">/</span> <span class="n">step_size</span>
+            <span class="n">data_log</span> <span class="o">=</span> <span class="s2">&quot; (data time: </span><span class="si">{:5.3f}</span><span class="s2"> ms)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_step_seconds</span><span class="p">)</span>
+            <span class="n">train_log</span> <span class="o">+=</span> <span class="n">data_log</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_time</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_sink</span><span class="p">(</span><span class="n">run_context</span><span class="p">):</span>
+            <span class="c1"># send info viewer to query epoch message of cur_epoch_num</span>
+            <span class="n">send_info</span> <span class="o">=</span> <span class="n">cb_params</span><span class="p">[</span><span class="s2">&quot;dataset_helper&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get_send_info</span><span class="p">(</span><span class="n">run_context</span><span class="p">)</span>
+            <span class="n">epoch</span> <span class="o">=</span> <span class="n">cb_params</span><span class="p">[</span><span class="s2">&quot;cur_epoch_num&quot;</span><span class="p">]</span>
+            <span class="n">epoch_send_info</span> <span class="o">=</span> <span class="n">send_info</span><span class="o">.</span><span class="n">epoch</span><span class="p">(</span><span class="n">epoch</span><span class="p">)</span>
+            <span class="c1"># show average time of fetching data time</span>
+            <span class="n">fetch_data_time</span> <span class="o">=</span> <span class="n">epoch_send_info</span><span class="p">[</span><span class="s2">&quot;fetch_data_time&quot;</span><span class="p">]</span>
+            <span class="n">data_log</span> <span class="o">=</span> <span class="s2">&quot; (data time: </span><span class="si">{:5.3f}</span><span class="s2"> ms)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fetch_data_time</span><span class="p">)</span>
+            <span class="n">train_log</span> <span class="o">+=</span> <span class="n">data_log</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="n">train_log</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>

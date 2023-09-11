@@ -8,17 +8,11 @@
       <link rel="stylesheet" href="../_static/css/bootstrap.min.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/training.css" type="text/css" /><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <script src="../_static/js/theme.js"></script>
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/js/training.js"></script>
-        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+  <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
+        <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script src="../_static/js/training.js"></script><script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Automatic Mix Precision" href="mixed_precision.html" />
@@ -787,6 +781,115 @@ for loop cost time: 1.9284062385559082
 <li><p>When MS_DEV_SIDE_EFFECT_LOAD_ELIM is set to 2, it inserts as few real operators as possible under the premise of losing a certain compilation performance, optimizes more memory, and ensures that there is no problem with network accuracy.</p></li>
 <li><p>When MS_DEV_SIDE_EFFECT_LOAD_ELIM is set to 3, no real operator is inserted. The accuracy of the network is not ensured, and the video memory is consumed the least.</p></li>
 </ul>
+<p>We can further understand this through the use case and the generated intermediate representation (IR).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Cell</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">composite</span> <span class="k">as</span> <span class="n">C</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="n">context</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ForwardNet</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ForwardNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;param&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">+</span> <span class="n">out</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">class</span> <span class="nc">BackwardNet</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">net</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BackwardNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">forward_net</span> <span class="o">=</span> <span class="n">net</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grad</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">GradOperation</span><span class="p">(</span><span class="n">get_all</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">):</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forward_net</span><span class="p">)(</span><span class="o">*</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">grads</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">graph_forword_net</span> <span class="o">=</span> <span class="n">ForwardNet</span><span class="p">()</span>
+<span class="n">graph_backword_net</span> <span class="o">=</span> <span class="n">BackwardNet</span><span class="p">(</span><span class="n">graph_forword_net</span><span class="p">)</span>
+<span class="n">graph_mode_grads</span> <span class="o">=</span> <span class="n">graph_backword_net</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="n">output_except</span> <span class="o">=</span> <span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">),)</span>
+<span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">graph_mode_grads</span> <span class="o">==</span> <span class="n">output_except</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>As in the above use case, save the intermediate file through the settings: context.set_context(mode=context.GRAPH_MODE, save_graphs=True), you can get the intermediate file IR, for easy viewing, we simplify the resulting intermediate file as follows:</p>
+<p>The IR file when the real operator is not inserted into the Load operator inside the framework is as follows, and you can see that there are 3 Load operators, all of which take the value of para2_param this global variable at different times, and this global variable will modify the value through the Assign operator. That is, the values taken by the 3 Loads are different. And if we do not insert the real operator into the Load operator, that is, we do not save the value of the global variable para2_param at different times, then the final result obtained is incorrect. That is, this case is set to 3 in the MS_DEV_SIDE_EFFECT_LOAD_ELIM, which has the least memory footprint, but the result has precision problems.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># IR entry: @BackwardNet_construct
+# Total subgraphs: 1
+# Total params: 2
+# Params:
+%para1_inputs0 : &lt;Tensor[Int32], ()&gt;
+%para2_param : &lt;Ref[Tensor[Int32]], (), ref_key=:param&gt;  :  has_default
+
+subgraph @BackwardNet_construct() {
+  %0 = Assign(%para2_param, Tensor(shape=[], dtype=Int32, value=0), U)
+  %1 = UpdateState(U, %0)
+  %2 = Load(%para2_param, %1)
+  %3 = UpdateState(%1, %2)
+  %4 = Assign(%para2_param, Tensor(shape=[], dtype=Int32, value=1), %3)
+  %5 = UpdateState(%3, %4)
+  %6 = Load(%para2_param, %5)
+  %7 = UpdateState(%5, %6)
+  %8 = Assign(%para2_param, Tensor(shape=[], dtype=Int32, value=2), %7)
+  %9 = UpdateState(%7, %8)
+  %10 = Load(%para2_param, %9)
+  %11 = MakeTuple(%10, %6)
+  %12 = AddN(%11)
+  %13 = MakeTuple(%12, %2)
+  %14 = AddN(%13)
+  %15 = MakeTuple(%14)
+  %16 = UpdateState(%9, %10)
+  %17 = Depend(%15, %16)
+  Return(%17)
+}
+</pre></div>
+</div>
+<p>When the MS_DEV_SIDE_EFFECT_LOAD_ELIM is set to 0, 1, and 2, the simplified IR figure is shown below. Since the Load operators in this scenario need to insert real operators to save the values modified by each Assign operator, the IR files obtained MS_DEV_SIDE_EFFECT_LOAD_ELIM set to 0, 1, and 2 are consistent. In more complex cases, the MS_DEV_SIDE_EFFECT_LOAD_ELIM may be different when set to 0, 1, 2, and will not be expanded here.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># IR entry: @BackwardNet_construct
+# Total subgraphs: 1
+# Total params: 2
+# Params:
+%para1_inputs0 : &lt;Tensor[Int32], ()&gt;
+%para2_param : &lt;Ref[Tensor[Int32]], (), ref_key=:param&gt;  :  has_default
+
+subgraph @BackwardNet_construct() {
+  %0 = Assign(%para2_param, Tensor(shape=[], dtype=Int32, value=0), U)
+  %1 = UpdateState(U, %0)
+  %2 = Load(%para2_param, %1)
+  %3 = TensorMove(%2)
+  %4 = UpdateState(%1, %3)
+  %5 = Assign(%para2_param, Tensor(shape=[], dtype=Int32, value=1), %4)
+  %6 = UpdateState(%4, %5)
+  %7 = Load(%para2_param, %6)
+  %8 = TensorMove(%7)
+  %9 = UpdateState(%6, %8)
+  %10 = Assign(%para2_param, Tensor(shape=[], dtype=Int32, value=2), %9)
+  %11 = UpdateState(%9, %10)
+  %12 = Load(%para2_param, %11)
+  %13 = TensorMove(%12)
+  %14 = MakeTuple(%13, %8)
+  %15 = AddN(%14)
+  %16 = MakeTuple(%15, %3)
+  %17 = AddN(%16)
+  %18 = MakeTuple(%17)
+  %19 = UpdateState(%11, %13, %15)
+  %20 = Depend(%18, %19)
+  Return(%20)
+}
+</pre></div>
+</div>
 </section>
 </section>
 
