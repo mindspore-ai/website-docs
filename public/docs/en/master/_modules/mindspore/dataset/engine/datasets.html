@@ -493,6 +493,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_repeat_count</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_class_indexing</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sync</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_global_step</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_get_operator_id</span><span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
@@ -2183,6 +2184,18 @@
             <span class="n">ir_node</span> <span class="o">=</span> <span class="n">ir_node</span><span class="o">.</span><span class="n">set_num_workers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_parallel_workers</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">ir_node</span>
+
+    <span class="k">def</span> <span class="nf">set_init_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">init_step</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_global_step</span> <span class="o">=</span> <span class="n">init_step</span>
+
+    <span class="k">def</span> <span class="nf">get_init_step</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_step</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_step</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_init_step</span><span class="p">()</span>
+        <span class="c1"># When there are multiple children, we cannot tell from which child to get the initial step,</span>
+        <span class="c1"># so we initialize from the beginning</span>
+        <span class="k">return</span> <span class="mi">0</span>
 
 
 <span class="k">class</span> <span class="nc">VisionBaseDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
@@ -4269,7 +4282,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_runtime_context</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">PythonRuntimeContext</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_runtime_context</span><span class="o">.</span><span class="n">Init</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">ToDevice</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">Init</span><span class="p">(</span><span class="n">ir_tree</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_init_step</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">dataset_size</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+            <span class="n">init_epoch</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_init_step</span><span class="p">()</span> <span class="o">//</span> <span class="n">dataset_size</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">Init</span><span class="p">(</span><span class="n">ir_tree</span><span class="p">,</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_init_step</span><span class="p">(),</span> <span class="n">init_epoch</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">Init</span><span class="p">(</span><span class="n">ir_tree</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_runtime_context</span><span class="o">.</span><span class="n">AssignConsumer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="p">)</span>
 
         <span class="n">ITERATORS_LIST</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
