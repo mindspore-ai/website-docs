@@ -59,6 +59,13 @@ ENV REPLACE_BUILD=REPLACE_BUILD
 ENV TARGET_BRANCH=TARGET_BRANCH
 ENV SINGLE_GENERATE=SINGLE_GENERATE
 
+
+RUN mkdir -p /root/workspace \
+    && cd /root/workspace \
+    && git clone https://gitee.com/mindspore/docs.git -b "${VERSION}" \
+    && git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}" \
+    && git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/gemini524/website-log.git 
+
 COPY . /root/build-docs
 RUN cd /root/build-docs \
     && chmod 777 -R push.sh
