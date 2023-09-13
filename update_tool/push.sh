@@ -1,20 +1,7 @@
 #!/bin/bash
 echo "Start now --> ""${VERSION}"
 
-# shellcheck disable=SC2164
-mkdir -p /root/workspace
-cd /root/workspace
-
-echo "clone docs repositories bash --> ""${VERSION}"
-
-rm -rf docs
-git clone https://gitee.com/mindspore/docs.git -b "${VERSION}"
-
-rm -rf website-docs
-git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}"
-
-rm -rf website-log
-git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/gemini524/website-log.git
+cd /root/workspace 
 
 rm -rf ./website-docs/public/install/${VERSION}
 mkdir -p ./website-docs/public/install/${VERSION}
