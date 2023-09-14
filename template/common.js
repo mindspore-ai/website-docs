@@ -118,16 +118,25 @@ $(function () {
               }" href="${filterXSS(href)}">${filterXSS(name)}</a></div>
               `
                   } else {
-                      if (pathname.indexOf(item.id) > -1) {
+                      if (
+                          pathname.indexOf(item.id) > -1 &&
+                          item.id !== 'learn'
+                      ) {
                           item.active = 1
+                      }
+                      let navLabel = ''
+                      if (href) {
+                          navLabel = `<a class="header-nav-link-line ${
+                              item.active ? 'selected' : ''
+                          }" href="${filterXSS(href)}">${filterXSS(name)}</a>`
+                      } else {
+                          navLabel = `<span class="header-nav-link-line ${
+                              item.active ? 'selected' : ''
+                          }">${filterXSS(name)}</span>`
                       }
                       return `
               <div class="header-nav-link">
-                <a class="header-nav-link-line ${
-                    item.active ? 'selected' : ''
-                }" href="${filterXSS(href)}">
-                ${filterXSS(name)}
-                      </a>
+                      ${navLabel}
                       <ul class="dropdown-menu-git ${
                           item.id === 'docs' ? 'dropdown-menu-docs' : ''
                       }" >
@@ -153,7 +162,7 @@ $(function () {
   <div class="header-nav navbar-tools" >
       <div class="header-search"><div class="search-input"><span class="search-icon"></span></span><input
               class="search-val" placeholder="${
-                  isEn ? 'Site-wide search' : '搜索...'
+                  isEn ? 'Search...' : '全局搜索...'
               }"><span class="close-icon"></div></div>
       <div class="dropdown">
           <a href="${filterXSS(
@@ -404,7 +413,8 @@ ${
                         headerLayer.removeClass('nav-show')
                     })
                 setTimeout(() => {
-                    $('.header').removeClass('page-load')
+                    $('.header').addClass('page-load')
+                    $('.wy-nav-side').addClass('page-load')
                 }, 150)
             },
             h5HeaderMethods: function () {
@@ -755,7 +765,7 @@ ${
         // 复制代码
         function codeClipboard() {
             // 实现复制粘贴功能
-            $('pre>span:first-of-type').append(
+            $('pre').append(
                 '<em class="copy-btn" data-tooltip="copy"><i class="icon-copy"></i></em>'
             )
 
@@ -1316,6 +1326,53 @@ ${
             return $('<div>').text(val).html()
         }
 
+        // 文档反馈链接
+        const getQuestionHref = () => {
+            let url = ''
+            if (
+                pathname.startsWith('/docs/') &&
+                pathname.indexOf('/api_python/') > -1
+            ) {
+                url =
+                    configIP.GITEE_URL +
+                    '/mindspore/mindspore/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0'
+            } else {
+                url =
+                    configIP.GITEE_URL +
+                    '/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0'
+            }
+            return url
+        }
+
+        const docsFeedback = () => {
+            const askQuestion = isEn ? 'Document Feedback' : '文档反馈',
+                askQuestion1 = isEn ? 'Quick Feedback' : '快速反馈问题',
+                askQuestionInfo = isEn
+                    ? 'Click here to commit an issue in the code repository. Describe the issue in the template. We will follow up on it.'
+                    : '点击图标，可跳转代码仓提issue，按照issue模板填写问题描述，我们将会跟进处理',
+                askQuestionInfo1 = isEn
+                    ? 'Remember to add the tag below:'
+                    : '记得添加mindspore-assistant标签哦！'
+
+            const feedbackDom = `<div class="docs-feedback">
+          <div class="feedback-box ${isEn ? 'en' : ''}">
+            <a href="${getQuestionHref()}" rel="noopener noreferrer" target="_blank" class="text">${askQuestion}</a>
+            <div class="feedback-layer">
+              <p class="title"><i class="feedback-icon"></i>${askQuestion1}</p>
+              <p class="desc">${askQuestionInfo}</p>
+              <p class="desc m12">${askQuestionInfo1}</p>
+              <p class="desc assistant">mindspore- assistant</p>
+            </div>
+          </div>
+          <div class="go-top"><i class="icon-gotop"></i></div>
+          </div>`
+
+            body.prepend(feedbackDom)
+            $('.docs-feedback .go-top').on('click', function () {
+                $('.wy-nav-content-wrap').animate({ scrollTop: 0 }, 300)
+            })
+        }
+
         // 换肤
         function initTheme() {
             const themeStyle = localStorage.getItem('ms-theme')
@@ -1409,6 +1466,7 @@ ${
                 pageTitle + ' (' + curVersion(componentVersionTitle) + ')'
 
             body.prepend(msHeader.pcHeader)
+
             msHeader.headerMethods()
 
             $('.header-nav-info').append(componentInfo.sideVersionList())
@@ -1434,6 +1492,7 @@ ${
                 isH5Show()
             })
             initTheme()
+            docsFeedback()
             sideRightAnchor()
         }
 
