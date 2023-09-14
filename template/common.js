@@ -94,9 +94,7 @@ $(function () {
 <nav class="header-wapper header-wapper-top">
   <div class="header-nav" style="display: flex;">
       <a href="/${enPath}" class="logo " >
-          <img class="logo-img" src="/pic/${
-              isEn ? 'logo_black_en' : 'logo_black'
-          }.png" alt="logo" />
+          <img class="logo-img" src="/pic/logo_black.png" alt="logo" />
       </a>
       ${
           headerMenuData &&
@@ -120,7 +118,7 @@ $(function () {
                   } else {
                       if (
                           pathname.indexOf(item.id) > -1 &&
-                          item.id !== 'learn'
+                          item.id !== 'learning'
                       ) {
                           item.active = 1
                       }
@@ -128,7 +126,9 @@ $(function () {
                       if (href) {
                           navLabel = `<a class="header-nav-link-line ${
                               item.active ? 'selected' : ''
-                          }" href="${filterXSS(href)}">${filterXSS(name)}</a>`
+                          }" href="${filterXSS(href)}" target="${
+                              item.jumOut ? '_blank' : '_self'
+                          }">${filterXSS(name)}</a>`
                       } else {
                           navLabel = `<span class="header-nav-link-line ${
                               item.active ? 'selected' : ''
@@ -136,23 +136,36 @@ $(function () {
                       }
                       return `
               <div class="header-nav-link">
-                      ${navLabel}
-                      <ul class="dropdown-menu-git ${
-                          item.id === 'docs' ? 'dropdown-menu-docs' : ''
-                      }" >
+                      <div class="nav-content">${navLabel}
+                      ${
+                          item.label && item.label[isEn ? 'en' : 'zh']
+                              ? `<ul class="dropdown-menu-git ${
+                                    item.id === 'docs'
+                                        ? 'dropdown-menu-docs'
+                                        : ''
+                                }" >
                             ${item.children
                                 .map(function (sub) {
-                                    return `<li><a target="${
-                                        sub.jumOut ? '_blank' : '_self'
-                                    }" href="${filterXSS(isEn ? sub.href.en : sub.href.zh)}">
+                                    if (
+                                        sub.label &&
+                                        sub.label[isEn ? 'en' : 'zh']
+                                    ) {
+                                        return `<li><a target="${
+                                            sub.jumOut ? '_blank' : '_self'
+                                        }" href="${filterXSS(
+                                            isEn ? sub.href.en : sub.href.zh
+                                        )}">
                                     ${filterXSS(
                                         isEn ? sub.label.en : sub.label.zh
                                     )}
                                     ${msHeader.headerTags(sub.tags)}
                                     </a></li>`
+                                    }
                                 })
                                 .join('')}
-                        </ul>
+                        </ul>`
+                              : ''
+                      }</div> ${msHeader.headerTags(item.tags)}
               </div>`
                   }
               })
@@ -326,7 +339,11 @@ ${
         <div class="header-mobile-nav">
             <em class="page-menu"></em>
         </div>
-        <div class="docs-menu-icon h5"></div></div>
+        ${
+            !pathname.startsWith('/tutorials')
+                ? `<div class="docs-menu-icon h5"></div>`
+                : ''
+        }</div>
         `
             },
             dialogLayer: function (title) {
@@ -567,7 +584,7 @@ ${
             gradeState: -1,
             fontmatter: {
                 helpforyou: isEn ? 'Was this helpful?' : '这个对你有帮助吗 ?',
-                rating: isEn ? '我要评分' : '我要评分',
+                rating: isEn ? 'Was this helpful?' : '我要评分',
                 helpfor1: isEn ? 'Not helpful' : '基本没有用',
                 helpfor2: isEn ? 'Somewhat helpful' : '有一点帮助',
                 helpfor3: isEn ? 'Helpful' : '基本上能用',
@@ -825,7 +842,7 @@ ${
             })
         }
 
-        function isH5Show() {
+        function isPadShow() {
             $('.wy-nav-content')
                 .append(msFotter.h5FootHTML)
                 .append('<div id="mask"></div>')
@@ -849,11 +866,11 @@ ${
                 let h5footer = document.getElementById('h5_footer')
                 let pcfooter = document.getElementById('footer')
                 let navh5 = document.getElementById('nav-h5')
-                if (width < 1000) {
+                if (width < 1200) {
                     $('#mask').css('display', 'none')
                     $('.wy-nav-side').css({ left: '-90%', transition: '0s' })
                     if (h5Head === null) {
-                        isH5Show()
+                        isPadShow()
                     }
                     $('.o-layer-dialog').remove()
                 } else {
@@ -871,7 +888,7 @@ ${
                         $('.wy-nav-content').append(msFotter.pcFootHTML)
                     }
                 }
-                if (width > 768 && oldWidth < 768) {
+                if (width > 1200 && oldWidth < 1200) {
                     msFotter.documentEvaluationFn()
                     msFotter.jumpForumStatistics()
                 }
@@ -1315,10 +1332,10 @@ ${
             }
             return escapseResult
         }
-        // 判断是否 h5
-        function isH5(cb) {
+        // 判断是否 Pad
+        function isPad(cb) {
             let screen = document.documentElement.clientWidth
-            if (screen < 768) {
+            if (screen < 1200) {
                 cb()
             }
         }
@@ -1389,14 +1406,9 @@ ${
                 themeIcon.addClass(themeStyle)
             }
             isDark = themeStyle === 'dark'
-            img = isEn
-                ? isDark
-                    ? 'logo.png'
-                    : 'logo_black_en.png'
-                : isDark
-                ? 'logo_dark.png'
-                : 'logo_black.png'
-            $('.logo-img').attr('src', '/pic/' + img)
+            logoImg = isDark ? 'logo_dark.png' : 'logo_black.png'
+
+            $('.logo-img').attr('src', '/pic/' + logoImg)
 
             themeIcon.click(function () {
                 let theme = 'light'
@@ -1411,14 +1423,8 @@ ${
                 }
                 localStorage.setItem('ms-theme', theme)
                 isDark = theme === 'dark'
-                let img = isEn
-                    ? isDark
-                        ? 'logo.png'
-                        : 'logo_black_en.png'
-                    : isDark
-                    ? 'logo_dark.png'
-                    : 'logo_black.png'
-                $('.logo-img').attr('src', '/pic/' + img)
+                logoImg = isDark ? 'logo_dark.png' : 'logo_black.png'
+                $('.logo-img').attr('src', '/pic/' + logoImg)
             })
         }
 
@@ -1488,8 +1494,8 @@ ${
             }
 
             // H5 显示
-            isH5(() => {
-                isH5Show()
+            isPad(() => {
+                isPadShow()
             })
             initTheme()
             docsFeedback()
