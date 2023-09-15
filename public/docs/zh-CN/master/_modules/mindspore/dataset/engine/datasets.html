@@ -530,9 +530,12 @@
             <span class="n">_OP_PROCESS</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">generator_process</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">op_name</span>
 
-    <span class="k">def</span> <span class="nf">create_ir_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_python_multiprocessing</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">create_ir_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Internal method to build an IR tree.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            getter_mode (bool, optional): Whether to build IR tree in pull mode. Default: ``False``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            DatasetNode, the root node of the IR tree.</span>
@@ -543,25 +546,28 @@
         <span class="n">dataset</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">global</span> <span class="n">_OP_NAME</span>
         <span class="n">_OP_NAME</span> <span class="o">=</span> <span class="n">Dataset</span><span class="o">.</span><span class="n">_get_operator_id</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
-        <span class="n">ir_tree</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">parse_tree</span><span class="p">(</span><span class="n">no_python_multiprocessing</span><span class="p">)</span>
+        <span class="n">ir_tree</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">parse_tree</span><span class="p">(</span><span class="n">getter_mode</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
         <span class="n">_init_device_info</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">ir_tree</span><span class="p">,</span> <span class="n">dataset</span>
 
-    <span class="k">def</span> <span class="nf">parse_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_python_multiprocessing</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">parse_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Internal method to parse the API tree into an IR tree.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            getter_mode (bool, optional): Whether to build IR tree in pull mode. Default: ``False``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            DatasetNode, the root node of the IR tree.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The data pipeline is not a tree (i.e., one node has 2 consumers)&quot;</span><span class="p">)</span>
-        <span class="n">ir_children</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">parse_tree</span><span class="p">(</span><span class="n">no_python_multiprocessing</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]</span>
+        <span class="n">ir_children</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">parse_tree</span><span class="p">(</span><span class="n">getter_mode</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]</span>
         <span class="c1"># Bootstrap can only be performed on a copy of the original dataset node.</span>
         <span class="c1"># Bootstrap on original dataset node will make all iterators share the same process pool</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">iterator_bootstrap</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pre_parse</span><span class="p">(</span><span class="n">no_python_multiprocessing</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pre_parse</span><span class="p">(</span><span class="n">getter_mode</span><span class="p">)</span>
         <span class="n">ir_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">ir_children</span><span class="p">)</span>
         <span class="n">ir_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_parse</span><span class="p">(</span><span class="n">ir_node</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ir_node</span>
@@ -1788,11 +1794,14 @@
     <span class="k">def</span> <span class="nf">copy_batch_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_batch_size</span> <span class="o">=</span> <span class="n">value</span>
 
-    <span class="k">def</span> <span class="nf">_init_tree_getters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_python_multiprocessing</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_init_tree_getters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get pipeline information.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            getter_mode (bool, optional): Whether to build IR tree in pull mode. Default: ``True``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">ir_tree</span><span class="p">,</span> <span class="n">api_tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_ir_tree</span><span class="p">(</span><span class="n">no_python_multiprocessing</span><span class="p">)</span>
+        <span class="n">ir_tree</span><span class="p">,</span> <span class="n">api_tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_ir_tree</span><span class="p">(</span><span class="n">getter_mode</span><span class="p">)</span>
 
         <span class="n">runtime_context</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">PythonRuntimeContext</span><span class="p">()</span>
         <span class="n">runtime_context</span><span class="o">.</span><span class="n">Init</span><span class="p">()</span>
@@ -2170,8 +2179,8 @@
             <span class="n">shard_id</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">return</span> <span class="n">num_shards</span><span class="p">,</span> <span class="n">shard_id</span>
 
-    <span class="k">def</span> <span class="nf">pre_parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_python_multiprocessing</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">no_python_multiprocessing</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">pre_parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter_mode</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">getter_mode</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;python_multiprocessing&quot;</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">python_multiprocessing</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;num_parallel_workers&quot;</span><span class="p">):</span>
