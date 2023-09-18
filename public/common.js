@@ -1437,7 +1437,7 @@ ${
             const themeIcon = $('.theme-change i')
             const documentElement = document.documentElement
             themeIcon.removeClass('dark light')
-            let img
+
             if (!themeStyle) {
                 localStorage.getItem('ms-theme', 'light')
                 documentElement.removeAttribute('data-o-theme')
@@ -1447,7 +1447,13 @@ ${
                 themeIcon.addClass(themeStyle)
             }
             isDark = themeStyle === 'dark'
-            logoImg = isDark ? 'logo_dark.png' : 'logo_black.png'
+            logoImg = isEn
+                ? isDark
+                    ? 'logo-en-dark.svg'
+                    : 'logo-en-light.svg'
+                : isDark
+                ? 'logo-zh-dark.svg'
+                : 'logo-zh-light.svg'
 
             $('.logo-img').attr('src', '/pic/' + logoImg)
 
@@ -1464,7 +1470,13 @@ ${
                 }
                 localStorage.setItem('ms-theme', theme)
                 isDark = theme === 'dark'
-                logoImg = isDark ? 'logo_dark.png' : 'logo_black.png'
+                logoImg = isEn
+                    ? isDark
+                        ? 'logo-en-dark.svg'
+                        : 'logo-en-light.svg'
+                    : isDark
+                    ? 'logo-zh-dark.svg'
+                    : 'logo-zh-light.svg'
                 $('.logo-img').attr('src', '/pic/' + logoImg)
             })
         }
