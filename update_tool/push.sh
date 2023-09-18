@@ -2,6 +2,12 @@
 echo "Start now --> ""${VERSION}"
 
 cd /root/workspace 
+rm -rf docs
+mv /root/clone/docs .
+rm -rf website-docs
+mv /root/clone/website-docs .
+rm -rf website-log
+mv /root/clone/website-log .
 
 rm -rf ./website-docs/public/install/${VERSION}
 mkdir -p ./website-docs/public/install/${VERSION}
