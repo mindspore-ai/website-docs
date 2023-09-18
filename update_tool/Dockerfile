@@ -63,8 +63,8 @@ ENV SINGLE_GENERATE=SINGLE_GENERATE
 ARG GIT_USERNAME=GIT_USERNAME
 ARG GIT_PASSWORD=GIT_PASSWORD
 
-RUN mkdir -p /root/workspace \
-    && cd /root/workspace \
+RUN mkdir -p /root/clone \
+    && cd /root/clone \
     && git clone https://gitee.com/mindspore/docs.git -b "${VERSION}" \
     && git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}" \
     && git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/gemini524/website-log.git 
