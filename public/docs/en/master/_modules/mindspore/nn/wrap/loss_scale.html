@@ -160,7 +160,7 @@
 <span class="kn">import</span> <span class="nn">mindspore.context</span> <span class="k">as</span> <span class="nn">context</span>
 <span class="kn">from</span> <span class="nn">mindspore.context</span> <span class="kn">import</span> <span class="n">ParallelMode</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_get_enable_parallel_optimizer</span>
-<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">mindspore.nn.wrap.cell_wrapper</span> <span class="kn">import</span> <span class="n">TrainOneStepCell</span>
 <span class="kn">from</span> <span class="nn">mindspore.nn.cell</span> <span class="kn">import</span> <span class="n">Cell</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">Tensor</span>
@@ -189,18 +189,18 @@
                           <span class="n">grad</span><span class="o">.</span><span class="n">values</span> <span class="o">*</span> <span class="n">F</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">reciprocal</span><span class="p">(</span><span class="n">scale</span><span class="p">),</span> <span class="n">F</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">values</span><span class="p">)),</span>
                           <span class="n">grad</span><span class="o">.</span><span class="n">dense_shape</span><span class="p">)</span>
 
-<span class="n">_gpu_grad_overflow</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">MultitypeFuncGraph</span><span class="p">(</span><span class="s2">&quot;_gpu_grad_overflow&quot;</span><span class="p">)</span>
-<span class="n">gpu_grad_overflow</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">FloatStatus</span><span class="p">()</span>
+<span class="n">_grad_overflow</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">MultitypeFuncGraph</span><span class="p">(</span><span class="s2">&quot;_grad_overflow&quot;</span><span class="p">)</span>
+<span class="n">grad_overflow</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">FloatStatus</span><span class="p">()</span>
 
 
-<span class="nd">@_gpu_grad_overflow</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;Tensor&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">_tensor_gpu_grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">gpu_grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="p">)</span>
+<span class="nd">@_grad_overflow</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;Tensor&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_tensor_grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="p">)</span>
 
 
-<span class="nd">@_gpu_grad_overflow</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;RowTensor&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">_tensor_gpu_grad_overflow_row_tensor</span><span class="p">(</span><span class="n">grad</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">gpu_grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+<span class="nd">@_grad_overflow</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;RowTensor&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_tensor_grad_overflow_row_tensor</span><span class="p">(</span><span class="n">grad</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
 
 
 <span class="n">_ascend_grad_overflow</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">MultitypeFuncGraph</span><span class="p">(</span><span class="s2">&quot;_ascend_grad_overflow&quot;</span><span class="p">)</span>
@@ -211,14 +211,16 @@
 <span class="k">def</span> <span class="nf">_tensor_ascend_grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="p">):</span>
     <span class="n">status</span> <span class="o">=</span> <span class="n">ascend_grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="p">)</span>
     <span class="n">base</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">ops</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">base</span> <span class="o">-</span> <span class="n">status</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">output</span>
 
 
 <span class="nd">@_ascend_grad_overflow</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;RowTensor&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">_tensor_ascend_grad_overflow_row_tensor</span><span class="p">(</span><span class="n">grad</span><span class="p">):</span>
     <span class="n">status</span> <span class="o">=</span> <span class="n">ascend_grad_overflow</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
     <span class="n">base</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">ops</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">base</span> <span class="o">-</span> <span class="n">status</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">output</span>
 
 
 <div class="viewcode-block" id="DynamicLossScaleUpdateCell"><a class="viewcode-back" href="../../../../api_python/nn/mindspore.nn.DynamicLossScaleUpdateCell.html#mindspore.nn.DynamicLossScaleUpdateCell">[docs]</a><span class="k">class</span> <span class="nc">DynamicLossScaleUpdateCell</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
@@ -616,7 +618,7 @@
 
     <span class="k">def</span> <span class="nf">_get_gpu_overflow_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;get overflow status of gpu.&quot;&quot;&quot;</span>
-        <span class="n">overflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_distributed_overflow_status_on_infnan_mode</span><span class="p">(</span><span class="n">_gpu_grad_overflow</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">)</span>
+        <span class="n">overflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_distributed_overflow_status_on_infnan_mode</span><span class="p">(</span><span class="n">_grad_overflow</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">overflow</span>
 
     <span class="k">def</span> <span class="nf">_get_ascend_overflow_status_on_infnan_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">):</span>
