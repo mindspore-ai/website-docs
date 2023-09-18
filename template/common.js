@@ -167,13 +167,6 @@ $(function () {
           class="search-val" placeholder="${
               isEn ? 'Search...' : '全局搜索...'
           }"><span class="close-icon"></div></div>
-  <div class="dropdown">
-      <a href="${filterXSS(
-          newNavPath
-      )}" class="dropdown-toggle" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-          <span class="languageIpt">EN</span>
-      </a>
-  </div>
   <div class="header-nav-link">
       <p class="code">${
           isEn ? 'Code' : '代码'
@@ -181,11 +174,18 @@ $(function () {
       <ul class="dropdown-menu-git">
           <li><a href="${
               configIP.GITEE_URL
-          }/mindspore/mindspore" rel="noopener noreferrer"  target="_blank">Gitee</a></li>
+          }/mindspore/mindspore" rel="noopener noreferrer"  target="_blank">Gitee <em class="outlink"></em></a></li>
           <li><a href="${
               configIP.GITHUB_URL
-          }/mindspore-ai/mindspore" rel="noopener noreferrer" target="_blank">GitHub</a></li>
+          }/mindspore-ai/mindspore" rel="noopener noreferrer" target="_blank">GitHub <em class="outlink"></em></a></li>
       </ul>
+  </div>
+  <div class="dropdown">
+      <a href="${filterXSS(
+          newNavPath
+      )}" class="dropdown-toggle" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <span class="languageIpt">EN</span>
+      </a>
   </div>
   <div class="theme-change"><i class="icon-theme light"></i></div>
 </div>
@@ -1397,8 +1397,8 @@ ${menu
             const askQuestion = isEn ? 'Document Feedback' : '文档反馈',
                 askQuestion1 = isEn ? 'Quick Feedback' : '快速反馈问题',
                 askQuestionInfo = isEn
-                    ? 'Click here to commit an issue in the code repository. Describe the issue in the template. We will follow up on it.'
-                    : '点击图标，可跳转代码仓提issue，按照issue模板填写问题描述，我们将会跟进处理',
+                    ? 'Click the blue button to commit an issue in the code repository. Describe the issue in the template. We will follow up on it.'
+                    : '点击蓝色按钮，可跳转代码仓提issue，按照issue模板填写问题描述，我们将会跟进处理',
                 askQuestionInfo1 = isEn
                     ? 'Remember to add the tag below:'
                     : '记得添加mindspore-assistant标签哦！'
