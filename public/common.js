@@ -426,8 +426,10 @@ ${
                         headerLayer.removeClass('nav-show')
                     })
                 setTimeout(() => {
-                    $('.header').addClass('page-load')
                     $('.wy-nav-side').addClass('page-load')
+                }, 50)
+                setTimeout(() => {
+                    $('.header').addClass('page-load')
                 }, 150)
             },
             h5HeaderMethods: function () {
@@ -778,7 +780,7 @@ ${
         // 复制代码
         function codeClipboard() {
             // 实现复制粘贴功能
-            $('pre').append(
+            $('pre>span:first-of-type').append(
                 '<em class="copy-btn" data-tooltip="copy"><i class="icon-copy"></i></em>'
             )
 
@@ -963,6 +965,49 @@ ${
                 filterXSS(resolveText(strTemp))
             )
             gotoId()
+        }
+        const replaceToc = () => {
+            const elements = document.querySelectorAll(
+                '.document h1,.document h2,.document h3,.document h4'
+            )
+            const tocList = Array.from(elements)
+            let lastLevel1 = []
+            let lastLevel2 = []
+            let lastLevel3 = []
+            let result = []
+            tocList.forEach((toc) => {
+                let child = {
+                    text: toc.innerText,
+                    href: '#' + toc.parentNode.id,
+                }
+                if (toc.tagName === 'H1') {
+                    result.push(child)
+                }
+                if (toc.tagName === 'H2') {
+                    getChildItem(result, child)
+                    lastLevel1.push(child)
+                }
+                if (toc.tagName === 'H3') {
+                    getChildItem(lastLevel1, child)
+                    lastLevel2.push(child)
+                }
+                if (toc.tagName === 'H4') {
+                    getChildItem(lastLevel2, child)
+                    lastLevel3.push(child)
+                }
+            })
+            return result
+        }
+        const getChildItem = (data, child) => {
+            const len = data.length
+            data.forEach((item, index) => {
+                if (len === 1 || len === index + 1) {
+                    if (item.children === undefined) {
+                        item.children = []
+                    }
+                    item.children?.push(child)
+                }
+            })
         }
 
         // 右侧锚点标识
@@ -1496,6 +1541,9 @@ ${
             initTheme()
             docsFeedback()
             sideRightAnchor()
+
+            // const anchorItem = replaceToc()
+            // console.log('anchorItem :>> ', anchorItem)
         }
 
         initPage()
