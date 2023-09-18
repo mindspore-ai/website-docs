@@ -1414,7 +1414,7 @@ ${
 
             const feedbackDom = `<div class="docs-feedback">
         <div class="feedback-box ${isEn ? 'en' : ''}">
-          <a href="${getQuestionHref()}" rel="noopener noreferrer" target="_blank" class="text">${askQuestion}</a>
+          <a href="${getQuestionHref()}" rel="noopener noreferrer" target="_blank" class="text askQuestion">${askQuestion}</a>
           <div class="feedback-layer">
             <p class="title"><i class="feedback-icon"></i>${askQuestion1}</p>
             <p class="desc">${askQuestionInfo}</p>
@@ -1531,6 +1531,7 @@ ${
             $('.header-nav-info').append(componentInfo.sideVersionList())
 
             $('.wy-nav-content').append(msFotter.pcFootHTML)
+            docsFeedback()
             msFotter.jumpForumStatistics()
             msFotter.documentEvaluationFn()
 
@@ -1551,7 +1552,7 @@ ${
                 isPadShow()
             })
             initTheme()
-            docsFeedback()
+
             sideRightAnchor()
 
             // const anchorItem = replaceToc()
