@@ -298,6 +298,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">grad_ops_label</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ge_sync_data</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_is_check_and_refresh</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_amp_level</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">base</span> <span class="o">=</span> <span class="n">Cell_</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -1563,16 +1564,13 @@
             <span class="k">yield</span> <span class="n">param</span></div>
 
     <span class="c1"># pylint: disable=missing-docstring</span>
-<div class="viewcode-block" id="Cell.check_names_and_refresh_name"><a class="viewcode-back" href="../../../api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell.check_names_and_refresh_name">[docs]</a>    <span class="k">def</span> <span class="nf">check_names_and_refresh_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Check the names of cell parameters and update parameters&#39; name.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">check_names_and_refresh_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_params&quot;</span><span class="p">):</span>
             <span class="k">return</span>
         <span class="n">all_name</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">())</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">all_name</span><span class="p">))</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_name</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">update_parameters_name</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">check_names</span><span class="p">()</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_names</span><span class="p">()</span>
 
 <div class="viewcode-block" id="Cell.check_names"><a class="viewcode-back" href="../../../api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell.check_names">[docs]</a>    <span class="k">def</span> <span class="nf">check_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1892,7 +1890,7 @@
 <span class="sd">            &gt;&gt;&gt; net = Net()</span>
 <span class="sd">            &gt;&gt;&gt; net.add_flags(sink_mode=True)</span>
 <span class="sd">            &gt;&gt;&gt; print(net.get_flags())</span>
-<span class="sd">            {&#39;sink_mode&#39;:False}</span>
+<span class="sd">            {&#39;sink_mode&#39;:True}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_func_graph_flags&quot;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_func_graph_flags</span> <span class="o">=</span> <span class="p">{}</span>
@@ -2671,7 +2669,15 @@
             <span class="k">return</span> <span class="n">inputs</span>
         <span class="n">cast_type</span> <span class="o">=</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="n">mixed_type</span> <span class="o">==</span> <span class="n">MixedPrecisionType</span><span class="o">.</span><span class="n">FP16</span> <span class="k">else</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span>
         <span class="n">cast_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cast_mixed_precision_inputs</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">cast_type</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">cast_inputs</span></div>
+        <span class="k">return</span> <span class="n">cast_inputs</span>
+
+    <span class="k">def</span> <span class="nf">_get_attr_from_cell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">Cell</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="s2">&quot;jit_config_dict&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_jit_config_dict</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">jit_config_dict</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="s2">&quot;_amp_level&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_amp_level</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="s2">&quot;_amp_level&quot;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="GraphCell"><a class="viewcode-back" href="../../../api_python/nn/mindspore.nn.GraphCell.html#mindspore.nn.GraphCell">[docs]</a><span class="k">class</span> <span class="nc">GraphCell</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>

@@ -270,8 +270,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">dataset</span> <span class="o">=</span> <span class="n">_get_training_dataset</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">dataset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">epoch</span> <span class="o">=</span> <span class="n">global_step</span> <span class="o">//</span> <span class="n">dataset_size</span>
-        <span class="n">dataset</span><span class="o">.</span><span class="n">_reset</span><span class="p">(</span><span class="n">global_step</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+        <span class="n">dataset</span><span class="o">.</span><span class="n">_reset</span><span class="p">(</span><span class="n">global_step</span><span class="p">,</span> <span class="n">dataset_size</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Training dataset is not set.&quot;</span><span class="p">)</span>
 
@@ -493,6 +492,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_repeat_count</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_class_indexing</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sync</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_global_step</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_get_operator_id</span><span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
@@ -529,9 +529,12 @@
             <span class="n">_OP_PROCESS</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">generator_process</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">op_name</span>
 
-    <span class="k">def</span> <span class="nf">create_ir_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_python_multiprocessing</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">create_ir_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Internal method to build an IR tree.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            getter_mode (bool, optional): Whether to build IR tree in pull mode. Default: ``False``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            DatasetNode, the root node of the IR tree.</span>
@@ -542,25 +545,28 @@
         <span class="n">dataset</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">global</span> <span class="n">_OP_NAME</span>
         <span class="n">_OP_NAME</span> <span class="o">=</span> <span class="n">Dataset</span><span class="o">.</span><span class="n">_get_operator_id</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
-        <span class="n">ir_tree</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">parse_tree</span><span class="p">(</span><span class="n">no_python_multiprocessing</span><span class="p">)</span>
+        <span class="n">ir_tree</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">parse_tree</span><span class="p">(</span><span class="n">getter_mode</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
         <span class="n">_init_device_info</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">ir_tree</span><span class="p">,</span> <span class="n">dataset</span>
 
-    <span class="k">def</span> <span class="nf">parse_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_python_multiprocessing</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">parse_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Internal method to parse the API tree into an IR tree.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            getter_mode (bool, optional): Whether to build IR tree in pull mode. Default: ``False``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            DatasetNode, the root node of the IR tree.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The data pipeline is not a tree (i.e., one node has 2 consumers)&quot;</span><span class="p">)</span>
-        <span class="n">ir_children</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">parse_tree</span><span class="p">(</span><span class="n">no_python_multiprocessing</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]</span>
+        <span class="n">ir_children</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">parse_tree</span><span class="p">(</span><span class="n">getter_mode</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]</span>
         <span class="c1"># Bootstrap can only be performed on a copy of the original dataset node.</span>
         <span class="c1"># Bootstrap on original dataset node will make all iterators share the same process pool</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">iterator_bootstrap</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pre_parse</span><span class="p">(</span><span class="n">no_python_multiprocessing</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pre_parse</span><span class="p">(</span><span class="n">getter_mode</span><span class="p">)</span>
         <span class="n">ir_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">ir_children</span><span class="p">)</span>
         <span class="n">ir_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_parse</span><span class="p">(</span><span class="n">ir_node</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ir_node</span>
@@ -1787,11 +1793,14 @@
     <span class="k">def</span> <span class="nf">copy_batch_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_batch_size</span> <span class="o">=</span> <span class="n">value</span>
 
-    <span class="k">def</span> <span class="nf">_init_tree_getters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_python_multiprocessing</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_init_tree_getters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get pipeline information.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            getter_mode (bool, optional): Whether to build IR tree in pull mode. Default: ``True``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">ir_tree</span><span class="p">,</span> <span class="n">api_tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_ir_tree</span><span class="p">(</span><span class="n">no_python_multiprocessing</span><span class="p">)</span>
+        <span class="n">ir_tree</span><span class="p">,</span> <span class="n">api_tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_ir_tree</span><span class="p">(</span><span class="n">getter_mode</span><span class="p">)</span>
 
         <span class="n">runtime_context</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">PythonRuntimeContext</span><span class="p">()</span>
         <span class="n">runtime_context</span><span class="o">.</span><span class="n">Init</span><span class="p">()</span>
@@ -2169,8 +2178,8 @@
             <span class="n">shard_id</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">return</span> <span class="n">num_shards</span><span class="p">,</span> <span class="n">shard_id</span>
 
-    <span class="k">def</span> <span class="nf">pre_parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_python_multiprocessing</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">no_python_multiprocessing</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">pre_parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter_mode</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">getter_mode</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;python_multiprocessing&quot;</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">python_multiprocessing</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;num_parallel_workers&quot;</span><span class="p">):</span>
@@ -2183,6 +2192,18 @@
             <span class="n">ir_node</span> <span class="o">=</span> <span class="n">ir_node</span><span class="o">.</span><span class="n">set_num_workers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_parallel_workers</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">ir_node</span>
+
+    <span class="k">def</span> <span class="nf">set_init_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">init_step</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_global_step</span> <span class="o">=</span> <span class="n">init_step</span>
+
+    <span class="k">def</span> <span class="nf">get_init_step</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_step</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_step</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_init_step</span><span class="p">()</span>
+        <span class="c1"># When there are multiple children, we cannot tell from which child to get the initial step,</span>
+        <span class="c1"># so we initialize from the beginning</span>
+        <span class="k">return</span> <span class="mi">0</span>
 
 
 <span class="k">class</span> <span class="nc">VisionBaseDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
@@ -2861,10 +2882,10 @@
 <span class="sd">            &gt;&gt;&gt; iterator = dataset.create_tuple_iterator(num_epochs=epoch)</span>
 <span class="sd">            &gt;&gt;&gt; for i in range(epoch):</span>
 <span class="sd">            ...    result.extend(list(iterator))</span>
-<span class="sd">            &gt;&gt;&gt; print(result)</span>
-<span class="sd">            [[Tensor(shape=[1], dtype=Int64, value= [0])], [Tensor(shape=[1], dtype=Int64, value= [1])],</span>
-<span class="sd">             [Tensor(shape=[1], dtype=Int64, value= [2])], [Tensor(shape=[1], dtype=Int64, value= [3])],</span>
-<span class="sd">             [Tensor(shape=[2], dtype=Int64, value= [0, 1])], [Tensor(shape=[2], dtype=Int64, value= [2, 3])]]</span>
+<span class="sd">            &gt;&gt;&gt; # result:</span>
+<span class="sd">            &gt;&gt;&gt; # [[Tensor(shape=[1], dtype=Int64, value= [0])], [Tensor(shape=[1], dtype=Int64, value= [1])],</span>
+<span class="sd">            &gt;&gt;&gt; #  [Tensor(shape=[1], dtype=Int64, value= [2])], [Tensor(shape=[1], dtype=Int64, value= [3])],</span>
+<span class="sd">            &gt;&gt;&gt; #  [Tensor(shape=[2], dtype=Int64, value= [0, 1])], [Tensor(shape=[2], dtype=Int64, value= [2, 3])]]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span></div></div>
 
@@ -4269,7 +4290,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_runtime_context</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">PythonRuntimeContext</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_runtime_context</span><span class="o">.</span><span class="n">Init</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">ToDevice</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">Init</span><span class="p">(</span><span class="n">ir_tree</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_init_step</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">init_step</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_init_step</span><span class="p">()</span>
+            <span class="n">dataset_size</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">Init</span><span class="p">(</span><span class="n">ir_tree</span><span class="p">,</span> <span class="n">init_step</span><span class="p">,</span> <span class="n">dataset_size</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">Init</span><span class="p">(</span><span class="n">ir_tree</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_runtime_context</span><span class="o">.</span><span class="n">AssignConsumer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="p">)</span>
 
         <span class="n">ITERATORS_LIST</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
@@ -4324,8 +4350,8 @@
         <span class="n">offload_model</span> <span class="o">=</span> <span class="n">GetOffloadModel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="p">,</span> <span class="n">col_names</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">offload_model</span>
 
-    <span class="k">def</span> <span class="nf">_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">epoch</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">Reset</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">dataset_size</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">Reset</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">dataset_size</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">TransferDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
@@ -4433,10 +4459,10 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">epoch</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">dataset_size</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reset the dataset pipeline to step: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">step</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;, epoch: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">epoch</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">_reset</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reset the dataset pipeline to step: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">step</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;, epoch: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">step</span> <span class="o">//</span> <span class="n">dataset_size</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_to_device</span><span class="o">.</span><span class="n">_reset</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">dataset_size</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
 
 
 <div class="viewcode-block" id="Schema"><a class="viewcode-back" href="../../../../api_python/dataset/mindspore.dataset.Schema.html#mindspore.dataset.Schema">[docs]</a><span class="k">class</span> <span class="nc">Schema</span><span class="p">:</span>
