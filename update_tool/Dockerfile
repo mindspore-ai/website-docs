@@ -31,7 +31,7 @@ RUN apt install -y software-properties-common \
     && apt install -y libgmp-dev \
     && apt clean
 
-#RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
 
 # Install rtd themes and update the config file
 RUN pip install sphinx_rtd_theme==1.0.0 \
