@@ -101,7 +101,7 @@ $(function () {
               const href = item.href ? (isEn ? item.href.en : item.href.zh) : ''
               const name = isEn ? item.label.en : item.label.zh
               if (!item.children) {
-                  if (pathname.indexOf(item.id) > -1) {
+                  if (pathname.indexOf(item.id) > -1 && item.id === 'docs') {
                       item.active = 1
                   }
                   return `
@@ -111,8 +111,8 @@ $(function () {
           `
               } else {
                   if (
-                      pathname.indexOf(item.id) > -1 &&
-                      item.id !== 'learning'
+                      pathname.startsWith('/tutorials/') &&
+                      item.id === 'learning'
                   ) {
                       item.active = 1
                   }
@@ -959,7 +959,7 @@ ${menu
             )
             gotoId()
         }
-        const replaceToc = () => {
+        const getAnchorItem = () => {
             const elements = document.querySelectorAll(
                 '.document h1,.document h2,.document h3,.document h4'
             )
@@ -1546,7 +1546,7 @@ ${menu
 
             sideRightAnchor()
 
-            // const anchorItem = replaceToc()
+            // const anchorItem = getAnchorItem()
             // console.log('anchorItem :>> ', anchorItem)
         }
 

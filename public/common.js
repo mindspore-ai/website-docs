@@ -959,7 +959,7 @@ ${menu
             )
             gotoId()
         }
-        const replaceToc = () => {
+        const getAnchorItem = () => {
             const elements = document.querySelectorAll(
                 '.document h1,.document h2,.document h3,.document h4'
             )
@@ -1546,7 +1546,7 @@ ${menu
 
             sideRightAnchor()
 
-            // const anchorItem = replaceToc()
+            // const anchorItem = getAnchorItem()
             // console.log('anchorItem :>> ', anchorItem)
         }
 
