@@ -676,7 +676,7 @@ ${menu
                 $('.askQuestion').on('click', function () {
                     $.ajax({
                         type: 'POST',
-                        url: '/saveEssayJump',
+                        url: '/api/saveEssayJump',
                         contentType: 'application/json',
                         data: JSON.stringify({
                             essayUrl: encodeURIComponent(location.href),
@@ -746,7 +746,7 @@ ${menu
                                 score: grade,
                                 essayUrl: encodeURIComponent(location.href),
                             }),
-                            url: '/saveEssayScore',
+                            url: '/api/saveEssayScore',
                         })
                         msFotter.gradeState = grade
                         $('.evaluateStar')
