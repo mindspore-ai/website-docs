@@ -12,7 +12,7 @@
 
 <!-- /TOC -->
 
-[![查看源文件](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.png)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_ascend_install_docker.md)
+[![查看源文件](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.svg)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_ascend_install_docker.md)
 
 [Docker](https://docs.docker.com/get-docker/)是一个开源的应用容器引擎，让开发者打包他们的应用以及依赖包到一个轻量级、可移植的容器中。通过使用Docker，可以实现MindSpore的快速部署，并与系统环境隔离。
 
@@ -26,7 +26,7 @@ MindSpore的Docker镜像托管在[Huawei SWR](https://support.huaweicloud.com/sw
 | :----- | :------------------------ | :----------------------- | :--------------------------------------- |
 | Ascend | `mindspore/mindspore-ascend` | `x.y.z` | 已经预安装Ascend Data Center Solution 与对应的MindSpore Ascend x.y.z版本的生产环境。 |
 
-> `x.y.z`对应MindSpore版本号，例如安装2.1.0版本MindSpore时，`x.y.z`应写为2.1.0。
+> `x.y.z`对应MindSpore版本号，例如安装2.1.1版本MindSpore时，`x.y.z`应写为2.1.1。
 
 ## 确认系统环境信息
 

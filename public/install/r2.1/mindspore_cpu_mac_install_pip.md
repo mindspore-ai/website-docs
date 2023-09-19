@@ -10,7 +10,7 @@
 
 <!-- /TOC -->
 
-[![查看源文件](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.png)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_cpu_mac_install_pip.md)
+[![查看源文件](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.svg)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_cpu_mac_install_pip.md)
 
 本文档介绍如何在macOS系统上使用pip方式快速安装MindSpore。
 
@@ -29,10 +29,10 @@
 
 ## 安装MindSpore
 
-首先参考[版本列表](https://www.mindspore.cn/versions)选择想要安装的MindSpore版本，并进行SHA-256完整性校验。以2.1.0版本为例，执行以下命令。
+首先参考[版本列表](https://www.mindspore.cn/versions)选择想要安装的MindSpore版本，并进行SHA-256完整性校验。以2.1.1版本为例，执行以下命令。
 
 ```bash
-export MS_VERSION=2.1.0
+export MS_VERSION=2.1.1
 ```
 
 然后根据系统架构及Python版本执行如下命令安装MindSpore。

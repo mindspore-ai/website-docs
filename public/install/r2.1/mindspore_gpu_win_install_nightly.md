@@ -10,7 +10,7 @@
 
 <!-- /TOC -->
 
-[![查看源文件](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.png)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_gpu_win_install_nightly.md)
+[![查看源文件](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.svg)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_gpu_win_install_nightly.md)
 
 MindSpore Nightly是包含当前最新功能与bugfix的预览版本，但是可能未经完整的测试与验证，希望体验最新功能或者问题修复的用户可以使用该版本。
 
@@ -61,6 +61,6 @@ pip install --upgrade mindspore-cuda11-dev=={version}
 
 其中：
 
-- 升级到rc版本时，需要手动指定`{version}`为rc版本号，例如2.1.0.dev20211125；如果希望自动升级到最新版本，`=={version}`字段可以缺省。
+- 升级到rc版本时，需要手动指定`{version}`为rc版本号，例如2.1.1.dev20211125；如果希望自动升级到最新版本，`=={version}`字段可以缺省。
 
 注意：当前MindSpore GPU Nightly for Windows仅提供CUDA11.6版本，若仍希望使用CUDA10.1或者CUDA11.1版本，请参考源码编译指导在对应环境上自行编译。
