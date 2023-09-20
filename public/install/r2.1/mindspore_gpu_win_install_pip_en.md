@@ -10,7 +10,7 @@
 
 <!-- /TOC -->
 
-[![View Source On Gitee](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source_en.png)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_gpu_win_install_pip_en.md)
+[![View Source On Gitee](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source_en.svg)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_gpu_win_install_pip_en.md)
 
 This document describes how to install MindSpore by pip in a Windows system with a GPU environment.
 
@@ -22,10 +22,10 @@ This document describes how to install MindSpore by pip in a Windows system with
 
 ## Installing MindSpore
 
-First, refer to [Version List](https://www.mindspore.cn/versions) to select the version of MindSpore you want to install, and perform SHA-256 integrity check. Taking version 2.1.0 as an example, execute the following commands.
+First, refer to [Version List](https://www.mindspore.cn/versions) to select the version of MindSpore you want to install, and perform SHA-256 integrity check. Taking version 2.1.1 as an example, execute the following commands.
 
 ```bash
-set MS_VERSION=2.1.0
+set MS_VERSION=2.1.1
 ```
 
 Then run the following commands to install MindSpore according to Python version.

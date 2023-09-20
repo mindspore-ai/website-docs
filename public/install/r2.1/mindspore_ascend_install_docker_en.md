@@ -12,7 +12,7 @@
 
 <!-- /TOC -->
 
-[![View Source On Gitee](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source_en.png)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_ascend_install_docker_en.md)
+[![View Source On Gitee](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source_en.svg)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_ascend_install_docker_en.md)
 
 [Docker](https://docs.docker.com/get-docker/) is an open source application container engine, and developers can package their applications and dependencies into a lightweight, portable container. By using Docker, MindSpore can be rapidly deployed and separated from the system environment.
 
@@ -26,7 +26,7 @@ The current support for containerized build options is as follows:
 | :----- | :------------------------ | :----------------------- | :--------------------------------------- |
 | Ascend | `mindspore/mindspore-ascend` | `x.y.z` | The production environment of MindSpore Ascend x.y.z together with the corresponding version of Ascend Data Center Solution. |
 
-> `x.y.z` corresponds to the MindSpore version number. For example, when MindSpore version 2.1.0 is installed, `x.y.z` should be written as 2.1.0.
+> `x.y.z` corresponds to the MindSpore version number. For example, when MindSpore version 2.1.1 is installed, `x.y.z` should be written as 2.1.1.
 
 ## System Environment Information Confirmation
 

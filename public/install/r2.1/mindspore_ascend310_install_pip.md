@@ -15,7 +15,7 @@
 
 <!-- /TOC -->
 
-[![查看源文件](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.png)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_ascend310_install_pip.md)
+[![查看源文件](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.1/resource/_static/logo_source.svg)](https://gitee.com/mindspore/docs/blob/r2.1/install/mindspore_ascend310_install_pip.md)
 
 本文档介绍如何在Ascend 310环境的Linux系统上，使用pip方式快速安装MindSpore，Ascend 310版本仅支持推理。
 
@@ -31,9 +31,9 @@
 
 ```bash
 wget https://gitee.com/mindspore/mindspore/raw/r2.1/scripts/install/euleros-ascend310-pip.sh
-# 安装MindSpore 2.1.0和Python 3.7
+# 安装MindSpore 2.1.1和Python 3.7
 # 默认LOCAL_ASCEND路径为/usr/local/Ascend
-MINDSPORE_VERSION=2.1.0 bash -i ./euleros-ascend310-pip.sh
+MINDSPORE_VERSION=2.1.1 bash -i ./euleros-ascend310-pip.sh
 # 如需指定Python和MindSpore版本，以Python 3.9和MindSpore 1.6.0为例
 # 且指定LOCAL_ASCEND路径为/home/xxx/Ascend，使用以下方式
 # LOCAL_ASCEND=/home/xxx/Ascend PYTHON_VERSION=3.9 PYTHON_VERSION=3.9 MINDSPORE_VERSION=1.6.0 bash -i ./euleros-ascend310-pip.sh
@@ -203,10 +203,10 @@ pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.wh
 
 ### 安装MindSpore
 
-首先参考[版本列表](https://www.mindspore.cn/versions)选择想要安装的MindSpore版本，并进行SHA-256完整性校验。以2.1.0版本为例，执行以下命令。
+首先参考[版本列表](https://www.mindspore.cn/versions)选择想要安装的MindSpore版本，并进行SHA-256完整性校验。以2.1.1版本为例，执行以下命令。
 
 ```bash
-export MS_VERSION=2.1.0
+export MS_VERSION=2.1.1
 ```
 
 然后根据系统架构及Python版本执行如下命令安装MindSpore。
