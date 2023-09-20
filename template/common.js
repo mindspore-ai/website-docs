@@ -1197,9 +1197,7 @@ ${menu
                     const nextDescnames = $(this)
                         .closest('dt')
                         .next()
-                        .find(
-                            '.descname>.pre:not(.method .descname>.pre):not(.property .descname>.pre)'
-                        )
+                        .find('.descname>.pre')
                     if (nextDescnames.length) {
                         const navLi3 = nextDescnames
                             .map(function () {
