@@ -142,11 +142,18 @@ $(function () {
                                     sub.label &&
                                     sub.label[isEn ? 'en' : 'zh']
                                 ) {
+                                    let navHref = isEn
+                                        ? sub.href.en
+                                        : sub.href.zh
+                                    if (sub.id === 'tutorials') {
+                                        navHref = navHref.replace(
+                                            'master',
+                                            msHeader.headerPathVersion(sub.id)
+                                        )
+                                    }
                                     return `<li><a target="${
                                         sub.jumOut ? '_blank' : '_self'
-                                    }" href="${filterXSS(
-                                        isEn ? sub.href.en : sub.href.zh
-                                    )}">
+                                    }" href="${filterXSS(navHref)}">
                                 ${filterXSS(isEn ? sub.label.en : sub.label.zh)}
                                 ${msHeader.headerTags(sub.tags)}
                                 </a></li>`
