@@ -277,7 +277,7 @@ ${
                         item.children
                             ? item.children
                                   .map((sub, index) => {
-                                      const href = sub.href
+                                      let href = sub.href
                                           ? isEn
                                               ? sub.href.en
                                               : sub.href.zh
@@ -285,16 +285,27 @@ ${
                                       const name = isEn
                                           ? sub.label.en
                                           : sub.label.zh
-
-                                      return `<li class="sub-menu-item">
-                          <a href="${filterXSS(
-                              href
-                          )}" data-val='${index}' target="${
-                                          sub.jumOut ? '_blank' : '_self'
-                                      }">
-                                ${filterXSS(name)}
-                                </a>
-                        </li>`
+                                      if (sub.id === 'tutorials') {
+                                          href = href.replace(
+                                              'master',
+                                              msHeader.headerPathVersion(sub.id)
+                                          )
+                                      }
+                                      return `${
+                                          href
+                                              ? `<li class="sub-menu-item">
+                                      <a href="${filterXSS(
+                                          href
+                                      )}" data-val='${index}' target="${
+                                                    sub.jumOut
+                                                        ? '_blank'
+                                                        : '_self'
+                                                }">
+                                            ${filterXSS(name)}
+                                            </a>
+                                    </li>`
+                                              : ''
+                                      }`
                                   })
                                   .join('')
                             : ''
@@ -429,6 +440,9 @@ ${msHeader.h5HeadMenu()}
             },
             h5HeaderMethods: function () {
                 const searchUrl = isEn ? '/search/en' : '/search'
+                $('.search-icon').on('click', function (e) {
+                    window.location.href = searchUrl
+                })
                 $('.rating-label').on('click', function () {
                     body.prepend(
                         msHeader.dialogLayer(msFotter.fontmatter.helpforyou)
@@ -598,7 +612,7 @@ ${msHeader.h5HeadMenu()}
                 menu: [
                     {
                         name: isEn ? 'Security' : '安全',
-                        path: `/security${enPath}`,
+                        path: `/security${isEn ? '/en' : ''}`,
                     },
                     {
                         name: isEn ? 'Service Status' : '服务状态',
@@ -606,11 +620,11 @@ ${msHeader.h5HeadMenu()}
                     },
                     {
                         name: isEn ? 'Terms of Use' : '法律声明',
-                        path: `/legal${enPath}`,
+                        path: `/legal${isEn ? '/en' : ''}`,
                     },
                     {
                         name: isEn ? 'Privacy Policy' : '个人信息保护政策',
-                        path: `/privacy${enPath}`,
+                        path: `/privacy${isEn ? '/en' : ''}`,
                     },
                 ],
             },
@@ -1291,8 +1305,8 @@ ${menu
                           )}" class='version-option'>${filterXSS(item.versionAlias === '' ? item.version : item.versionAlias)}</a></li>`
                       })
                       .join('')}
-                  <li><a href="/versions/${
-                      isEn ? 'en' : ''
+                  <li><a href="/versions${
+                      isEn ? '/en' : ''
                   }" class='version-option'>${isEn ? 'More' : '更多'}</a></li>
               </ul></div> 
           </div></div>`
