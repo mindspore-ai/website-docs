@@ -156,6 +156,7 @@
 <span class="sd">&quot;&quot;&quot;Auto mixed precision.&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
 
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
@@ -169,9 +170,6 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">Primitive</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
-
-
-<span class="n">STREE</span> <span class="o">=</span> <span class="kc">None</span>
 
 
 <span class="n">AMP_WHITE_LIST</span> <span class="o">=</span> <span class="p">[</span>
@@ -334,7 +332,7 @@
     <span class="n">node_cast_type</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">get_args</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">node_cast_type</span> <span class="o">!=</span> <span class="n">cast_dtype_f32</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">False</span>
-    <span class="c1"># all user nodes should be P.Cast()(x, mindspore.float16) or Cell with to_float(mindspore.float16)</span>
+    <span class="c1"># all user nodes should be P.Cast()(x, mindspore.float16) or Cell with to_float(mindspore.float16/bfloat16)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">node</span><span class="o">.</span><span class="n">get_users</span><span class="p">():</span>
         <span class="k">return</span> <span class="kc">False</span>
     <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">get_users</span><span class="p">():</span>
@@ -380,11 +378,45 @@
 
 <span class="k">def</span> <span class="nf">_auto_white_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">white_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;process the white list of network.&quot;&quot;&quot;</span>
-    <span class="k">global</span> <span class="n">STREE</span>
-    <span class="n">STREE</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">SymbolTree</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
-    <span class="n">_insert_cast_operator_white_list</span><span class="p">(</span><span class="n">STREE</span><span class="p">,</span> <span class="n">white_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
-    <span class="n">_remove_duplicated_cast</span><span class="p">(</span><span class="n">STREE</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">STREE</span><span class="o">.</span><span class="n">get_network</span><span class="p">()</span>
+    <span class="n">stree</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">SymbolTree</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
+    <span class="n">_insert_cast_operator_white_list</span><span class="p">(</span><span class="n">stree</span><span class="p">,</span> <span class="n">white_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+    <span class="n">_remove_duplicated_cast</span><span class="p">(</span><span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">stree</span><span class="o">.</span><span class="n">get_network</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_insert_cast_operator_black_list</span><span class="p">(</span><span class="n">stree</span><span class="p">,</span> <span class="n">black_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;insert cast for operators not in black_list.&quot;&quot;&quot;</span>
+    <span class="n">allowed_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Ignore if net called &quot;.to_float(dtype)&quot;</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">stree</span><span class="o">.</span><span class="n">get_handler</span><span class="p">()</span><span class="o">.</span><span class="n">get_origin_network</span><span class="p">()</span>
+    <span class="n">to_float_flag</span> <span class="o">=</span> <span class="s2">&quot;bf16&quot;</span> <span class="k">if</span> <span class="n">dtype</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">bfloat16</span> <span class="k">else</span> <span class="s2">&quot;fp16&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">to_float_flag</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">to_float_flag</span><span class="p">):</span>
+        <span class="k">return</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">stree</span><span class="o">.</span><span class="n">nodes</span><span class="p">(</span><span class="n">all_nodes</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">get_targets</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">get_instance_type</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">black_list</span> <span class="ow">and</span> <span class="n">_allow_mix_precision</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">allowed_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+            <span class="n">_insert_cast_operator_process</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_remove_duplicated_cast_rewrite</span><span class="p">(</span><span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;remove the duplicated cast operators.&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">stree</span><span class="o">.</span><span class="n">nodes</span><span class="p">(</span><span class="n">all_nodes</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">_need_removed_cast_pair</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+            <span class="n">user_nodes</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">get_users</span><span class="p">()</span>
+            <span class="c1"># remove cast f16 nodes</span>
+            <span class="k">for</span> <span class="n">user_node</span> <span class="ow">in</span> <span class="n">user_nodes</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">user_node</span><span class="o">.</span><span class="n">get_instance_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">P</span><span class="o">.</span><span class="n">Cast</span><span class="p">:</span>
+                    <span class="n">stree</span><span class="o">.</span><span class="n">erase</span><span class="p">(</span><span class="n">user_node</span><span class="p">)</span>
+            <span class="c1"># remove the cast f32 node</span>
+            <span class="n">stree</span><span class="o">.</span><span class="n">erase</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_auto_black_list_rewrite</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">black_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+    <span class="n">stree</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">SymbolTree</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
+    <span class="n">_insert_cast_operator_black_list</span><span class="p">(</span><span class="n">stree</span><span class="p">,</span> <span class="n">black_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+    <span class="n">_remove_duplicated_cast_rewrite</span><span class="p">(</span><span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">stree</span><span class="o">.</span><span class="n">get_network</span><span class="p">()</span>
 
 
 <span class="k">def</span> <span class="nf">_auto_black_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">black_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
@@ -489,11 +521,17 @@
     <span class="k">if</span> <span class="n">amp_level</span> <span class="o">==</span> <span class="s2">&quot;O1&quot;</span><span class="p">:</span>
         <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_white_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">AMP_WHITE_LIST</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">amp_level</span> <span class="o">==</span> <span class="s2">&quot;O2&quot;</span><span class="p">:</span>
-        <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">AMP_BLACK_LIST</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
-        <span class="n">network</span> <span class="o">=</span> <span class="n">_OutputTo32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MS_AMP_BY_REWRITE&quot;</span><span class="p">):</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list_rewrite</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">AMP_BLACK_LIST</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">AMP_BLACK_LIST</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">_OutputTo32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">amp_level</span> <span class="o">==</span> <span class="s2">&quot;O3&quot;</span><span class="p">:</span>
-        <span class="n">network</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">network</span> <span class="o">=</span> <span class="n">_OutputTo32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MS_AMP_BY_REWRITE&quot;</span><span class="p">):</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list_rewrite</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="p">[],</span> <span class="n">dtype</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">network</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">_OutputTo32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The amp level </span><span class="si">{}</span><span class="s2"> is not supported&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">amp_level</span><span class="p">))</span>
 
@@ -613,6 +651,30 @@
     <span class="k">return</span> <span class="kc">False</span>
 
 
+<span class="k">def</span> <span class="nf">_auto_mixed_precision_process</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Auto mixed precision process.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MS_AMP_BY_REWRITE&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float16</span> <span class="ow">or</span> <span class="n">level</span> <span class="o">==</span> <span class="s2">&quot;O2&quot;</span><span class="p">:</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="s2">&quot;O2&quot;</span> <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;keep_batchnorm_fp32&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;O3&quot;</span>
+        <span class="k">elif</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span> <span class="ow">and</span> <span class="n">level</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="s2">&quot;O3&quot;</span><span class="p">):</span>
+            <span class="c1"># cast_model_type set by kwargs</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="s2">&quot;O0&quot;</span>
+        <span class="n">network</span> <span class="o">=</span> <span class="n">auto_mixed_precision</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">:</span>
+            <span class="n">network</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;keep_batchnorm_fp32&quot;</span><span class="p">]:</span>
+                <span class="n">_do_keep_batchnorm_fp32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;keep_batchnorm_fp32&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">level</span> <span class="o">==</span> <span class="s2">&quot;O2&quot;</span><span class="p">:</span>
+            <span class="n">network</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span> <span class="ow">and</span> <span class="n">level</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="s2">&quot;O3&quot;</span><span class="p">):</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">auto_mixed_precision</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">network</span>
+
+
 <div class="viewcode-block" id="build_train_network"><a class="viewcode-back" href="../../../api_python/amp/mindspore.amp.build_train_network.html#mindspore.amp.build_train_network">[docs]</a><span class="k">def</span> <span class="nf">build_train_network</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;O0&#39;</span><span class="p">,</span> <span class="n">boost_level</span><span class="o">=</span><span class="s1">&#39;O0&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Build the mixed precision training cell automatically.</span>
@@ -686,17 +748,7 @@
     <span class="n">_check_kwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="n">config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">_config_level</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">level</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">:</span>
-        <span class="n">network</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;keep_batchnorm_fp32&quot;</span><span class="p">]:</span>
-            <span class="n">_do_keep_batchnorm_fp32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="ow">not</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;keep_batchnorm_fp32&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">level</span> <span class="o">==</span> <span class="s2">&quot;O2&quot;</span><span class="p">:</span>
-        <span class="n">network</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span> <span class="ow">and</span> <span class="n">level</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="s2">&quot;O3&quot;</span><span class="p">):</span>
-        <span class="k">pass</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">network</span> <span class="o">=</span> <span class="n">auto_mixed_precision</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+    <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_mixed_precision_process</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">loss_fn</span><span class="p">:</span>
         <span class="n">network</span> <span class="o">=</span> <span class="n">_add_loss_network</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">,</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">])</span>

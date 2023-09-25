@@ -168,6 +168,7 @@
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ops</span><span class="p">,</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">ParameterTuple</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">_primexpr</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">composite</span> <span class="k">as</span> <span class="n">C</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
@@ -657,6 +658,15 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backbone</span><span class="p">(</span><span class="o">*</span><span class="n">output</span><span class="p">)</span>
 
 
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_shape_value_on_axis_divided_by_target_value</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">micro_size</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">F</span><span class="o">.</span><span class="n">isconstant</span><span class="p">(</span><span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="k">if</span> <span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">%</span> <span class="n">micro_size</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For micro batch initialization, the 0th dimension shape of input(</span><span class="si">{</span><span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">) must be &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;divided by micro size(</span><span class="si">{</span><span class="n">micro_size</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+
 <span class="k">class</span> <span class="nc">_MicroBatch</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    transform mini-batch to micro-batch in pipeline parallel.</span>
@@ -675,6 +685,7 @@
         <span class="n">micro_inputs</span> <span class="o">=</span> <span class="p">()</span>
         <span class="k">for</span> <span class="n">each_input</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
             <span class="n">input_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">each_input</span><span class="p">)</span>
+            <span class="n">_check_shape_value_on_axis_divided_by_target_value</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span><span class="p">)</span>
             <span class="n">micro_batch_begin</span> <span class="o">=</span> <span class="p">(</span><span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span><span class="p">)</span> <span class="o">*</span> <span class="n">i</span>
             <span class="n">micro_batch_end</span> <span class="o">=</span> <span class="p">(</span><span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
             <span class="n">strided_slice_begin</span> <span class="o">=</span> <span class="p">(</span><span class="n">micro_batch_begin</span><span class="p">,)</span>
@@ -774,6 +785,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">micro_inputs</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span> <span class="o">=</span> <span class="n">micro_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">micro_size</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;PipelineCell&#39;, the argument &#39;micro_size&#39; must be integer, &quot;</span>
+                            <span class="s2">&quot;but got the type : </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">micro_size</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">micro_size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;For &#39;PipelineCell&#39;, the argument &#39;micro_size&#39; must be large than 0, &quot;</span>
+                             <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">micro_size</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">micro_size</span><span class="p">):</span>
             <span class="n">micro_input</span> <span class="o">=</span> <span class="n">_MicroBatch</span><span class="p">(</span><span class="n">micro_size</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">micro_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">micro_input</span><span class="p">)</span>
@@ -813,6 +830,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">micro_inputs</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">micro_size</span> <span class="o">=</span> <span class="n">micro_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">micro_size</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;GradAccumulationCell&#39;, the argument &#39;micro_size&#39; must be integer, &quot;</span>
+                            <span class="s2">&quot;but got the type : </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">micro_size</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">micro_size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;For &#39;GradAccumulationCell&#39;, the argument &#39;micro_size&#39; must be large than 0, &quot;</span>
+                             <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">micro_size</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">micro_size</span><span class="p">):</span>
             <span class="n">micro_input</span> <span class="o">=</span> <span class="n">_MicroBatch</span><span class="p">(</span><span class="n">micro_size</span><span class="p">)</span>
             <span class="n">micro_input</span><span class="o">.</span><span class="n">strided_slice</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;grad_accu_num&quot;</span><span class="p">,</span> <span class="n">micro_size</span><span class="p">)</span>

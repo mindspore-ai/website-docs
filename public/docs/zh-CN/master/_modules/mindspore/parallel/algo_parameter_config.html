@@ -380,10 +380,10 @@
 <span class="sd">            Default: ``True`` . For example with 8 devices available, if set ``True`` , strategy (4, 1) will not be</span>
 <span class="sd">            included in ReLU&#39;s candidate strategies, because strategy (4, 1) only utilizes 4 devices.</span>
 <span class="sd">        elementwise_op_strategy_follow (bool): Whether the elementwise operator has the consistent strategies as its</span>
-<span class="sd">            subsequent operators. Default: ``False`` . For the example of ReLU followed by Add, where ReLU is</span>
-<span class="sd">            elementwise operator, if this flag is set ``True`` , then the searched strategy by the algorithm</span>
-<span class="sd">            guarantees that strategies of these two operators are consistent, e.g., ReLU&#39;s strategy (8, 1) and Add&#39;s</span>
-<span class="sd">            strategy ((8, 1), (8, 1)).</span>
+<span class="sd">            subsequent operators. Elementwise operators refer to operators that operate on input element by element,</span>
+<span class="sd">            such as Add, ReLU, etc. Default: ``False`` . For the example of ReLU followed by Add, if this flag is set</span>
+<span class="sd">            ``True`` , then the searched strategy by the algorithm guarantees that strategies of these two operators</span>
+<span class="sd">            are consistent, e.g., ReLU&#39;s strategy (8, 1) and Add&#39;s strategy ((8, 1), (8, 1)).</span>
 <span class="sd">        enable_algo_approxi (bool): Whether to enable the approximation in the algorithms. Default: ``False`` . Due to</span>
 <span class="sd">            large solution space in searching parallel strategy for large DNN model, the algorithm takes fairly long</span>
 <span class="sd">            time in this case. To mitigate it, if this flag is set ``True`` , an approximation is made to discard some</span>
@@ -402,8 +402,84 @@
 <span class="sd">        ValueError: If context keyword is not recognized.</span>
 
 <span class="sd">    Examples:</span>
+<span class="sd">        .. note::</span>
+<span class="sd">            Before running the following examples, you need to configure the communication environment variables.</span>
+
+<span class="sd">            For the Ascend devices, users need to prepare the rank table, set rank_id and device_id.</span>
+<span class="sd">            Please see the `rank table startup</span>
+<span class="sd">            &lt;https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/rank_table.html&gt;`_</span>
+<span class="sd">            for more details.</span>
+
+<span class="sd">            For the GPU devices, users need to prepare the host file and mpi, please see the `mpirun startup</span>
+<span class="sd">            &lt;https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/mpirun.html&gt;`_ .</span>
+
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
 <span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore.dataset as ds</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import nn, ops, train</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.communication import init</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.common.initializer import initializer</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_context(mode=ms.GRAPH_MODE)</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.AUTO_PARALLEL,</span>
+<span class="sd">        &gt;&gt;&gt;                              search_mode=&quot;sharding_propagation&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; init()</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_algo_parameters(fully_use_devices=True)</span>
 <span class="sd">        &gt;&gt;&gt; ms.set_algo_parameters(elementwise_op_strategy_follow=True)</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_algo_parameters(enable_algo_approxi=True)</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_algo_parameters(algo_approxi_epsilon=0.2)</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_algo_parameters(tensor_slice_align_enable=True)</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_algo_parameters(tensor_slice_align_size=8)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Define the network structure.</span>
+<span class="sd">        &gt;&gt;&gt; class Dense(nn.Cell):</span>
+<span class="sd">        ...     def __init__(self, in_channels, out_channels):</span>
+<span class="sd">        ...         super().__init__()</span>
+<span class="sd">        ...         self.weight = ms.Parameter(initializer(&quot;normal&quot;, [in_channels, out_channels], ms.float32))</span>
+<span class="sd">        ...         self.bias = ms.Parameter(initializer(&quot;normal&quot;, [out_channels], ms.float32))</span>
+<span class="sd">        ...         self.matmul = ops.MatMul()</span>
+<span class="sd">        ...         self.add = ops.Add()</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     def construct(self, x):</span>
+<span class="sd">        ...         x = self.matmul(x, self.weight)</span>
+<span class="sd">        ...         x = self.add(x, self.bias)</span>
+<span class="sd">        ...         return x</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; class FFN(nn.Cell):</span>
+<span class="sd">        ...     def __init__(self):</span>
+<span class="sd">        ...         super().__init__()</span>
+<span class="sd">        ...         self.flatten = ops.Flatten()</span>
+<span class="sd">        ...         self.dense1 = Dense(28*28, 64)</span>
+<span class="sd">        ...         self.relu = ops.ReLU()</span>
+<span class="sd">        ...         self.dense2 = Dense(64, 10)</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     def construct(self, x):</span>
+<span class="sd">        ...         x = self.flatten(x)</span>
+<span class="sd">        ...         x = self.dense1(x)</span>
+<span class="sd">        ...         x = self.relu(x)</span>
+<span class="sd">        ...         x = self.dense2(x)</span>
+<span class="sd">        ...         return x</span>
+<span class="sd">        &gt;&gt;&gt; net = FFN()</span>
+<span class="sd">        &gt;&gt;&gt; net.dense1.matmul.shard(((2, 1), (1, 2)))</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Create dataset.</span>
+<span class="sd">        &gt;&gt;&gt; step_per_epoch = 16</span>
+<span class="sd">        &gt;&gt;&gt; def get_dataset(*inputs):</span>
+<span class="sd">        ...     def generate():</span>
+<span class="sd">        ...         for _ in range(step_per_epoch):</span>
+<span class="sd">        ...             yield inputs</span>
+<span class="sd">        ...     return generate</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; input_data = np.random.rand(1, 28, 28).astype(np.float32)</span>
+<span class="sd">        &gt;&gt;&gt; label_data = np.random.rand(1).astype(np.int32)</span>
+<span class="sd">        &gt;&gt;&gt; fake_dataset = get_dataset(input_data, label_data)</span>
+<span class="sd">        &gt;&gt;&gt; dataset = ds.GeneratorDataset(fake_dataset, [&quot;input&quot;, &quot;label&quot;])</span>
+<span class="sd">        &gt;&gt;&gt; # Train network.</span>
+<span class="sd">        &gt;&gt;&gt; optimizer = nn.Momentum(net.trainable_params(), 1e-3, 0.1)</span>
+<span class="sd">        &gt;&gt;&gt; loss_fn = nn.CrossEntropyLoss()</span>
+<span class="sd">        &gt;&gt;&gt; loss_cb = train.LossMonitor()</span>
+<span class="sd">        &gt;&gt;&gt; model = ms.Model(network=net, loss_fn=loss_fn, optimizer=optimizer)</span>
+<span class="sd">        &gt;&gt;&gt; model.train(epoch=2, train_dataset=dataset, callbacks=[loss_cb])</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
         <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">set_algo_parameters_config_func_map</span><span class="p">:</span>

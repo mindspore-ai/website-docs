@@ -166,6 +166,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore.train.serialization</span> <span class="kn">import</span> <span class="n">save_checkpoint</span><span class="p">,</span> <span class="n">load_checkpoint</span>
 <span class="kn">from</span> <span class="nn">mindspore.train.callback._checkpoint</span> <span class="kn">import</span> <span class="n">ModelCheckpoint</span><span class="p">,</span> <span class="n">_chg_ckpt_file_name_if_same_exist</span>
@@ -1160,6 +1161,8 @@
 <span class="sd">            ...                  loss_scale_manager=loss_scale_manager)</span>
 <span class="sd">            &gt;&gt;&gt; model.train(2, dataset)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># prepare dataset for obfuscated model</span>
+        <span class="n">train_dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_obf_dataset</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span>
         <span class="n">device_target</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">_is_ps_mode</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">_cache_enable</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="n">device_target</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Ascend&quot;</span><span class="p">,</span> <span class="s2">&quot;CPU&quot;</span><span class="p">])</span> <span class="ow">and</span> <span class="n">dataset_sink_mode</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;For PS mode, reset datasink mode to False when using Ascend or CPU backend.&quot;</span><span class="p">)</span>
@@ -1581,6 +1584,7 @@
 <span class="sd">            - `Advanced Encapsulation: Model - Train and Save Model</span>
 <span class="sd">              &lt;https://mindspore.cn/tutorials/en/master/advanced/model.html#train-and-save-model&gt;`_</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">valid_dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_obf_dataset</span><span class="p">(</span><span class="n">valid_dataset</span><span class="p">)</span>
         <span class="n">dataset_sink_mode</span> <span class="o">=</span> <span class="n">Validator</span><span class="o">.</span><span class="n">check_bool</span><span class="p">(</span><span class="n">dataset_sink_mode</span><span class="p">)</span>
 
         <span class="n">_device_number_check</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parallel_mode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_number</span><span class="p">)</span>
@@ -1777,9 +1781,9 @@
 <span class="sd">                table file for inference. The content of the configuration file is as follows:</span>
 
 <span class="sd">                config_path defines the path of the configuration file, which is used to pass user-defined</span>
-<span class="sd">                    options during model building. In the following scenarios, users may need to set parameters.</span>
-<span class="sd">                    For example: &quot;/home/user/config.ini&quot;. Default value: ``&quot;&quot; `` , here is the content of the</span>
-<span class="sd">                    config.ini file:</span>
+<span class="sd">                options during model building. In the following scenarios, users may need to set parameters.</span>
+<span class="sd">                For example: &quot;/home/user/config.ini&quot;. Default value: ``&quot;&quot;`` , here is the content of the</span>
+<span class="sd">                config.ini file:</span>
 
 <span class="sd">                .. code-block::</span>
 
@@ -2054,7 +2058,18 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Object, the instance of evaluate network.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_network</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_network</span>
+
+    <span class="k">def</span> <span class="nf">_prepare_obf_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_network</span><span class="p">,</span> <span class="s1">&#39;obf_ratios&#39;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">dataset</span>
+        <span class="n">data_size</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+        <span class="n">obf_ratio_dataset</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">data_size</span><span class="p">):</span>
+            <span class="n">obf_ratio_dataset</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_network</span><span class="o">.</span><span class="n">obf_ratios</span><span class="p">)</span>
+        <span class="n">obf_ratio_dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">NumpySlicesDataset</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">obf_ratio_dataset</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;y_obf&quot;</span><span class="p">])</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">zip</span><span class="p">((</span><span class="n">dataset</span><span class="p">,</span> <span class="n">obf_ratio_dataset</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">dataset</span></div>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Model&quot;</span><span class="p">]</span>

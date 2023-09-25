@@ -515,12 +515,13 @@
 <li><p><strong>CallPrimitive</strong>： <cite>CallPrimitive</cite> 节点代表在前向计算中调用Primitive对象。</p></li>
 <li><p><strong>CallFunction</strong>： <cite>CallFunction</cite> 节点代表在前向计算中调用了一个函数。</p></li>
 <li><p><strong>CallMethod</strong>： <cite>CallMethod</cite> 不能对应到Cell或者Primitive的节点。</p></li>
-<li><p><strong>Python</strong>： <cite>Python</cite> 节点包含不支持的 <cite>ast</cite> 的节点类型或不必要的解析 <cite>ast</cite> 节点。</p></li>
-<li><p><strong>Input</strong>：输入节点代表SymbolTree的输入，对应方法的参数。</p></li>
-<li><p><strong>Output</strong>: 输出节点代表SymbolTree的输出，对应方法的 <cite>return</cite> 语句。</p></li>
-<li><p><strong>Tree</strong>: 树节点代表前向计算中调用了别的网络。</p></li>
+<li><p><strong>Python</strong>： <cite>Python</cite> 节点代表不支持的 <cite>ast</cite> 节点或无需解析的 <cite>ast</cite> 节点。</p></li>
+<li><p><strong>Input</strong>： <cite>Input</cite> 节点代表SymbolTree的输入，对应方法的参数。</p></li>
+<li><p><strong>Output</strong>： <cite>Output</cite> 节点代表SymbolTree的输出，对应方法的 <cite>return</cite> 语句。</p></li>
+<li><p><strong>Tree</strong>： <cite>Tree</cite> 节点代表前向计算中调用了别的网络。</p></li>
 <li><p><strong>CellContainer</strong>: <cite>CellContainer</cite> 节点代表在前向计算中调用 <a class="reference internal" href="nn/mindspore.nn.SequentialCell.html#mindspore.nn.SequentialCell" title="mindspore.nn.SequentialCell"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.nn.SequentialCell</span></code></a> 函数。</p></li>
-<li><p><strong>MathOps</strong>： 运算符节点代表在前向计算中的一个运算操作，如加法运算或比较运算。</p></li>
+<li><p><strong>MathOps</strong>： <cite>MathOps</cite> 节点代表在前向计算中的一个运算操作，如加法运算或比较运算。</p></li>
+<li><p><strong>ControlFlow</strong>： <cite>ControlFlow</cite> 节点代表一个控制流语句，如 <cite>if</cite> 语句。</p></li>
 </ul>
 </dd></dl>
 
@@ -690,7 +691,44 @@
 <dt class="sig sig-object py" id="mindspore.rewrite.SymbolTree.create">
 <span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">network</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mindspore/rewrite/api/symbol_tree.html#SymbolTree.create"><span class="viewcode-link"><span class="pre">[源代码]</span></span></a><a class="headerlink" href="#mindspore.rewrite.SymbolTree.create" title="打开链接"></a></dt>
 <dd><p>通过传入网络实例 <cite>network</cite> ，创建一个SymbolTree对象。</p>
-<p>该接口会解析传入的网络实例，将前向计算过程的每一条源码语句展开，并解析为节点，存储在SymbolTree中。</p>
+<p>该接口会解析传入的网络实例，将前向计算过程的每一条源码语句展开，并解析为节点，存储在SymbolTree中。具体流程如下：</p>
+<ol class="arabic simple">
+<li><p>获取网络实例对应的源码代码</p></li>
+<li><p>对网络进行AST解析，获取网络里各个语句的AST节点（抽象语法树）</p></li>
+<li><p>将网络前向计算过程里的复杂语句展开为多个简单语句</p></li>
+<li><p>创建SymbolTree对象，每个SymbolTree对应一个网络实例</p></li>
+<li><p>使用rewrite节点存储网络前向计算过程的每条语句，节点记录了语句的输入、输出等信息</p></li>
+<li><p>将rewrite节点保存到SymbolTree里，同时更新和维护节点间的拓扑连接关系</p></li>
+<li><p>返回网络实例对应的SymbolTree对象</p></li>
+</ol>
+<p>如果网络的前向计算过程里调用了类型为 <a class="reference internal" href="nn/mindspore.nn.Cell.html#mindspore.nn.Cell" title="mindspore.nn.Cell"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.nn.Cell</span></code></a> 的用户自定义网络，rewrite会为对应语句生成类型
+为 <cite>NodeType.Tree</cite> 的节点，这类节点内部保存了一个新的SymbolTree，这个SymbolTree解析并维护着自定义网络的节点信息。</p>
+<p>如果网络的前向计算过程里调用了以下类型的语句，rewrite会将该语句所对应的内部语句进行解析，并生成对应节点：</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="nn/mindspore.nn.SequentialCell.html#mindspore.nn.SequentialCell" title="mindspore.nn.SequentialCell"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.nn.SequentialCell</span></code></a></p></li>
+<li><p>类内函数</p></li>
+<li><p>控制流语句，如 <cite>if</cite> 语句</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">说明</p>
+<p>由于网络在rewrite操作期间，控制流的具体执行分支还处于未知状态，因此控制流内部的节点和外部的节点之间不会建立拓扑信息。
+用户在控制流外部使用 <a class="reference internal" href="#mindspore.rewrite.Node.get_inputs" title="mindspore.rewrite.Node.get_inputs"><code class="xref py py-func docutils literal notranslate"><span class="pre">mindspore.rewrite.Node.get_inputs()</span></code></a> 和 <a class="reference internal" href="#mindspore.rewrite.Node.get_users" title="mindspore.rewrite.Node.get_users"><code class="xref py py-func docutils literal notranslate"><span class="pre">mindspore.rewrite.Node.get_users()</span></code></a> 接口获取节点时，
+无法获取控制流内部的节点。用户在控制流内部使用这些接口，也无法获取控制流外部的节点。
+因此用户在进行网络修改时，需要手动处理好控制流内部和外部的节点信息。</p>
+</div>
+<p>当前rewrite模块存在以下语法限制：</p>
+<ul class="simple">
+<li><p>仅支持类型为 <a class="reference internal" href="nn/mindspore.nn.Cell.html#mindspore.nn.Cell" title="mindspore.nn.Cell"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.nn.Cell</span></code></a> 的网络作为rewrite模块的输入。</p></li>
+<li><p>暂不支持对存在多个输出值的赋值语句进行解析。</p></li>
+<li><p>暂不支持对循环语句进行解析。</p></li>
+<li><p>暂不支持对装饰器语法进行解析。</p></li>
+<li><p>暂不支持对类变量语法进行解析。如果类变量使用了外部数据，可能导致rewrite后的网络出现数据缺失。</p></li>
+<li><p>暂不支持对局部类和内嵌类进行解析，即类的定义需要放在最外层。</p></li>
+<li><p>暂不支持对闭包语法进行解析，即类外函数的定义需要放在最外层。</p></li>
+<li><p>暂不支持对lambda表达式语法进行解析。</p></li>
+</ul>
+<p>对于不支持解析的语句，rewrite会为对应语句生成类型为 <cite>NodeType.Python</cite> 的节点，以确保rewrite后的网络可以正常运行。
+<cite>Python</cite> 节点不支持对语句的输入和输出进行修改，且可能出现变量名与rewrite生成的变量名的问题，此时用户需要手动对变量名进行调整。</p>
 <dl class="simple">
 <dt>参数：</dt><dd><ul class="simple">
 <li><p><strong>network</strong> (Cell) - 待修改的网络实例。</p></li>
@@ -767,6 +805,14 @@
 <dt class="sig sig-object py" id="mindspore.rewrite.SymbolTree.get_network">
 <span class="sig-name descname"><span class="pre">get_network</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mindspore/rewrite/api/symbol_tree.html#SymbolTree.get_network"><span class="viewcode-link"><span class="pre">[源代码]</span></span></a><a class="headerlink" href="#mindspore.rewrite.SymbolTree.get_network" title="打开链接"></a></dt>
 <dd><p>获取基于SymbolTree生成的网络对象。源码会保存到文件中，文件保存在当前目录的 <cite>rewritten_network</cite> 文件夹里。</p>
+<div class="admonition note">
+<p class="admonition-title">说明</p>
+<ul class="simple">
+<li><p>rewrite模块对网络的修改基于对原有网络实例的AST树的修改实现，且新的网络实例会从原有网络实例里获取属性信息，
+因此，新网络实例和原有网络实例存在数据关联，原有网络不应该再被使用。</p></li>
+<li><p>由于新网络和原有网络实例存在数据关联，暂不支持使用rewrite生成的源码文件手动创建网络实例。</p></li>
+</ul>
+</div>
 <dl class="simple">
 <dt>返回：</dt><dd><p>根据SymbolTree生成的网络对象。</p>
 </dd>
@@ -875,8 +921,15 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="mindspore.rewrite.SymbolTree.print_node_tabulate">
 <span class="sig-name descname"><span class="pre">print_node_tabulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">all_nodes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/library/functions.html#bool" title="(在 Python v3.8)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mindspore/rewrite/api/symbol_tree.html#SymbolTree.print_node_tabulate"><span class="viewcode-link"><span class="pre">[源代码]</span></span></a><a class="headerlink" href="#mindspore.rewrite.SymbolTree.print_node_tabulate" title="打开链接"></a></dt>
-<dd><p>打印SymbolTree里节点的拓扑信息，包括节点类型、节点名称、节点对应代码、节点的输入输出关系等。
-信息通过print接口输出到屏幕上。</p>
+<dd><p>打印SymbolTree里节点的拓扑信息，包括节点类型、节点名称、节点对应代码、节点的输入输出关系等。</p>
+<p>信息通过print接口输出到屏幕上，包括以下信息：</p>
+<ul class="simple">
+<li><p><strong>node type</strong> (str)：节点类型，具体类型参考 <a class="reference internal" href="#mindspore.rewrite.NodeType" title="mindspore.rewrite.NodeType"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.rewrite.NodeType</span></code></a> 。</p></li>
+<li><p><strong>name</strong> (str)： 节点名称。</p></li>
+<li><p><strong>codes</strong> (str)： 节点对应的源代码语句。</p></li>
+<li><p><strong>arg providers</strong> (Dict[int, Tuple[str, int]])： 格式为 <cite>{[idx, (n, k)]}</cite> ，代表该节点的第 <cite>idx</cite> 个参数是节点 <cite>n</cite> 的第 <cite>k</cite> 个输出提供的。</p></li>
+<li><p><strong>target users</strong> (Dict[int, List[Tuple[str, int]]])： 格式为 <cite>{[idx, [(n, k)]]}</cite> ，代表该节点的第 <cite>idx</cite> 个输出被用作节点 <cite>n</cite> 的第 <cite>k</cite> 个参数。</p></li>
+</ul>
 <dl class="simple">
 <dt>参数：</dt><dd><ul class="simple">
 <li><p><strong>all_nodes</strong> (bool) - 打印所有节点的信息，包括在 <cite>CallFunction</cite> 节点、 <cite>CellContainer</cite> 节点和
