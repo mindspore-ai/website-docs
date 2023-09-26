@@ -976,6 +976,27 @@ ${menu
             gotoId()
         }
 
+        // 生成锚点list
+        function sideNodeList(
+            tag,
+            isShow = false,
+            isId = false,
+            obj = '',
+            className = ''
+        ) {
+            const name = filterXSS(tag.innerText)
+            return `<li>
+              <span class="line"></span>
+              <a title="${name}" href="#${filterXSS(isId ? tag.closest('dt').id : tag.parentNode.id)}">${name}</a>
+              ${
+                  isShow
+                      ? `<ul class='${filterXSS(className)}'>${
+                            obj ? obj : ''
+                        }</ul>`
+                      : ''
+              }
+            </li> `
+        }
         // 右侧锚点标识
         function sideRightAnchor() {
             let sectionList = $('.document>div:first-of-type>section')
@@ -1016,50 +1037,32 @@ ${menu
                                 let navLi4Array =
                                     h3[i].parentNode.querySelectorAll('h4')
                                 for (let k = 0; k < navLi4Array.length; k++) {
-                                    navLi4 += `<li><span class="line"></span>
-                                <a title="${
-                                    navLi4Array[k].innerText
-                                }" href='#${filterXSS(
-                                        navLi4Array[k].parentNode.id
-                                    )}'>
-                                ${filterXSS(navLi4Array[k].innerText)}</a>
-                              </li>`
+                                    navLi4 += sideNodeList(navLi4Array[k])
                                 }
-                                navLi3 +=
-                                    '<li><span class="line"></span><a title="' +
-                                    filterXSS(h3[i].innerText) +
-                                    '" href=\'#' +
-                                    filterXSS(h3[i].parentNode.id) +
-                                    "'>" +
-                                    filterXSS(h3[i].innerText) +
-                                    "</a><ul class='navList4'>" +
-                                    navLi4 +
-                                    '</ul></li>'
+                                navLi3 += sideNodeList(
+                                    h3[i],
+                                    true,
+                                    false,
+                                    navLi4,
+                                    'navList4'
+                                )
                             } else {
-                                navLi3 +=
-                                    '<li><span class="line"></span><a title="' +
-                                    filterXSS(h3[i].innerText) +
-                                    '" href=\'#' +
-                                    filterXSS(h3[i].parentNode.id) +
-                                    "'>" +
-                                    filterXSS(h3[i].innerText) +
-                                    '</a></li>'
+                                navLi3 += sideNodeList(h3[i])
                             }
                         }
-                        navLi2 =
-                            '<li><span class="line"></span><a title="' +
-                            filterXSS(h2List[i].innerText) +
-                            '" href="#' +
-                            filterXSS(h2List[i].parentNode.id) +
-                            '">' +
-                            filterXSS(h2List[i].innerText) +
-                            '</a><ul class="navList3"></ul></li>'
+                        navLi2 = sideNodeList(
+                            h2List[i],
+                            true,
+                            false,
+                            '',
+                            'navList3'
+                        )
                     } else {
                         navLi3 = ''
                         navLi2 = ''
                         if (
                             h2List[i].parentNode.querySelectorAll(
-                                '.class>dt .descname>.pre ,.function>dt .descname>.pre'
+                                '.class>dt .descname>.pre,.function>dt .descname>.pre'
                             ).length > 0
                         ) {
                             let navLi3Array = h2List[
@@ -1088,63 +1091,38 @@ ${menu
                                         k < navLi4Array.length;
                                         k++
                                     ) {
-                                        navLi4 +=
-                                            '<li><span class="line"></span><a title="' +
-                                            filterXSS(
-                                                navLi4Array[k].innerText
-                                            ) +
-                                            '" href=\'#' +
-                                            filterXSS(
-                                                navLi4Array[k].parentNode.id
-                                            ) +
-                                            "'>" +
-                                            filterXSS(
-                                                navLi4Array[k].innerText
-                                            ) +
-                                            '</a></li>'
+                                        navLi4 += sideNodeList(
+                                            navLi4Array[k],
+                                            false,
+                                            true
+                                        )
                                     }
-                                    navLi3 +=
-                                        '<li><span class="line"></span><a title="' +
-                                        filterXSS(navLi3Array[j].innerText) +
-                                        '" href=\'#' +
-                                        filterXSS(
-                                            navLi3Array[j].parentNode.id
-                                        ) +
-                                        "'>" +
-                                        filterXSS(navLi3Array[j].innerText) +
-                                        '</a><ul class="navList4">' +
-                                        filterXSS(navLi4) +
-                                        '</ul></li>'
+                                    navLi3 += sideNodeList(
+                                        navLi3Array[j],
+                                        true,
+                                        true,
+                                        navLi4,
+                                        'navList4'
+                                    )
                                 } else {
-                                    navLi3 +=
-                                        '<li><span class="line"></span><a title="' +
-                                        filterXSS(navLi3Array[j].innerText) +
-                                        '" href=\'#' +
-                                        filterXSS(
-                                            navLi3Array[j].parentNode.id
-                                        ) +
-                                        "'>" +
-                                        filterXSS(navLi3Array[j].innerText) +
-                                        '</a><ul class="navList4"></ul></li>'
+                                    navLi3 += sideNodeList(
+                                        navLi3Array[j],
+                                        true,
+                                        true,
+                                        '',
+                                        'navList4'
+                                    )
                                 }
                             }
-                            navLi2 =
-                                '<li><span class="line"></span><a title="' +
-                                filterXSS(h2List[i].innerText) +
-                                '" href="#' +
-                                filterXSS(h2List[i].parentNode.id) +
-                                '">' +
-                                filterXSS(h2List[i].innerText) +
-                                '</a><ul class="navList3"></ul></li>'
+                            navLi2 = sideNodeList(
+                                h2List[i],
+                                true,
+                                false,
+                                '',
+                                'navList3'
+                            )
                         } else {
-                            navLi2 =
-                                '<li><span class="line"></span><a title="' +
-                                filterXSS(h2List[i].innerText) +
-                                '" href="#' +
-                                filterXSS(h2List[i].parentNode.id) +
-                                '">' +
-                                filterXSS(h2List[i].innerText) +
-                                '</a></li>'
+                            navLi2 = sideNodeList(h2List[i])
                         }
                     }
 
@@ -1176,7 +1154,7 @@ ${menu
                                 const descnameParentID = $(this)
                                     .closest('dt')
                                     .attr('id')
-                                return `<li><a href="#${descnameParentID}">${descnameText}</a></li>`
+                                return `<li><a href="#${descnameParentID}" title="${descnameText}">${descnameText}</a></li>`
                             })
                             .get()
                             .join('')
@@ -1201,7 +1179,7 @@ ${menu
                 }
             }
             $('.navRight').wrap('<div class="navRightWraper"></div>')
-            $('.navRightWraper').append('<div class="navRightMasker"></div>')
+            // $('.navRightWraper').append('<div class="navRightMasker"></div>')
             // computeNavRightMask()
             $('.wy-nav-content-wrap').scroll(navRightScroll)
 
@@ -1209,7 +1187,10 @@ ${menu
             function navContentAnchor() {
                 for (let i = 0; i < navListLink.length; i++) {
                     let anchorId = navListLink.eq(i).attr('href').substring(1)
-                    let newAnchorId = escapeJquery(anchorId)
+                    let newAnchorId = anchorId.replace(
+                        /[-\/\\^$*+?.()|[\]{}]/g,
+                        '\\$&'
+                    )
                     if (!newAnchorId) return
                     if ($('#' + newAnchorId).offset().top - 140 < 116) {
                         navListLink.closest('li').removeClass('selected')
@@ -1273,7 +1254,6 @@ ${menu
 
         // 百度统计
         function createScriptBaidu() {
-            // var _hmt = _hmt || [];
             ;(function () {
                 var hm = document.createElement('script')
                 hm.src =
@@ -1282,62 +1262,12 @@ ${menu
                 s.parentNode.insertBefore(hm, s)
             })()
         }
-        // jQuery中id含有特殊字符转义后使用
-        function escapeJquery(srcString) {
-            // 转义之后的结果
-            var escapseResult = srcString
-            // javascript正则表达式中的特殊字符
-            var jsSpecialChars = [
-                '\\',
-                '^',
-                '$',
-                '*',
-                '?',
-                '.',
-                '+',
-                '(',
-                ')',
-                '[',
-                ']',
-                '|',
-                '{',
-                '}',
-            ]
-            // jquery中的特殊字符,不是正则表达式中的特殊字符
-            var jquerySpecialChars = [
-                '~',
-                '`',
-                '@',
-                '#',
-                '%',
-                '&',
-                '=',
-                "'",
-                '"',
-                ':',
-                ';',
-                '<',
-                '>',
-                ',',
-                '/',
-            ]
-            for (let i = 0; i < jsSpecialChars.length; i++) {
-                escapseResult = escapseResult.replace(
-                    new RegExp('\\' + jsSpecialChars[i], 'g'),
-                    '\\' + jsSpecialChars[i]
-                )
-            }
-            for (let i = 0; i < jquerySpecialChars.length; i++) {
-                escapseResult = escapseResult.replace(
-                    new RegExp(jquerySpecialChars[i], 'g'),
-                    '\\' + jquerySpecialChars[i]
-                )
-            }
-            return escapseResult
-        }
+
         // 判断是否 Pad
         function isPad(cb) {
-            let screen = document.documentElement.clientWidth
+            let screen =
+                document.documentElement.clientWidth ||
+                document.body.clientWidth
             if (screen < 1200) {
                 cb()
             }
