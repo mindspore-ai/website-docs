@@ -29,6 +29,7 @@ RUN apt install -y software-properties-common \
     && apt install -y doxygen \
     && apt install -y pandoc \
     && apt install -y libgmp-dev \
+    && apt install -y libopenmpi-dev \
     && apt clean
 
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
