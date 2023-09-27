@@ -237,12 +237,25 @@ ${
 </div></header>`
             },
             h5HeadMenu: function () {
+                const codeList = [
+                    {
+                        value: 'gitee',
+                        label: 'Gitee',
+                        href: `${configIP.GITEE_URL}/mindspore/mindspore`,
+                    },
+                    {
+                        value: 'github',
+                        label: 'Github',
+                        href: `${configIP.GITHUB_URL}/mindspore-ai/mindspore`,
+                    },
+                ]
                 return `
   <div class="header-menu-layer">
     <div class="menu-mask"></div>
     <div class="menu-content">
       <div class="menu-left">
         <ul class="menu-list">
+        <li class="menu-item"><a href="/" >${isEn ? 'Home' : '首页'}</a></li>
         ${
             headerMenuData &&
             headerMenuData
@@ -266,6 +279,19 @@ ${
                 .join('')
         }
         </ul>
+        <div class="menu-tool">
+          <div class="menu-item"><a href="javascript:;" data-val='7'>${
+              isEn ? 'Code' : '代码'
+          }</a></div>
+          <div class="tool-item">
+          <a href="${filterXSS(
+              newNavPath
+          )}" class="dropdown-toggle" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                  <span class="languageIpt">EN</span>
+              </a>
+            <div class="theme-change"><i class="icon-theme light"></i></div>
+          </div>
+        </div>
       </div>
       <div class="menu-right">
           ${
@@ -314,6 +340,15 @@ ${
                   })
                   .join('')
           }
+          <ul class="sub-menu">
+            ${codeList
+                .map((item) => {
+                    return `<li class="sub-menu-item"><a href="${item.href}"  target="_blank">
+                    ${item.label}
+                    </a></li>`
+                })
+                .join('')}
+          </ul>
       </div>
     </div>
   </div>`
@@ -460,9 +495,19 @@ ${msHeader.h5HeadMenu()}
                         $('.header-menu-layer').show()
                         $(this).addClass('on')
                     }
+                    $('.menu-left').find('.menu-item').removeClass('on')
+                })
+                $('.menu-mask').on('click', function () {
+                    $('.header-menu-layer').hide()
+                    $('.header-menu-icon').removeClass('on')
                 })
                 $('.menu-item a').on('click', function () {
                     const menuIndex = $(this).data('val')
+                    $(this)
+                        .closest('.menu-left')
+                        .find('.menu-item')
+                        .removeClass('on')
+                    $(this).parent().addClass('on')
                     $('.menu-right .sub-menu').hide().eq(menuIndex).show()
                 })
 
