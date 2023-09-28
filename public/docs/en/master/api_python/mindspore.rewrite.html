@@ -563,7 +563,7 @@ cell-op or primitive-op in MindSpore.</p></li>
 <li><p>CellContainer: <cite>CellContainer</cite> node represents invoking method <a class="reference internal" href="nn/mindspore.nn.SequentialCell.html#mindspore.nn.SequentialCell" title="mindspore.nn.SequentialCell"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.nn.SequentialCell</span></code></a> in
 forward method.</p></li>
 <li><p>MathOps: <cite>MathOps</cite> node represents a mathematical operation, such as adding or comparing in forward method.</p></li>
-<li><p>ControlFlow: <cite>ControlFlow</cite> node represents a control flow statement, such as for, while and if statement.</p></li>
+<li><p>ControlFlow: <cite>ControlFlow</cite> node represents a control flow statement, such as if statement.</p></li>
 </ul>
 </dd></dl>
 
@@ -749,7 +749,70 @@ used as a parameter for the insert operation.</p>
 <dd><p>Create a SymbolTree object by passing in the network instance <cite>network</cite>.</p>
 <p>This interface parses the <cite>network</cite> instance, expands each source
 code statement of the forward computation process, and parses it into nodes,
-which is stored in the SymbolTree.</p>
+which is stored in the SymbolTree. The specific process is as follows:</p>
+<ol class="arabic simple">
+<li><p>Obtain the source code of the network instance.</p></li>
+<li><p>Perform AST parsing on the network and obtain the AST nodes (abstract syntax trees) of each
+statement in the network.</p></li>
+<li><p>Expand complex statements in the network forward evaluation process into multiple simple statements.</p></li>
+<li><p>Create a SymbolTree object. Each SymbolTree corresponds to one network instance.</p></li>
+<li><p>Use the rewrite node to store each statement of the network forward computation process. The node records
+the input, output, and other information of the statement.</p></li>
+<li><p>Save the rewrite node to the SymbolTree, and update and maintain the topological connection between
+the nodes.</p></li>
+<li><p>Return the SymbolTree object corresponding to the network instance.</p></li>
+</ol>
+<p>If a user-defined network of type <a class="reference internal" href="nn/mindspore.nn.Cell.html#mindspore.nn.Cell" title="mindspore.nn.Cell"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.nn.Cell</span></code></a> is called in the forward computation process
+of the network, rewrite will generate a node of type <cite>NodeType.Tree</cite> for the corresponding statement. This
+type of node stores a new SymbolTree, which parses and maintains the node information of the user-defined
+network.</p>
+<p>If the following types of statements are called in the forward computation process of the network, rewrite
+will parse the internal statements in the statement and generate corresponding nodes:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="nn/mindspore.nn.SequentialCell.html#mindspore.nn.SequentialCell" title="mindspore.nn.SequentialCell"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.nn.SequentialCell</span></code></a></p></li>
+<li><p>Functions within classes</p></li>
+<li><p>Control flow statements, such as <cite>if</cite> statements</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Because the specific execution branch of control flows are still unknown during the rewrite operation
+of the network, no topology information will be established between the nodes inside the control flow
+and the nodes outside.
+Users cannot obtain nodes inside the control flow when they acquire nodes outside the control flow using
+interfaces like <a class="reference internal" href="#mindspore.rewrite.Node.get_inputs" title="mindspore.rewrite.Node.get_inputs"><code class="xref py py-func docutils literal notranslate"><span class="pre">mindspore.rewrite.Node.get_inputs()</span></code></a> and <a class="reference internal" href="#mindspore.rewrite.Node.get_users" title="mindspore.rewrite.Node.get_users"><code class="xref py py-func docutils literal notranslate"><span class="pre">mindspore.rewrite.Node.get_users()</span></code></a> .
+Users also cannot obtain nodes outside the control flow, if they use these interfaces inside the control
+flow.
+Therefore, when users modify the network, they need to manually handle the node information inside and
+outside the control flow.</p>
+</div>
+<p>The current rewrite module has the following syntax limitations:</p>
+<ul class="simple">
+<li><p>Only networks of type <a class="reference internal" href="nn/mindspore.nn.Cell.html#mindspore.nn.Cell" title="mindspore.nn.Cell"><code class="xref py py-class docutils literal notranslate"><span class="pre">mindspore.nn.Cell</span></code></a> are supported as input to the rewrite module.</p></li>
+<li><p>Parsing assignment statements with multiple output values is not currently supported.</p></li>
+<li><p>Parsing loop statements is not currently supported.</p></li>
+<li><p>Parsing decorator syntax is not currently supported.</p></li>
+<li><dl class="simple">
+<dt>Parsing class variable syntax is not currently supported. If class variable uses external data,</dt><dd><p>the network after rewrite may be missing data.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Parsing local classes and embedded classes is not currently supported, that is, the definition</dt><dd><p>of classes need to be placed on the outermost layer.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Parsing closure syntax is not currently supported, that is, the definition of out-of-class</dt><dd><p>functions need to be placed at the outermost layer.</p>
+</dd>
+</dl>
+</li>
+<li><p>Parsing lambda expression syntax is not currently supported.</p></li>
+</ul>
+<p>For statements that do not support parsing, rewrite will generate nodes of type <cite>NodeType.Python</cite>
+for corresponding statements to ensure that the network after rewrite can run normally.
+The <cite>Python</cite> node does not support modifying the input and output of statements, and there may be
+a problem between variable names and those generated by the rewrite. In this case, users need to
+adjust the variable names manually.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>network</strong> (<a class="reference internal" href="nn/mindspore.nn.Cell.html#mindspore.nn.Cell" title="mindspore.nn.Cell"><em>Cell</em></a>) – <cite>network</cite> used to create SymbolTree.</p>
@@ -827,6 +890,17 @@ If the network has already been modified, the source code of modified network is
 <span class="sig-name descname"><span class="pre">get_network</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mindspore/rewrite/api/symbol_tree.html#SymbolTree.get_network"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mindspore.rewrite.SymbolTree.get_network" title="Permalink to this definition"></a></dt>
 <dd><p>Get the network object generated based on SymbolTree.
 The source code is saved to a file in the ‘rewritten_network’ folder of the current directory.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>The modification of network by rewrite module is based on the modification of AST tree of
+original network instance, and the new network instance will obtain attribute information
+from original network instance, so the new network instance and the original network instance
+have data association, and the original network should no longer be used.</p></li>
+<li><p>Due to the data association between the new network and the original network instance, manually creating
+a network instance using the source code file generated by rewrite is not currently supported.</p></li>
+</ul>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>A network object generated from SymbolTree.</p>
@@ -941,8 +1015,17 @@ and sub symbol tree. Default: <code class="docutils literal notranslate"><span c
 <dt class="sig sig-object py" id="mindspore.rewrite.SymbolTree.print_node_tabulate">
 <span class="sig-name descname"><span class="pre">print_node_tabulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">all_nodes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/library/functions.html#bool" title="(in Python v3.8)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mindspore/rewrite/api/symbol_tree.html#SymbolTree.print_node_tabulate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mindspore.rewrite.SymbolTree.print_node_tabulate" title="Permalink to this definition"></a></dt>
 <dd><p>Print the topology information of nodes in SymbolTree, including node type, node name, node code,
-and node input-output relationship.
-The information is output to the screen using the print interface.</p>
+and node input-output relationship.</p>
+<p>The information is output to the screen using the print interface, including the following information:</p>
+<ul class="simple">
+<li><p><strong>node type</strong> (str): The type of node, refer to class:<cite>mindspore.rewrite.NodeType</cite> .</p></li>
+<li><p><strong>name</strong> (str): The name of node.</p></li>
+<li><p><strong>codes</strong> (str): The source code statement corresponding to the node.</p></li>
+<li><p><strong>arg providers</strong> (Dict[int, Tuple[str, int]]): The format is <cite>{[idx, (n, k)]}</cite> , which means the
+<cite>idx</cite> th parameter of the node is provided by the <cite>k</cite> th output of node <cite>n</cite> .</p></li>
+<li><p><strong>target users</strong> (Dict[int, List[Tuple[str, int]]]): The format is ‘{[idx, [(n, k)]]}’ , which means
+the <cite>idx</cite> th output of the node is used as the <cite>k</cite> th parameter of node <cite>n</cite> .</p></li>
+</ul>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>all_nodes</strong> (<a class="reference external" href="https://docs.python.org/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – Print information of all nodes, including nodes in CallFunction

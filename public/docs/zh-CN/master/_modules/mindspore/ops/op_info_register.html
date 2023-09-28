@@ -162,13 +162,220 @@
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
 
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Oplib</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
+
+<span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;Linux&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">fcntl</span>
 
 <span class="c1"># path of built-in op info register.</span>
 <span class="n">BUILT_IN_OPS_REGISTER_PATH</span> <span class="o">=</span> <span class="s2">&quot;mindspore/ops/_op_impl&quot;</span>
 <span class="n">BUILT_IN_CUSTOM_OPS_REGISTER_PATH</span> <span class="o">=</span> <span class="s2">&quot;mindspore/ops/_op_impl/_custom_op&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">_get_reg_info_attr</span><span class="p">(</span><span class="n">op_info</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;get attr value&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">op_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;attr&quot;</span><span class="p">,</span> <span class="p">[])):</span>
+        <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">attr_name</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;defaultValue&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">class</span> <span class="nc">_CustomInstaller</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;save custom op registration information to a json file which will be used by GE&quot;&quot;&quot;</span>
+    <span class="n">reg_info_hash</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># used to avoid writing the same reg info to file multiple times</span>
+    <span class="n">copied_paths</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># used to avoid copying the same file multiple times</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op_info</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op_info</span> <span class="o">=</span> <span class="n">op_info</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op_type</span> <span class="o">=</span> <span class="n">op_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;op_name&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">func</span> <span class="k">else</span> <span class="n">func</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">vendor_name</span> <span class="o">=</span> <span class="s2">&quot;ms&quot;</span>
+        <span class="n">custom_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="s2">&quot;./&quot;</span><span class="p">),</span> <span class="s2">&quot;vendors&quot;</span><span class="p">,</span> <span class="n">vendor_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_env</span><span class="p">(</span><span class="n">custom_dir</span><span class="p">)</span>
+        <span class="n">op_impl_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">custom_dir</span><span class="p">,</span> <span class="s2">&quot;op_impl&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ai_core_config_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">op_impl_dir</span><span class="p">,</span> <span class="s2">&quot;ai_core&quot;</span><span class="p">,</span> <span class="s2">&quot;tbe&quot;</span><span class="p">,</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ai_core_impl_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">op_impl_dir</span><span class="p">,</span> <span class="s2">&quot;ai_core&quot;</span><span class="p">,</span> <span class="s2">&quot;tbe&quot;</span><span class="p">,</span> <span class="n">vendor_name</span> <span class="o">+</span> <span class="s2">&quot;_impl&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ai_cpu_config_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">op_impl_dir</span><span class="p">,</span> <span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ai_cpu_impl_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">op_impl_dir</span><span class="p">,</span> <span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="s2">&quot;aicpu_kernel&quot;</span><span class="p">,</span> <span class="s2">&quot;impl&quot;</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_set_env</span><span class="p">(</span><span class="n">custom_opp_path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;set custom file path to env&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ASCEND_CUSTOM_OPP_PATH&quot;</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ASCEND_CUSTOM_OPP_PATH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">custom_opp_path</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">paths</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ASCEND_CUSTOM_OPP_PATH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">custom_opp_path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ASCEND_CUSTOM_OPP_PATH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">custom_opp_path</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ASCEND_CUSTOM_OPP_PATH&quot;</span><span class="p">]</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_create_dir</span><span class="p">(</span><span class="o">*</span><span class="n">dir_names</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;create directory&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">dir_name</span> <span class="ow">in</span> <span class="n">dir_names</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">dir_name</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">dir_name</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">err</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="mi">17</span><span class="p">:</span>  <span class="c1"># File exists</span>
+                        <span class="k">pass</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">err</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_copy_file</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="n">dst_dir</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;copy file&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span> <span class="ow">or</span> <span class="n">src_path</span> <span class="ow">in</span> <span class="n">_CustomInstaller</span><span class="o">.</span><span class="n">copied_paths</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">_CustomInstaller</span><span class="o">.</span><span class="n">copied_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">src_path</span><span class="p">):</span>
+            <span class="n">lock_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dst_dir</span><span class="p">,</span> <span class="s2">&quot;file.lock&quot;</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">lock_file</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">fcntl</span><span class="o">.</span><span class="n">flock</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span> <span class="n">fcntl</span><span class="o">.</span><span class="n">LOCK_EX</span><span class="p">)</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="n">dst_dir</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_check</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;check if the reg info need written&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;Linux&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MS_DEV_CUSTOM_OPP_PATH&quot;</span><span class="p">):</span>
+            <span class="c1"># only process the first time import the mindspore module</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">op_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;target&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;GPU&quot;</span><span class="p">,</span> <span class="s2">&quot;CPU&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">sha256</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_info</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+        <span class="n">sha256</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">hash_value</span> <span class="o">=</span> <span class="n">sha256</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">hash_value</span> <span class="ow">in</span> <span class="n">_CustomInstaller</span><span class="o">.</span><span class="n">reg_info_hash</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">_CustomInstaller</span><span class="o">.</span><span class="n">reg_info_hash</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hash_value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_find_ai_cpu_so_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">so_file</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;find the absolute path of so&quot;&quot;&quot;</span>
+        <span class="n">current_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+        <span class="n">search_paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">current_path</span> <span class="o">+</span> <span class="s2">&quot;/../lib&quot;</span><span class="p">,</span> <span class="n">current_path</span> <span class="o">+</span> <span class="s2">&quot;/../lib/plugin/ascend&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">search_paths</span><span class="p">:</span>
+            <span class="n">so_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">so_file</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">so_path</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">so_path</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;For Custom op &#39;</span><span class="si">{}</span><span class="s2">&#39;, can not find the aicpu so file &#39;</span><span class="si">{}</span><span class="s2">&#39; in the following directories:</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span>
+                       <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_type</span><span class="p">,</span> <span class="n">so_file</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">search_paths</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_gen_ai_core_reg_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imply_path</span><span class="p">,</span> <span class="n">func_name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;generate reg info&quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">_get_dtype_format</span><span class="p">(</span><span class="n">idx</span><span class="p">):</span>
+            <span class="n">data_type</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">data_format</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">dtype_format</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dtype_format&quot;</span><span class="p">,</span> <span class="p">[])):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">dtype_format</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="n">data_type</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">data_type</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dtype_format</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">dtype_format</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="n">data_format</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">dtype_format</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;DefaultFormat&quot;</span><span class="p">:</span>
+                        <span class="n">data_format</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;ND&quot;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">data_format</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dtype_format</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">data_type</span><span class="p">,</span> <span class="n">data_format</span>
+
+        <span class="n">op_info</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;opFile&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">imply_path</span><span class="p">))[</span><span class="mi">0</span><span class="p">]},</span>
+                   <span class="s2">&quot;opInterface&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">func_name</span><span class="p">}}</span>
+        <span class="c1"># attr</span>
+        <span class="n">attrs_name</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;attr&quot;</span><span class="p">,</span> <span class="p">[])):</span>
+            <span class="n">attr_name</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+            <span class="n">attrs_name</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">attr_name</span><span class="p">)</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;attr_&quot;</span> <span class="o">+</span> <span class="n">attr_name</span>
+            <span class="n">op_info</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span>
+                    <span class="n">op_info</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="k">if</span> <span class="n">attrs_name</span><span class="p">:</span>
+            <span class="n">op_info</span><span class="p">[</span><span class="s2">&quot;attr&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;list&quot;</span><span class="p">:</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">attrs_name</span><span class="p">)}</span>
+        <span class="c1"># input and output</span>
+        <span class="n">inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">op_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;inputs&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">op_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;outputs&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">input_num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">output_num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">input_num</span> <span class="o">+</span> <span class="n">output_num</span><span class="p">):</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">input_num</span> <span class="k">else</span> <span class="n">outputs</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="n">input_num</span><span class="p">]</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;input&quot;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">input_num</span> <span class="k">else</span> <span class="s2">&quot;output&quot;</span>
+            <span class="n">key</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;index&quot;</span><span class="p">))</span>
+            <span class="n">op_info</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>
+                            <span class="s2">&quot;paramType&quot;</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;paramType&quot;</span><span class="p">,</span> <span class="s2">&quot;required&quot;</span><span class="p">),</span>
+                            <span class="s2">&quot;shape&quot;</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;shape&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span><span class="p">)}</span>
+            <span class="n">dtype</span><span class="p">,</span> <span class="n">formats</span> <span class="o">=</span> <span class="n">_get_dtype_format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">dtype</span><span class="p">:</span>
+                <span class="n">op_info</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s2">&quot;dtype&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">formats</span><span class="p">:</span>
+                <span class="n">op_info</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s2">&quot;format&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">formats</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">op_info</span>
+
+    <span class="k">def</span> <span class="nf">_gen_ai_cpu_reg_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">so_file</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;generate reg info&quot;&quot;&quot;</span>
+        <span class="n">op_info</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;opInfo&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;computeCost&quot;</span><span class="p">:</span> <span class="s2">&quot;100&quot;</span><span class="p">,</span>
+                              <span class="s2">&quot;engine&quot;</span><span class="p">:</span> <span class="s2">&quot;DNN_VM_AICPU&quot;</span><span class="p">,</span>
+                              <span class="s2">&quot;flagAsync&quot;</span><span class="p">:</span> <span class="s2">&quot;False&quot;</span><span class="p">,</span>
+                              <span class="s2">&quot;flagPartial&quot;</span><span class="p">:</span> <span class="s2">&quot;False&quot;</span><span class="p">,</span>
+                              <span class="s2">&quot;functionName&quot;</span><span class="p">:</span> <span class="s2">&quot;RunCpuKernel&quot;</span><span class="p">,</span>
+                              <span class="s2">&quot;kernelSo&quot;</span><span class="p">:</span> <span class="n">so_file</span><span class="p">,</span>
+                              <span class="s2">&quot;opKernelLib&quot;</span><span class="p">:</span> <span class="s2">&quot;CUSTAICPUKernel&quot;</span><span class="p">,</span>
+                              <span class="s2">&quot;userDefined&quot;</span><span class="p">:</span> <span class="s2">&quot;True&quot;</span><span class="p">}}</span>
+        <span class="k">return</span> <span class="n">op_info</span>
+
+    <span class="k">def</span> <span class="nf">_save_op_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dst_dir</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">op_info</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;save op info file&quot;&quot;&quot;</span>
+        <span class="n">repo</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">save_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dst_dir</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="n">lock_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dst_dir</span><span class="p">,</span> <span class="s2">&quot;file.lock&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">lock_file</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">fcntl</span><span class="o">.</span><span class="n">flock</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span> <span class="n">fcntl</span><span class="o">.</span><span class="n">LOCK_EX</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">save_path</span><span class="p">):</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fr</span><span class="p">:</span>
+                    <span class="n">json_str</span> <span class="o">=</span> <span class="n">fr</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                <span class="n">json_str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">json_str</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span> <span class="k">else</span> <span class="n">json_str</span>
+                <span class="n">repo</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">json_str</span><span class="p">)</span>
+            <span class="n">repo</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">op_type</span><span class="p">:</span> <span class="n">op_info</span><span class="p">})</span>
+            <span class="k">with</span> <span class="n">os</span><span class="o">.</span><span class="n">fdopen</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_TRUNC</span><span class="p">,</span> <span class="mo">0o600</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fw</span><span class="p">:</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">repo</span><span class="p">,</span> <span class="n">fw</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="s1">&#39;:&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;save reg info to file&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="n">so_name</span> <span class="o">=</span> <span class="n">_get_reg_info_attr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_info</span><span class="p">,</span> <span class="s2">&quot;cust_aicpu&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">so_name</span><span class="p">:</span>
+            <span class="n">_CustomInstaller</span><span class="o">.</span><span class="n">_create_dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ai_cpu_config_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ai_cpu_impl_dir</span><span class="p">)</span>
+            <span class="c1"># copy so file</span>
+            <span class="n">so_file</span> <span class="o">=</span> <span class="s2">&quot;lib&quot;</span> <span class="o">+</span> <span class="n">so_name</span> <span class="o">+</span> <span class="s2">&quot;.so&quot;</span>
+            <span class="n">imply_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_ai_cpu_so_path</span><span class="p">(</span><span class="n">so_file</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_copy_file</span><span class="p">(</span><span class="n">imply_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ai_cpu_impl_dir</span><span class="p">)</span>
+            <span class="c1"># generate and copy reg info file</span>
+            <span class="n">op_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_ai_cpu_reg_info</span><span class="p">(</span><span class="n">so_file</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_save_op_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ai_cpu_config_dir</span><span class="p">,</span> <span class="s2">&quot;cust_aicpu_kernel.json&quot;</span><span class="p">,</span> <span class="n">op_info</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_CustomInstaller</span><span class="o">.</span><span class="n">_create_dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ai_core_config_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ai_core_impl_dir</span><span class="p">)</span>
+            <span class="c1"># copy dsl file</span>
+            <span class="n">imply_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">getfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_copy_file</span><span class="p">(</span><span class="n">imply_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ai_core_impl_dir</span><span class="p">)</span>
+            <span class="c1"># generate and copy reg info file</span>
+            <span class="n">op_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_ai_core_reg_info</span><span class="p">(</span><span class="n">imply_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_copy_file</span><span class="p">(</span><span class="n">imply_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ai_core_impl_dir</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">arc_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ascend910&quot;</span><span class="p">,</span> <span class="s2">&quot;ascend910b&quot;</span><span class="p">]:</span>
+                <span class="n">arc_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ai_core_config_dir</span><span class="p">,</span> <span class="n">arc_name</span><span class="p">)</span>
+                <span class="n">_CustomInstaller</span><span class="o">.</span><span class="n">_create_dir</span><span class="p">(</span><span class="n">arc_dir</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_save_op_info</span><span class="p">(</span><span class="n">arc_dir</span><span class="p">,</span> <span class="s2">&quot;aic-</span><span class="si">{}</span><span class="s2">-ops-info.json&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">arc_name</span><span class="p">),</span> <span class="n">op_info</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">op_info_register</span><span class="p">(</span><span class="n">op_info</span><span class="p">):</span>
@@ -266,6 +473,12 @@
 
     <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
         <span class="nb">setattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s2">&quot;reg_info&quot;</span><span class="p">,</span> <span class="n">reg_info</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">reg_info</span><span class="p">:</span>
+            <span class="n">used_reg_info</span> <span class="o">=</span> <span class="n">reg_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">used_reg_info</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="c1"># ai_cpu should be parsed inside CustomRegOp, skip it here</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">_get_reg_info_attr</span><span class="p">(</span><span class="n">used_reg_info</span><span class="p">,</span> <span class="s2">&quot;cust_aicpu&quot;</span><span class="p">):</span>
+                    <span class="n">_CustomInstaller</span><span class="p">(</span><span class="n">used_reg_info</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
         <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
         <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -1146,6 +1359,8 @@
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">k</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">):</span>
                 <span class="n">k</span> <span class="o">=</span> <span class="n">k</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
             <span class="n">op_info</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="k">if</span> <span class="n">_get_reg_info_attr</span><span class="p">(</span><span class="n">op_info</span><span class="p">,</span> <span class="s2">&quot;cust_aicpu&quot;</span><span class="p">):</span>
+            <span class="n">_CustomInstaller</span><span class="p">(</span><span class="n">op_info</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">op_info</span></div></div>
 
 

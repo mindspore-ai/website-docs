@@ -193,7 +193,61 @@
 
 <span class="sd">        This interface parses the `network` instance, expands each source</span>
 <span class="sd">        code statement of the forward computation process, and parses it into nodes,</span>
-<span class="sd">        which is stored in the SymbolTree.</span>
+<span class="sd">        which is stored in the SymbolTree. The specific process is as follows:</span>
+
+<span class="sd">        1. Obtain the source code of the network instance.</span>
+<span class="sd">        2. Perform AST parsing on the network and obtain the AST nodes (abstract syntax trees) of each</span>
+<span class="sd">           statement in the network.</span>
+<span class="sd">        3. Expand complex statements in the network forward evaluation process into multiple simple statements.</span>
+<span class="sd">        4. Create a SymbolTree object. Each SymbolTree corresponds to one network instance.</span>
+<span class="sd">        5. Use the rewrite node to store each statement of the network forward computation process. The node records</span>
+<span class="sd">           the input, output, and other information of the statement.</span>
+<span class="sd">        6. Save the rewrite node to the SymbolTree, and update and maintain the topological connection between</span>
+<span class="sd">           the nodes.</span>
+<span class="sd">        7. Return the SymbolTree object corresponding to the network instance.</span>
+
+<span class="sd">        If a user-defined network of type :class:`mindspore.nn.Cell` is called in the forward computation process</span>
+<span class="sd">        of the network, rewrite will generate a node of type `NodeType.Tree` for the corresponding statement. This</span>
+<span class="sd">        type of node stores a new SymbolTree, which parses and maintains the node information of the user-defined</span>
+<span class="sd">        network.</span>
+
+<span class="sd">        If the following types of statements are called in the forward computation process of the network, rewrite</span>
+<span class="sd">        will parse the internal statements in the statement and generate corresponding nodes:</span>
+
+<span class="sd">        - :class:`mindspore.nn.SequentialCell`</span>
+<span class="sd">        - Functions within classes</span>
+<span class="sd">        - Control flow statements, such as `if` statements</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            Because the specific execution branch of control flows are still unknown during the rewrite operation</span>
+<span class="sd">            of the network, no topology information will be established between the nodes inside the control flow</span>
+<span class="sd">            and the nodes outside.</span>
+<span class="sd">            Users cannot obtain nodes inside the control flow when they acquire nodes outside the control flow using</span>
+<span class="sd">            interfaces like :func:`mindspore.rewrite.Node.get_inputs` and :func:`mindspore.rewrite.Node.get_users` .</span>
+<span class="sd">            Users also cannot obtain nodes outside the control flow, if they use these interfaces inside the control</span>
+<span class="sd">            flow.</span>
+<span class="sd">            Therefore, when users modify the network, they need to manually handle the node information inside and</span>
+<span class="sd">            outside the control flow.</span>
+
+<span class="sd">        The current rewrite module has the following syntax limitations:</span>
+
+<span class="sd">        - Only networks of type :class:`mindspore.nn.Cell` are supported as input to the rewrite module.</span>
+<span class="sd">        - Parsing assignment statements with multiple output values is not currently supported.</span>
+<span class="sd">        - Parsing loop statements is not currently supported.</span>
+<span class="sd">        - Parsing decorator syntax is not currently supported.</span>
+<span class="sd">        - Parsing class variable syntax is not currently supported. If class variable uses external data,</span>
+<span class="sd">            the network after rewrite may be missing data.</span>
+<span class="sd">        - Parsing local classes and embedded classes is not currently supported, that is, the definition</span>
+<span class="sd">            of classes need to be placed on the outermost layer.</span>
+<span class="sd">        - Parsing closure syntax is not currently supported, that is, the definition of out-of-class</span>
+<span class="sd">            functions need to be placed at the outermost layer.</span>
+<span class="sd">        - Parsing lambda expression syntax is not currently supported.</span>
+
+<span class="sd">        For statements that do not support parsing, rewrite will generate nodes of type `NodeType.Python`</span>
+<span class="sd">        for corresponding statements to ensure that the network after rewrite can run normally.</span>
+<span class="sd">        The `Python` node does not support modifying the input and output of statements, and there may be</span>
+<span class="sd">        a problem between variable names and those generated by the rewrite. In this case, users need to</span>
+<span class="sd">        adjust the variable names manually.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            network (Cell): `network` used to create SymbolTree.</span>
@@ -465,7 +519,16 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Print the topology information of nodes in SymbolTree, including node type, node name, node code,</span>
 <span class="sd">        and node input-output relationship.</span>
-<span class="sd">        The information is output to the screen using the print interface.</span>
+
+<span class="sd">        The information is output to the screen using the print interface, including the following information:</span>
+
+<span class="sd">        - **node type** (str): The type of node, refer to class:`mindspore.rewrite.NodeType` .</span>
+<span class="sd">        - **name** (str): The name of node.</span>
+<span class="sd">        - **codes** (str): The source code statement corresponding to the node.</span>
+<span class="sd">        - **arg providers** (Dict[int, Tuple[str, int]]): The format is `{[idx, (n, k)]}` , which means the</span>
+<span class="sd">          `idx` th parameter of the node is provided by the `k` th output of node `n` .</span>
+<span class="sd">        - **target users** (Dict[int, List[Tuple[str, int]]]): The format is &#39;{[idx, [(n, k)]]}&#39; , which means</span>
+<span class="sd">          the `idx` th output of the node is used as the `k` th parameter of node `n` .</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            all_nodes (bool): Print information of all nodes, including nodes in CallFunction</span>
@@ -508,6 +571,14 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the network object generated based on SymbolTree.</span>
 <span class="sd">        The source code is saved to a file in the &#39;rewritten_network&#39; folder of the current directory.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            - The modification of network by rewrite module is based on the modification of AST tree of</span>
+<span class="sd">              original network instance, and the new network instance will obtain attribute information</span>
+<span class="sd">              from original network instance, so the new network instance and the original network instance</span>
+<span class="sd">              have data association, and the original network should no longer be used.</span>
+<span class="sd">            - Due to the data association between the new network and the original network instance, manually creating</span>
+<span class="sd">              a network instance using the source code file generated by rewrite is not currently supported.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            A network object generated from SymbolTree.</span>

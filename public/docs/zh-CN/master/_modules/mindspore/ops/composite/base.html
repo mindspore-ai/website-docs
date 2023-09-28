@@ -161,6 +161,7 @@
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">ParameterTuple</span>
@@ -170,7 +171,7 @@
     <span class="n">SequenceSliceGetItem_</span><span class="p">,</span> <span class="n">ListSliceSetItem_</span><span class="p">,</span> <span class="n">VmapOperation_</span><span class="p">,</span> <span class="n">TaylorOperation_</span><span class="p">,</span> <span class="n">ListPop_</span><span class="p">,</span> \
     <span class="n">ListClear_</span><span class="p">,</span> <span class="n">ListReverse_</span><span class="p">,</span> <span class="n">ListExtend_</span><span class="p">,</span> <span class="n">DictClear_</span><span class="p">,</span> <span class="n">DictHasKey_</span><span class="p">,</span> <span class="n">DictUpdate_</span><span class="p">,</span> <span class="n">DictFromKeys_</span><span class="p">,</span> \
     <span class="n">ZerosLike_</span><span class="p">,</span> <span class="n">TensorIndexGetitem_</span><span class="p">,</span> <span class="n">TensorIndexSetitem_</span><span class="p">,</span> <span class="n">ListAdd_</span><span class="p">,</span> <span class="n">DictSetItem_</span><span class="p">,</span> \
-    <span class="n">HandleBoolTensor_</span><span class="p">,</span> <span class="n">HandleEmptySlice_</span><span class="p">,</span> <span class="n">PreSetitemByTuple_</span>
+    <span class="n">HandleBoolTensor_</span><span class="p">,</span> <span class="n">HandleEmptySlice_</span><span class="p">,</span> <span class="n">PreSetitemByTuple_</span><span class="p">,</span> <span class="n">HandleScalarTensorIndex_</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">jit</span><span class="p">,</span> <span class="n">_pynative_executor</span><span class="p">,</span> <span class="n">_wrap_func</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_add_flags</span><span class="p">,</span> <span class="n">_core</span>
@@ -179,7 +180,7 @@
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="n">TupleAdd_</span><span class="p">,</span> <span class="n">ListAdd_</span><span class="p">,</span> <span class="n">UnpackCall_</span><span class="p">,</span> <span class="n">TupleGetItemTensor_</span><span class="p">,</span> <span class="n">SequenceSliceGetItem_</span><span class="p">,</span>
            <span class="n">ListSliceSetItem_</span><span class="p">,</span> <span class="n">ZerosLike_</span><span class="p">,</span> <span class="n">TensorIndexGetitem_</span><span class="p">,</span> <span class="n">TensorIndexSetitem_</span><span class="p">,</span>
-           <span class="n">HandleBoolTensor_</span><span class="p">,</span> <span class="n">HandleEmptySlice_</span><span class="p">,</span> <span class="n">PreSetitemByTuple_</span><span class="p">]</span>
+           <span class="n">HandleBoolTensor_</span><span class="p">,</span> <span class="n">HandleEmptySlice_</span><span class="p">,</span> <span class="n">PreSetitemByTuple_</span><span class="p">,</span> <span class="n">HandleScalarTensorIndex_</span><span class="p">]</span>
 
 
 <span class="k">def</span> <span class="nf">add_flags</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">flags</span><span class="p">):</span>
@@ -883,6 +884,9 @@
                 <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;args&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="o">.</span><span class="n">sig_rw</span><span class="o">.</span><span class="n">RW_READ</span><span class="p">,</span> <span class="n">sig</span><span class="o">.</span><span class="n">sig_kind</span><span class="o">.</span><span class="n">KIND_VAR_POSITIONAL</span><span class="p">),))</span>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;For &#39;MultitypeFuncGraph&#39;, the input can not be numpy.ndarray&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">entries</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">entries</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">](</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">output</span>
