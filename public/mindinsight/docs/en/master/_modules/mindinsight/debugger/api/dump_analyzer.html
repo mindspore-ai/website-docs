@@ -465,7 +465,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the TensorStatic of the corresponding rank and iteration.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">tensor_statistics</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">tensor_statistics</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_loader</span><span class="o">.</span><span class="n">has_data</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">tensor_statistics</span>
         <span class="n">net_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_loader</span><span class="o">.</span><span class="n">get_net_name</span><span class="p">()</span>
@@ -479,7 +479,9 @@
                 <span class="n">csv_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
                 <span class="c1"># The first line of the csv file is the title, so skip the first line.</span>
                 <span class="k">for</span> <span class="n">statistic_line</span> <span class="ow">in</span> <span class="n">csv_reader</span><span class="p">:</span>
-                    <span class="n">tensor_statistics</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">statistic_line</span><span class="p">)</span>
+                    <span class="n">tensor_name</span> <span class="o">=</span> <span class="n">statistic_line</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Op Name&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="n">statistic_line</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                        <span class="s1">&#39;IO&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="n">statistic_line</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Slot&#39;</span><span class="p">)</span>
+                    <span class="n">tensor_statistics</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">tensor_name</span><span class="p">:</span> <span class="n">statistic_line</span><span class="p">})</span>
         <span class="k">return</span> <span class="n">tensor_statistics</span>
 
     <span class="k">def</span> <span class="nf">_compute_statistics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">debugger_tensors</span><span class="p">):</span>
@@ -495,7 +497,9 @@
 <span class="sd">            .. code-block::</span>
 
 <span class="sd">                {&quot;rank_id&quot;:{</span>
-<span class="sd">                    &quot;iteration_id&quot;:[TensorStatistic],</span>
+<span class="sd">                    &quot;iteration_id&quot;:</span>
+<span class="sd">                        &quot;tensor_name&quot;:</span>
+<span class="sd">                            [TensorStatistic],</span>
 <span class="sd">                    ...</span>
 <span class="sd">                    }</span>
 <span class="sd">                ...</span>
@@ -508,9 +512,10 @@
             <span class="n">static_in_rank</span> <span class="o">=</span> <span class="n">statistics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">rank_id</span><span class="p">,</span> <span class="p">{})</span>
             <span class="n">iteration</span> <span class="o">=</span> <span class="n">tensor</span><span class="o">.</span><span class="n">iteration</span>
             <span class="n">is_new_iteration</span> <span class="o">=</span> <span class="n">iteration</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">static_in_rank</span>
-            <span class="n">static_in_iter</span> <span class="o">=</span> <span class="n">static_in_rank</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">iteration</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="n">static_in_iter</span> <span class="o">=</span> <span class="n">static_in_rank</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">iteration</span><span class="p">,</span> <span class="p">{})</span>
             <span class="n">single_static</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_statistic</span><span class="p">(</span><span class="n">tensor</span><span class="p">)</span>
-            <span class="n">static_in_iter</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">single_static</span><span class="p">)</span>
+            <span class="n">tensor_name</span> <span class="o">=</span> <span class="n">single_static</span><span class="o">.</span><span class="n">op_name</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="n">single_static</span><span class="o">.</span><span class="n">io</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">single_static</span><span class="o">.</span><span class="n">slot</span><span class="p">)</span>
+            <span class="n">static_in_iter</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">tensor_name</span><span class="p">:</span> <span class="n">single_static</span><span class="p">})</span>
             <span class="k">if</span> <span class="n">is_new_iteration</span><span class="p">:</span>
                 <span class="n">static_in_rank</span><span class="p">[</span><span class="n">iteration</span><span class="p">]</span> <span class="o">=</span> <span class="n">static_in_iter</span>
             <span class="k">if</span> <span class="n">is_new_rank</span><span class="p">:</span>
@@ -559,7 +564,7 @@
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;process statistics in rank, rank_id is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">rank_id</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">iteration_id</span><span class="p">,</span> <span class="n">statistics_in_iteration</span> <span class="ow">in</span> <span class="n">statistics_in_rank</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;process statistics in iteration, iteration_id is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">iteration_id</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">statistic</span> <span class="ow">in</span> <span class="n">statistics_in_iteration</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">statistic</span> <span class="ow">in</span> <span class="n">statistics_in_iteration</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">statistic</span><span class="p">,</span> <span class="n">TensorStatistic</span><span class="p">):</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">_put_tensor_statistic_to_summarystatistics</span><span class="p">(</span><span class="n">statistic</span><span class="p">,</span> <span class="n">summary_statistics</span><span class="p">,</span> <span class="n">overflow_value</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>

@@ -168,6 +168,77 @@
 <section id="inference">
 <h1>Inference<a class="headerlink" href="#inference" title="Permalink to this headline"></a></h1>
 <p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/mindspore/source_en/faq/inference.md"><img alt="View Source On Gitee" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source_en.svg" /></a></p>
+<p><font size=3><strong>Q: In the previous version, 310 inference is performed based on the MindSpore installation package. However, the MindSpore release package of the new version does not support Ascend 310 inference. How do I use Ascend 310 for inference? (Changes in the MindSpore Ascend 310 Inference Release Package)</strong></font></p>
+<p>A: The MindSpore inference function is provided by MindSpore Lite, a core component of MindSpore. Since version 2.0, the Ascend 310 inference package is released by MindSpore Lite and provides continuous maintenance and evolution of related functions. The corresponding interfaces in the MindSpore main release package are not maintained or evolved. Since version 2.2, the MindSpore main release package does not provide the inference interface enabling for the 310. If you need to use the inference interface, install the MindSpore Lite release package or download the MindSpore version earlier than 2.0. For details about how to install and use MindSpore Lite, see <a class="reference external" href="https://www.mindspore.cn/lite">https://www.mindspore.cn/lite</a>.</p>
+<p>HUAWEI Ascend 310 (Ascend) is an energy-efficient and highly integrated AI processor for edge scenarios. It supports inference on MindIR models. In the earlier version, MindSpore provides two methods for enabling inference on the Ascend 310 hardware:</p>
+<ol class="arabic simple">
+<li><p>The MindSpore main release package provides the matching Ascend 310 version that supports C++ inference interfaces.</p></li>
+<li><p>The MindSpore Lite release package provides the matching Ascend version and supports C++ and Java inference.</p></li>
+</ol>
+<p>The C++ APIs provided by the two solutions are basically the same. In the future, MindSpore Lite is used instead of building and maintaining two sets of interfaces.</p>
+<p>The original 310 inference service built based on the MindSpore main release package can be switched to MindSpore Lite with a few modifications. The following is an example:</p>
+<ol class="arabic">
+<li><p>compiling a C++ Project</p>
+<p>You do not need to use the MindSpore installation package. You need to download the MindSpore Lite C++ version package and decompress it to any working directory. The directory structure is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>mindspore-lite-{version}-linux-{arch}
+├── runtime
+│   ├── include
+│   ├── lib
+</pre></div>
+</div>
+<p>The path to the include header file is changed to the include directory, and the link to the dynamic library is changed to lib/libmindspore-lite.so during compilation. If minddata is required, also link lib/libminddata-lite.so.</p>
+<p>For example, set the environment variable <code class="docutils literal notranslate"><span class="pre">MINDSPORE_PATH=/path/to/mindspore-lite</span></code>, and cmake is rewritten in the following way:</p>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span>...
+include_directories(${MINDSPORE_PATH})
+include_directories(${MINDSPORE_PATH}/include)
+...
+
+if(EXISTS ${MINDSPORE_PATH}/lib/libmindspore-lite.so)
+    message(--------------- Compile-with-MindSpore-Lite ----------------)
+    set(MS_LIB ${MINDSPORE_PATH}/lib/libmindspore-lite.so)
+    set(MD_LIB ${MINDSPORE_PATH}/lib/libminddata-lite.so)
+endif()
+
+add_executable(main src/main.cc)
+target_link_libraries(main ${MS_LIB} ${MD_LIB})
+</pre></div>
+</div>
+</li>
+<li><p>inference</p>
+<p>Except that the usage of the following two classes is different, all the methods for obtaining and structuring input and output, and executing inference are the same.</p>
+<ul>
+<li><p>2.1 structuring context</p>
+<p>The method for structuring context is modified as follows: <code class="docutils literal notranslate"><span class="pre">Ascend310DeviceInfo</span></code> is replaced with <code class="docutils literal notranslate"><span class="pre">AscendDeviceInfo</span></code>.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="c1">// Original MindSpore</span>
+<span class="o">-</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Context</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="o">-</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">ascend310</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">mindspore</span><span class="o">::</span><span class="n">Ascend310DeviceInfo</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="o">-</span><span class="w"> </span><span class="n">ascend310</span><span class="o">-&gt;</span><span class="n">SetDeviceID</span><span class="p">(</span><span class="n">device_id</span><span class="p">);</span>
+<span class="o">-</span><span class="w"> </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">MutableDeviceInfo</span><span class="p">().</span><span class="n">push_back</span><span class="p">(</span><span class="n">ascend310</span><span class="p">);</span>
+
+<span class="c1">// MindSpore lite</span>
+<span class="o">+</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Context</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="o">+</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">ascend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">mindspore</span><span class="o">::</span><span class="n">AscendDeviceInfo</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="o">+</span><span class="w"> </span><span class="n">ascend</span><span class="o">-&gt;</span><span class="n">SetDeviceID</span><span class="p">(</span><span class="n">device_id</span><span class="p">);</span>
+<span class="o">+</span><span class="w"> </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">MutableDeviceInfo</span><span class="p">().</span><span class="n">push_back</span><span class="p">(</span><span class="n">ascend</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+<li><p>2.2 graph compilation</p>
+<p>The graph compilation interface is adjusted as follows: You do not need to construct and load graph objects. Instead, you can directly transfer the mindir model file through the <code class="docutils literal notranslate"><span class="pre">Build</span></code> interface.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="c1">// Original MindSpore</span>
+<span class="o">-</span><span class="w">  </span><span class="n">mindspore</span><span class="o">::</span><span class="n">Graph</span><span class="w"> </span><span class="n">graph</span><span class="p">;</span>
+<span class="o">-</span><span class="w">  </span><span class="n">Serialization</span><span class="o">::</span><span class="n">Load</span><span class="p">(</span><span class="n">mindir_path</span><span class="p">,</span><span class="w"> </span><span class="n">mindspore</span><span class="o">::</span><span class="n">kMindIR</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">graph</span><span class="p">);</span>
+<span class="o">-</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">model</span><span class="o">-&gt;</span><span class="n">Build</span><span class="p">(</span><span class="n">GraphCell</span><span class="p">(</span><span class="n">graph</span><span class="p">),</span><span class="w"> </span><span class="n">context</span><span class="p">);</span>
+
+<span class="c1">// MindSpore lite</span>
+<span class="o">+</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">model</span><span class="o">-&gt;</span><span class="n">Build</span><span class="p">(</span><span class="n">mindir_path</span><span class="p">,</span><span class="w"> </span><span class="n">mindspore</span><span class="o">::</span><span class="n">kMindIR</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ol>
+<br/>
 <p><font size=3><strong>Q: What should I do when an error <code class="docutils literal notranslate"><span class="pre">/usr/bin/ld:</span> <span class="pre">warning:</span> <span class="pre">libxxx.so,</span> <span class="pre">needed</span> <span class="pre">by</span> <span class="pre">libmindspore.so,</span> <span class="pre">not</span> <span class="pre">found</span></code> prompts during application compiling?</strong></font></p>
 <p>A: Find the directory where the missing dynamic library file is located.</p>
 <br/>
