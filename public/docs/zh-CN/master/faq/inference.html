@@ -168,6 +168,77 @@
 <section id="推理">
 <h1>推理<a class="headerlink" href="#推理" title="永久链接至标题"></a></h1>
 <p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/mindspore/source_zh_cn/faq/inference.md"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source.svg" /></a></p>
+<p><font size=3><strong>Q: 原先基于MindSpore安装包进行310推理，新版本MindSpore发布包不支持Ascend 310平台的推理？如何使用Ascend 310进行推理？（MindSpore Ascend 310推理功能发布包变更说明）</strong></font></p>
+<p>A: 由于MindSpore推理功能统一由MindSpore核心组件 – MindSpore lite提供。自2.0版本起，统一由MindSpore lite发布Ascend 310推理包，并提供相关功能的持续维护演进，而MindSpore主发布包里的对应接口不再维护和演进。自2.2版本起MindSpore主发布包不再提供配套310的推理接口使能，如需使用请切换安装MindSpore Lite发布包或下载MindSpore2.0之前的版本。MindSpore lite的安装部署与用法详见 <a class="reference external" href="https://www.mindspore.cn/lite">https://www.mindspore.cn/lite</a>。</p>
+<p>昇腾（Ascend）310是面向边缘场景的高能效高集成度AI处理器，支持对MindIR格式模型进行推理。原先MindSpore提供了两种在Ascend 310硬件上的推理使能用法：</p>
+<ol class="arabic simple">
+<li><p>由MindSpore主发布包提供配套Ascend 310的版本，支持C++推理接口。</p></li>
+<li><p>由MindSpore Lite发布包提供配套Ascend的版本，支持C++/Java两种语言进行推理。</p></li>
+</ol>
+<p>这两种方案提供的C++ API基本一致，后续不再构建和维护两套接口，而是归一使用MindSpore Lite。</p>
+<p>原有基于MindSpore主发布包构建的310推理业务，可以少量修改切换到MindSpore Lite，示例如下：</p>
+<ol class="arabic">
+<li><p>编译C++工程</p>
+<p>不再使用MindSpore 安装包，需下载MindSpore Lite C++版本包并解压在任意工作目录。目录结构如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>mindspore-lite-{version}-linux-{arch}
+├── runtime
+│   ├── include
+│   ├── lib
+</pre></div>
+</div>
+<p>编译时包含头文件路径改为include目录，链接动态库改为lib/libmindspore-lite.so，若需使用minddata，需同时链接lib/libminddata-lite.so。<br />
+举例，设环境变量<code class="docutils literal notranslate"><span class="pre">MINDSPORE_PATH=/path/to/mindspore-lite</span></code>，cmake改写为如下方式：</p>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span>...
+include_directories(${MINDSPORE_PATH})
+include_directories(${MINDSPORE_PATH}/include)
+...
+
+if(EXISTS ${MINDSPORE_PATH}/lib/libmindspore-lite.so)
+    message(--------------- Compile-with-MindSpore-Lite ----------------)
+    set(MS_LIB ${MINDSPORE_PATH}/lib/libmindspore-lite.so)
+    set(MD_LIB ${MINDSPORE_PATH}/lib/libminddata-lite.so)
+endif()
+
+add_executable(main src/main.cc)
+target_link_libraries(main ${MS_LIB} ${MD_LIB})
+</pre></div>
+</div>
+</li>
+<li><p>推理</p>
+<p>除如下两类写法存在差异，其余输入输出获取、构造方式，执行推理接口等保持一致。</p>
+<ul>
+<li><p>2.1 context构造</p>
+<p>context构造方式改为如下，Ascend310DeviceInfo统一替换为AscendDeviceInfo</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="c1">// 原MindSpore</span>
+<span class="o">-</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Context</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="o">-</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">ascend310</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">mindspore</span><span class="o">::</span><span class="n">Ascend310DeviceInfo</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="o">-</span><span class="w"> </span><span class="n">ascend310</span><span class="o">-&gt;</span><span class="n">SetDeviceID</span><span class="p">(</span><span class="n">device_id</span><span class="p">);</span>
+<span class="o">-</span><span class="w"> </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">MutableDeviceInfo</span><span class="p">().</span><span class="n">push_back</span><span class="p">(</span><span class="n">ascend310</span><span class="p">);</span>
+
+<span class="c1">// MindSpore lite</span>
+<span class="o">+</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Context</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="o">+</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">ascend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">mindspore</span><span class="o">::</span><span class="n">AscendDeviceInfo</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="o">+</span><span class="w"> </span><span class="n">ascend</span><span class="o">-&gt;</span><span class="n">SetDeviceID</span><span class="p">(</span><span class="n">device_id</span><span class="p">);</span>
+<span class="o">+</span><span class="w"> </span><span class="n">context</span><span class="o">-&gt;</span><span class="n">MutableDeviceInfo</span><span class="p">().</span><span class="n">push_back</span><span class="p">(</span><span class="n">ascend</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+<li><p>2.2 图编译</p>
+<p>图编译接口调整为如下，无需构造Graph对象、序列化加载，Build接口直接传入mindir模型文件即可。</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="c1">// 原MindSpore</span>
+<span class="o">-</span><span class="w">  </span><span class="n">mindspore</span><span class="o">::</span><span class="n">Graph</span><span class="w"> </span><span class="n">graph</span><span class="p">;</span>
+<span class="o">-</span><span class="w">  </span><span class="n">Serialization</span><span class="o">::</span><span class="n">Load</span><span class="p">(</span><span class="n">mindir_path</span><span class="p">,</span><span class="w"> </span><span class="n">mindspore</span><span class="o">::</span><span class="n">kMindIR</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">graph</span><span class="p">);</span>
+<span class="o">-</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">model</span><span class="o">-&gt;</span><span class="n">Build</span><span class="p">(</span><span class="n">GraphCell</span><span class="p">(</span><span class="n">graph</span><span class="p">),</span><span class="w"> </span><span class="n">context</span><span class="p">);</span>
+
+<span class="c1">// MindSpore lite</span>
+<span class="o">+</span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">model</span><span class="o">-&gt;</span><span class="n">Build</span><span class="p">(</span><span class="n">mindir_path</span><span class="p">,</span><span class="w"> </span><span class="n">mindspore</span><span class="o">::</span><span class="n">kMindIR</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ol>
+<br/>
 <p><font size=3><strong>Q: 编译应用时报错<code class="docutils literal notranslate"><span class="pre">/usr/bin/ld:</span> <span class="pre">warning:</span> <span class="pre">libxxx.so,</span> <span class="pre">needed</span> <span class="pre">by</span> <span class="pre">libmindspore.so,</span> <span class="pre">not</span> <span class="pre">found</span></code>怎么办？</strong></font></p>
 <p>A: 寻找缺少的动态库文件所在目录，添加该路径到环境变量<code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code>中。</p>
 <br/>

@@ -167,7 +167,7 @@
 <span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">hashlib</span>
 <span class="kn">import</span> <span class="nn">contextlib</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span><span class="p">,</span> <span class="n">namedtuple</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
@@ -225,9 +225,12 @@
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">RowTensor</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">PythonRowTensor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">PythonRowTensor</span><span class="p">(</span><span class="n">row_tensor</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-        <span class="c1"># Skip namedtuple since its type is tuple.</span>
+        <span class="c1"># Handle namedtuple since its type is tuple.</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;_fields&quot;</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">data</span>
+            <span class="n">type_name</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+            <span class="n">data_dict</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">_asdict</span><span class="p">()</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="n">data_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">namedtuple</span><span class="p">(</span><span class="n">type_name</span><span class="p">,</span> <span class="n">fields</span><span class="p">)(</span><span class="o">**</span><span class="n">_convert_python_data</span><span class="p">(</span><span class="n">data_dict</span><span class="p">))</span>
         <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_convert_python_data</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">data</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
         <span class="c1"># Keep list object not change for inplace operation.</span>
@@ -515,7 +518,7 @@
 
         <span class="c1"># Restore the mutable attr for every arg.</span>
         <span class="n">compile_args</span> <span class="o">=</span> <span class="n">_restore_mutable_attr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">)</span>
-        <span class="n">generate_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_generate_name</span><span class="p">()</span>
+        <span class="n">generate_name</span><span class="p">,</span> <span class="n">echo_function_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_generate_name</span><span class="p">()</span>
         <span class="c1"># The full Function name</span>
         <span class="n">full_function_name</span> <span class="o">=</span> <span class="n">generate_name</span>
         <span class="n">create_time</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
@@ -555,7 +558,7 @@
         <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">ms_compile_cache</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">phase</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_check_recompile</span><span class="p">(</span><span class="n">full_function_name</span><span class="p">,</span> <span class="n">create_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_recompile</span><span class="p">(</span><span class="n">full_function_name</span><span class="p">,</span> <span class="n">create_time</span><span class="p">,</span> <span class="n">echo_function_name</span><span class="p">)</span>
 
         <span class="c1"># If enable compile cache, get the dependency files list and set to graph executor.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_compile_cache_dep_files</span><span class="p">()</span>
@@ -587,7 +590,7 @@
 
         <span class="k">return</span> <span class="n">phase</span>
 
-    <span class="k">def</span> <span class="nf">_check_recompile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">full_function_name</span><span class="p">,</span> <span class="n">create_time</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_check_recompile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">full_function_name</span><span class="p">,</span> <span class="n">create_time</span><span class="p">,</span> <span class="n">echo_function_name</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Warning when the function has been compiled.&quot;&quot;&quot;</span>
         <span class="n">ignore_dirs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;mindspore/ops&quot;</span><span class="p">,</span> <span class="s2">&quot;mindspore/nn&quot;</span><span class="p">]</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">((</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">full_function_name</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">ignore_dirs</span><span class="p">):</span>
@@ -598,11 +601,11 @@
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">warning_times</span> \
                     <span class="ow">and</span> <span class="n">create_time</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">]:</span>
                 <span class="n">tips</span> <span class="o">=</span> <span class="s2">&quot;Try to decorate the function with @jit(hash_args=...) &quot;</span> \
-                       <span class="s2">&quot;or @jit(compile_once=True). &quot;</span> \
+                       <span class="s2">&quot;or @jit(compile_once=True) to reduce the compile time. &quot;</span> \
                        <span class="s2">&quot;For more details, get instructions about `jit` at &quot;</span> \
                        <span class="s2">&quot;https://www.mindspore.cn/search?inputValue=jit.&quot;</span>
 
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The function &#39;</span><span class="si">{</span><span class="n">full_function_name</span><span class="si">}</span><span class="s2">&#39; has been compiled again. &quot;</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">echo_function_name</span><span class="si">}</span><span class="s2"> has been compiled again. &quot;</span>
                                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tips</span><span class="si">}</span><span class="s2"> &quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">function_phases</span><span class="p">[</span><span class="n">full_function_name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
@@ -635,13 +638,15 @@
 
     <span class="k">def</span> <span class="nf">_get_generate_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;get generate name.&quot;&quot;&quot;</span>
-        <span class="n">generate_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_filename</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> \
-            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">)</span>
+        <span class="n">generate_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_filename</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">)</span>
+        <span class="n">echo_function_name</span> <span class="o">=</span> <span class="s2">&quot;function </span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2"> at the file </span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_filename</span> \
+                             <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">, line &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">grad_flag</span><span class="p">():</span>
             <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span> <span class="o">+</span> <span class="s2">&quot;.grad&quot;</span>
         <span class="k">if</span> <span class="n">_is_pynative_parallel</span><span class="p">():</span>
             <span class="n">generate_name</span> <span class="o">=</span> <span class="n">generate_name</span><span class="p">[:</span><span class="n">generate_name</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">)))]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shard_parent_obj</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">generate_name</span>
+        <span class="k">return</span> <span class="n">generate_name</span><span class="p">,</span> <span class="n">echo_function_name</span>
 
 
     <span class="k">def</span> <span class="nf">_set_compile_cache_dep_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
