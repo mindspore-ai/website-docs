@@ -1429,8 +1429,8 @@ ${menu
             //获取导航菜单json
             headerMenuData = await getHeaderData(`/header.json`)
             //获取文档导航菜单json
-            docsMenuData = await getHeaderData(`/docsMenu.json`)
-            msVersionData = await getHeaderData('/msVersion.json')
+            docsMenuData = await getHeaderData(`/docs-menu.json`)
+            msVersionData = await getHeaderData('/ms-version.json')
             // 公网ip配置
             configIP = await getHeaderData('/config.json')
 
