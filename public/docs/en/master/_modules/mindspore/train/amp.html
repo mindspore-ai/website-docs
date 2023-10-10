@@ -156,7 +156,6 @@
 <span class="sd">&quot;&quot;&quot;Auto mixed precision.&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
 
-<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
@@ -203,6 +202,7 @@
     <span class="n">nn</span><span class="o">.</span><span class="n">LayerNorm</span>
 <span class="p">]</span>
 
+<span class="n">MS_AMP_BY_REWRITE</span> <span class="o">=</span> <span class="kc">False</span>
 
 <span class="k">class</span> <span class="nc">_OutputTo16</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap cell for amp. Cast network output back to float16.&quot;&quot;&quot;</span>
@@ -226,6 +226,17 @@
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backbone</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">mixed_precision_cast</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">CastNet</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cast net&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cast</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Cast</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">dtype</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_allow_mix_precision</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">allowed_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -316,6 +327,8 @@
     <span class="k">while</span> <span class="n">node_list</span><span class="p">:</span>
         <span class="n">node</span> <span class="o">=</span> <span class="n">node_list</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">get_node_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">NodeType</span><span class="o">.</span><span class="n">CellContainer</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">MS_AMP_BY_REWRITE</span><span class="p">:</span>
+                <span class="n">_insert_cast_for_cell_container</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">allowed_list</span><span class="p">,</span> <span class="n">white_list</span><span class="o">=</span><span class="n">white_list</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">get_handler</span><span class="p">()</span><span class="o">.</span><span class="n">node_list</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">get_node_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">NodeType</span><span class="o">.</span><span class="n">Tree</span><span class="p">:</span>
                     <span class="n">_insert_cast_operator_white_list</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">TreeNodeHelper</span><span class="o">.</span><span class="n">get_sub_tree</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">n</span><span class="p">)),</span>
@@ -329,6 +342,33 @@
                 <span class="n">node_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">get_instance_type</span><span class="p">()</span> <span class="ow">in</span> <span class="n">white_list</span> <span class="ow">and</span> <span class="n">_allow_mix_precision</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">allowed_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
             <span class="n">_insert_cast_operator_process</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_insert_cast_for_cell_container</span><span class="p">(</span><span class="n">cell_container</span><span class="p">,</span> <span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">allowed_list</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">white_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">black_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Insert cast for cell containers.</span>
+<span class="sd">    Only one of white_list and black_list can be set.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cast_flag</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">current_node</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">cell_container</span><span class="o">.</span><span class="n">get_handler</span><span class="p">()</span><span class="o">.</span><span class="n">nodes</span><span class="p">():</span>
+        <span class="n">current_node</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">white_list</span> <span class="ow">and</span> <span class="n">current_node</span><span class="o">.</span><span class="n">get_instance_type</span><span class="p">()</span> <span class="ow">in</span> <span class="n">white_list</span><span class="p">)</span> <span class="ow">or</span> \
+           <span class="p">(</span><span class="n">black_list</span> <span class="ow">and</span> <span class="n">current_node</span><span class="o">.</span><span class="n">get_instance_type</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">black_list</span><span class="p">)</span> <span class="ow">and</span> \
+           <span class="p">(</span><span class="n">_allow_mix_precision</span><span class="p">(</span><span class="n">current_node</span><span class="p">,</span> <span class="n">allowed_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)):</span>
+            <span class="n">cast_flag</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">current_node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">cast_flag</span><span class="p">:</span>
+            <span class="c1"># cast next node back to float32</span>
+            <span class="n">current_node</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">cast_flag</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">cast_flag</span> <span class="ow">and</span> <span class="n">current_node</span><span class="p">:</span>
+        <span class="c1"># if last node in cell_container is casted to fp16/bf16, insert a cast node to cast value back to fp32</span>
+        <span class="n">cast_node</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">Node</span><span class="o">.</span><span class="n">create_call_cell</span><span class="p">(</span><span class="n">cell</span><span class="o">=</span><span class="n">CastNet</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+                                                     <span class="n">args</span><span class="o">=</span><span class="p">[</span><span class="n">current_node</span><span class="o">.</span><span class="n">get_targets</span><span class="p">()[</span><span class="mi">0</span><span class="p">]],</span>
+                                                     <span class="n">targets</span><span class="o">=</span><span class="p">[</span><span class="n">current_node</span><span class="o">.</span><span class="n">get_targets</span><span class="p">()[</span><span class="mi">0</span><span class="p">]],</span>
+                                                     <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;outcast_</span><span class="si">{</span><span class="n">cell_container</span><span class="o">.</span><span class="n">get_name</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">stree</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">stree</span><span class="o">.</span><span class="n">after</span><span class="p">(</span><span class="n">current_node</span><span class="p">),</span> <span class="n">cast_node</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_need_removed_cast_pair</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
@@ -428,6 +468,11 @@
         <span class="k">return</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">stree</span><span class="o">.</span><span class="n">nodes</span><span class="p">(</span><span class="n">all_nodes</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">get_targets</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">get_node_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">NodeType</span><span class="o">.</span><span class="n">CellContainer</span><span class="p">:</span>
+            <span class="n">_insert_cast_for_cell_container</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">allowed_list</span><span class="p">,</span> <span class="n">black_list</span><span class="o">=</span><span class="n">black_list</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">get_handler</span><span class="p">()</span><span class="o">.</span><span class="n">get_node_manager</span><span class="p">(),</span> <span class="n">ms</span><span class="o">.</span><span class="n">rewrite</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">CellContainer</span><span class="p">):</span>
+            <span class="c1"># nodes in CellContainer are processed by _insert_cast_for_cell_container</span>
             <span class="k">continue</span>
         <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">get_instance_type</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">black_list</span> <span class="ow">and</span> <span class="n">_allow_mix_precision</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">allowed_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
             <span class="n">_insert_cast_operator_process</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">stree</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
@@ -555,13 +600,13 @@
     <span class="k">if</span> <span class="n">amp_level</span> <span class="o">==</span> <span class="s2">&quot;O1&quot;</span><span class="p">:</span>
         <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_white_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">AMP_WHITE_LIST</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">amp_level</span> <span class="o">==</span> <span class="s2">&quot;O2&quot;</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MS_AMP_BY_REWRITE&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">MS_AMP_BY_REWRITE</span><span class="p">:</span>
             <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list_rewrite</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">AMP_BLACK_LIST</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">AMP_BLACK_LIST</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
             <span class="n">network</span> <span class="o">=</span> <span class="n">_OutputTo32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">amp_level</span> <span class="o">==</span> <span class="s2">&quot;O3&quot;</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MS_AMP_BY_REWRITE&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">MS_AMP_BY_REWRITE</span><span class="p">:</span>
             <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list_rewrite</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="p">[],</span> <span class="n">dtype</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">network</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
@@ -687,7 +732,7 @@
 
 <span class="k">def</span> <span class="nf">_auto_mixed_precision_process</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Auto mixed precision process.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MS_AMP_BY_REWRITE&quot;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">MS_AMP_BY_REWRITE</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float16</span> <span class="ow">or</span> <span class="n">level</span> <span class="o">==</span> <span class="s2">&quot;O2&quot;</span><span class="p">:</span>
             <span class="n">level</span> <span class="o">=</span> <span class="s2">&quot;O2&quot;</span> <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;keep_batchnorm_fp32&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;O3&quot;</span>
         <span class="k">elif</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;cast_model_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span> <span class="ow">and</span> <span class="n">level</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="s2">&quot;O3&quot;</span><span class="p">):</span>
@@ -938,8 +983,11 @@
         <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_white_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">white_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">_list_check</span><span class="p">(</span><span class="n">black_list</span><span class="p">,</span> <span class="s2">&quot;black_list&quot;</span><span class="p">)</span>
-        <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">black_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
-        <span class="n">network</span> <span class="o">=</span> <span class="n">_OutputTo32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">MS_AMP_BY_REWRITE</span><span class="p">:</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list_rewrite</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">black_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">_auto_black_list</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">black_list</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+            <span class="n">network</span> <span class="o">=</span> <span class="n">_OutputTo32</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">network</span></div>
 
 
@@ -970,6 +1018,11 @@
         <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">AMP_BLACK_LIST</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">elem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">custom_list</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">elem</span><span class="si">}</span><span class="s2"> is removed from internal black list.&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_config_amp</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">enable_rewrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span> <span class="c1"># pylint: disable=unused-variable</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configure auto mixed precision.&quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">MS_AMP_BY_REWRITE</span>
+    <span class="n">MS_AMP_BY_REWRITE</span> <span class="o">=</span> <span class="n">enable_rewrite</span>
 </pre></div>
 
            </div>
