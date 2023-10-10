@@ -1018,6 +1018,7 @@ ${menu
                 'placeholder',
                 filterXSS(resolveText(strTemp))
             )
+
             gotoId()
         }
 
@@ -1428,8 +1429,8 @@ ${menu
             //获取导航菜单json
             headerMenuData = await getHeaderData(`/header.json`)
             //获取文档导航菜单json
-            docsMenuData = await getHeaderData(`/docs-menu.json`)
-            msVersionData = await getHeaderData('/ms-version.json')
+            docsMenuData = await getHeaderData(`/docsMenu.json`)
+            msVersionData = await getHeaderData('/msVersion.json')
             // 公网ip配置
             configIP = await getHeaderData('/config.json')
 
@@ -1460,6 +1461,13 @@ ${menu
                 .addClass('rst-content-top')
             $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
                 pageTitle + ' (' + curVersion(componentVersionTitle) + ')'
+            //返回组件index
+            const docsHome = isEn
+                ? `${pageTitle} Documentation`
+                : `欢迎查看${pageTitle}文档`
+            $('.wy-side-nav-search').after(
+                `<div class="docs-home"><a href="${pagePath}/index.html" class="welcome">${docsHome}</a></div>`
+            )
 
             body.prepend(msHeader.pcHeader)
 
