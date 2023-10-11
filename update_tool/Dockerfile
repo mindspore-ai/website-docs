@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM swr.cn-north-4.myhuaweicloud.com/opensourceway/mindspore/ubuntu:22.04
 
 
 ENV TZ=Asia/Shanghai \
