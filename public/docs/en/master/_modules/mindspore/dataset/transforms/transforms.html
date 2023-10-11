@@ -158,6 +158,8 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">threading</span>
 
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">IntEnum</span>
@@ -177,6 +179,28 @@
 <span class="kn">from</span> <span class="nn">..vision.py_transforms_util</span> <span class="kn">import</span> <span class="n">is_pil</span>
 
 
+<span class="c1"># hold all the executor objects when in training procedure</span>
+<span class="c1"># key : pid_tid which distinguishes multiple executors by process_id + thread_id</span>
+<span class="c1"># value : executor object which lifecycle will always exist during training</span>
+<span class="n">EXECUTORS_LIST</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+
+
+<span class="c1"># the follow case process / thread exit need call the function</span>
+<span class="c1"># 1. user defined dataset with process mode</span>
+<span class="c1"># 2. user defined dataset with thread mode</span>
+<span class="c1"># 3. user defined transform in map op with process mode</span>
+<span class="c1"># 4. user defined transform in map op with thread mode</span>
+<span class="c1"># 5. batch op with per_batch_map operation in process mode</span>
+<span class="c1"># 6. batch op with per_batch_map operation in thread mode</span>
+<span class="k">def</span> <span class="nf">clean_unused_executors</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    clean the unused executor object in UDF or map with PyFunc process / thread mode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">())</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">currentThread</span><span class="p">()</span><span class="o">.</span><span class="n">ident</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">EXECUTORS_LIST</span><span class="p">:</span>
+        <span class="n">EXECUTORS_LIST</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+
 <span class="k">class</span> <span class="nc">TensorOperation</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base class Tensor Ops</span>
@@ -185,7 +209,6 @@
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">implementation</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">callable_op_</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">device_target</span> <span class="o">=</span> <span class="s2">&quot;CPU&quot;</span>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">input_tensor_list</span><span class="p">):</span>
@@ -204,9 +227,22 @@
             <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Invalid user input. Got </span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2">, cannot be converted into tensor.&quot;</span> \
                                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">tensor</span><span class="p">),</span> <span class="n">tensor</span><span class="p">))</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;callable_op_&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">callable_op_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">callable_op_</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">Execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parse</span><span class="p">())</span>
-        <span class="n">output_tensor_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">callable_op_</span><span class="p">(</span><span class="n">tensor_row</span><span class="p">)</span>
+
+        <span class="c1"># get or create the executor from EXECUTORS_LIST</span>
+        <span class="n">executor</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">())</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">currentThread</span><span class="p">()</span><span class="o">.</span><span class="n">ident</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">EXECUTORS_LIST</span><span class="p">:</span>
+            <span class="c1"># get the executor by process id and thread id</span>
+            <span class="n">executor</span> <span class="o">=</span> <span class="n">EXECUTORS_LIST</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="c1"># remove the old transform which in executor and update the new transform</span>
+            <span class="n">executor</span><span class="o">.</span><span class="n">UpdateOperation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parse</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># create a new executor by process id and thread_id</span>
+            <span class="n">executor</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">Execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parse</span><span class="p">())</span>
+            <span class="c1"># add the executor the global EXECUTORS_LIST</span>
+            <span class="n">EXECUTORS_LIST</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">executor</span>
+
+        <span class="n">output_tensor_list</span> <span class="o">=</span> <span class="n">executor</span><span class="p">(</span><span class="n">tensor_row</span><span class="p">)</span>
         <span class="n">output_numpy_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">as_array</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">output_tensor_list</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">output_numpy_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_numpy_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">output_numpy_list</span><span class="p">)</span>
 
@@ -488,7 +524,13 @@
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">t</span><span class="o">.</span><span class="n">implementation</span> <span class="o">==</span> <span class="n">Implementation</span><span class="o">.</span><span class="n">PY</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">]):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">implementation</span> <span class="o">=</span> <span class="n">Implementation</span><span class="o">.</span><span class="n">PY</span>
-        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">release_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># release the executor which is used by current thread/process when</span>
+        <span class="c1"># use transform in eager mode in map op</span>
+        <span class="c1"># this will be call in MapOp::WorkerEntry</span>
+        <span class="n">clean_unused_executors</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="Concatenate"><a class="viewcode-back" href="../../../../api_python/dataset_transforms/mindspore.dataset.transforms.Concatenate.html#mindspore.dataset.transforms.Concatenate">[docs]</a><span class="k">class</span> <span class="nc">Concatenate</span><span class="p">(</span><span class="n">TensorOperation</span><span class="p">):</span>
