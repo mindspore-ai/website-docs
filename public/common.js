@@ -58,11 +58,11 @@ $(function () {
                             item.active = 1
                         }
                         return `<div class="header-nav-link">
-      <a class="${
-          item.active ? 'selected' : ''
-      }" href="${filterXSS(item.url)}">${filterXSS(item.label)}</a>
-  </div>
-  `
+    <a class="${
+        item.active ? 'selected' : ''
+    }" href="${filterXSS(item.url)}">${filterXSS(item.label)}</a>
+</div>
+`
                     })
                     .join('')
             }`
@@ -79,8 +79,8 @@ $(function () {
                                       return `<em class="outlink"></em>`
                                   } else {
                                       return `<span class="ms-tag ${item.toLocaleLowerCase()}">
-                      <span class="ms-tag-label">${filterXSS(item)}</span>
-                  </span>`
+                    <span class="ms-tag-label">${filterXSS(item)}</span>
+                </span>`
                                   }
                               })
                               .join('')
@@ -92,7 +92,7 @@ $(function () {
 <nav class="header-wapper header-wapper-top">
 <div class="header-nav" style="display: flex;">
 <a href="/${enPath}" class="logo " >
-  <img class="logo-img" src="/pic/logo_black.png" alt="logo" />
+<img class="logo-img" src="/pic/logo_black.png" alt="logo" />
 </a>
 ${
     headerMenuData &&
@@ -105,10 +105,10 @@ ${
                     item.active = 1
                 }
                 return `
-      <div class="header-nav-link"><a class="header-nav-link-line ${
-          item.active ? 'selected' : ''
-      }" href="${filterXSS(href)}">${filterXSS(name)}</a></div>
-      `
+    <div class="header-nav-link"><a class="header-nav-link-line ${
+        item.active ? 'selected' : ''
+    }" href="${filterXSS(href)}">${filterXSS(name)}</a></div>
+    `
             } else {
                 if (
                     pathname.startsWith('/tutorials/') &&
@@ -129,36 +129,36 @@ ${
                     }">${filterXSS(name)}</span>`
                 }
                 return `
-      <div class="header-nav-link">
-              <div class="nav-content">${navLabel}
-              ${
-                  item.label && item.label[isEn ? 'en' : 'zh']
-                      ? `<ul class="dropdown-menu-git ${
-                            item.id === 'docs' ? 'dropdown-menu-docs' : ''
-                        }" >
-                    ${item.children
-                        .map(function (sub) {
-                            if (sub.label && sub.label[isEn ? 'en' : 'zh']) {
-                                let navHref = isEn ? sub.href.en : sub.href.zh
-                                if (sub.id === 'tutorials') {
-                                    navHref = navHref.replace(
-                                        'master',
-                                        msHeader.headerPathVersion(sub.id)
-                                    )
-                                }
-                                return `<li><a target="${
-                                    sub.jumOut ? '_blank' : '_self'
-                                }" href="${filterXSS(navHref)}">
-                            ${filterXSS(isEn ? sub.label.en : sub.label.zh)}
-                            ${msHeader.headerTags(sub.tags)}
-                            </a></li>`
-                            }
-                        })
-                        .join('')}
-                </ul>`
-                      : ''
-              }</div> ${msHeader.headerTags(item.tags)}
-      </div>`
+    <div class="header-nav-link">
+            <div class="nav-content">${navLabel}
+            ${
+                item.label && item.label[isEn ? 'en' : 'zh']
+                    ? `<ul class="dropdown-menu-git ${
+                          item.id === 'docs' ? 'dropdown-menu-docs' : ''
+                      }" >
+                  ${item.children
+                      .map(function (sub) {
+                          if (sub.label && sub.label[isEn ? 'en' : 'zh']) {
+                              let navHref = isEn ? sub.href.en : sub.href.zh
+                              if (sub.id === 'tutorials') {
+                                  navHref = navHref.replace(
+                                      'master',
+                                      msHeader.headerPathVersion(sub.id)
+                                  )
+                              }
+                              return `<li><a target="${
+                                  sub.jumOut ? '_blank' : '_self'
+                              }" href="${filterXSS(navHref)}">
+                          ${filterXSS(isEn ? sub.label.en : sub.label.zh)}
+                          ${msHeader.headerTags(sub.tags)}
+                          </a></li>`
+                          }
+                      })
+                      .join('')}
+              </ul>`
+                    : ''
+            }</div> ${msHeader.headerTags(item.tags)}
+    </div>`
             }
         })
         .join('')
@@ -166,28 +166,26 @@ ${
 </div>
 <div class="header-nav navbar-tools" >
 <div class="header-search"><div class="search-input"><span class="search-icon"></span></span><input
-      class="search-val" placeholder="${
-          isEn ? 'Search...' : '全局搜索...'
-      }"><span class="close-icon"></div></div>
+    class="search-val" placeholder="${
+        isEn ? 'Search...' : '全局搜索...'
+    }"><span class="close-icon"></div></div>
 <div class="header-nav-link">
-  <p class="code">${
-      isEn ? 'Code' : '代码'
-  } <i class="icon-chevron-down"></i></p>
-  <ul class="dropdown-menu-git">
-      <li><a href="${
-          configIP.GITEE_URL
-      }/mindspore/mindspore" rel="noopener noreferrer"  target="_blank">Gitee <em class="outlink"></em></a></li>
-      <li><a href="${
-          configIP.GITHUB_URL
-      }/mindspore-ai/mindspore" rel="noopener noreferrer" target="_blank">GitHub <em class="outlink"></em></a></li>
-  </ul>
+<p class="code">${isEn ? 'Code' : '代码'} <i class="icon-chevron-down"></i></p>
+<ul class="dropdown-menu-git">
+    <li><a href="${
+        configIP.GITEE_URL
+    }/mindspore/mindspore" rel="noopener noreferrer"  target="_blank">Gitee <em class="outlink"></em></a></li>
+    <li><a href="${
+        configIP.GITHUB_URL
+    }/mindspore-ai/mindspore" rel="noopener noreferrer" target="_blank">GitHub <em class="outlink"></em></a></li>
+</ul>
 </div>
 <div class="dropdown">
-  <a href="${filterXSS(
-      newNavPath
-  )}" class="dropdown-toggle" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-      <span class="languageIpt">EN</span>
-  </a>
+<a href="${filterXSS(
+                    newNavPath
+                )}" class="dropdown-toggle" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+    <span class="languageIpt">EN</span>
+</a>
 </div>
 <div class="theme-change"><i class="icon-theme light"></i></div>
 </div>
@@ -211,25 +209,25 @@ ${
           docsMenuData
               .map(function (item) {
                   return `<div class="docsNew-column">
-                  <div class="docsNew-column-title">${
-                      filterXSS(isEn ? item.title.en : item.title.zh) || ''
-                  }</div>
-              <div class="bottom">
-                  ${item.children
-                      .map(function (subitem) {
-                          return `
-                        <a class="docs-column-link" href="${
-                            subitem.link
-                                ? subitem.link
-                                : msHeader.headerNavLinks(subitem.id)
-                        }" ${subitem.link ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-                        ${filterXSS(subitem.name)}
-                        ${msHeader.headerTags(subitem.tags)}
-                      </a>`
-                      })
-                      .join('')}
-              </div>
-          </div>`
+                <div class="docsNew-column-title">${
+                    filterXSS(isEn ? item.title.en : item.title.zh) || ''
+                }</div>
+            <div class="bottom">
+                ${item.children
+                    .map(function (subitem) {
+                        return `
+                      <a class="docs-column-link" href="${
+                          subitem.link
+                              ? subitem.link
+                              : msHeader.headerNavLinks(subitem.id)
+                      }" ${subitem.link ? 'target="_blank" rel="noopener noreferrer"' : ''}>
+                      ${filterXSS(subitem.name)}
+                      ${msHeader.headerTags(subitem.tags)}
+                    </a>`
+                    })
+                    .join('')}
+            </div>
+        </div>`
               })
               .join('')
         : ''
@@ -251,106 +249,104 @@ ${
                 ]
                 return `
 <div class="header-menu-layer">
-  <div class="menu-mask"></div>
-  <div class="menu-content">
-    <div class="menu-left">
-      <ul class="menu-list">
-      <li class="menu-item"><a href="/" >${isEn ? 'Home' : '首页'}</a></li>
+<div class="menu-mask"></div>
+<div class="menu-content">
+  <div class="menu-left">
+    <ul class="menu-list">
+    <li class="menu-item"><a href="/" >${isEn ? 'Home' : '首页'}</a></li>
+    ${
+        headerMenuData &&
+        headerMenuData
+            .map((item, index) => {
+                const href = item.href
+                    ? isEn
+                        ? item.href.en
+                        : item.href.zh
+                    : 'javascript:;'
+                const name = isEn ? item.label.en : item.label.zh
+
+                return `
+        <li class="menu-item">
+          <a href="${filterXSS(href)}" data-val='${index}' target="${
+                    item.jumOut ? '_blank' : '_self'
+                }">
+                ${filterXSS(name)}
+                </a>
+        </li> `
+            })
+            .join('')
+    }
+    </ul>
+    <div class="menu-tool">
+      <div class="menu-item"><a href="javascript:;" data-val='7'>${
+          isEn ? 'Code' : '代码'
+      }</a></div>
+      <div class="tool-item">
+      <a href="${filterXSS(
+          newNavPath
+      )}" class="dropdown-toggle" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+              <span class="languageIpt">EN</span>
+          </a>
+        <div class="theme-change"><i class="icon-theme light"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="menu-right">
       ${
           headerMenuData &&
           headerMenuData
-              .map((item, index) => {
-                  const href = item.href
-                      ? isEn
-                          ? item.href.en
-                          : item.href.zh
-                      : 'javascript:;'
-                  const name = isEn ? item.label.en : item.label.zh
-
-                  return `
-          <li class="menu-item">
-            <a href="${filterXSS(href)}" data-val='${index}' target="${
-                      item.jumOut ? '_blank' : '_self'
-                  }">
-                  ${filterXSS(name)}
-                  </a>
-          </li> `
+              .map((item, idx) => {
+                  return `<ul class="sub-menu">
+                ${
+                    item.children
+                        ? item.children
+                              .map((sub, index) => {
+                                  let href = sub.href
+                                      ? isEn
+                                          ? sub.href.en
+                                          : sub.href.zh
+                                      : ''
+                                  const name = isEn
+                                      ? sub.label.en
+                                      : sub.label.zh
+                                  if (sub.id === 'tutorials') {
+                                      href = href.replace(
+                                          'master',
+                                          msHeader.headerPathVersion(sub.id)
+                                      )
+                                  }
+                                  return `${
+                                      href
+                                          ? `<li class="sub-menu-item">
+                                  <a href="${filterXSS(
+                                      href
+                                  )}" data-val='${index}' target="${
+                                                sub.jumOut ? '_blank' : '_self'
+                                            }">
+                                        ${filterXSS(name)}
+                                        </a>
+                                </li>`
+                                          : ''
+                                  }`
+                              })
+                              .join('')
+                        : ''
+                }
+          </ul>`
               })
               .join('')
       }
+      <ul class="sub-menu">
+        ${codeList
+            .map((item) => {
+                return `<li class="sub-menu-item"><a href="${item.href}"  target="_blank">
+                ${item.label}
+                </a></li>`
+            })
+            .join('')}
       </ul>
-      <div class="menu-tool">
-        <div class="menu-item"><a href="javascript:;" data-val='7'>${
-            isEn ? 'Code' : '代码'
-        }</a></div>
-        <div class="tool-item">
-        <a href="${filterXSS(
-            newNavPath
-        )}" class="dropdown-toggle" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-                <span class="languageIpt">EN</span>
-            </a>
-          <div class="theme-change"><i class="icon-theme light"></i></div>
-        </div>
-      </div>
-    </div>
-    <div class="menu-right">
-        ${
-            headerMenuData &&
-            headerMenuData
-                .map((item, idx) => {
-                    return `<ul class="sub-menu">
-                  ${
-                      item.children
-                          ? item.children
-                                .map((sub, index) => {
-                                    let href = sub.href
-                                        ? isEn
-                                            ? sub.href.en
-                                            : sub.href.zh
-                                        : ''
-                                    const name = isEn
-                                        ? sub.label.en
-                                        : sub.label.zh
-                                    if (sub.id === 'tutorials') {
-                                        href = href.replace(
-                                            'master',
-                                            msHeader.headerPathVersion(sub.id)
-                                        )
-                                    }
-                                    return `${
-                                        href
-                                            ? `<li class="sub-menu-item">
-                                    <a href="${filterXSS(
-                                        href
-                                    )}" data-val='${index}' target="${
-                                                  sub.jumOut
-                                                      ? '_blank'
-                                                      : '_self'
-                                              }">
-                                          ${filterXSS(name)}
-                                          </a>
-                                  </li>`
-                                            : ''
-                                    }`
-                                })
-                                .join('')
-                          : ''
-                  }
-            </ul>`
-                })
-                .join('')
-        }
-        <ul class="sub-menu">
-          ${codeList
-              .map((item) => {
-                  return `<li class="sub-menu-item"><a href="${item.href}"  target="_blank">
-                  ${item.label}
-                  </a></li>`
-              })
-              .join('')}
-        </ul>
-    </div>
   </div>
+</div>
 </div>`
             },
             h5Header: function () {
@@ -371,10 +367,10 @@ ${msHeader.h5HeadMenu()}
                 return `<div id="nav-h5"><div class="header-mobile-menu ${
                     pageSubMenu.length > 0 ? 'current' : ''
                 }">
-  ${createSubMenu()}
+${createSubMenu()}
 </div>
 <div class="header-mobile-nav">
-    <em class="page-menu"></em>
+  <em class="page-menu"></em>
 </div>
 ${
     !pathname.startsWith('/tutorials')
@@ -385,13 +381,13 @@ ${
             },
             dialogLayer: function (title) {
                 return `
-  <div class="o-layer-dialog">
-    <div class="o-layer-mask"></div>
-    <div class="o-dlg-main">
-      <div class="o-dlg-header">${title}</div>
-      <div class="o-scroller-container" id="dialog-content"></div>
-    </div>
+<div class="o-layer-dialog">
+  <div class="o-layer-mask"></div>
+  <div class="o-dlg-main">
+    <div class="o-dlg-header">${title}</div>
+    <div class="o-scroller-container" id="dialog-content"></div>
   </div>
+</div>
 `
             },
             // 文档页面交互
@@ -687,15 +683,15 @@ ${
 ${helpForScores
     .map(
         (score) => `
-    <li>
-      <div class="star"><svg viewBox="0 0 24 24">
-      <path fill="currentColor" d="M12.565 3.837c0.252 0.124 0.456 0.328 0.58 0.58l1.735 3.516c0.155 0.314 0.455 0.532 0.801 0.582l3.88 0.564c0.698 0.101 1.182 0.75 1.080 1.448-0.040 0.278-0.171 0.535-0.372 0.731l-2.808 2.737c-0.251 0.245-0.365 0.597-0.306 0.942l0.663 3.864c0.119 0.695-0.348 1.356-1.043 1.475-0.277 0.047-0.562 0.002-0.81-0.128l-3.47-1.824c-0.31-0.163-0.681-0.163-0.991 0l-3.47 1.824c-0.624 0.328-1.397 0.088-1.725-0.536-0.131-0.249-0.176-0.533-0.128-0.81l0.663-3.864c0.059-0.345-0.055-0.698-0.306-0.942l-2.808-2.737c-0.505-0.492-0.515-1.301-0.023-1.806 0.196-0.201 0.453-0.332 0.731-0.372l3.88-0.564c0.347-0.050 0.646-0.268 0.801-0.582l1.735-3.516c0.312-0.633 1.078-0.892 1.711-0.58zM13.735 8.499l-1.556-3.152c-0.049-0.099-0.169-0.14-0.268-0.091-0.039 0.019-0.071 0.051-0.091 0.091l-1.556 3.152c-0.315 0.638-0.901 1.095-1.589 1.249l-0.174 0.032-3.479 0.506c-0.109 0.016-0.185 0.117-0.169 0.227 0.006 0.044 0.027 0.084 0.058 0.114l2.517 2.454c0.506 0.493 0.76 1.186 0.698 1.883l-0.025 0.19-0.594 3.465c-0.019 0.109 0.054 0.212 0.163 0.231 0.043 0.007 0.088 0 0.127-0.020l3.112-1.636c0.625-0.329 1.362-0.356 2.006-0.082l0.173 0.082 3.112 1.636c0.098 0.051 0.219 0.014 0.27-0.084 0.020-0.039 0.028-0.084 0.020-0.127l-0.594-3.465c-0.119-0.696 0.082-1.406 0.542-1.933l0.132-0.139 2.517-2.454c0.079-0.077 0.081-0.204 0.004-0.283-0.031-0.031-0.071-0.052-0.114-0.058l-3.479-0.506c-0.704-0.102-1.32-0.518-1.679-1.125l-0.084-0.156z"></path>
-      <path fill="currentColor" d="M12.068 5.067l0.003 11.923c-0.321-0.001-0.642 0.062-0.943 0.19l-0.178 0.085-3.174 1.669c-0.040 0.021-0.085 0.028-0.129 0.021-0.093-0.016-0.16-0.092-0.169-0.181l0.002-0.055 0.606-3.534 0.025-0.194c0.057-0.646-0.152-1.289-0.578-1.778l-0.134-0.142-2.568-2.503c-0.032-0.031-0.053-0.072-0.059-0.117-0.013-0.093 0.038-0.18 0.12-0.216l0.053-0.015 3.549-0.516 0.178-0.033c0.643-0.144 1.199-0.548 1.535-1.115l0.086-0.159 1.587-3.216c0.020-0.040 0.052-0.073 0.093-0.093 0.031-0.015 0.065-0.022 0.098-0.021z"></path>
-      <path fill="currentColor" d="M11.936 5.067l-0.003 11.923c0.321-0.001 0.642 0.062 0.943 0.19l0.178 0.085 3.174 1.669c0.040 0.021 0.085 0.028 0.129 0.021 0.093-0.016 0.16-0.092 0.169-0.181l-0.002-0.055-0.606-3.534-0.025-0.194c-0.057-0.646 0.152-1.289 0.578-1.778l0.134-0.142 2.568-2.503c0.032-0.031 0.053-0.072 0.059-0.117 0.014-0.093-0.038-0.18-0.12-0.216l-0.053-0.015-3.549-0.516-0.178-0.033c-0.643-0.144-1.199-0.548-1.535-1.115l-0.086-0.159-1.587-3.216c-0.020-0.040-0.052-0.073-0.093-0.093-0.031-0.015-0.065-0.022-0.098-0.021z"></path>
-      </svg>
-      </div>
-      <div class="wordScore">${score}</div>
-    </li> `
+  <li>
+    <div class="star"><svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12.565 3.837c0.252 0.124 0.456 0.328 0.58 0.58l1.735 3.516c0.155 0.314 0.455 0.532 0.801 0.582l3.88 0.564c0.698 0.101 1.182 0.75 1.080 1.448-0.040 0.278-0.171 0.535-0.372 0.731l-2.808 2.737c-0.251 0.245-0.365 0.597-0.306 0.942l0.663 3.864c0.119 0.695-0.348 1.356-1.043 1.475-0.277 0.047-0.562 0.002-0.81-0.128l-3.47-1.824c-0.31-0.163-0.681-0.163-0.991 0l-3.47 1.824c-0.624 0.328-1.397 0.088-1.725-0.536-0.131-0.249-0.176-0.533-0.128-0.81l0.663-3.864c0.059-0.345-0.055-0.698-0.306-0.942l-2.808-2.737c-0.505-0.492-0.515-1.301-0.023-1.806 0.196-0.201 0.453-0.332 0.731-0.372l3.88-0.564c0.347-0.050 0.646-0.268 0.801-0.582l1.735-3.516c0.312-0.633 1.078-0.892 1.711-0.58zM13.735 8.499l-1.556-3.152c-0.049-0.099-0.169-0.14-0.268-0.091-0.039 0.019-0.071 0.051-0.091 0.091l-1.556 3.152c-0.315 0.638-0.901 1.095-1.589 1.249l-0.174 0.032-3.479 0.506c-0.109 0.016-0.185 0.117-0.169 0.227 0.006 0.044 0.027 0.084 0.058 0.114l2.517 2.454c0.506 0.493 0.76 1.186 0.698 1.883l-0.025 0.19-0.594 3.465c-0.019 0.109 0.054 0.212 0.163 0.231 0.043 0.007 0.088 0 0.127-0.020l3.112-1.636c0.625-0.329 1.362-0.356 2.006-0.082l0.173 0.082 3.112 1.636c0.098 0.051 0.219 0.014 0.27-0.084 0.020-0.039 0.028-0.084 0.020-0.127l-0.594-3.465c-0.119-0.696 0.082-1.406 0.542-1.933l0.132-0.139 2.517-2.454c0.079-0.077 0.081-0.204 0.004-0.283-0.031-0.031-0.071-0.052-0.114-0.058l-3.479-0.506c-0.704-0.102-1.32-0.518-1.679-1.125l-0.084-0.156z"></path>
+    <path fill="currentColor" d="M12.068 5.067l0.003 11.923c-0.321-0.001-0.642 0.062-0.943 0.19l-0.178 0.085-3.174 1.669c-0.040 0.021-0.085 0.028-0.129 0.021-0.093-0.016-0.16-0.092-0.169-0.181l0.002-0.055 0.606-3.534 0.025-0.194c0.057-0.646-0.152-1.289-0.578-1.778l-0.134-0.142-2.568-2.503c-0.032-0.031-0.053-0.072-0.059-0.117-0.013-0.093 0.038-0.18 0.12-0.216l0.053-0.015 3.549-0.516 0.178-0.033c0.643-0.144 1.199-0.548 1.535-1.115l0.086-0.159 1.587-3.216c0.020-0.040 0.052-0.073 0.093-0.093 0.031-0.015 0.065-0.022 0.098-0.021z"></path>
+    <path fill="currentColor" d="M11.936 5.067l-0.003 11.923c0.321-0.001 0.642 0.062 0.943 0.19l0.178 0.085 3.174 1.669c0.040 0.021 0.085 0.028 0.129 0.021 0.093-0.016 0.16-0.092 0.169-0.181l-0.002-0.055-0.606-3.534-0.025-0.194c-0.057-0.646 0.152-1.289 0.578-1.778l0.134-0.142 2.568-2.503c0.032-0.031 0.053-0.072 0.059-0.117 0.014-0.093-0.038-0.18-0.12-0.216l-0.053-0.015-3.549-0.516-0.178-0.033c-0.643-0.144-1.199-0.548-1.535-1.115l-0.086-0.159-1.587-3.216c-0.020-0.040-0.052-0.073-0.093-0.093-0.031-0.015-0.065-0.022-0.098-0.021z"></path>
+    </svg>
+    </div>
+    <div class="wordScore">${score}</div>
+  </li> `
     )
     .join('')}
 </ul>`
@@ -791,10 +787,10 @@ ${menu
                     if (grade === msFotter.gradeState) {
                         $('.evaluateStar').after(
                             `<div class="rating-tips warning"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-              <path fill="currentColor" d="M21 12c0 4.971-4.029 9-9 9s-9-4.029-9-9c0-4.971 4.029-9 9-9s9 4.029 9 9z"></path>
-              <path fill="#fff" d="M12 13.621c-0.228 0-0.416-0.176-0.432-0.404l-0.367-5.441-0.002-0.054c0-0.408 0.306-0.745 0.701-0.795l0.1-0.006c0.027 0 0.027 0 0.054 0.002 0.441 0.030 0.775 0.412 0.745 0.853l-0.367 5.441c-0.015 0.227-0.204 0.404-0.432 0.404zM12 16.771c-0.608 0-1.1-0.492-1.1-1.1s0.492-1.1 1.1-1.1c0.608 0 1.1 0.492 1.1 1.1s-0.492 1.1-1.1 1.1z"></path>
-              </svg>
-              ${msFotter.fontmatter.ratingWarning}</div>`
+            <path fill="currentColor" d="M21 12c0 4.971-4.029 9-9 9s-9-4.029-9-9c0-4.971 4.029-9 9-9s9 4.029 9 9z"></path>
+            <path fill="#fff" d="M12 13.621c-0.228 0-0.416-0.176-0.432-0.404l-0.367-5.441-0.002-0.054c0-0.408 0.306-0.745 0.701-0.795l0.1-0.006c0.027 0 0.027 0 0.054 0.002 0.441 0.030 0.775 0.412 0.745 0.853l-0.367 5.441c-0.015 0.227-0.204 0.404-0.432 0.404zM12 16.771c-0.608 0-1.1-0.492-1.1-1.1s0.492-1.1 1.1-1.1c0.608 0 1.1 0.492 1.1 1.1s-0.492 1.1-1.1 1.1z"></path>
+            </svg>
+            ${msFotter.fontmatter.ratingWarning}</div>`
                         )
                         setTimeout(() => {
                             $('.rating-tips').remove()
@@ -814,10 +810,10 @@ ${menu
                             .hide()
                             .after(
                                 `<div class="rating-tips success"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                  <path fill="currentColor" d="M21 12c0 4.971-4.029 9-9 9s-9-4.029-9-9c0-4.971 4.029-9 9-9s9 4.029 9 9z"></path>
-                  <path fill="#fff" d="M16.21 8.679l-5.225 5.212-0.043 0.032c-0.047 0.026-0.12 0.016-0.169-0.032l-2.478-2.465-0.076-0.064c-0.244-0.169-0.567-0.14-0.772 0.066-0.234 0.235-0.233 0.615 0.002 0.849l2.478 2.465 0.105 0.094c0.538 0.431 1.312 0.391 1.8-0.096l5.225-5.212 0.064-0.076c0.17-0.244 0.143-0.567-0.063-0.773-0.234-0.235-0.614-0.235-0.849-0.001z"></path>
-                  </svg>
-                  ${msFotter.fontmatter.ratingSuccess}</div>`
+                <path fill="currentColor" d="M21 12c0 4.971-4.029 9-9 9s-9-4.029-9-9c0-4.971 4.029-9 9-9s9 4.029 9 9z"></path>
+                <path fill="#fff" d="M16.21 8.679l-5.225 5.212-0.043 0.032c-0.047 0.026-0.12 0.016-0.169-0.032l-2.478-2.465-0.076-0.064c-0.244-0.169-0.567-0.14-0.772 0.066-0.234 0.235-0.233 0.615 0.002 0.849l2.478 2.465 0.105 0.094c0.538 0.431 1.312 0.391 1.8-0.096l5.225-5.212 0.064-0.076c0.17-0.244 0.143-0.567-0.063-0.773-0.234-0.235-0.614-0.235-0.849-0.001z"></path>
+                </svg>
+                ${msFotter.fontmatter.ratingSuccess}</div>`
                             )
                         $('.evaluateTitle').hide()
                         setTimeout(() => {
@@ -1032,16 +1028,14 @@ ${menu
         ) {
             const name = filterXSS(tag.innerText)
             return `<li>
-            <span class="line"></span>
-            <a title="${name}" href="#${filterXSS(isId ? tag.closest('dt').id : tag.parentNode.id)}">${name}</a>
-            ${
-                isShow
-                    ? `<ul class='${filterXSS(className)}'>${
-                          obj ? obj : ''
-                      }</ul>`
-                    : ''
-            }
-          </li> `
+          <span class="line"></span>
+          <a title="${name}" href="#${filterXSS(isId ? tag.closest('dt').id : tag.parentNode.id)}">${name}</a>
+          ${
+              isShow
+                  ? `<ul class='${filterXSS(className)}'>${obj ? obj : ''}</ul>`
+                  : ''
+          }
+        </li> `
         }
         // 右侧锚点标识
         function sideRightAnchor() {
@@ -1185,8 +1179,8 @@ ${menu
                     parentID = filterXSS(parentID)
                     const codeLi2 = `
 <li>
-  <a title="${codeText}" href="#${parentID}">${codeText}</a>
-  <ul class="navList3"></ul>
+<a title="${codeText}" href="#${parentID}">${codeText}</a>
+<ul class="navList3"></ul>
 </li>`
                     $('.navList2').append(codeLi2)
                     const nextDescnames = $(this)
@@ -1276,24 +1270,24 @@ ${menu
                 return (
                     componentInfo.versionDropdownList().length > 0 &&
                     `<div class='version-select-wrap '><div class="version-select-dom">
-        <span class="versionText">
-        ${filterXSS(curVersion(currentVersion))}
-        <em class="icon-chevron-down"></em>
-        </span>
-           <div class="version-box"><ul class="version-list">
-                ${componentInfo
-                    .versionDropdownList()
-                    .map(function (item) {
-                        return `<li><a href="${filterXSS(
-                            item.url
-                        )}" class='version-option'>${filterXSS(item.versionAlias === '' ? item.version : item.versionAlias)}</a></li>`
-                    })
-                    .join('')}
-                <li><a href="/versions${
-                    isEn ? '/en' : ''
-                }" class='version-option'>${isEn ? 'More' : '更多'}</a></li>
-            </ul></div> 
-        </div></div>`
+      <span class="versionText">
+      ${filterXSS(curVersion(currentVersion))}
+      <em class="icon-chevron-down"></em>
+      </span>
+         <div class="version-box"><ul class="version-list">
+              ${componentInfo
+                  .versionDropdownList()
+                  .map(function (item) {
+                      return `<li><a href="${filterXSS(
+                          item.url
+                      )}" class='version-option'>${filterXSS(item.versionAlias === '' ? item.version : item.versionAlias)}</a></li>`
+                  })
+                  .join('')}
+              <li><a href="/versions${
+                  isEn ? '/en' : ''
+              }" class='version-option'>${isEn ? 'More' : '更多'}</a></li>
+          </ul></div> 
+      </div></div>`
                 )
             },
         }
@@ -1351,17 +1345,17 @@ ${menu
                     : '记得添加mindspore-assistant标签哦！'
 
             const feedbackDom = `<div class="docs-feedback">
-  <div class="feedback-box ${isEn ? 'en' : ''}">
-    <a href="${getQuestionHref()}" rel="noopener noreferrer" target="_blank" class="text askQuestion">${askQuestion}</a>
-    <div class="feedback-layer">
-      <p class="title"><i class="feedback-icon"></i>${askQuestion1}</p>
-      <p class="desc">${askQuestionInfo}</p>
-      <p class="desc m12">${askQuestionInfo1}</p>
-      <p class="desc assistant">mindspore- assistant</p>
-    </div>
+<div class="feedback-box ${isEn ? 'en' : ''}">
+  <a href="${getQuestionHref()}" rel="noopener noreferrer" target="_blank" class="text askQuestion">${askQuestion}</a>
+  <div class="feedback-layer">
+    <p class="title"><i class="feedback-icon"></i>${askQuestion1}</p>
+    <p class="desc">${askQuestionInfo}</p>
+    <p class="desc m12">${askQuestionInfo1}</p>
+    <p class="desc assistant">mindspore- assistant</p>
   </div>
-  <div class="go-top"><i class="icon-gotop"></i></div>
-  </div>`
+</div>
+<div class="go-top"><i class="icon-gotop"></i></div>
+</div>`
 
             body.prepend(feedbackDom)
             $('.docs-feedback .go-top').on('click', function () {
