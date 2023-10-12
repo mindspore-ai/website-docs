@@ -1303,6 +1303,94 @@ ${menu
             })()
         }
 
+        // 埋点JS
+        function createScriptSensor() {
+            var oHead = document.getElementsByTagName('HEAD').item(0);
+            let sensors_origin = location.origin;
+            let jsScript2 = document.createElement('script');
+            let jsScript3 = document.createElement('script');
+            jsScript2.src = sensors_origin + '/allow_sensor/sensorsdata.min.js';
+            jsScript3.src = sensors_origin + '/allow_sensor/sensors.js';
+            oHead.appendChild(jsScript2);
+            setTimeout(() => {
+                oHead.appendChild(jsScript3);
+            });
+        }
+
+        // 文档搜索埋点记录
+        const sensorsMethods = {
+            getSearchKey: function () {
+                var params = $.getQueryParameters();
+                if (params.q) {
+                    sensorsMethods.startSensor(params.q[0], 20);
+                }
+            },
+            startSensor: function (search_key, num) {
+                if (!num) {
+                    return;
+                }
+                if (window['sensorsCustomBuriedData']) {
+                    sensorsMethods.searchBuriedData(search_key);
+                } else {
+                    num--;
+                    setTimeout(() => {
+                        // 若是一开始没有值，则重试
+                        sensorsMethods.startSensor(search_key, num);
+                    }, 500);
+                }
+            },
+            searchBuriedData: function (search_key) {
+                if (window['sensorsCustomBuriedData']) {
+                    const search_event_id = `${search_key}${new Date().getTime()}${
+                        window['sensorsCustomBuriedData'].ip || ''
+                    }`;
+                    const obj = {
+                        search_key,
+                        search_event_id
+                    };
+                    window['addSearchBuriedData'] = obj;
+                    let sensors = window['sensorsDataAnalytic201505'];
+                    if (sensors) {
+                        sensors.setProfile({
+                            profileType: 'searchValue',
+                            ...(window['sensorsCustomBuriedData'] || {}),
+                            ...(window['addSearchBuriedData'] || {})
+                        });
+                        sensorsMethods.selectBuriedData();
+                    }
+                }
+            },
+            // 选中文档埋点
+            selectBuriedData: function () {
+                const data = $('#search-results > .search > li > a');
+                if (data.length) {
+                    data.each((index, item) => {
+                        $(item).on('click', function (e) {
+                            let sensors = window['sensorsDataAnalytic201505'];
+                            let search_tag = '';
+                            if (location.pathname.includes('tutorial')) {
+                                search_tag = 'tutorial';
+                            } else if (location.pathname.includes('docs')) {
+                                search_tag = 'docs';
+                            }
+                            const searchKeyObj = {
+                                search_tag,
+                                search_rank_num: index + 1,
+                                search_result_total_num: data.length,
+                                search_result_url: e.currentTarget.href
+                            };
+                            sensors.setProfile({
+                                profileType: 'selectSearchResult',
+                                ...(window['sensorsCustomBuriedData'] || {}),
+                                ...(window['addSearchBuriedData'] || {}),
+                                ...searchKeyObj
+                            });
+                        });
+                    });
+                }
+            }
+        };
+
         // 判断是否 Pad
         function isPad(cb) {
             let screen =
@@ -1414,6 +1502,7 @@ ${menu
         }
 
         const initPage = async function () {
+            createScriptSensor()
             createScriptBaidu()
 
             watchWinResize()
@@ -1491,7 +1580,7 @@ ${menu
                 isPadShow()
             })
             initTheme()
-
+            sensorsMethods.getSearchKey();
             sideRightAnchor()
         }
 
