@@ -504,7 +504,7 @@
     xhr.send();
   })
 
-  const sensors = window['sensorsDataAnalytic201505'];
+  let sensors = window['sensorsDataAnalytic201505'];
   function initSensor() {
     window['sensorsCustomBuriedData'] = {
       language: location.pathname.split('/')[1] || 'en',
