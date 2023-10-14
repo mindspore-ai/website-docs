@@ -181,13 +181,15 @@
 <span class="sd">    Args:</span>
 <span class="sd">        network (nn.Cell): The original network that need to be obfuscated.</span>
 <span class="sd">        ckpt_files (str): The directory path of original ckpt files.</span>
-<span class="sd">        target_modules (list[str, str]): The target module of network that need to be obfuscated. The first string</span>
+<span class="sd">        target_modules (list[str]): The target module of network that need to be obfuscated. The first string</span>
 <span class="sd">            represents the network path of target module in original network, which should be in form of ``&#39;A/B/C&#39;``.</span>
 <span class="sd">            The second string represents the obfuscation target module, which should be in form of ``&#39;D|E|F&#39;``. For</span>
 <span class="sd">            example, thr target_modules of GPT2 can be ``[&#39;backbone/blocks/attention&#39;, &#39;dense1|dense2|dense3&#39;]``.</span>
-<span class="sd">            If target_modules is ``None``, the function would search target modules by itself. If found, the searched</span>
-<span class="sd">            target module would be used, otherwise suggested target modules would be given with warning log.</span>
-<span class="sd">            Default: ``None``.</span>
+<span class="sd">            If target_modules has the third value, it should be in the format of &#39;obfuscate_layers:all&#39; or</span>
+<span class="sd">            &#39;obfuscate_layers:int&#39;, which represents the number of layers need to be obfuscated of duplicate layers</span>
+<span class="sd">            (such as transformer layers or resnet blocks). If target_modules is ``None``, the function would search</span>
+<span class="sd">            target modules by itself. If found, the searched target module would be used, otherwise suggested target</span>
+<span class="sd">            modules would be given with warning log. Default: ``None``.</span>
 <span class="sd">        saved_path (str): The directory path for saving obfuscated ckpt files and obf_ratios (a numpy file). obf_ratios</span>
 <span class="sd">            is the necessary data that needs to be load when running obfuscated network. Default: ``&#39;./&#39;``.</span>
 
@@ -197,11 +199,13 @@
 <span class="sd">        TypeError: If `target_modules` is not list.</span>
 <span class="sd">        TypeError: If target_modules&#39;s elements are not string.</span>
 <span class="sd">        ValueError: If `ckpt_files` is not exist or `saved_path` is not exist.</span>
-<span class="sd">        ValueError: If the number of elements of `target_modules` is not ``2``.</span>
+<span class="sd">        ValueError: If the number of elements of `target_modules` is less than ``2``.</span>
 <span class="sd">        ValueError: If the first string of `target_modules` contains characters other than uppercase and lowercase</span>
 <span class="sd">            letters, numbers, ``&#39;_&#39;`` and ``&#39;/&#39;``.</span>
 <span class="sd">        ValueError: If the second string of `target_modules` is empty or contains characters other than uppercase and</span>
 <span class="sd">            lowercase letters, numbers, ``&#39;_&#39;`` and ``&#39;|&#39;``.</span>
+<span class="sd">        ValueError: If the third string of `target_modules` is not in the format of &#39;obfuscate_layers:all&#39; or</span>
+<span class="sd">            &#39;obfuscate_layers:int&#39;.</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; from mindspore import obfuscate_ckpt, save_checkpoint</span>
@@ -245,11 +249,17 @@
         <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">ckpt_files</span> <span class="o">+</span> <span class="n">ckpt_name</span><span class="p">)</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
             <span class="n">sub_path</span> <span class="o">=</span> <span class="n">ckpt_files</span> <span class="o">+</span> <span class="n">ckpt_name</span>
             <span class="n">sub_ckpt_file_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">sub_path</span><span class="p">)</span>
+            <span class="n">new_saved_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">saved_path</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">ckpt_name</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">new_saved_path</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">new_saved_path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="mo">0o700</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">FileExistsError</span><span class="p">:</span>
+                    <span class="k">pass</span>
             <span class="k">for</span> <span class="n">sub_ckpt_name</span> <span class="ow">in</span> <span class="n">sub_ckpt_file_list</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">sub_ckpt_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.ckpt&#39;</span><span class="p">):</span>
                     <span class="k">continue</span>
                 <span class="n">_obfuscate_single_ckpt</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">sub_path</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">sub_ckpt_name</span><span class="p">,</span> <span class="n">obf_ratios</span><span class="p">,</span> <span class="n">path_list</span><span class="p">,</span>
-                                       <span class="n">target_list</span><span class="p">,</span> <span class="n">saved_path</span><span class="p">)</span>
+                                       <span class="n">target_list</span><span class="p">,</span> <span class="n">new_saved_path</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">ckpt_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.ckpt&#39;</span><span class="p">):</span>
                 <span class="k">continue</span>
@@ -280,14 +290,7 @@
         <span class="n">obf_param_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">item</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="n">ckpt_param</span><span class="p">[</span><span class="n">item</span><span class="p">]})</span>
     <span class="n">ckpt_file_name</span> <span class="o">=</span> <span class="n">ckpt_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">obf_ckpt_file_name</span> <span class="o">=</span> <span class="n">ckpt_file_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;_obf&#39;</span> <span class="o">+</span> <span class="s1">&#39;.ckpt&#39;</span>
-    <span class="c1"># for this condition: ckpt_name is &#39;parent_dir/sub_dir/net.ckpt&#39;, saved_path is &#39;parent_dir/&#39;,</span>
-    <span class="c1"># then save net_obf.ckpt at &#39;parent_dir/sub_dir/net_obf.ckpt&#39;</span>
-    <span class="k">if</span> <span class="n">saved_path</span> <span class="ow">in</span> <span class="n">ckpt_name</span><span class="p">:</span>
-        <span class="n">slash_index_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">start</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="n">ckpt_name</span><span class="p">)]</span>
-        <span class="n">original_saved_path</span> <span class="o">=</span> <span class="n">ckpt_name</span><span class="p">[:</span><span class="n">slash_index_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
-        <span class="n">save_checkpoint</span><span class="p">(</span><span class="n">obf_param_list</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">original_saved_path</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">obf_ckpt_file_name</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">save_checkpoint</span><span class="p">(</span><span class="n">obf_param_list</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">saved_path</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">obf_ckpt_file_name</span><span class="p">)</span>
+    <span class="n">save_checkpoint</span><span class="p">(</span><span class="n">obf_param_list</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">saved_path</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">obf_ckpt_file_name</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="load_obf_params_into_net"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.load_obf_params_into_net.html#mindspore.load_obf_params_into_net">[文档]</a><span class="k">def</span> <span class="nf">load_obf_params_into_net</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">target_modules</span><span class="p">,</span> <span class="n">obf_ratios</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -297,12 +300,13 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        network (nn.Cell): The original network that need to be obfuscated.</span>
-<span class="sd">        target_modules (list[str, str]): The target module of network that need to be obfuscated. The first string</span>
+<span class="sd">        target_modules (list[str]): The target module of network that need to be obfuscated. The first string</span>
 <span class="sd">            represents the network path of target module in original network, which should be in form of ``&#39;A/B/C&#39;``.</span>
 <span class="sd">            The second string represents the obfuscation target module, which should be in form of ``&#39;D|E|F&#39;``. For</span>
 <span class="sd">            example, thr target_modules of GPT2 can be ``[&#39;backbone/blocks/attention&#39;, &#39;dense1|dense2|dense3&#39;]``.</span>
-<span class="sd">            If target_modules is None, the function would search target modules by itself. If found, the searched</span>
-<span class="sd">            target module would be used, otherwise suggested target modules would be given with warning log.</span>
+<span class="sd">            If target_modules has the third value, it should be in the format of &#39;obfuscate_layers:all&#39; or</span>
+<span class="sd">            &#39;obfuscate_layers:int&#39;, which represents the number of layers need to be obfuscated of duplicate layers</span>
+<span class="sd">            (such as transformer layers or resnet blocks).</span>
 <span class="sd">        obf_ratios (Tensor): The obf ratios generated when execute :func:`mindspore.obfuscate_ckpt`.</span>
 <span class="sd">        kwargs (dict): Configuration options dictionary.</span>
 
@@ -314,12 +318,14 @@
 <span class="sd">        TypeError: If `obf_ratios` is not Tensor.</span>
 <span class="sd">        TypeError: If `target_modules` is not list.</span>
 <span class="sd">        TypeError: If target_modules&#39;s elements are not string.</span>
-<span class="sd">        ValueError: If the number of elements of `target_modules` is not ``2``.</span>
+<span class="sd">        ValueError: If the number of elements of `target_modules` is less than ``2``.</span>
 <span class="sd">        ValueError: If `obf_ratios` is empty Tensor.</span>
 <span class="sd">        ValueError: If the first string of `target_modules` contains characters other than uppercase and lowercase</span>
 <span class="sd">            letters, numbers, ``&#39;_&#39;`` and ``&#39;/&#39;``.</span>
 <span class="sd">        ValueError: If the second string of `target_modules` is empty or contains characters other than uppercase and</span>
 <span class="sd">            lowercase letters, numbers, ``&#39;_&#39;`` and ``&#39;|&#39;``.</span>
+<span class="sd">        ValueError: If the third string of `target_modules` is not in the format of &#39;obfuscate_layers:all&#39; or</span>
+<span class="sd">            &#39;obfuscate_layers:int&#39;.</span>
 <span class="sd">        TypeError: If `ignored_func_decorators` is not list[str] or `ignored_class_decorators` is not list[str].</span>
 
 <span class="sd">    Examples:</span>
@@ -388,8 +394,8 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;check whether the input &#39;target_modules&#39; exists&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target_modules</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;target_modules type should be list, but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">target_modules</span><span class="p">)))</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_modules</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;target_modules should contain two string values, in the form of [&#39;A/B/C&#39;, &#39;D1|D2&#39;],&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_modules</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;target_modules should contain at least two string values, in the form of [&#39;A/B/C&#39;, &#39;D1|D2&#39;],&quot;</span>
                          <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">target_modules</span><span class="p">))</span>
     <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target_modules</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">))</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target_modules</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">str</span><span class="p">)):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;The values of target_modules should be string, but got </span><span class="si">{}</span><span class="s2"> and </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span>
@@ -439,7 +445,26 @@
             <span class="n">OBF_RATIOS_WIDTH</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="k">if</span> <span class="n">OBF_RATIOS_WIDTH</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;all targets </span><span class="si">{}</span><span class="s2"> do not exist in the path </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">target_list</span><span class="p">,</span> <span class="n">target_modules</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">_update_max_obf_ratios_num</span><span class="p">(</span><span class="n">target_modules</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="k">def</span> <span class="nf">_update_max_obf_ratios_num</span><span class="p">(</span><span class="n">target_modules</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Update MAX_OBF_RATIOS_NUM&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_modules</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">obfuscate_layers</span> <span class="o">=</span> <span class="n">target_modules</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">obfuscate_layers</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">obfuscate_layers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;obfuscate_layers&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The third value of target_modules should be in the format of &#39;obfuscate_layers:all&#39; or&quot;</span>
+                             <span class="s2">&quot;&#39;obfuscate_layers:int&#39;&quot;</span><span class="p">)</span>
+        <span class="k">global</span> <span class="n">MAX_OBF_RATIOS_NUM</span>
+        <span class="k">if</span> <span class="n">obfuscate_layers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+            <span class="n">MAX_OBF_RATIOS_NUM</span> <span class="o">=</span> <span class="n">OBF_RATIOS_LENGTH</span> <span class="o">*</span> <span class="n">OBF_RATIOS_WIDTH</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">obfuscate_layers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The third value of target_modules should be in the format of &#39;obfuscate_layers:all&#39; or&quot;</span>
+                    <span class="s2">&quot;&#39;obfuscate_layers:int&#39;&quot;</span><span class="p">)</span>
+            <span class="n">MAX_OBF_RATIOS_NUM</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">obfuscate_layers</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">OBF_RATIOS_WIDTH</span>
 
 
 <span class="k">def</span> <span class="nf">_get_default_target_modules</span><span class="p">(</span><span class="n">ckpt_files</span><span class="p">):</span>
