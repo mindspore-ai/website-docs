@@ -1,0 +1,465 @@
+:gitee_url: https://gitee.com/mindspore/docs
+
+
+.. _program_listing_file_include_runtime_include_dataset_text.h:
+
+Program Listing for File text.h
+===============================
+
+|exhale_lsh| :ref:`Return to documentation for file <file_include_runtime_include_dataset_text.h>` (``include/runtime/include/dataset/text.h``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. code-block:: cpp
+
+   
+   
+   #ifndef MINDSPORE_CCSRC_MINDDATA_DATASET_INCLUDE_DATASET_TEXT_H_
+   #define MINDSPORE_CCSRC_MINDDATA_DATASET_INCLUDE_DATASET_TEXT_H_
+   
+   #include <memory>
+   #include <optional>
+   #include <string>
+   #include <unordered_map>
+   #include <utility>
+   #include <vector>
+   
+   #include "include/api/dual_abi_helper.h"
+   #include "include/api/status.h"
+   #include "include/dataset/constants.h"
+   #include "include/dataset/transforms.h"
+   
+   namespace mindspore {
+   namespace dataset {
+   class TensorOperation;
+   class Vectors;
+   
+   using WordIdType = int32_t;
+   using WordType = std::string;
+   
+   class Vocab {
+    public:
+     static Status BuildFromUnorderedMap(const std::unordered_map<WordType, WordIdType> &words,
+                                         std::shared_ptr<Vocab> *vocab);
+   
+     static Status BuildFromVector(const std::vector<WordType> &words, const std::vector<WordType> &special_tokens,
+                                   bool prepend_special, std::shared_ptr<Vocab> *vocab);
+   
+     static Status BuildFromFile(const std::string &path, const std::string &delimiter, int32_t vocab_size,
+                                 const std::vector<WordType> &special_tokens, bool prepend_special,
+                                 std::shared_ptr<Vocab> *vocab);
+   
+     WordIdType TokensToIds(const WordType &word) const;
+   
+     std::vector<WordIdType> TokensToIds(const std::vector<WordType> &words) const;
+   
+     WordType IdsToTokens(const WordIdType &id);
+   
+     std::vector<WordType> IdsToTokens(const std::vector<WordIdType> &ids);
+   
+     explicit Vocab(std::unordered_map<WordType, WordIdType> map);
+   
+     void AppendWord(const std::string &word);
+   
+     const std::unordered_map<WordType, WordIdType> &GetVocab() const { return word2id_; }
+   
+     Vocab() = default;
+   
+     ~Vocab() = default;
+   
+     static const WordIdType kNoTokenExists;
+     static const WordType kNoIdExists;
+   
+    private:
+     std::unordered_map<WordType, WordIdType> word2id_;
+     std::unordered_map<WordIdType, WordType> id2word_;
+   };
+   
+   class SentencePieceVocab {
+    public:
+     static Status BuildFromFile(const std::vector<std::string> &path_list, int32_t vocab_size, float character_coverage,
+                                 const SentencePieceModel &model_type,
+                                 const std::unordered_map<std::string, std::string> &params,
+                                 std::shared_ptr<SentencePieceVocab> *vocab);
+   
+     static Status SaveModel(const std::shared_ptr<SentencePieceVocab> *vocab, const std::string &path,
+                             const std::string &filename);
+   
+     SentencePieceVocab();
+   
+     ~SentencePieceVocab() = default;
+   
+     const std::string &model_proto();
+   
+     void set_model_proto(const std::string &model_proto);
+   
+    private:
+     std::string model_proto_;
+   };
+   
+   // Transform operations for text
+   namespace text {
+   class DATASET_API AddToken final : public TensorTransform {
+    public:
+     explicit AddToken(const std::string &token, bool begin = true);
+   
+     ~AddToken() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   #ifndef _WIN32
+   class DATASET_API BasicTokenizer final : public TensorTransform {
+    public:
+     explicit BasicTokenizer(bool lower_case = false, bool keep_whitespace = false,
+                             NormalizeForm normalize_form = NormalizeForm::kNone, bool preserve_unused_token = true,
+                             bool with_offsets = false);
+   
+     ~BasicTokenizer() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API BertTokenizer final : public TensorTransform {
+    public:
+     explicit BertTokenizer(const std::shared_ptr<Vocab> &vocab, const std::string &suffix_indicator = "##",
+                            int32_t max_bytes_per_token = 100, const std::string &unknown_token = "[UNK]",
+                            bool lower_case = false, bool keep_whitespace = false,
+                            const NormalizeForm normalize_form = NormalizeForm::kNone, bool preserve_unused_token = true,
+                            bool with_offsets = false)
+         : BertTokenizer(vocab, StringToChar(suffix_indicator), max_bytes_per_token, StringToChar(unknown_token),
+                         lower_case, keep_whitespace, normalize_form, preserve_unused_token, with_offsets) {}
+     BertTokenizer(const std::shared_ptr<Vocab> &vocab, const std::vector<char> &suffix_indicator,
+                   int32_t max_bytes_per_token, const std::vector<char> &unknown_token, bool lower_case,
+                   bool keep_whitespace, NormalizeForm normalize_form, bool preserve_unused_token, bool with_offsets);
+   
+     ~BertTokenizer() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API CaseFold final : public TensorTransform {
+    public:
+     CaseFold();
+   
+     ~CaseFold() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   };
+   
+   class FilterWikipediaXML final : public TensorTransform {
+    public:
+     FilterWikipediaXML();
+   
+     ~FilterWikipediaXML() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   };
+   #endif
+   
+   class DATASET_API JiebaTokenizer final : public TensorTransform {
+    public:
+     JiebaTokenizer(const std::string &hmm_path, const std::string &mp_path, const JiebaMode &mode = JiebaMode::kMix,
+                    bool with_offsets = false)
+         : JiebaTokenizer(StringToChar(hmm_path), StringToChar(mp_path), mode, with_offsets) {}
+   
+     JiebaTokenizer(const std::vector<char> &hmm_path, const std::vector<char> &mp_path, const JiebaMode &mode,
+                    bool with_offsets);
+   
+     ~JiebaTokenizer() override = default;
+   
+     Status AddWord(const std::string &word, int64_t freq = 0) { return AddWordChar(StringToChar(word), freq); }
+   
+     Status AddDict(const std::vector<std::pair<std::string, int64_t>> &user_dict) {
+       return AddDictChar(PairStringInt64ToPairCharInt64(user_dict));
+     }
+   
+     Status AddDict(const std::string &file_path) { return AddDictChar(StringToChar(file_path)); }
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     Status ParserFile(const std::string &file_path, std::vector<std::pair<std::string, int64_t>> *const user_dict);
+   
+     Status AddWordChar(const std::vector<char> &word, int64_t freq = 0);
+   
+     Status AddDictChar(const std::vector<std::pair<std::vector<char>, int64_t>> &user_dict);
+   
+     Status AddDictChar(const std::vector<char> &file_path);
+   
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API Lookup final : public TensorTransform {
+    public:
+     explicit Lookup(const std::shared_ptr<Vocab> &vocab, const std::optional<std::string> &unknown_token = {},
+                     mindspore::DataType data_type = mindspore::DataType::kNumberTypeInt32) {
+       std::optional<std::vector<char>> unknown_token_c = std::nullopt;
+       if (unknown_token != std::nullopt) {
+         unknown_token_c = std::vector<char>(unknown_token->begin(), unknown_token->end());
+       }
+       new (this) Lookup(vocab, unknown_token_c, data_type);
+     }
+   
+     Lookup(const std::shared_ptr<Vocab> &vocab, const std::optional<std::vector<char>> &unknown_token,
+            mindspore::DataType data_type = mindspore::DataType::kNumberTypeInt32);
+   
+     ~Lookup() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API Ngram final : public TensorTransform {
+    public:
+     explicit Ngram(const std::vector<int32_t> &ngrams, const std::pair<std::string, int32_t> &left_pad = {"", 0},
+                    const std::pair<std::string, int32_t> &right_pad = {"", 0}, const std::string &separator = " ")
+         : Ngram(ngrams, PairStringToChar(left_pad), PairStringToChar(right_pad), StringToChar(separator)) {}
+   
+     Ngram(const std::vector<int32_t> &ngrams, const std::pair<std::vector<char>, int32_t> &left_pad,
+           const std::pair<std::vector<char>, int32_t> &right_pad, const std::vector<char> &separator);
+   
+     ~Ngram() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   #ifndef _WIN32
+   class DATASET_API NormalizeUTF8 final : public TensorTransform {
+    public:
+     explicit NormalizeUTF8(NormalizeForm normalize_form = NormalizeForm::kNfkc);
+   
+     ~NormalizeUTF8() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API RegexReplace final : public TensorTransform {
+    public:
+     RegexReplace(const std::string &pattern, const std::string &replace, bool replace_all = true)
+         : RegexReplace(StringToChar(pattern), StringToChar(replace), replace_all) {}
+   
+     RegexReplace(const std::vector<char> &pattern, const std::vector<char> &replace, bool replace_all);
+   
+     ~RegexReplace() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API RegexTokenizer final : public TensorTransform {
+    public:
+     explicit RegexTokenizer(const std::string &delim_pattern, const std::string &keep_delim_pattern = "",
+                             bool with_offsets = false)
+         : RegexTokenizer(StringToChar(delim_pattern), StringToChar(keep_delim_pattern), with_offsets) {}
+   
+     explicit RegexTokenizer(const std::vector<char> &delim_pattern, const std::vector<char> &keep_delim_pattern,
+                             bool with_offsets);
+   
+     ~RegexTokenizer() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   #endif
+   
+   class DATASET_API SentencePieceTokenizer final : public TensorTransform {
+    public:
+     SentencePieceTokenizer(const std::shared_ptr<SentencePieceVocab> &vocab,
+                            mindspore::dataset::SPieceTokenizerOutType out_type);
+   
+     SentencePieceTokenizer(const std::string &vocab_path, mindspore::dataset::SPieceTokenizerOutType out_type)
+         : SentencePieceTokenizer(StringToChar(vocab_path), out_type) {}
+   
+     SentencePieceTokenizer(const std::vector<char> &vocab_path, mindspore::dataset::SPieceTokenizerOutType out_type);
+   
+     ~SentencePieceTokenizer() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API SlidingWindow final : public TensorTransform {
+    public:
+     explicit SlidingWindow(int32_t width, int32_t axis = 0);
+   
+     ~SlidingWindow() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API ToNumber final : public TensorTransform {
+    public:
+     explicit ToNumber(mindspore::DataType data_type);
+   
+     ~ToNumber() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API ToVectors final : public TensorTransform {
+    public:
+     explicit ToVectors(const std::shared_ptr<Vectors> &vectors, const std::vector<float> &unk_init = {},
+                        bool lower_case_backup = false);
+   
+     ~ToVectors() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API Truncate final : public TensorTransform {
+    public:
+     explicit Truncate(int32_t max_seq_len);
+   
+     ~Truncate() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API TruncateSequencePair final : public TensorTransform {
+    public:
+     explicit TruncateSequencePair(int32_t max_length);
+   
+     ~TruncateSequencePair() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API UnicodeCharTokenizer final : public TensorTransform {
+    public:
+     explicit UnicodeCharTokenizer(bool with_offsets = false);
+   
+     ~UnicodeCharTokenizer() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API WordpieceTokenizer final : public TensorTransform {
+    public:
+     explicit WordpieceTokenizer(const std::shared_ptr<Vocab> &vocab, const std::string &suffix_indicator = "##",
+                                 int32_t max_bytes_per_token = 100, const std::string &unknown_token = "[UNK]",
+                                 bool with_offsets = false)
+         : WordpieceTokenizer(vocab, StringToChar(suffix_indicator), max_bytes_per_token, StringToChar(unknown_token),
+                              with_offsets) {}
+   
+     explicit WordpieceTokenizer(const std::shared_ptr<Vocab> &vocab, const std::vector<char> &suffix_indicator,
+                                 int32_t max_bytes_per_token, const std::vector<char> &unknown_token, bool with_offsets);
+   
+     ~WordpieceTokenizer() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   #ifndef _WIN32
+   class DATASET_API UnicodeScriptTokenizer final : public TensorTransform {
+    public:
+     explicit UnicodeScriptTokenizer(bool keep_whitespace = false, bool with_offsets = false);
+   
+     ~UnicodeScriptTokenizer() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   
+   class DATASET_API WhitespaceTokenizer final : public TensorTransform {
+    public:
+     explicit WhitespaceTokenizer(bool with_offsets = false);
+   
+     ~WhitespaceTokenizer() override = default;
+   
+    protected:
+     std::shared_ptr<TensorOperation> Parse() override;
+   
+    private:
+     struct Data;
+     std::shared_ptr<Data> data_;
+   };
+   #endif
+   }  // namespace text
+   }  // namespace dataset
+   }  // namespace mindspore
+   #endif  // MINDSPORE_CCSRC_MINDDATA_DATASET_INCLUDE_DATASET_TEXT_H_
