@@ -1491,7 +1491,7 @@ $(function () {
       const componentVersionTitle = utils.getVersionData.versionAlias
         ? utils.getVersionData.versionAlias
         : utils.getVersionData.version;
-      utils.componentVersionTitle = utils.filterXSS(utils.getVersion(componentVersionTitle));
+        utils.componentVersionTitle = utils.filterXSS(utils.getVersion(componentVersionTitle));
 
       appHeader.init();
       appFooter.init();
