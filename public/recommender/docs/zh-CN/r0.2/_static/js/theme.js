@@ -39,7 +39,7 @@ $(function () {
               wyMenu.find('.caption').eq(2).addClass('down').next().show()
           }
       }
-  }, 50)
+  }, 100)
   let aList = $('.wy-menu-vertical>ul>.current>ul>.toctree-l2>a')
   if ($('li.current>ul').length === 0) {
       $('li.current').addClass('notoctree-l2')
