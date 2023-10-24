@@ -35,12 +35,12 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../design/overview.html">MindSpore设计概览</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../design/programming_paradigm.html">函数式和对象式融合编程范式</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../design/all_scenarios.html">全场景统一架构</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../design/dynamic_graph_and_static_graph.html">动静态图结合</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../design/pluggable_device.html">三方硬件对接</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../design/distributed_training_design.html">原生分布式并行架构</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../design/graph_fusion_engine.html">图算融合加速引擎</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../design/distributed_training_design.html">分布式并行原生</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../design/data_engine.html">高性能数据处理引擎</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../design/all_scenarios.html">全场景统一架构</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../design/graph_fusion_engine.html">图算融合加速引擎</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../design/pluggable_device.html">三方硬件对接</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../design/glossary.html">术语</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">模型库</span></p>
@@ -194,6 +194,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_op_generator</span> <span class="kn">import</span> <span class="n">AscendOPGenerator</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_steptrace_generator</span> <span class="kn">import</span> <span class="n">AscendStepTraceGenerator</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_flops_generator</span> <span class="kn">import</span> <span class="n">AscendFlopsGenerator</span>
+<span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_cluster_generator</span> <span class="kn">import</span> <span class="n">AscendClusterGenerator</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_hccl_generator</span> <span class="kn">import</span> <span class="n">AscendHCCLGenerator</span>
 
 <span class="n">INIT_OP_NAME</span> <span class="o">=</span> <span class="s1">&#39;Default/InitDataSetQueue&#39;</span>
@@ -1336,6 +1337,24 @@
         <span class="k">finally</span><span class="p">:</span>
             <span class="k">pass</span>
 
+    <span class="k">def</span> <span class="nf">_ascend_graph_cluster_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyse step trace time info&quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: analyzing the step trace time profiler info.&quot;</span><span class="p">)</span>
+            <span class="n">dev_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_target</span> <span class="o">==</span> <span class="n">DeviceTarget</span><span class="o">.</span><span class="n">ASCEND</span><span class="o">.</span><span class="n">value</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dev_id</span>
+
+            <span class="n">step_trace_time_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;step_trace_time_</span><span class="si">{</span><span class="n">dev_id</span><span class="si">}</span><span class="s1">.csv&#39;</span><span class="p">)</span>
+            <span class="n">step_trace_time_path</span> <span class="o">=</span> <span class="n">validate_and_normalize_path</span><span class="p">(</span><span class="n">step_trace_time_path</span><span class="p">)</span>
+
+            <span class="n">cluster_analyse</span> <span class="o">=</span> <span class="n">AscendClusterGenerator</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="s1">&#39;timeline&#39;</span><span class="p">))</span>
+            <span class="n">cluster_analyse</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
+            <span class="n">cluster_analyse</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">step_trace_time_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">ProfilerIOException</span><span class="p">,</span> <span class="n">ProfilerFileNotFoundException</span><span class="p">,</span> <span class="n">ProfilerRawFileException</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">pass</span>
+
     <span class="k">def</span> <span class="nf">_ascend_graph_hccl_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyse hccl profiler info.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_profile_communication</span><span class="p">:</span>
@@ -1405,6 +1424,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_dynamic_net_analyse</span><span class="p">(</span><span class="n">op_summary</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_flops_analyse</span><span class="p">(</span><span class="n">op_summary</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_memory_analyse</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_cluster_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_hccl_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_msadvisor_analyse</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
             <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_graph_ids</span><span class="p">(</span><span class="n">graph_ids</span><span class="p">)</span>
@@ -1600,6 +1620,9 @@
             <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_job_id</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">job_id</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;PROF&#39;</span><span class="p">):</span>
                 <span class="n">device_dir</span> <span class="o">=</span> <span class="p">[</span><span class="nb">dir</span> <span class="k">for</span> <span class="nb">dir</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_job_id</span><span class="p">)</span> <span class="k">if</span> <span class="nb">dir</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;device&#39;</span><span class="p">)]</span>
+                <span class="n">info_file_path</span> <span class="o">=</span> <span class="n">get_file_path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_job_id</span><span class="p">,</span> <span class="n">device_dir</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="s2">&quot;info.json&quot;</span><span class="p">)</span>
+                <span class="n">training_rank_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_info_json</span><span class="p">(</span><span class="n">info_file_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span> <span class="o">=</span> <span class="n">training_rank_id</span>
                 <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">device_dir</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             <span class="k">return</span> <span class="n">job_id</span>
 
