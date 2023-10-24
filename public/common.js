@@ -2,7 +2,7 @@ $(function () {
   (function () {
     $('title').text('MindSpore');
     const pathname = window.location.pathname;
-    const isEn = pathname.indexOf('/en/') !== -1;
+    const isEn = pathname.includes('/en/');
     const lang = isEn ? '/en/' : '/zh-CN/';
     const enPath = isEn ? 'en' : '';
     const pathPrefix = pathname.split(lang);
@@ -37,7 +37,7 @@ $(function () {
         return new Promise((resolve, reject) => {
           $.ajax({
             type: 'get',
-            url: url,
+            url,
             dataType: 'json',
             success: (res) => {
               resolve(res);
@@ -46,11 +46,11 @@ $(function () {
               reject(e);
             },
           });
-        }).catch((e) => {});
+        }).catch(() => {});
       },
       // 判断是否是移动端
       isPad: () => {
-        let screen =
+        const screen =
           document.documentElement.clientWidth || document.body.clientWidth;
         if (screen < 1200) {
           return true;
@@ -351,7 +351,7 @@ $(function () {
       },
     };
 
-    //初始化header
+    // 初始化header
     const appHeader = {
       ItemSubMenu: () => {
         return `${
@@ -394,15 +394,15 @@ $(function () {
                 : '';
               const name = isEn ? item.label.en : item.label.zh;
               if (!item.children) {
-                if (pathname.indexOf(item.id) > -1 && item.id === 'docs') {
+                if (pathname.includes(item.id) && item.id === 'docs') {
                   item.active = 1;
                 }
                 return `
                   <div class="header-nav-link"><a class="header-nav-link-line ${
                     item.active ? 'selected' : ''
                   }" href="${utils.filterXSS(href)}">${utils.filterXSS(
-                  name
-                )}</a></div>
+                    name
+                  )}</a></div>
                   `;
               } else {
                 if (
@@ -501,10 +501,10 @@ $(function () {
                                 ? subitem.href
                                 : appHeaderUtils.getNavLinks(subitem.id)
                             }" ${
-                            subitem.link
-                              ? 'target="_blank" rel="noopener noreferrer"'
-                              : ''
-                          }>
+                              subitem.link
+                                ? 'target="_blank" rel="noopener noreferrer"'
+                                : ''
+                            }>
                             ${utils.filterXSS(subitem.name)}
                             ${appHeaderUtils.ItemTags(subitem.tags)}
                           </a>`;
@@ -523,6 +523,7 @@ $(function () {
         return data
           ? data
               .map((sub) => {
+                let list = '';
                 if (sub.label && sub.label[isEn ? 'en' : 'zh']) {
                   let navHref = isEn ? sub.href.en : sub.href.zh;
                   if (sub.id === 'tutorials') {
@@ -531,13 +532,16 @@ $(function () {
                       appHeaderUtils.getLatestVersion(sub.id)
                     );
                   }
-                  return `<li class="${className}"><a target="${
-                    sub.jumOut ? '_blank' : '_self'
-                  }" href="${utils.filterXSS(navHref)}">
-                    ${utils.filterXSS(isEn ? sub.label.en : sub.label.zh)}
-                    ${appHeaderUtils.ItemTags(sub.tags)}
-                    </a></li>`;
+                  list = `<li class="${className}">
+                      <a target="${
+                        sub.jumOut ? '_blank' : '_self'
+                      }" href="${utils.filterXSS(navHref)}">
+                      ${utils.filterXSS(isEn ? sub.label.en : sub.label.zh)}
+                      ${appHeaderUtils.ItemTags(sub.tags)}
+                      </a>
+                    </li>`;
                 }
+                return list;
               })
               .join('')
           : '';
@@ -612,7 +616,7 @@ $(function () {
           appHeaderUtils.getVersionSwitchList().length > 0 &&
           `<div class='version-select-wrap '><div class="version-select-dom">
             <span class="versionText">
-            ${utils.filterXSS(utils.getVersion(currentVersion))}
+            ${utils.componentVersionTitle}
             <em class="icon-chevron-down"></em>
             </span>
               <div class="version-box"><ul class="version-list">
@@ -666,7 +670,9 @@ $(function () {
     const appFooter = {
       beian: ['粤A2-20044005号', '粤公网安备 44030702002890号'],
       aboutTitle: isEn ? 'Follow us' : '关注我们',
-      copyRight: isEn ? 'Copyright©MindSpore 2023' : '版权所有©MindSpore 2023',
+      copyRight: isEn
+        ? 'Copyright©MindSpore 2023'
+        : '版权所有©MindSpore 2023',
       footLinks: [
         {
           name: isEn ? 'Security' : '安全',
@@ -721,13 +727,12 @@ $(function () {
     const docsMethods = {
       // 用一个宽度来记录之前的宽度，当之前的宽度和现在的宽度，从手机切换到电脑或者从电脑切换到手机，才执行下面部分函数
       watchWinResize: () => {
-        let oldWidth = window.innerWidth;
         window.addEventListener('resize', () => {
-          let width = window.innerWidth;
-          let h5Head = document.getElementById('header-h5');
-          let h5footer = document.getElementById('footer-mo');
-          let pcfooter = document.getElementById('footer');
-          let navh5 = document.getElementById('nav-h5');
+          const width = window.innerWidth;
+          const h5Head = document.getElementById('header-h5');
+          const h5footer = document.getElementById('footer-mo');
+          const pcfooter = document.getElementById('footer');
+          const navh5 = document.getElementById('nav-h5');
           if (width < 1200) {
             $('#mask').css('display', 'none');
             $('.wy-nav-side').css({ left: '-90%', transition: '0s' });
@@ -754,7 +759,6 @@ $(function () {
               $('.wy-nav-content').append(appFooter.ItemContent());
             }
           }
-          oldWidth = width;
         });
       },
       // 复制粘贴功能
@@ -764,9 +768,9 @@ $(function () {
         );
 
         $('.copy-btn').click(function () {
-          let that = $(this);
+          const that = $(this);
           that.attr('data-tooltip', isEn ? 'Copy Success!' : '复制成功！');
-          let domTemp = that.parent().parent()[0].cloneNode(true);
+          const domTemp = that.parent().parent()[0].cloneNode(true);
           domTemp.querySelectorAll('.go').forEach((item) => item.remove());
           let Url2 = domTemp.innerText.replace('Copy', '');
           Url2 = Url2.split(/[\n]/);
@@ -780,16 +784,13 @@ $(function () {
           } else {
             let flag = false;
             for (let i = 0; i < Url2.length; i++) {
-              if (Url2[i].indexOf('>>>') > -1 || Url2[i].indexOf('...') == 0) {
+              if (Url2[i].includes('>>>') || Url2[i].indexOf('...') === 0) {
                 flag = true;
               } else {
                 flag = false;
               }
               if (flag) {
-                if (
-                  Url2[i].indexOf('>>>') > -1 ||
-                  Url2[i].indexOf('...') == 0
-                ) {
+                if (Url2[i].includes('>>>') || Url2[i].indexOf('...') === 0) {
                   Url2[i] = Url2[i].slice(4);
                 } else {
                   Url2[i] = '';
@@ -798,7 +799,7 @@ $(function () {
             }
             Url2 = Url2.join('\n').replace(/>>> /g, '').replace(/>>>/g, '');
           }
-          var oInput = document.createElement('textarea');
+          const oInput = document.createElement('textarea');
           oInput.value = Url2;
           document.body.appendChild(oInput);
           oInput.select(); // 选择对象
@@ -810,7 +811,7 @@ $(function () {
           }, 1000);
         });
       },
-      //跳转论坛统计
+      // 跳转论坛统计
       jumpDocsStatistics: () => {
         $('.askQuestion').on('click', () => {
           $.ajax({
@@ -830,20 +831,20 @@ $(function () {
           '/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0';
         if (
           pathname.startsWith('/docs/') &&
-          pathname.indexOf('/api_python/') > -1
+          pathname.includes('/api_python/')
         ) {
           issueUrl =
             utils.configIP.GITEE_URL +
             '/mindspore/mindspore/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0';
         }
-        const askQuestion = isEn ? 'Document Feedback' : '文档反馈',
-          askQuestion1 = isEn ? 'Quick Feedback' : '快速反馈问题',
-          askQuestionInfo = isEn
-            ? 'Click the blue button to commit an issue in the code repository. Describe the issue in the template. We will follow up on it.'
-            : '点击蓝色按钮，可跳转代码仓提issue，按照issue模板填写问题描述，我们将会跟进处理',
-          askQuestionInfo1 = isEn
-            ? 'Remember to add the tag below:'
-            : '记得添加mindspore-assistant标签哦！';
+        const askQuestion = isEn ? 'Document Feedback' : '文档反馈';
+        const askQuestion1 = isEn ? 'Quick Feedback' : '快速反馈问题';
+        const askQuestionInfo = isEn
+          ? 'Click the blue button to commit an issue in the code repository. Describe the issue in the template. We will follow up on it.'
+          : '点击蓝色按钮，可跳转代码仓提issue，按照issue模板填写问题描述，我们将会跟进处理';
+        const askQuestionInfo1 = isEn
+          ? 'Remember to add the tag below:'
+          : '记得添加mindspore-assistant标签哦！';
 
         const feedbackDom = `<div class="docs-feedback">
           <div class="feedback-box ${isEn ? 'en' : ''}">
@@ -872,12 +873,12 @@ $(function () {
         docsAnchoMethods.init();
 
         // 解决公式显示问题
-        let emList = $('p>em');
+        const emList = $('p>em');
         if (emList && emList.length > 0) {
           for (let i = 0; i < emList.length; i++) {
             if (
               emList[i].parentNode &&
-              emList[i].parentNode.innerHTML.indexOf('$') != -1
+              emList[i].parentNode.innerHTML.includes('$')
             ) {
               emList[i].parentNode.innerHTML = emList[i].parentNode.innerText;
             }
@@ -885,44 +886,42 @@ $(function () {
         }
 
         // 说明样式调整
-        if (pathname && pathname.indexOf('/design/introduction') != -1) {
-          let blockquoteList = $('blockquote');
+        if (pathname && pathname.includes('/design/introduction')) {
+          const blockquoteList = $('blockquote');
           blockquoteList.addClass('noteStyle');
         }
 
         // 左侧菜单控制
-        (function menuInit() {
-          const wyMenu = $('.wy-grid-for-nav .wy-menu');
-          wyMenu
-            .find('.caption')
-            .append("<i class='icon-chevron-down'></i>")
-            .next()
-            .hide();
+        const wyMenu = $('.wy-grid-for-nav .wy-menu');
+        wyMenu
+          .find('.caption')
+          .append("<i class='icon-chevron-down'></i>")
+          .next()
+          .hide();
 
-          if (wyMenu.find('.current').length) {
-            $('.wy-grid-for-nav .wy-menu>.current')
-              .show()
-              .prev()
-              .addClass('down');
-          } else {
-            wyMenu.find('.caption').eq(0).addClass('down').next().show();
-          }
-          wyMenu.find('.caption').click(() => {
-            $(this).toggleClass('down').next().toggle(200);
+        if (wyMenu.find('.current').length) {
+          $('.wy-grid-for-nav .wy-menu>.current')
+            .show()
+            .prev()
+            .addClass('down');
+        } else {
+          wyMenu.find('.caption').eq(0).addClass('down').next().show();
+        }
+        wyMenu.find('.caption').click(function () {
+          $(this).toggleClass('down').next().toggle(200);
+        });
+
+        // 左侧菜单少于4个 展开显示
+        if (wyMenu.find('.caption').length < 5) {
+          wyMenu.find('.caption').each(function (item) {
+            $(item).addClass('down').next().show();
           });
-
-          // 左侧菜单少于4个 展开显示
-          if (wyMenu.find('.caption').length < 5) {
-            wyMenu.find('.caption').each((item) => {
-              $(item).addClass('down').next().show();
-            });
-          }
-        })();
+        }
 
         // 进入页面调整到锚点,解决中文锚点问题，中文锚点需要转码
         (function gotoId() {
-          const url = utils.filterXSS(window.location.toString()); //进这个页面的url
-          const id = window.decodeURIComponent(url.split('#')[1]); //中文id需要转码，英文id走catch error
+          const url = utils.filterXSS(window.location.toString()); // 进这个页面的url
+          const id = window.decodeURIComponent(url.split('#')[1]); // 中文id需要转码，英文id走catch error
           if (id && document.getElementById(id) !== null) {
             document.getElementById(id).scrollIntoView(true);
           }
@@ -948,15 +947,15 @@ $(function () {
           utils.filterXSS(resolveText(strTemp))
         );
 
-        //返回组件index
+        // 返回组件index
         $('.wy-side-nav-search').after(
           `<div class="docs-home"><a href="${pagePath}/index.html" class="welcome">${docsHome}</a></div>`
         );
 
-        //lite 配置
+        // lite 配置
         if (
           pathname.startsWith('/lite/docs') &&
-          pathname.indexOf('/use/downloads') > -1
+          pathname.includes('/use/downloads')
         ) {
           $('.header-wapper-docs .bottom .header-nav-link a')
             .removeClass('selected')
@@ -967,10 +966,7 @@ $(function () {
 
         $('.wy-breadcrumbs').parent('div').addClass('rst-content-top');
         $('.wy-breadcrumbs>li:first-of-type')[0].innerText =
-          utils.getPageTitle +
-          ' (' +
-          utils.getVersion(utils.componentVersionTitle) +
-          ')';
+          utils.getPageTitle + ' (' + utils.componentVersionTitle + ')';
       },
     };
 
@@ -1073,7 +1069,7 @@ $(function () {
           parentLi.nextAll().children('.star').removeClass('sel');
           star.unbind('mouseover');
           star.unbind('mouseout');
-          let grade = parentLi.prevAll().length + 1;
+          const grade = parentLi.prevAll().length + 1;
           const isRatingMo = $('.page-rating').hasClass('mo');
 
           const ratingTips = (type) => {
@@ -1145,47 +1141,45 @@ $(function () {
         )}">${name}</a>
         ${
           isShow
-            ? `<ul class='${utils.filterXSS(className)}'>${
-                child ? child : ''
-              }</ul>`
+            ? `<ul class='${utils.filterXSS(className)}'>${child || ''}</ul>`
             : ''
         }
       </li> `;
       },
       sideRightAnchor: () => {
-        let sectionList = $('.document>div:first-of-type>section');
-        let h1List = $('.document section>h1');
-        let h2List = $('.document section>h2');
-        let codeList = $(
+        const sectionList = $('.document>div:first-of-type>section');
+        const h1List = $('.document section>h1');
+        const h2List = $('.document section>h2');
+        const codeList = $(
           'dl>dt>.descname>.pre:not(.method .descname>.pre):not(.property .descname>.pre)'
         );
         if (sectionList[0] === undefined) {
           return;
         }
-        let $ul =
+        const $ul =
           '<div class="navRight"><ul class="navList"><li class="navLi"><a href="#' +
           utils.filterXSS(sectionList[0].id) +
           '" class="navLiTitle">' +
           utils.filterXSS(h1List[0].innerText) +
           '</a><ul class="navList2"></ul></li></ul></div>';
-        let navLi3 = '',
-          navLi2 = '',
-          navLi4 = '';
+        let navLi3 = '';
+        let navLi2 = '';
+        let navLi4 = '';
         $('.wy-nav-content-wrap').append($ul);
         if (h2List.length > 0) {
           for (let i = 0; i < h2List.length; i++) {
             // 正则去除括号、保留内容
-            let id = h2List[i].parentNode.id
+            const id = h2List[i].parentNode.id
               .replace(/\(([^).']*)\)/g, '$1')
               .replace(/\“|\”|\'/g, '');
-            let h3 = document.getElementById(id).querySelectorAll('h3');
+            const h3 = document.getElementById(id).querySelectorAll('h3');
             if (h3.length > 0) {
               navLi2 = '';
               navLi3 = '';
               for (let i = 0; i < h3.length; i++) {
                 if (h3[i].parentNode.querySelectorAll('h4').length > 0) {
                   navLi4 = '';
-                  let navLi4Array = h3[i].parentNode.querySelectorAll('h4');
+                  const navLi4Array = h3[i].parentNode.querySelectorAll('h4');
                   for (let k = 0; k < navLi4Array.length; k++) {
                     navLi4 += docsAnchoMethods.getNodeList(navLi4Array[k]);
                   }
@@ -1215,7 +1209,7 @@ $(function () {
                   '.class>dt .descname>.pre,.function>dt .descname>.pre'
                 ).length > 0
               ) {
-                let navLi3Array = h2List[i].parentNode.querySelectorAll(
+                const navLi3Array = h2List[i].parentNode.querySelectorAll(
                   '.class>dt .descname>.pre,.function>dt .descname>.pre'
                 );
 
@@ -1226,7 +1220,7 @@ $(function () {
                     ).length > 0
                   ) {
                     navLi4 = '';
-                    let navLi4Array =
+                    const navLi4Array =
                       navLi3Array[j].parentNode.parentNode.querySelectorAll(
                         'dd .descname>.pre'
                       );
@@ -1303,7 +1297,7 @@ $(function () {
       },
       // 滚动定位
       navRightScroll: () => {
-        let scrollable = $('.wy-nav-content-wrap').scrollTop();
+        const scrollable = $('.wy-nav-content-wrap').scrollTop();
         if (scrollable > 90) {
           $('.navRightWraper').addClass('fixed');
         } else {
@@ -1320,8 +1314,8 @@ $(function () {
         });
         const navContentAnchor = () => {
           for (let i = 0; i < navListLink.length; i++) {
-            let anchorId = navListLink.eq(i).attr('href').substring(1);
-            let newAnchorId = anchorId.replace(
+            const anchorId = navListLink.eq(i).attr('href').substring(1);
+            const newAnchorId = anchorId.replace(
               /[-\/\\^$*+?.()|[\]{}]/g,
               '\\$&'
             );
@@ -1343,15 +1337,15 @@ $(function () {
     // 百度统计
     const getBaiduSensor = () => {
       (function () {
-        var hm = document.createElement('script');
+        const hm = document.createElement('script');
         hm.src = 'https://hm.baidu.com/hm.js?7c2afdec4c0d635d30ebb361804d0464';
-        var s = document.getElementsByTagName('script')[0];
+        const s = document.getElementsByTagName('script')[0];
         s.parentNode.insertBefore(hm, s);
       })();
     };
 
-    // 埋点JS
-    const createScriptSensor = () => {
+     // 埋点JS
+     function createScriptSensor() {
       var oHead = document.getElementsByTagName('HEAD').item(0);
       let sensors_origin = location.origin;
       let jsScript2 = document.createElement('script');
@@ -1362,17 +1356,17 @@ $(function () {
       setTimeout(() => {
         oHead.appendChild(jsScript3);
       });
-    };
+    }
 
     // 文档搜索埋点记录
     const sensorsMethods = {
-      getSearchKey: () => {
+      getSearchKey: function () {
         var params = $.getQueryParameters();
         if (params.q) {
           sensorsMethods.startSensor(params.q[0], 20);
         }
       },
-      startSensor: (search_key, num) => {
+      startSensor: function (search_key, num) {
         if (!num) {
           return;
         }
@@ -1386,7 +1380,7 @@ $(function () {
           }, 500);
         }
       },
-      searchBuriedData: (search_key) => {
+      searchBuriedData: function (search_key) {
         if (window['sensorsCustomBuriedData']) {
           const search_event_id = `${search_key}${new Date().getTime()}${
             window['sensorsCustomBuriedData'].ip || ''
@@ -1403,7 +1397,37 @@ $(function () {
               ...(window['sensorsCustomBuriedData'] || {}),
               ...(window['addSearchBuriedData'] || {}),
             });
+            sensorsMethods.selectBuriedData();
           }
+        }
+      },
+      // 选中文档埋点
+      selectBuriedData: function () {
+        const data = $('#search-results > .search > li > a');
+        if (data.length) {
+          data.each((index, item) => {
+            $(item).on('click', function (e) {
+              let sensors = window['sensorsDataAnalytic201505'];
+              let search_tag = '';
+              if (location.pathname.includes('tutorial')) {
+                search_tag = 'tutorial';
+              } else if (location.pathname.includes('docs')) {
+                search_tag = 'docs';
+              }
+              const searchKeyObj = {
+                search_tag,
+                search_rank_num: index + 1,
+                search_result_total_num: data.length,
+                search_result_url: e.currentTarget.href,
+              };
+              sensors.setProfile({
+                profileType: 'selectSearchResult',
+                ...(window['sensorsCustomBuriedData'] || {}),
+                ...(window['addSearchBuriedData'] || {}),
+                ...searchKeyObj,
+              });
+            });
+          });
         }
       },
     };
@@ -1462,15 +1486,15 @@ $(function () {
       createScriptSensor();
       getBaiduSensor();
 
-      //获取导航菜单json
+      // 获取导航菜单json
       utils.getHeaderMenu = await utils.getRequest(`/header.json`);
-      //获取文档导航菜单json
+      // 获取文档导航菜单json
       utils.getDocsMenu = await utils.getRequest(`/docs-menu.json`);
       utils.getAllComponentVersion = await utils.getRequest('/ms-version.json');
       // 公网ip配置
       utils.configIP = await utils.getRequest('/config.json');
 
-      //页面信息
+      // 页面信息
       utils.getVersionData = await utils.getRequest(
         `${pagePath}/_static/js/version.json`
       );
@@ -1491,7 +1515,9 @@ $(function () {
       const componentVersionTitle = utils.getVersionData.versionAlias
         ? utils.getVersionData.versionAlias
         : utils.getVersionData.version;
-      utils.componentVersionTitle = utils.filterXSS(componentVersionTitle);
+      utils.componentVersionTitle = utils.filterXSS(
+        utils.getVersion(componentVersionTitle)
+      );
 
       appHeader.init();
       appFooter.init();
@@ -1502,6 +1528,7 @@ $(function () {
 
       initTheme();
       sensorsMethods.getSearchKey();
+
     };
     initPage();
   })();
