@@ -917,15 +917,30 @@ $(function () {
             $(item).addClass('down').next().show();
           });
         }
+        // 默认展开文档内容
+        if (
+            pathname.startsWith('/docs/zh-CN/') ||
+            pathname.startsWith('/docs/en/')
+        ) {
+            if (
+                pathname.includes('/index.html') ||
+                pathname.includes('/search.html') ||
+                pathname.includes('/_modules/')
+            ) {
+                wyMenu.find('.caption').removeClass('down').next().hide()
+                wyMenu.find('.caption').eq(2).addClass('down').next().show()
+            }
+        }
 
         // 进入页面调整到锚点,解决中文锚点问题，中文锚点需要转码
-        (function gotoId() {
+      function gotoId() {
           const url = utils.filterXSS(window.location.toString()); // 进这个页面的url
           const id = window.decodeURIComponent(url.split('#')[1]); // 中文id需要转码，英文id走catch error
           if (id && document.getElementById(id) !== null) {
             document.getElementById(id).scrollIntoView(true);
           }
-        })();
+        };
+        gotoId()
 
         const resolveText = (text) => {
           return isEn ? `Search in ${text} ` : `"${text}" 内搜索`;
