@@ -58,11 +58,13 @@ $(function () {
         return false;
       },
       // 弹窗
-      oDialog: (title) => {
+      oDialog: (title,isShowCLosed=false) => {
         return `
           <div class="o-layer-dialog">
+          <div class="o-layer-mask"></div>
           <div class="o-dlg-main">
-            <div class="o-dlg-header">${title}</div>
+            <div class="o-dlg-header">${title} ${isShowCLosed?'<em class="o-dialog-closed"></em>':''}
+            </div>
             <div class="o-scroller-container" id="dialog-content"></div>
           </div>
           </div>
@@ -1205,9 +1207,225 @@ $(function () {
       });
     };
 
-    const initPage = async () => {
-      getBaiduSensor();
+    // cookie管理
+    const cookieNotice = {
+      COOKEY_KEY : 'agree-cookiepolicy',
+      locale:{
+        title:isEn?'MindSpore社区重视您的隐私':'MindSpore社区重视您的隐私',
+        desc:isEn?'我们在本网站上使用Cookie，包括第三方Cookie，以便网站正常运行和提升浏览体验。单击“全部接受”即表示您同意这些目的；单击“全部拒绝”即表示您拒绝非必要的Cookie；单击“管理Cookie”以选择接受或拒绝某些Cookie。需要了解更多信息或随时更改您的 Cookie 首选项，请参阅我们的 ':'我们在本网站上使用Cookie，包括第三方Cookie，以便网站正常运行和提升浏览体验。单击“全部接受”即表示您同意这些目的；单击“全部拒绝”即表示您拒绝非必要的Cookie；单击“管理Cookie”以选择接受或拒绝某些Cookie。需要了解更多信息或随时更改您的 Cookie 首选项，请参阅我们的 ',
+        privacy:isEn?'《隐私政策》':'《隐私政策》',
+        privacyHref:isEn?'/privacy/en':'/privacy',
+        action:[
+          {
+            btn:'全部接受',
+            btnEn:'全部接受',
+            type:'all'
+          },
+          {
+            btn:'全部拒绝',
+            btnEn:'全部拒绝',
+            type:'refuse'
+          },
+          {
+            btn:' 管理Cookie ',
+            btnEn:' 管理Cookie ',
+            type:'manage'
+          }
+        ],
+        manageTitle:isEn?'管理Cookie':'管理Cookie',
+        necessaryTitle:isEn?'必要Cookie':'必要Cookie',
+        necessaryDesc:isEn?'这些Cookie是网站正常工作所必需的，不能在我们的系统中关闭。它们通常仅是为了响应您的服务请求而设置的，例如登录或填写表单。您可以将浏览器设置为阻止Cookie来拒绝这些Cookie，但网站的某些部分将无法正常工作。这些Cookie不存储任何个人身份信息。':'这些Cookie是网站正常工作所必需的，不能在我们的系统中关闭。它们通常仅是为了响应您的服务请求而设置的，例如登录或填写表单。您可以将浏览器设置为阻止Cookie来拒绝这些Cookie，但网站的某些部分将无法正常工作。这些Cookie不存储任何个人身份信息。',
+        statisticsTitle:isEn?'统计分析Cookie':'统计分析Cookie',
+        statisticsDesc:isEn?'我们将根据您的同意使用和处理这些非必要Cookie。这些Cookie允许我们获得摘要统计数据，例如，统计访问量和访问者来源，便于我们改进我们的网站。':'我们将根据您的同意使用和处理这些非必要Cookie。这些Cookie允许我们获得摘要统计数据，例如，统计访问量和访问者来源，便于我们改进我们的网站。',
+        enabled:isEn?'始终启用':'始终启用',
+        manageAction:[
+          {
+            btn:'保存设置',
+            btnEn:'保存设置',
+            type:'save'
+          },
+          {
+            btn:'允许全部',
+            btnEn:'允许全部',
+            type:'allow-all'
+          },
+        ],
+      },
+      COOKIE_AGREED_STATUS : {
+        NOT_SIGNED: '0', // 未签署
+        ALL_AGREED: '1', // 同意所有cookie
+        NECCESSARY_AGREED: '2', // 仅同意必要cookie
+      },
+      isNoticeVisible:true,
+      // setCookie 设置cookie
+      setCustomCookie:(cname, cvalue, day = 1)=> {
+        const expires = day * 24 * 60 * 60 * 1000;
+        const date = new Date(+new Date() + expires).toUTCString();
+        document.cookie = `${cname}=${cvalue};expires=${date};path=/`;
+      },
+      // 获取cookie值
+      getCookieByKey: (key) => {
+        const cookieArr = document.cookie.split('; ');
+        for (let i = 0, len = cookieArr.length; i < len; i++) {
+          const item = cookieArr[i];
+          const rlt = item.split('=');
+          if (rlt[0] === key) {
+            return rlt[1];
+          }
+        }
+      },
+      // 是否未签署
+      isNotSigned : () => {
+        return cookieNotice.getUserCookieStatus() === cookieNotice.COOKIE_AGREED_STATUS.NOT_SIGNED;
+      },
+      // 是否未签署
+      isAllAgreed : () => {
+        return cookieNotice.getUserCookieStatus() === cookieNotice.COOKIE_AGREED_STATUS.ALL_AGREED;
+      },
+      // 弹框 是否选中统计分析Cookie
+      isManageAgreed:()=>{
+        return $('.statistics-switch').prop("checked");
+      },
+      // 显示/隐藏cookie提示
+      toggleNoticeVisible : (val) => {
+        const cookieMain = $('.cookie-notice');
+        val?cookieMain.show():cookieMain.hide()
+      },
+      // 获取cookie状态
+      getUserCookieStatus : () => {
+        const cookieVal = cookieNotice.getCookieByKey(cookieNotice.COOKEY_KEY);
+        if (cookieVal === cookieNotice.COOKIE_AGREED_STATUS.ALL_AGREED) {
+          return cookieNotice.COOKIE_AGREED_STATUS.ALL_AGREED;
+        } else if (cookieVal === cookieNotice.COOKIE_AGREED_STATUS.NECCESSARY_AGREED) {
+          return cookieNotice.COOKIE_AGREED_STATUS.NECCESSARY_AGREED;
+        } else {
+          return cookieNotice.COOKIE_AGREED_STATUS.NOT_SIGNED;
+        }
+      },
+      // cookie提示内容
+      ItemContent:()=>{
+        return `<div class="cookie-notice"><div class="cookie-notice-content">
+          <div class="content-wrapper cookie-notice-wrap">
+            <div class="cookie-notice-left">
+              <p class="cookie-title">${cookieNotice.locale.title}</p>
+              <p class="cookie-desc">
+                ${cookieNotice.locale.desc}
+                <a href="${cookieNotice.locale.privacyHref}" target="_blank">${cookieNotice.locale.privacy}</a>
+              </p>
+            </div>
+            <div class="cookie-notice-right">
+              ${cookieNotice.locale.action.map((item)=>{
+                return `<button class="o-button ${item.type}">${isEn?item.btnEn:item.btn}</button>`
+              }).join('')}
+            </div>
+          </div>
+        </div></div>`
+      },
+      // 弹框内容
+      ItemManageContent:()=>{
+        return `
+          <div class="manage-content">
+            <div class="manage-item">
+              <div class="item-header">
+                <span class="item-title">${cookieNotice.locale.necessaryTitle}</span>
+                <span class="item-extra">${cookieNotice.locale.enabled}</span>
+              </div>
+              <p class="item-detail">
+                ${cookieNotice.locale.necessaryDesc}
+              </p>
+            </div>
+            <div class="manage-item">
+              <div class="item-header">
+                <span class="item-title">${cookieNotice.locale.statisticsTitle}</span>
+                <span class="item-extra">
+                  <input type="checkbox" class="statistics-switch" is="o-switch">
+                </span>
+              </div>
+              <p class="item-detail">
+                ${cookieNotice.locale.statisticsDesc}
+              </p>
+            </div>
+            <div class="manage-action">
+            ${cookieNotice.locale.manageAction.map((item)=>{
+              return `<button class="o-button ${item.type}">${isEn?item.btnEn:item.btn}</button>`
+            }).join('')}
+            </div>
+          </div>`
+      },
+      // 用户同意所有cookie
+      acceptAll : () => {
+        const { setCustomCookie,COOKEY_KEY,COOKIE_AGREED_STATUS,toggleNoticeVisible} = cookieNotice;
+        getBaiduSensor();
+        setCustomCookie(COOKEY_KEY, COOKIE_AGREED_STATUS.ALL_AGREED, 180);
+        toggleNoticeVisible(false);
+      },
+      // 用户拒绝所有cookie，即仅同意必要cookie
+      rejectAll : () => {
+        const { setCustomCookie,COOKEY_KEY,COOKIE_AGREED_STATUS,toggleNoticeVisible} = cookieNotice;
+        setCustomCookie(COOKEY_KEY, COOKIE_AGREED_STATUS.NECCESSARY_AGREED, 180);
+        toggleNoticeVisible(false);
+        $('.o-layer-dialog').remove();
+      },
+      cookieMethods:()=>{
+        $('.cookie-notice-right button').on('click', function () {
+          const { locale,ItemManageContent,acceptAll,rejectAll} = cookieNotice;
+        // 同意
+            if($(this).hasClass('all')){
+              acceptAll()
+            }
+            // 拒绝
+            if($(this).hasClass('refuse')){
+              rejectAll()
+            }
+            // 管理cookie
+            if($(this).hasClass('manage')){
+              if (utils.isPad()) {
+                $('#mask').show();
+              }
+              body.prepend(utils.oDialog(locale.manageTitle,true));
+              $('#dialog-content').append(ItemManageContent);
+              cookieNotice.cookieMethods();
 
+            }
+        });
+        // 弹框按钮事件
+        $('.manage-action button').on('click', function () {
+          const { acceptAll,rejectAll,isManageAgreed} = cookieNotice;
+            // 保存设置
+            if($(this).hasClass('save')){
+              isManageAgreed()?acceptAll():rejectAll()
+            }
+            // 同意所有
+            if($(this).hasClass('allow-all')){
+              acceptAll();
+              $('.statistics-switch').prop("checked",true);
+            }
+            setTimeout(()=>{
+              $('.o-layer-dialog').remove();
+              if (utils.isPad()) {
+                $('#mask').hide();
+              }
+            },1000)
+        });
+        // 关闭弹窗
+        $('.o-layer-mask,.o-dialog-closed').on('click', function () {
+          $('.o-layer-dialog').remove();
+        });
+      },
+      init:()=>{
+        // 未签署，展示cookie notice
+        body.append(cookieNotice.ItemContent());
+        cookieNotice.cookieMethods();
+
+        cookieNotice.toggleNoticeVisible(cookieNotice.isNotSigned()?true:false)
+
+        if (cookieNotice.isAllAgreed()) {
+          cookieNotice.acceptAll();
+        }
+      }
+    }
+
+    const initPage = async () => {
       // 获取导航菜单json
       utils.getHeaderMenu = await utils.getRequest(`/header.json`);
       // 获取文档导航菜单json
@@ -1243,6 +1461,8 @@ $(function () {
 
       appHeader.init();
       appFooter.init();
+      // cookie提示
+      cookieNotice.init();
 
       if (utils.isPad()) {
         appHeaderMo.init();
