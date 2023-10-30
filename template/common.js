@@ -46,7 +46,7 @@ $(function () {
               reject(e);
             },
           });
-        }).catch(() => { });
+        }).catch(() => {});
       },
       // 判断是否是移动端
       isPad: () => {
@@ -58,41 +58,49 @@ $(function () {
         return false;
       },
       // 弹窗
-      oDialog: (title) => {
+      dialogInit: (title, showClose = false) => {
         return `
           <div class="o-layer-dialog">
+          <div class="o-layer-mask"></div>
           <div class="o-dlg-main">
-            <div class="o-dlg-header">${title}</div>
+            <div class="o-dlg-header">${title} ${
+          showClose ? '<em class="o-dialog-closed"></em>' : ''
+        }
+            </div>
             <div class="o-scroller-container" id="dialog-content"></div>
           </div>
           </div>
         `;
+      },
+      destroyDialog: () => {
+        $('.o-layer-dialog').remove();
       },
     };
 
     // header公共方法
     const appHeaderUtils = {
       // tag：['outlink','new','hot'....]
-      ItemTags: (tags) => {
-        return `${tags && tags.length > 0
+      getLinkTags: (tags) => {
+        return `${
+          tags && tags.length > 0
             ? tags
-              .map((item) => {
-                if (item.toLocaleLowerCase() === 'outlink') {
-                  return `<em class="outlink"></em>`;
-                } else {
-                  return `<span class="ms-tag ${item.toLocaleLowerCase()}">
+                .map((item) => {
+                  if (item.toLocaleLowerCase() === 'outlink') {
+                    return `<em class="outlink"></em>`;
+                  } else {
+                    return `<span class="ms-tag ${item.toLocaleLowerCase()}">
                             <span class="ms-tag-label">
                             ${utils.filterXSS(item)}
                             </span>
                         </span>`;
-                }
-              })
-              .join('')
+                  }
+                })
+                .join('')
             : ''
-          }`;
+        }`;
       },
       // 代码仓
-      ItemCode: (className = '') => {
+      getCodeContent: (className = '') => {
         const codeList = [
           {
             value: 'gitee',
@@ -114,10 +122,6 @@ $(function () {
             })
             .join('')}
           `;
-      },
-      // 风格切换
-      ItemTheme: () => {
-        return `<div class="theme-change"><i class="icon-theme light"></i></div>`;
       },
       // 获取组件最新版本
       getLatestVersion: (path) => {
@@ -155,7 +159,7 @@ $(function () {
         return utils.filterXSS(href);
       },
       // 获取组件切换下拉列表
-      getVersionSwitchList: () => {
+      getVersionsMenu: () => {
         let list = [];
         const matchingItem = utils.getAllComponentVersion.find(
           (item) => pathname.startsWith(`/${item.name}/`) && item.eom !== 'true'
@@ -175,8 +179,8 @@ $(function () {
     };
 
     // header 移动端方法
-    const appHeaderMo = {
-      ItemMenuMo: () => {
+    const appHeaderMb = {
+      getMenuContentMb: () => {
         return `
         <div class="header-menu-layer">
         <div class="menu-mask"></div>
@@ -184,65 +188,72 @@ $(function () {
         <div class="menu-left">
           <ul class="menu-list">
           <li class="menu-item"><a href="/" >${isEn ? 'Home' : '首页'}</a></li>
-          ${utils.getHeaderMenu &&
-          utils.getHeaderMenu
-            .map((item, index) => {
-              const href = item.href
-                ? isEn
-                  ? item.href.en
-                  : item.href.zh
-                : 'javascript:;';
-              const name = isEn ? item.label.en : item.label.zh;
-              return `
+          ${
+            utils.getHeaderMenu &&
+            utils.getHeaderMenu
+              .map((item, index) => {
+                const href = item.href
+                  ? isEn
+                    ? item.href.en
+                    : item.href.zh
+                  : 'javascript:;';
+                const name = isEn ? item.label.en : item.label.zh;
+                return `
               <li class="menu-item">
                 <a href="${utils.filterXSS(
-                href
-              )}" data-val='${index}' target="${item.jumOut ? '_blank' : '_self'
+                  href
+                )}" data-val='${index}' rel="noopener noreferrer" target="${
+                  item.jumOut ? '_blank' : '_self'
                 }">
                       ${utils.filterXSS(name)}
                       </a>
               </li> `;
-            })
-            .join('')
+              })
+              .join('')
           }
           </ul>
           <div class="menu-tool">
-            <div class="menu-item"><a href="javascript:;" data-val='7'>${isEn ? 'Code' : '代码'
-          }</a></div>
+            <div class="menu-item"><a href="javascript:;" data-val='7'>${
+              isEn ? 'Code' : '代码'
+            }</a></div>
             <div class="tool-item">
             <a href="${utils.filterXSS(
-            utils.newNavPath
-          )}" class="dropdown-toggle" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+              utils.newNavPath
+            )}" class="dropdown-toggle" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
                     <span class="languageIpt">EN</span>
                 </a>
-                ${appHeaderUtils.ItemTheme()}
+                <div class="theme-change"><i class="icon-theme light"></i></div>
             </div>
           </div>
         </div>
         <div class="menu-right">
-            ${utils.getHeaderMenu &&
-          utils.getHeaderMenu
-            .map((item) => {
-              return `<ul class="sub-menu">
-                      ${appHeader.ItemNav(item.children, 'sub-menu-item')}
+            ${
+              utils.getHeaderMenu &&
+              utils.getHeaderMenu
+                .map((item) => {
+                  return `<ul class="sub-menu">
+                      ${appHeader.getHeaderNavLinks(
+                        item.children,
+                        'sub-menu-item'
+                      )}
                 </ul>`;
-            })
-            .join('')
-          }
+                })
+                .join('')
+            }
             <ul class="sub-menu">
-              ${appHeaderUtils.ItemCode('sub-menu-item')}
+              ${appHeaderUtils.getCodeContent('sub-menu-item')}
             </ul>
         </div>
         </div>
         </div>`;
       },
       // 移动端导航
-      ItemContentMo: () => {
+      getHeaderContentMb: () => {
         return `<header id="header-h5" class="header-mobile">
         <div class="header-mobile-top">
         <div class="header-mobile-wrap">
         <div class="header-menu"> <em class="header-menu-icon"></em>
-        ${appHeaderMo.ItemMenuMo()}
+        ${appHeaderMb.getMenuContentMb()}
         </div>
         <span class="line"></span>
         <a href="/${enPath}"><img class="h5-logo" src="/pic/logo1.png" alt="logo" /></a>
@@ -252,29 +263,31 @@ $(function () {
         </header>`;
       },
       // 移动端子菜单
-      ItemNavMo: () => {
+      getNavContentMb: () => {
         return `<div id="nav-h5">
-        <div class="header-mobile-menu ${utils.getSubMenuData.length > 0 ? 'current' : ''
-          }">
-          ${appHeader.ItemSubMenu()}
+        <div class="header-mobile-menu ${
+          utils.getSubMenuData.length > 0 ? 'current' : ''
+        }">
+          ${appHeader.getSubMenuContent()}
           </div>
           <div class="header-mobile-nav">
           <em class="page-menu"></em>
           </div>
-          ${!pathname.startsWith('/tutorials')
-            ? `<div class="docs-menu-icon h5"></div>`
-            : ''
+          ${
+            !pathname.startsWith('/tutorials')
+              ? `<div class="docs-menu-icon h5"></div>`
+              : ''
           }</div>
       `;
       },
       // 移动端交互
-      ItemMethodsMo: () => {
+      utils: () => {
         $('.search-icon').on('click', function () {
           window.location.href = utils.searchUrl;
         });
         // 移动端菜单点击事件
         $('.header-menu-icon').on('click', function () {
-          appHeader.handleToggleMenu(false);
+          appHeader.toggleSideMenu(false);
           if ($(this).hasClass('on')) {
             $('.header-menu-layer').hide();
             $(this).removeClass('on');
@@ -303,27 +316,27 @@ $(function () {
         // 侧栏导航显示
         $('.page-menu').on('click', function () {
           const isFlag = $(this).hasClass('on');
-          appHeader.handleToggleMenu(!isFlag);
+          appHeader.toggleSideMenu(!isFlag);
         });
 
         $('.h5.docs-menu-icon').on('click', function () {
           const title = isEn ? 'Document Directory' : '文档目录';
-          body.prepend(utils.oDialog(title));
+          body.prepend(utils.dialogInit(title));
           $('#mask').show();
           $('#dialog-content').append($('.header-nav-content').html());
         });
 
         $('.header-mobile-nav .versionText').on('click', function () {
           const title = isEn ? 'Select Version' : '选择版本';
-          body.prepend(utils.oDialog(title));
+          body.prepend(utils.dialogInit(title));
           $('#mask').show();
           $('#dialog-content').append($(this).siblings('.version-box').html());
         });
 
         // mask点击关闭侧栏
         $('#mask').on('click', function () {
-          appHeader.handleToggleMenu(false);
-          $('.o-layer-dialog').remove();
+          appHeader.toggleSideMenu(false);
+          utils.destroyDialog();
           $(this).hide();
         });
       },
@@ -332,19 +345,19 @@ $(function () {
           '<div id="footer-mo"></div><div id="mask"></div>'
         );
         $('#footer').remove();
-        body.prepend(appHeaderMo.ItemContentMo());
-        $('.wy-nav-content-wrap').prepend(appHeaderMo.ItemNavMo());
-        $('.header-mobile-nav').append(appHeader.ItemVersion());
-        $('#footer-mo')
-          .append(appFooter.ItemContent());
-        appHeaderMo.ItemMethodsMo();
+        body.prepend(appHeaderMb.getHeaderContentMb());
+        $('.wy-nav-content-wrap').prepend(appHeaderMb.getNavContentMb());
+        $('.header-mobile-nav').append(appHeader.getVersionList());
+        $('#footer-mo').append(appFooter.getFooterContent());
+        appHeaderMb.utils();
       },
     };
 
     // 初始化header
     const appHeader = {
-      ItemSubMenu: () => {
-        return `${utils.getSubMenuData &&
+      getSubMenuContent: () => {
+        return `${
+          utils.getSubMenuData &&
           utils.getSubMenuData
             .map((item) => {
               if (
@@ -354,24 +367,26 @@ $(function () {
                 item.active = 1;
               }
               return `<div class="header-nav-link">
-              <a class="${item.active ? 'selected' : ''
-                }" href="${utils.filterXSS(item.url)}">${utils.filterXSS(
-                  item.label
-                )}</a>
+              <a class="${
+                item.active ? 'selected' : ''
+              }" href="${utils.filterXSS(item.url)}">${utils.filterXSS(
+                item.label
+              )}</a>
             </div>
             `;
             })
             .join('')
-          }`;
+        }`;
       },
-      ItemContent: () => {
+      getHeaderContentInit: () => {
         return `<header class="header page-load">
         <nav class="header-wapper header-wapper-top">
         <div class="header-nav" style="display: flex;">
         <a href="/${enPath}" class="logo " >
         <img class="logo-img" src="/pic/logo_black.png" alt="logo" />
         </a>
-        ${utils.getHeaderMenu &&
+        ${
+          utils.getHeaderMenu &&
           utils.getHeaderMenu
             .map((item) => {
               const href = item.href
@@ -385,10 +400,11 @@ $(function () {
                   item.active = 1;
                 }
                 return `
-                  <div class="header-nav-link"><a class="header-nav-link-line ${item.active ? 'selected' : ''
+                  <div class="header-nav-link"><a class="header-nav-link-line ${
+                    item.active ? 'selected' : ''
                   }" href="${utils.filterXSS(href)}">${utils.filterXSS(
-                    name
-                  )}</a></div>
+                  name
+                )}</a></div>
                   `;
               } else {
                 if (
@@ -399,128 +415,148 @@ $(function () {
                 }
                 let navLabel = '';
                 if (href) {
-                  navLabel = `<a class="header-nav-link-line ${item.active ? 'selected' : ''
-                    }" href="${utils.filterXSS(href)}" target="${item.jumOut ? '_blank' : '_self'
-                    }">${utils.filterXSS(name)}</a>`;
+                  navLabel = `<a class="header-nav-link-line ${
+                    item.active ? 'selected' : ''
+                  }" href="${utils.filterXSS(
+                    href
+                  )}" rel="noopener noreferrer" target="${
+                    item.jumOut ? '_blank' : '_self'
+                  }">${utils.filterXSS(name)}</a>`;
                 } else {
-                  navLabel = `<span class="header-nav-link-line ${item.active ? 'selected' : ''
-                    }">${utils.filterXSS(name)}</span>`;
+                  navLabel = `<span class="header-nav-link-line ${
+                    item.active ? 'selected' : ''
+                  }">${utils.filterXSS(name)}</span>`;
                 }
 
                 return `
                   <div class="header-nav-link">
                           <div class="nav-content">${navLabel}
-                          ${item.label && item.label[isEn ? 'en' : 'zh']
-                    ? `<ul class="dropdown-menu-git ${item.id === 'docs' ? 'dropdown-menu-docs' : ''
-                    }" >
-                                ${appHeader.ItemNav(item.children, '')}
+                          ${
+                            item.label && item.label[isEn ? 'en' : 'zh']
+                              ? `<ul class="dropdown-menu-git ${
+                                  item.id === 'docs' ? 'dropdown-menu-docs' : ''
+                                }" >
+                                ${appHeader.getHeaderNavLinks(
+                                  item.children,
+                                  ''
+                                )}
                             </ul>`
-                    : ''
-                  }</div> ${appHeaderUtils.ItemTags(item.tags)}
+                              : ''
+                          }</div> ${appHeaderUtils.getLinkTags(item.tags)}
                   </div>`;
               }
             })
             .join('')
-          }
+        }
         </div>
         <div class="header-nav navbar-tools" >
         <div class="header-search"><div class="search-input"><span class="search-icon"></span></span><input
-          class="search-val" placeholder="${isEn ? 'Search...' : '全局搜索...'
+          class="search-val" placeholder="${
+            isEn ? 'Search...' : '全局搜索...'
           }"><span class="close-icon"></div></div>
         <div class="header-nav-link">
-        <p class="code">${isEn ? 'Code' : '代码'
-          } <i class="icon-chevron-down"></i></p>
+        <p class="code">${
+          isEn ? 'Code' : '代码'
+        } <i class="icon-chevron-down"></i></p>
         <ul class="dropdown-menu-git">
-        ${appHeaderUtils.ItemCode('')}
+        ${appHeaderUtils.getCodeContent('')}
         </ul>
         </div>
         <div class="dropdown">
         <a href="${utils.filterXSS(
-            utils.newNavPath
-          )}" class="dropdown-toggle" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          utils.newNavPath
+        )}" class="dropdown-toggle" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
           <span class="languageIpt">EN</span>
         </a>
         </div>
-        ${appHeaderUtils.ItemTheme()}
+        <div class="theme-change"><i class="icon-theme light"></i></div>
         </div>
         </nav>
         <div class="header-menu">
         <nav class="header-wapper  header-wapper-docs" >
         <div class="header-nav">
         <div class="header-nav-info">
-        ${!pathname.startsWith('/tutorials')
+        ${
+          !pathname.startsWith('/tutorials')
             ? `<em class="docs-menu-icon"></em>`
             : ''
-          }
+        }
         <h3>${utils.getPageTitle}</h3>
         </div>
         <div class="bottom">
-        ${appHeader.ItemSubMenu()}
+        ${appHeader.getSubMenuContent()}
         </div>
         </div>
         </div></nav></div><div class="header-nav-layer">
         <div class="header-nav-content">
-        ${!pathname.startsWith('/tutorials')
+        ${
+          !pathname.startsWith('/tutorials')
             ? utils.getDocsMenu &&
-            utils.getDocsMenu
-              .map((item) => {
-                return `<div class="docsNew-column">
-                      <div class="docsNew-column-title">${utils.filterXSS(isEn ? item.title.en : item.title.zh) ||
-                  ''
-                  }</div>
+              utils.getDocsMenu
+                .map((item) => {
+                  return `<div class="docsNew-column">
+                      <div class="docsNew-column-title">${
+                        utils.filterXSS(isEn ? item.title.en : item.title.zh) ||
+                        ''
+                      }</div>
                   <div class="bottom">
                       ${item.children
-                    .map((subitem) => {
-                      return `
-                            <a class="docs-column-link" href="${subitem.href
-                          ? subitem.href
-                          : appHeaderUtils.getNavLinks(subitem.id)
-                        }" ${subitem.link
-                          ? 'target="_blank" rel="noopener noreferrer"'
-                          : ''
-                        }>
+                        .map((subitem) => {
+                          return `
+                            <a class="docs-column-link" href="${
+                              subitem.href
+                                ? subitem.href
+                                : appHeaderUtils.getNavLinks(subitem.id)
+                            }" ${
+                            subitem.link
+                              ? 'target="_blank" rel="noopener noreferrer"'
+                              : ''
+                          }>
                             ${utils.filterXSS(subitem.name)}
-                            ${appHeaderUtils.ItemTags(subitem.tags)}
+                            ${appHeaderUtils.getLinkTags(subitem.tags)}
                           </a>`;
-                    })
-                    .join('')}
+                        })
+                        .join('')}
                   </div>
               </div>`;
-              })
-              .join('')
+                })
+                .join('')
             : ''
-          }
+        }
         </div></header>`;
       },
       // 导航子菜单
-      ItemNav: (data, className) => {
+      getHeaderNavLinks: (data, className) => {
         return data
           ? data
-            .map((sub) => {
-              let list = '';
-              if (sub.label && sub.label[isEn ? 'en' : 'zh']) {
-                let navHref = isEn ? sub.href.en : sub.href.zh;
-                if (sub.id === 'tutorials') {
-                  navHref = navHref.replace(
-                    'master',
-                    appHeaderUtils.getLatestVersion(sub.id)
-                  );
-                }
-                list = `<li class="${className}">
-                      <a target="${sub.jumOut ? '_blank' : '_self'
-                  }" href="${utils.filterXSS(navHref)}">
+              .map((sub) => {
+                let list = '';
+                if (sub.label && sub.label[isEn ? 'en' : 'zh']) {
+                  let navHref = isEn ? sub.href.en : sub.href.zh;
+                  if (sub.id === 'tutorials') {
+                    navHref = navHref.replace(
+                      'master',
+                      appHeaderUtils.getLatestVersion(sub.id)
+                    );
+                  }
+                  list = `<li class="${className}">
+                      <a target="${
+                        sub.jumOut ? '_blank' : '_self'
+                      }" rel="noopener noreferrer" href="${utils.filterXSS(
+                    navHref
+                  )}">
                       ${utils.filterXSS(isEn ? sub.label.en : sub.label.zh)}
-                      ${appHeaderUtils.ItemTags(sub.tags)}
+                      ${appHeaderUtils.getLinkTags(sub.tags)}
                       </a>
                     </li>`;
-              }
-              return list;
-            })
-            .join('')
+                }
+                return list;
+              })
+              .join('')
           : '';
       },
       // 文档页面交互
-      getHeaderMethods: () => {
+      utils: () => {
         // 点击切换语言开始
         if (isEn) {
           $('.languageIpt').text('中');
@@ -584,35 +620,36 @@ $(function () {
         }, 150);
       },
       // 组件切换列表
-      ItemVersion: () => {
+      getVersionList: () => {
         return (
-          appHeaderUtils.getVersionSwitchList().length > 0 &&
-          `<div class='version-select-wrap '><div class="version-select-dom">
+          appHeaderUtils.getVersionsMenu().length > 0 &&
+          `<div class='version-select-wrap'><div class="version-select-dom">
             <span class="versionText">
             ${utils.componentVersionTitle}
             <em class="icon-chevron-down"></em>
             </span>
               <div class="version-box"><ul class="version-list">
                     ${appHeaderUtils
-            .getVersionSwitchList()
-            .map((item) => {
-              return `<li><a href="${utils.filterXSS(
-                item.href
-              )}" class='version-option'>${utils.filterXSS(
-                item.versionAlias === ''
-                  ? item.version
-                  : item.versionAlias
-              )}</a></li>`;
-            })
-            .join('')}
-                    <li><a href="/versions${isEn ? '/en' : ''
-          }" class='version-option'>${isEn ? 'More' : '更多'}</a></li>
+                      .getVersionsMenu()
+                      .map((item) => {
+                        return `<li><a href="${utils.filterXSS(
+                          item.href
+                        )}" class='version-option'>${utils.filterXSS(
+                          item.versionAlias === ''
+                            ? item.version
+                            : item.versionAlias
+                        )}</a></li>`;
+                      })
+                      .join('')}
+                    <li><a href="/versions${
+                      isEn ? '/en' : ''
+                    }" class='version-option'>${isEn ? 'More' : '更多'}</a></li>
                 </ul></div>
             </div></div>`
         );
       },
       // 导航切换
-      handleToggleMenu: (show) => {
+      toggleSideMenu: (show) => {
         const wyNavSide = $('.wy-nav-side');
         const mask = $('#mask');
         const pageMenu = $('.page-menu');
@@ -631,10 +668,10 @@ $(function () {
       },
       // 初始化菜单
       init: () => {
-        body.prepend(appHeader.ItemContent());
-        appHeader.getHeaderMethods();
-        $('.header-nav-info').append(appHeader.ItemVersion());
-        docsMethods.init();
+        body.prepend(appHeader.getHeaderContentInit());
+        appHeader.utils();
+        $('.header-nav-info').append(appHeader.getVersionList());
+        docsUtils.init();
       },
     };
 
@@ -642,9 +679,7 @@ $(function () {
     const appFooter = {
       beian: ['粤A2-20044005号', '粤公网安备 44030702002890号'],
       aboutTitle: isEn ? 'Follow us' : '关注我们',
-      copyRight: isEn
-        ? 'Copyright©MindSpore 2023'
-        : '版权所有©MindSpore 2023',
+      copyRight: isEn ? 'Copyright©MindSpore 2023' : '版权所有©MindSpore 2023',
       footLinks: [
         {
           name: isEn ? 'Security' : '安全',
@@ -660,16 +695,18 @@ $(function () {
         },
       ],
       // PC footer
-      ItemContent: () => {
+      getFooterContent: () => {
         return `
           <div id="footer">
           <div class="footer-bottom">
           <div class="copyright">
           <span class="copyRight">${appFooter.copyRight}</span>
-          <a class="copynum" rel="noopener noreferrer" target="_blank" href="${utils.configIP.BEIAN_URL
+          <a class="copynum" rel="noopener noreferrer" target="_blank" href="${
+            utils.configIP.BEIAN_URL
           }">${appFooter.beian[0]}</a>
           <div>
-          <a class="footer-record" rel="noopener noreferrer" target="_blank" href="${utils.configIP.BEIAN_URL
+          <a class="footer-record" rel="noopener noreferrer" target="_blank" href="${
+            utils.configIP.BEIAN_URL
           }">
           <img class="copyImg2" src="/pic/copyright3.png" alt="img" />
           <span class="keepRecord">${appFooter.beian[1]} </span>
@@ -688,12 +725,12 @@ $(function () {
       },
       // 初始化
       init: () => {
-        $('.wy-nav-content').append(appFooter.ItemContent());
+        $('.wy-nav-content').append(appFooter.getFooterContent());
       },
     };
 
     // 文档方法
-    const docsMethods = {
+    const docsUtils = {
       // 用一个宽度来记录之前的宽度，当之前的宽度和现在的宽度，从手机切换到电脑或者从电脑切换到手机，才执行下面部分函数
       watchWinResize: () => {
         window.addEventListener('resize', () => {
@@ -706,9 +743,9 @@ $(function () {
             $('#mask').css('display', 'none');
             $('.wy-nav-side').css({ left: '-90%', transition: '0s' });
             if (h5Head === null) {
-              appHeaderMo.init();
+              appHeaderMb.init();
             }
-            $('.o-layer-dialog').remove();
+            utils.destroyDialog();
           } else {
             $('.header').css('display', 'block');
             $('#mask').remove();
@@ -721,13 +758,13 @@ $(function () {
             }
 
             if (pcfooter === null) {
-              $('.wy-nav-content').append(appFooter.ItemContent());
+              $('.wy-nav-content').append(appFooter.getFooterContent());
             }
           }
         });
       },
       // 复制粘贴功能
-      clickClipboard: () => {
+      onClipboard: () => {
         $('pre>span:first-of-type').append(
           '<em class="copy-btn" data-tooltip="copy"><i class="icon-copy"></i></em>'
         );
@@ -777,7 +814,7 @@ $(function () {
         });
       },
       // 文档反馈
-      ItemFeedback: () => {
+      getFeedbackContent: () => {
         let issueUrl =
           utils.configIP.GITEE_URL +
           '/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0';
@@ -817,10 +854,10 @@ $(function () {
         });
       },
       init: () => {
-        docsMethods.clickClipboard();
-        docsMethods.watchWinResize();
-        docsMethods.ItemFeedback();
-        docsAnchoMethods.init();
+        docsUtils.onClipboard();
+        docsUtils.watchWinResize();
+        docsUtils.getFeedbackContent();
+        docsAnchor.init();
 
         // 解决公式显示问题
         const emList = $('p>em');
@@ -877,8 +914,8 @@ $(function () {
             pathname.includes('/search.html') ||
             pathname.includes('/_modules/')
           ) {
-            wyMenu.find('.caption').removeClass('down').next().hide()
-            wyMenu.find('.caption').eq(2).addClass('down').next().show()
+            wyMenu.find('.caption').removeClass('down').next().hide();
+            wyMenu.find('.caption').eq(2).addClass('down').next().show();
           }
         }
 
@@ -889,8 +926,8 @@ $(function () {
           if (id && document.getElementById(id) !== null) {
             document.getElementById(id).scrollIntoView(true);
           }
-        };
-        gotoId()
+        }
+        gotoId();
 
         const resolveText = (text) => {
           return isEn ? `Search in ${text} ` : `"${text}" 内搜索`;
@@ -936,7 +973,7 @@ $(function () {
     };
 
     // 文档右侧锚点
-    const docsAnchoMethods = {
+    const docsAnchor = {
       getNodeList: (
         node,
         isShow = false,
@@ -950,13 +987,14 @@ $(function () {
         <a title="${name}" href="#${utils.filterXSS(
           isId ? node.closest('dt').id : node.parentNode.id
         )}">${name}</a>
-        ${isShow
+        ${
+          isShow
             ? `<ul class='${utils.filterXSS(className)}'>${child || ''}</ul>`
             : ''
-          }
+        }
       </li> `;
       },
-      sideRightAnchor: () => {
+      getAnchorList: () => {
         const sectionList = $('.document>div:first-of-type>section');
         const h1List = $('.document section>h1');
         const h2List = $('.document section>h2');
@@ -991,9 +1029,9 @@ $(function () {
                   navLi4 = '';
                   const navLi4Array = h3[i].parentNode.querySelectorAll('h4');
                   for (let k = 0; k < navLi4Array.length; k++) {
-                    navLi4 += docsAnchoMethods.getNodeList(navLi4Array[k]);
+                    navLi4 += docsAnchor.getNodeList(navLi4Array[k]);
                   }
-                  navLi3 += docsAnchoMethods.getNodeList(
+                  navLi3 += docsAnchor.getNodeList(
                     h3[i],
                     true,
                     false,
@@ -1001,10 +1039,10 @@ $(function () {
                     'navList4'
                   );
                 } else {
-                  navLi3 += docsAnchoMethods.getNodeList(h3[i]);
+                  navLi3 += docsAnchor.getNodeList(h3[i]);
                 }
               }
-              navLi2 = docsAnchoMethods.getNodeList(
+              navLi2 = docsAnchor.getNodeList(
                 h2List[i],
                 true,
                 false,
@@ -1035,13 +1073,13 @@ $(function () {
                         'dd .descname>.pre'
                       );
                     for (let k = 0; k < navLi4Array.length; k++) {
-                      navLi4 += docsAnchoMethods.getNodeList(
+                      navLi4 += docsAnchor.getNodeList(
                         navLi4Array[k],
                         false,
                         true
                       );
                     }
-                    navLi3 += docsAnchoMethods.getNodeList(
+                    navLi3 += docsAnchor.getNodeList(
                       navLi3Array[j],
                       true,
                       true,
@@ -1049,7 +1087,7 @@ $(function () {
                       'navList4'
                     );
                   } else {
-                    navLi3 += docsAnchoMethods.getNodeList(
+                    navLi3 += docsAnchor.getNodeList(
                       navLi3Array[j],
                       true,
                       true,
@@ -1058,7 +1096,7 @@ $(function () {
                     );
                   }
                 }
-                navLi2 = docsAnchoMethods.getNodeList(
+                navLi2 = docsAnchor.getNodeList(
                   h2List[i],
                   true,
                   false,
@@ -1066,7 +1104,7 @@ $(function () {
                   'navList3'
                 );
               } else {
-                navLi2 = docsAnchoMethods.getNodeList(h2List[i]);
+                navLi2 = docsAnchor.getNodeList(h2List[i]);
               }
             }
 
@@ -1105,42 +1143,42 @@ $(function () {
           });
         }
       },
-      // 滚动定位
-      navRightScroll: () => {
-        const scrollable = $('.wy-nav-content-wrap').scrollTop();
-        if (scrollable > 90) {
-          $('.navRightWraper').addClass('fixed');
-        } else {
-          $('.navRightWraper').removeClass('fixed');
-        }
-      },
-      init: () => {
-        docsAnchoMethods.sideRightAnchor();
-        // 点击右侧导航选中
+      utils: () => {
         const navListLink = $('.navList a');
         navListLink.on('click', function () {
           navListLink.closest('li').removeClass('selected');
           $(this).closest('li').addClass('selected');
         });
-        const navContentAnchor = () => {
+        const getCurrentSelected = () => {
           for (let i = 0; i < navListLink.length; i++) {
-            const anchorId = navListLink.eq(i).attr('href').substring(1);
-            const newAnchorId = anchorId.replace(
+            const id = navListLink.eq(i).attr('href').substring(1);
+            const newId = id.replace(
               /[-\/\\^$*+?.()|[\]{}]/g,
               '\\$&'
             );
-            if (!newAnchorId) return;
-            if ($('#' + newAnchorId).offset().top - 140 < 116) {
+            if (!newId) return;
+            if ($('#' + newId).offset().top - 140 < 116) {
               navListLink.closest('li').removeClass('selected');
               navListLink.eq(i).closest('li').addClass('selected');
             }
           }
           return false;
         };
-        navContentAnchor();
+        getCurrentSelected();
+      },
+      affix: () => {
+        const scrollable = $('.wy-nav-content-wrap').scrollTop();
+        if (scrollable > 90) {
+          $('.navRightWraper').addClass('fixed');
+        } else {
+          $('.navRightWraper').removeClass('fixed');
+        }
+        docsAnchor.utils()
+      },
+      init: () => {
+        docsAnchor.getAnchorList();
         $('.navRight').wrap('<div class="navRightWraper"></div>');
-        $('.wy-nav-content-wrap').scroll(navContentAnchor);
-        $('.wy-nav-content-wrap').scroll(docsAnchoMethods.navRightScroll);
+        $('.wy-nav-content-wrap').scroll(docsAnchor.affix);
       },
     };
 
@@ -1148,15 +1186,15 @@ $(function () {
     const getBaiduSensor = () => {
       (function () {
         const hm = document.createElement('script');
-        hm.src = 'https://hm.baidu.com/hm.js?7c2afdec4c0d635d30ebb361804d0464';
+        hm.src =
+          utils.configIP.BAIDU_HM + '/hm.js?7c2afdec4c0d635d30ebb361804d0464';
         const s = document.getElementsByTagName('script')[0];
         s.parentNode.insertBefore(hm, s);
       })();
     };
 
-
     // 换肤
-    const initTheme = () => {
+    const themeInit = () => {
       const themeStyle = localStorage.getItem('ms-theme');
       const themeIcon = $('.theme-change i');
       const documentElement = document.documentElement;
@@ -1176,8 +1214,8 @@ $(function () {
           ? 'logo-en-dark.svg'
           : 'logo-en-light.svg'
         : isDark
-          ? 'logo-zh-dark.svg'
-          : 'logo-zh-light.svg';
+        ? 'logo-zh-dark.svg'
+        : 'logo-zh-light.svg';
 
       $('.logo-img').attr('src', '/pic/' + logoImg);
 
@@ -1199,15 +1237,288 @@ $(function () {
             ? 'logo-en-dark.svg'
             : 'logo-en-light.svg'
           : isDark
-            ? 'logo-zh-dark.svg'
-            : 'logo-zh-light.svg';
+          ? 'logo-zh-dark.svg'
+          : 'logo-zh-light.svg';
         $('.logo-img').attr('src', '/pic/' + logoImg);
       });
     };
 
-    const initPage = async () => {
-      getBaiduSensor();
+    // cookie管理
+    const cookieNotice = {
+      COOKEY_KEY: 'agree-cookiepolicy',
+      COOKIE_AGREED_STATUS: {
+        NOT_SIGNED: '0', // 未签署
+        ALL_AGREED: '1', // 同意所有cookie
+        NECCESSARY_AGREED: '2', // 仅同意必要cookie
+      },
+      locale: {
+        title: !isEn
+          ? 'MindSpore社区重视您的隐私'
+          : 'MindSpore Community Respects Your Privacy',
+        desc: !isEn
+          ? '我们在本网站上使用Cookie，包括第三方Cookie，以便网站正常运行和提升浏览体验。单击“全部接受”即表示您同意这些目的；单击“全部拒绝”即表示您拒绝非必要的Cookie；单击“管理Cookie”以选择接受或拒绝某些Cookie。需要了解更多信息或随时更改您的 Cookie 首选项，请参阅我们的 '
+          : 'This site uses cookies from us and our partners to improve your browsing experience and make the site work properly. By clicking "Accept All", you consent to the use of cookies. By clicking "Reject All", you disable the use of unnecessary cookies. You can manage your cookie settings by clicking "Manage Cookies". For more information or to change your cookie settings, please refer to our',
+        privacy: !isEn ? '《隐私政策》。' : 'Privacy Policy.',
+        privacyHref: !isEn ? '/privacy/en' : '/privacy',
+        action: [
+          {
+            btn: '全部接受',
+            btnEn: 'Accept All',
+            type: 'all',
+          },
+          {
+            btn: '全部拒绝',
+            btnEn: 'Reject All',
+            type: 'refuse',
+          },
+          {
+            btn: ' 管理Cookie ',
+            btnEn: ' Manage Cookies ',
+            type: 'manage',
+          },
+        ],
+        manageTitle: !isEn ? '管理Cookie' : 'Manage Cookies',
+        necessaryTitle: !isEn ? '必要Cookie' : 'Strictly Necessary Cookies',
+        necessaryDesc: !isEn
+          ? '这些Cookie是网站正常工作所必需的，不能在我们的系统中关闭。它们通常仅是为了响应您的服务请求而设置的，例如登录或填写表单。您可以将浏览器设置为阻止Cookie来拒绝这些Cookie，但网站的某些部分将无法正常工作。这些Cookie不存储任何个人身份信息。'
+          : 'These cookies are necessary for the site to work properly and cannot be switched off. They are usually only set in response to actions made by you which amount to a request for services, such as logging in or filling in forms. You can set the browser to block these cookies, but that can make parts of the site not work. These cookies do not store any personally identifiable information.',
+        statisticsTitle: !isEn ? '统计分析Cookie' : 'Analytics Cookies',
+        statisticsDesc: !isEn
+          ? '我们将根据您的同意使用和处理这些非必要Cookie。这些Cookie允许我们获得摘要统计数据，例如，统计访问量和访问者来源，便于我们改进我们的网站。'
+          : 'We will use these cookies only with your consent. These cookies help us make improvements by collecting statistics such as the number of visits and traffic sources.',
+        enabled: !isEn ? '始终启用' : 'Always active',
+        manageAction: [
+          {
+            btn: '保存设置',
+            btnEn: 'Save Settings',
+            type: 'save',
+          },
+          {
+            btn: '全部接受',
+            btnEn: 'Accept All',
+            type: 'allow-all',
+          },
+        ],
+      },
+      isNoticeVisible: true,
+      // setCookie 设置cookie
+      setCustomCookie: (cname, cvalue, day = 1) => {
+        document.cookie = `${cname}=${cvalue};expires=${day};path=/`;
+      },
+      // 获取cookie值
+      getCookieByKey: (key) => {
+        const cookieArr = document.cookie.split('; ');
+        for (let i = 0, len = cookieArr.length; i < len; i++) {
+          const item = cookieArr[i];
+          const rlt = item.split('=');
+          if (rlt[0] === key) {
+            return rlt[1];
+          }
+        }
+      },
+      // 是否未签署
+      isNotSigned: () => {
+        return (
+          cookieNotice.getUserCookieStatus() ===
+          cookieNotice.COOKIE_AGREED_STATUS.NOT_SIGNED
+        );
+      },
+      // 是否同意所有
+      isAllAgreed: () => {
+        return (
+          cookieNotice.getUserCookieStatus() ===
+          cookieNotice.COOKIE_AGREED_STATUS.ALL_AGREED
+        );
+      },
+      // 弹框 是否选中统计分析Cookie
+      isManageAgreed: () => {
+        return $('.statistics-switch').prop('checked');
+      },
+      // 显示/隐藏cookie提示
+      toggleNoticeVisible: (val) => {
+        const cookieMain = $('.cookie-notice');
+        val ? cookieMain.show() : cookieMain.hide();
+      },
+      // 获取cookie状态
+      getUserCookieStatus: () => {
+        const cookieVal = cookieNotice.getCookieByKey(cookieNotice.COOKEY_KEY);
+        if (cookieVal === cookieNotice.COOKIE_AGREED_STATUS.ALL_AGREED) {
+          return cookieNotice.COOKIE_AGREED_STATUS.ALL_AGREED;
+        } else if (
+          cookieVal === cookieNotice.COOKIE_AGREED_STATUS.NECCESSARY_AGREED
+        ) {
+          return cookieNotice.COOKIE_AGREED_STATUS.NECCESSARY_AGREED;
+        } else {
+          return cookieNotice.COOKIE_AGREED_STATUS.NOT_SIGNED;
+        }
+      },
+      // cookie提示内容
+      getCookieContent: () => {
+        return `<div class="cookie-notice"><div class="cookie-notice-content">
+              <div class="content-wrapper cookie-notice-wrap">
+                <div class="cookie-notice-left">
+                  <p class="cookie-title">${cookieNotice.locale.title}</p>
+                  <p class="cookie-desc">
+                    ${cookieNotice.locale.desc}
+                    <a href="${
+                      cookieNotice.locale.privacyHref
+                    }" rel="noopener noreferrer" target="_blank">${
+          cookieNotice.locale.privacy
+        }</a>
+                  </p>
+                </div>
+                <div class="cookie-notice-right">
+                  ${cookieNotice.locale.action
+                    .map((item) => {
+                      return `<button class="o-button ${item.type}">${
+                        isEn ? item.btnEn : item.btn
+                      }</button>`;
+                    })
+                    .join('')}
+                </div>
+                <em class="cookie-close"></em>
+              </div>
+            </div></div>`;
+      },
+      // 弹框内容
+      getManageContent: () => {
+        return `
+              <div class="manage-content">
+                <div class="manage-item">
+                  <div class="item-header">
+                    <span class="item-title">${
+                      cookieNotice.locale.necessaryTitle
+                    }</span>
+                    <span class="item-extra">${
+                      cookieNotice.locale.enabled
+                    }</span>
+                  </div>
+                  <p class="item-detail">
+                    ${cookieNotice.locale.necessaryDesc}
+                  </p>
+                </div>
+                <div class="manage-item">
+                  <div class="item-header">
+                    <span class="item-title">${
+                      cookieNotice.locale.statisticsTitle
+                    }</span>
+                    <span class="item-extra">
+                      <input type="checkbox" class="statistics-switch" is="o-switch">
+                    </span>
+                  </div>
+                  <p class="item-detail">
+                    ${cookieNotice.locale.statisticsDesc}
+                  </p>
+                </div>
+                <div class="manage-action">
+                ${cookieNotice.locale.manageAction
+                  .map((item) => {
+                    return `<button class="o-button ${item.type}">${
+                      isEn ? item.btnEn : item.btn
+                    }</button>`;
+                  })
+                  .join('')}
+                </div>
+              </div>`;
+      },
+      // 用户同意所有cookie
+      acceptAll: () => {
+        const {
+          setCustomCookie,
+          COOKEY_KEY,
+          COOKIE_AGREED_STATUS,
+          toggleNoticeVisible,
+        } = cookieNotice;
 
+        getBaiduSensor();
+        setCustomCookie(COOKEY_KEY, COOKIE_AGREED_STATUS.ALL_AGREED, 180);
+        toggleNoticeVisible(false);
+      },
+      // 用户拒绝所有cookie，即仅同意必要cookie
+      rejectAll: () => {
+        const {
+          setCustomCookie,
+          COOKEY_KEY,
+          COOKIE_AGREED_STATUS,
+          toggleNoticeVisible,
+        } = cookieNotice;
+
+        setCustomCookie(
+          COOKEY_KEY,
+          COOKIE_AGREED_STATUS.NECCESSARY_AGREED,
+          180
+        );
+        toggleNoticeVisible(false);
+        utils.destroyDialog();
+      },
+      utils: () => {
+        $('.cookie-notice-right button').on('click', function () {
+          const { locale, getManageContent, acceptAll, rejectAll } =
+            cookieNotice;
+          // 同意
+          if ($(this).hasClass('all')) {
+            acceptAll();
+          }
+          // 拒绝
+          if ($(this).hasClass('refuse')) {
+            rejectAll();
+          }
+          // 管理cookie
+          if ($(this).hasClass('manage')) {
+            if (utils.isPad()) {
+              $('#mask').show();
+            }
+            utils.destroyDialog();
+            body.prepend(utils.dialogInit(locale.manageTitle, true));
+            $('#dialog-content').append(getManageContent);
+            cookieNotice.utils();
+          }
+        });
+        // 弹框按钮事件
+        $('.manage-action button').on('click', function () {
+          const { acceptAll, rejectAll, isManageAgreed } = cookieNotice;
+          // 保存设置
+          if ($(this).hasClass('save')) {
+            isManageAgreed() ? acceptAll() : rejectAll();
+          }
+          // 同意所有
+          if ($(this).hasClass('allow-all')) {
+            acceptAll();
+            $('.statistics-switch').prop('checked', true);
+          }
+          setTimeout(() => {
+            utils.destroyDialog();
+            if (utils.isPad()) {
+              $('#mask').hide();
+            }
+          }, 500);
+        });
+        // 关闭弹窗
+        $('.o-layer-mask,.o-dialog-closed').on('click', function () {
+          if (cookieNotice.isManageAgreed()) {
+            cookieNotice.acceptAll();
+          }
+          utils.destroyDialog();
+        });
+        // 隐藏cookie
+        $('.cookie-close').on('click', function () {
+          cookieNotice.toggleNoticeVisible(false);
+        });
+      },
+      init: () => {
+        if (cookieNotice.isNotSigned()) {
+          body.append(cookieNotice.getCookieContent());
+          cookieNotice.utils();
+          cookieNotice.toggleNoticeVisible(true);
+        }
+
+        if (cookieNotice.isAllAgreed()) {
+          cookieNotice.acceptAll();
+        }
+      },
+    };
+
+    const initPage = async () => {
       // 获取导航菜单json
       utils.getHeaderMenu = await utils.getRequest(`/header.json`);
       // 获取文档导航菜单json
@@ -1243,13 +1554,14 @@ $(function () {
 
       appHeader.init();
       appFooter.init();
+      // cookie提示
+      cookieNotice.init();
 
       if (utils.isPad()) {
-        appHeaderMo.init();
+        appHeaderMb.init();
       }
 
-      initTheme();
-
+      themeInit();
     };
     initPage();
   })();
