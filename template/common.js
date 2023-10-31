@@ -1005,11 +1005,12 @@ $(function () {
           return;
         }
         const $ul =
-          '<div class="navRight"><ul class="navList"><li class="navLi"><a href="#' +
-          utils.filterXSS(sectionList[0].id) +
-          '" class="navLiTitle">' +
-          utils.filterXSS(h1List[0].innerText) +
-          '</a><ul class="navList2"></ul></li></ul></div>';
+          `<div class="navRightWraper"><div class="navRight">
+            <ul class="navList">
+              <li class="navLi"><a href="#${ utils.filterXSS(sectionList[0].id)}" class="navLiTitle">${utils.filterXSS(h1List[0].innerText)}</a>
+                <ul class="navList2"></ul>
+              </li></ul>
+          </div></div>`;
         let navLi3 = '';
         let navLi2 = '';
         let navLi4 = '';
@@ -1152,12 +1153,12 @@ $(function () {
         const getCurrentSelected = () => {
           for (let i = 0; i < navListLink.length; i++) {
             const id = navListLink.eq(i).attr('href').substring(1);
-            const newId = id.replace(
-              /[-\/\\^$*+?.()|[\]{}]/g,
-              '\\$&'
-            );
+            const newId = id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
             if (!newId) return;
-            if ($('#' + newId).offset().top - 140 < 116) {
+            if (
+              $('#' + newId).length > 0 &&
+              $('#' + newId).offset().top - 140 < 116
+            ) {
               navListLink.closest('li').removeClass('selected');
               navListLink.eq(i).closest('li').addClass('selected');
             }
@@ -1173,11 +1174,10 @@ $(function () {
         } else {
           $('.navRightWraper').removeClass('fixed');
         }
-        docsAnchor.utils()
+        docsAnchor.utils();
       },
       init: () => {
         docsAnchor.getAnchorList();
-        $('.navRight').wrap('<div class="navRightWraper"></div>');
         $('.wy-nav-content-wrap').scroll(docsAnchor.affix);
       },
     };
