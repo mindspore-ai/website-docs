@@ -9,10 +9,10 @@
       <link rel="stylesheet" href="../../_static/css/training.css" type="text/css" /><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
   <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script><script src="../../_static/jquery.js"></script>
-        <script src="../../_static/js/theme.js"></script><script src="../../_static/underscore.js"></script><script src="../../_static/doctools.js"></script><script src="../../_static/js/training.js"></script><script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="../../_static/js/theme.js"></script><script src="../../_static/underscore.js"></script><script src="../../_static/doctools.js"></script><script src="../../_static/js/mermaid-9.3.0.js"></script><script src="../../_static/js/training.js"></script><script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Inference and Training Process" href="training_and_evaluation_procession.html" />
+    <link rel="next" title="Inference and Training Process" href="training_and_evaluation.html" />
     <link rel="prev" title="Learning Rate and Optimizer" href="learning_rate_and_optimizer.html" /> 
 </head>
 
@@ -76,18 +76,16 @@
 <li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of Migration Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../enveriment_preparation.html">Environment Preparation and Information Acquisition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../analysis_and_preparation.html">Model Analysis and Preparation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../typical_api_comparision.html">Differences between PyTorch and MindSpore</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="model_development.html">Constructing MindSpore Network</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="model_development.html">Network Constructing Comparison</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="dataset.html">Constructing Dataset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="model_and_cell.html">Network Construction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="learning_rate_and_optimizer.html">Learning Rate and Optimizer</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Gradient Derivation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="training_and_evaluation_procession.html">Inference and Training Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training_and_evaluation.html">Inference and Training Process</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../debug_and_tune.html">Debugging and Tuning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../sample_code.html">Network Migration Debugging Example</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../migrator_with_tools.html">Application Practice Guide for Network Migration Tool</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq.html">FAQs</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Syntax Support</span></p>
@@ -135,7 +133,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="model_development.html">Constructing MindSpore Network</a> &raquo;</li>
+          <li><a href="model_development.html">Network Constructing Comparison</a> &raquo;</li>
       <li>Gradient Derivation</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../../_sources/migration_guide/model_development/gradient.md.txt" rel="nofollow"> View page source</a>
@@ -173,6 +171,265 @@
 <section id="gradient-derivation">
 <h1>Gradient Derivation<a class="headerlink" href="#gradient-derivation" title="Permalink to this headline"></a></h1>
 <p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/mindspore/source_en/migration_guide/model_development/gradient.md"><img alt="View Source On Gitee" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source_en.svg" /></a></p>
+<section id="automatic-differentiation">
+<h2>Automatic Differentiation<a class="headerlink" href="#automatic-differentiation" title="Permalink to this headline"></a></h2>
+<p>Both MindSpore and PyTorch provide the automatic differentiation function. After the forward network is defined, automatic backward propagation and gradient update can be implemented through simple interface invoking. However, it should be noted that MindSpore and PyTorch use different logic to build backward graphs. This difference also brings differences in API design.</p>
+<table>
+<tr>
+<td style="text-align:center"> PyTorch Automatic Differentiation </td> <td style="text-align:center"> MindSpore Automatic Differentiation </td>
+</tr>
+<tr>
+<td style="vertical-align:top"><pre>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Note: The feedback of PyTorch is cumulative, and after updating, the optimizer needs to be cleared.</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">torch.autograd</span> <span class="kn">import</span> <span class="n">Variable</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="mi">2</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="mi">1</span>
+<span class="n">y</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+</pre></div>
+</div>
+</pre>
+</td>
+<td style="vertical-align:top"><pre>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># ms.grad: forward graph as input, backward graph as output.</span>
+
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="k">class</span> <span class="nc">GradNetWrtX</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">net</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GradNetWrtX</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">net</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">gradient_function</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">net</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">gradient_function</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+</pre>
+</td>
+</tr>
+</table>
+<section id="pytorch-automatic-differentiation">
+<h3>PyTorch Automatic Differentiation<a class="headerlink" href="#pytorch-automatic-differentiation" title="Permalink to this headline"></a></h3>
+<p>As we know, PyTorch is an automatic differentiation based on computation path tracing. After a network structure is defined, no backward graph is created. Instead, during the execution of the forward graph, <code class="docutils literal notranslate"><span class="pre">Variable</span></code> or <code class="docutils literal notranslate"><span class="pre">Parameter</span></code> records the backward function corresponding to each forward computation and generates a dynamic computational graph, it is used for subsequent gradient calculation. When <code class="docutils literal notranslate"><span class="pre">backward</span></code> is called at the final output, the chaining rule is applied to calculate the gradient from the root node to the leaf node. The nodes stored in the dynamic computational graph of PyTorch are actually <code class="docutils literal notranslate"><span class="pre">Function</span></code> objects. Each time an operation is performed on <code class="docutils literal notranslate"><span class="pre">Tensor</span></code>, a <code class="docutils literal notranslate"><span class="pre">Function</span></code> object is generated, which records necessary information in backward propagation. During backward propagation, the <code class="docutils literal notranslate"><span class="pre">autograd</span></code> engine calculates gradients in backward order by using the <code class="docutils literal notranslate"><span class="pre">backward</span></code> of the <code class="docutils literal notranslate"><span class="pre">Function</span></code>. You can view this point through the hidden attribute of the <code class="docutils literal notranslate"><span class="pre">Tensor</span></code>.</p>
+</section>
+<section id="mindspore-automatic-differentiation">
+<h3>MindSpore Automatic Differentiation<a class="headerlink" href="#mindspore-automatic-differentiation" title="Permalink to this headline"></a></h3>
+<p>In graph mode, MindSpore’s automatic differentiation is based on the graph structure. Different from PyTorch, MindSpore does not record any information during forward computation and only executes the normal computation process (similar to PyTorch in PyNative mode). Then the question comes. If the entire forward computation is complete and MindSpore does not record any information, how does MindSpore know how backward propagation is performed?</p>
+<p>When MindSpore performs automatic differentiation, the forward graph structure needs to be transferred. The automatic differentiation process is to obtain backward propagation information by analyzing the forward graph. The automatic differentiation result is irrelevant to the specific value in the forward computation and is related only to the forward graph structure. Through the automatic differentiation of the forward graph, the backward propagation process is obtained. The backward propagation process is expressed through a graph structure, that is, the backward graph. The backward graph is added after the user-defined forward graph to form a final computational graph. However, the backward graph and backward operators added later are not aware of and cannot be manually added. They can only be automatically added through the interface provided by MindSpore. In this way, errors are avoided during backward graph build.</p>
+<p>Finally, not only the forward graph is executed, but also the graph structure contains both the forward operator and the backward operator added by MindSpore. That is, MindSpore adds an invisible <code class="docutils literal notranslate"><span class="pre">Cell</span></code> after the defined forward graph, the <code class="docutils literal notranslate"><span class="pre">Cell</span></code> is a backward operator derived from the forward graph.</p>
+<p>The interface that helps us build the backward graph is <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.grad.html">grad</a>.</p>
+<p>After that, for any group of data you enter, it can calculate not only the positive output, but also the gradient of ownership weight. Because the graph structure is fixed and does not save intermediate variables, the graph structure can be invoked repeatedly.</p>
+<p>Similarly, when we add an optimizer structure to the network, the optimizer also adds optimizer-related operators. That is, we add optimizer operators that are not perceived to the computational graph. Finally, the computational graph is built.</p>
+<p>In MindSpore, most operations are finally converted into real operator operations and finally added to the computational graph. Therefore, the number of operators actually executed in the computational graph is far greater than the number of operators defined at the beginning.</p>
+<p>MindSpore provides the <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.TrainOneStepCell.html">TrainOneStepCell</a> and <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.TrainOneStepWithLossScaleCell.html">TrainOneStepWithLossScaleCell</a> APIs to package the entire training process. If other operations, such as gradient cropping, specification, and intermediate variable return, are performed in addition to the common training process, you need to customize the training cell. For details, see <a class="reference external" href="https://www.mindspore.cn/docs/en/master/migration_guide/model_development/training_and_evaluation.html">Inference and Training Process</a>.</p>
+</section>
+<section id="gradient-derivation-1">
+<h3>Gradient Derivation<a class="headerlink" href="#gradient-derivation-1" title="Permalink to this headline"></a></h3>
+<p>The operator and interface differences involved in gradient derivation are mainly caused by different automatic differentiation principles of MindSpore and PyTorch.</p>
+</section>
+<section id="torch-autograd-backward">
+<h3>torch.autograd.backward<a class="headerlink" href="#torch-autograd-backward" title="Permalink to this headline"></a></h3>
+<p><a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.autograd.backward.html">torch.autograd.backward</a>. For a scalar, calling its backward method automatically computes the gradient values of the leaf nodes according to the chaining law. For vectors and matrices, you need to define grad_tensor to compute the gradient of the matrix.
+Typically after calling backward once, PyTorch automatically destroys the computation graph, so to call backward repeatedly on a variable, you need to set the return_graph parameter to True.
+If you need to compute higher-order gradients, you need to set create_graph to True.
+The two expressions z.backward() and torch.autograd.backward(z) are equivalent.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== tensor.backward ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;x.grad before backward&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;y.grad before backward&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="n">z</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;x.grad&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;y.grad&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.autograd.backward ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;x.grad&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;y.grad&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== tensor.backward ===
+x.grad before backward None
+y.grad before backward None
+z tensor(3., grad_fn=&lt;AddBackward0&gt;)
+x.grad tensor(2.)
+y.grad tensor(1.)
+=== torch.autograd.backward ===
+z tensor(3., grad_fn=&lt;AddBackward0&gt;)
+x.grad tensor(2.)
+y.grad tensor(1.)
+</pre></div>
+</div>
+<p>It can be seen that before calling the backward function, x.grad and y.grad functions are empty. And after the backward calculation, x.grad and y.grad represent the values after the derivative calculation, respectively.</p>
+<p>This interface is implemented in MindSpore using mindspore.grad. The above PyTorch use case can be transformed into:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== mindspore.grad ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">0</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+<span class="n">out1</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">1</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out1&quot;</span><span class="p">,</span> <span class="n">out1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== mindspore.grad ===
+out 2.0
+out1 1.0
+</pre></div>
+</div>
+<p>If the above net has more than one output, you need to pay attention to the effect of multiple outputs of the network on finding the gradient.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== mindspore.grad multiple outputs ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">0</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+<span class="n">out1</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">1</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out1&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== mindspore.grad multiple outputs ===
+out 3.0
+out1 3.0
+</pre></div>
+</div>
+<p>PyTorch does not support such expressions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.autograd.backward does not support multiple outputs ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;x.grad&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;y.grad&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== torch.autograd.backward does not support multiple outputs ===
+z tensor(3., grad_fn=&lt;AddBackward0&gt;)
+x.grad tensor(2.)
+y.grad tensor(1.)
+</pre></div>
+</div>
+<p>Therefore, to find the gradient of only the first output in MindSpore, you need to use the has_aux parameter in MindSpore.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== mindspore.grad has_aux ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+<span class="n">grad_fcn</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">grad_fcn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+<span class="n">grad_fcn1</span> <span class="o">=</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">grad_position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">grad_fcn1</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== mindspore.grad has_aux ===
+out 2.0
+out 1.0
+</pre></div>
+</div>
+</section>
+<section id="torch-autograd-grad">
+<h3>torch.autograd.grad<a class="headerlink" href="#torch-autograd-grad" title="Permalink to this headline"></a></h3>
+<p><a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.autograd.grad.html">torch.autograd.grad</a>. This interface is basically the same as torch.autograd.backward. The difference between the two is that the former modifies the grad attribute of each Tensor directly, while the latter returns a list of gradient values for the parameters. So when migrating to MindSpore, you can also refer to the above use case.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.autograd.grad ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="n">out1</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;out1&quot;</span><span class="p">,</span> <span class="n">out1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== torch.autograd.grad ===
+out (tensor(2.),)
+out1 (tensor(1.),)
+</pre></div>
+</div>
+</section>
+<section id="torch-no-grad">
+<h3>torch.no_grad<a class="headerlink" href="#torch-no-grad" title="Permalink to this headline"></a></h3>
+<p>In PyTorch, by default, information required for backward propagation is recorded when forward computation is performed. In the inference phase or in a network where backward propagation is not required, this operation is redundant and time-consuming. Therefore, PyTorch provides <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> to cancel this process.</p>
+<p>MindSpore constructs a backward graph based on the forward graph structure only when <code class="docutils literal notranslate"><span class="pre">grad</span></code> is invoked. No information is recorded during forward execution. Therefore, MindSpore does not need this interface. It can be understood that forward calculation of MindSpore is performed in <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> mode.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.no_grad ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z.requires_grad&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z.requires_grad&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== torch.no_grad ===
+z.requires_grad True
+z.requires_grad False
+</pre></div>
+</div>
+</section>
+<section id="torch-enable-grad">
+<h3>torch.enable_grad<a class="headerlink" href="#torch-enable-grad" title="Permalink to this headline"></a></h3>
+<p>If PyTorch enables <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> to disable gradient computation, you can use this interface to enable it.</p>
+<p>MindSpore builds the backward graph based on the forward graph structure only when <code class="docutils literal notranslate"><span class="pre">grad</span></code> is called, and no information is logged during forward execution, so MindSpore doesn’t need this interface, and it can be understood that MindSpore backward computations are performed with <code class="docutils literal notranslate"><span class="pre">torch.enable_grad</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== torch.enable_grad ===&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z.requires_grad&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;z.requires_grad&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== torch.enable_grad ===
+z.requires_grad False
+z.requires_grad True
+</pre></div>
+</div>
+</section>
+<section id="retain-graph">
+<h3>retain_graph<a class="headerlink" href="#retain-graph" title="Permalink to this headline"></a></h3>
+<p>PyTorch is function-based automatic differentiation. Therefore, by default, the recorded information is automatically cleared after each backward propagation is performed for the next iteration. As a result, when we want to reuse the backward graph and gradient information, the information fails to be obtained because it has been deleted. Therefore, PyTorch provides <code class="docutils literal notranslate"><span class="pre">backward(retain_graph=True)</span></code> to proactively retain the information.</p>
+<p>MindSpore does not require this function. MindSpore is an automatic differentiation based on the computational graph. The backward graph information is permanently recorded in the computational graph after <code class="docutils literal notranslate"><span class="pre">grad</span></code> is invoked. You only need to invoke the computational graph again to obtain the gradient information.</p>
+</section>
+<section id="high-order-derivatives">
+<h3>High-order Derivatives<a class="headerlink" href="#high-order-derivatives" title="Permalink to this headline"></a></h3>
+<p>Automatic differentiation based on computational graphs also has an advantage that we can easily implement high-order derivation. After the <code class="docutils literal notranslate"><span class="pre">GradOperation</span></code> operation is performed on the forward graph for the first time, a first-order derivative may be obtained. In this case, the computational graph is updated to a backward graph structure of the forward graph + the first-order derivative. However, after the <code class="docutils literal notranslate"><span class="pre">GradOperation</span></code> operation is performed on the updated computational graph again, a second-order derivative may be obtained, and so on. Through automatic differentiation based on computational graph, we can easily obtain the higher order derivative of a network.</p>
+</section>
+</section>
 <section id="automatic-differentiation-interfaces">
 <h2>Automatic Differentiation Interfaces<a class="headerlink" href="#automatic-differentiation-interfaces" title="Permalink to this headline"></a></h2>
 <p>After the forward network is constructed, MindSpore provides an interface to <a class="reference external" href="https://mindspore.cn/tutorials/en/master/beginner/autograd.html">automatic differentiation</a> to calculate the gradient results of the model.
@@ -257,6 +514,7 @@ In the tutorial of <a class="reference external" href="https://mindspore.cn/tuto
 <span class="nb">print</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">logits</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== weight ===
 name: fc.weight data: [[2. 3. 4.]]
 === output ===
@@ -272,6 +530,7 @@ name: fc.weight data: [[2. 3. 4.]]
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;logit&quot;</span><span class="p">,</span> <span class="n">logit</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== grads 1 ===
 grad [[4. 6. 8.]]
 logit (Tensor(shape=[], dtype=Float32, value= 20),)
@@ -286,6 +545,7 @@ logit (Tensor(shape=[], dtype=Float32, value= 20),)
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;logit&quot;</span><span class="p">,</span> <span class="n">logit</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== grads 2 ===
 grad -2.0
 logit (Tensor(shape=[], dtype=Float32, value= 20),)
@@ -300,6 +560,7 @@ logit (Tensor(shape=[], dtype=Float32, value= 20),)
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;logit&quot;</span><span class="p">,</span> <span class="n">logit</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== grads 3 ===
 grad (Tensor(shape=[1, 3], dtype=Float32, value=
 [[4.00000000e+000, 6.00000000e+000, 8.00000000e+000]]), Tensor(shape=[], dtype=Float32, value= -2))
@@ -315,6 +576,7 @@ logit (Tensor(shape=[], dtype=Float32, value= 20),)
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;logits&quot;</span><span class="p">,</span> <span class="n">logit</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== grads 4 ===
 grad (Tensor(shape=[1, 3], dtype=Float32, value=
 [[2.00000000e+000, 4.00000000e+000, 6.00000000e+000]]),)
@@ -330,6 +592,7 @@ logits (Tensor(shape=[], dtype=Float32, value= 20),)
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;logit&quot;</span><span class="p">,</span> <span class="n">logit</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== grads 5 ===
 grad (Tensor(shape=[1, 3], dtype=Float32, value=
 [[4.00000000e+000, 6.00000000e+000, 8.00000000e+000]]), (Tensor(shape=[1, 3], dtype=Float32, value=
@@ -346,6 +609,7 @@ logit (Tensor(shape=[], dtype=Float32, value= 20),)
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;logit&quot;</span><span class="p">,</span> <span class="n">logit</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== grads 6 ===
 grad ((Tensor(shape=[1, 3], dtype=Float32, value=
 [[4.00000000e+000, 6.00000000e+000, 8.00000000e+000]]), Tensor(shape=[], dtype=Float32, value= -2)), (Tensor(shape=[1, 3], dtype=Float32, value=
@@ -361,6 +625,7 @@ logit (Tensor(shape=[], dtype=Float32, value= 20),)
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;grad&quot;</span><span class="p">,</span> <span class="n">grad</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== grads 7 ===
 grad [[ 6.  9. 12.]]
 </pre></div>
@@ -384,6 +649,7 @@ grad [[ 6.  9. 12.]]
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;grad&quot;</span><span class="p">,</span> <span class="n">grad</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>grad [[ 6.  9. 12.]]
 </pre></div>
 </div>
@@ -448,6 +714,7 @@ grad [[ 6.  9. 12.]]
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;grad&quot;</span><span class="p">,</span> <span class="n">grad</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>=== value and grad ===
 value (Tensor(shape=[], dtype=Float32, value= 1), Tensor(shape=[], dtype=Float32, value= 20))
 grad ((Tensor(shape=[1, 3], dtype=Float32, value=
@@ -497,6 +764,7 @@ grad ((Tensor(shape=[1, 3], dtype=Float32, value=
 <span class="nb">print</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Outputs:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>loss 1.0
 === loss scale ===
 loss 1024.0
@@ -534,7 +802,7 @@ True
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="learning_rate_and_optimizer.html" class="btn btn-neutral float-left" title="Learning Rate and Optimizer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="training_and_evaluation_procession.html" class="btn btn-neutral float-right" title="Inference and Training Process" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="training_and_evaluation.html" class="btn btn-neutral float-right" title="Inference and Training Process" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
