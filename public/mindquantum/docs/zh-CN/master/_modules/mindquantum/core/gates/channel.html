@@ -120,7 +120,7 @@
 <span class="sd">&quot;&quot;&quot;Quantum channel.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
-<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">sqrt</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">sqrt</span><span class="p">,</span> <span class="n">exp</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -746,6 +746,92 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
 
 <div class="viewcode-block" id="KrausChannel.matrix"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.KrausChannel.html#mindquantum.core.gates.KrausChannel.matrix">[文档]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># pylint: disable=arguments-differ</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kraus operator of the quantum channel.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list, contains all Kraus operators of this quantum channel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kraus_op</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ThermalRelaxationChannel"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.ThermalRelaxationChannel.html#mindquantum.core.gates.ThermalRelaxationChannel">[文档]</a><span class="k">class</span> <span class="nc">ThermalRelaxationChannel</span><span class="p">(</span><span class="n">NoiseGate</span><span class="p">,</span> <span class="n">NonHermitianGate</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Thermal relaxation channel.</span>
+
+<span class="sd">    The thermal relaxation channel describes the thermal decoherence and dephasing of qubit</span>
+<span class="sd">    when a quantum gate is applied, and is determined by T1, T2 and gate time.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        t1 (int, float): T1 of the qubit.</span>
+<span class="sd">        t2 (int, float): T2 of the qubit.</span>
+<span class="sd">        gate_time (int, float): time of the quantum gate.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.gates import ThermalRelaxationChannel</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit</span>
+<span class="sd">        &gt;&gt;&gt; t1 = 100000</span>
+<span class="sd">        &gt;&gt;&gt; t2 = 50000</span>
+<span class="sd">        &gt;&gt;&gt; gate_time = 35</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit()</span>
+<span class="sd">        &gt;&gt;&gt; circ += ThermalRelaxationChannel(t1, t2, gate_time).on(0)</span>
+<span class="sd">        &gt;&gt;&gt; print(circ)</span>
+<span class="sd">        q0: ──TRC(t1=100000,t2=50000,tg=35)──</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t1</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">t2</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">gate_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a ThermalRelaxationChannel object.&quot;&quot;&quot;</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;TRC&#39;</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;n_qubits&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">NoiseGate</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">NonHermitianGate</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectq_gate</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t1</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported type for t1, get </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">t1</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t2</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported type for t2, get </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">t2</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gate_time</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported type for gate_time, get </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">gate_time</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">t1</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">t2</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;T1 and T2 must be positive, but get T1=</span><span class="si">{</span><span class="n">t1</span><span class="si">}</span><span class="s2">, T2=</span><span class="si">{</span><span class="n">t2</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gate_time</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;gate time cannot be negative, but get </span><span class="si">{</span><span class="n">gate_time</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t1</span> <span class="o">=</span> <span class="n">t1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t2</span> <span class="o">=</span> <span class="n">t2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gate_time</span> <span class="o">=</span> <span class="n">gate_time</span>
+        <span class="n">e_1</span> <span class="o">=</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">gate_time</span> <span class="o">/</span> <span class="n">t1</span><span class="p">)</span>
+        <span class="n">e_2</span> <span class="o">=</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">gate_time</span> <span class="o">/</span> <span class="n">t2</span><span class="p">)</span>
+        <span class="n">p_reset</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">e_1</span>
+        <span class="k">if</span> <span class="n">t1</span> <span class="o">&gt;=</span> <span class="n">t2</span><span class="p">:</span>
+            <span class="n">pz</span> <span class="o">=</span> <span class="n">e_1</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">e_2</span> <span class="o">/</span> <span class="n">e_1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">kz</span> <span class="o">=</span> <span class="p">[[</span><span class="n">sqrt</span><span class="p">(</span><span class="n">pz</span><span class="p">),</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">sqrt</span><span class="p">(</span><span class="n">pz</span><span class="p">)]]</span>
+            <span class="n">ki</span> <span class="o">=</span> <span class="p">[[</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pz</span> <span class="o">-</span> <span class="n">p_reset</span><span class="p">),</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pz</span> <span class="o">-</span> <span class="n">p_reset</span><span class="p">)]]</span>
+            <span class="n">k_reset00</span> <span class="o">=</span> <span class="p">[[</span><span class="n">sqrt</span><span class="p">(</span><span class="n">p_reset</span><span class="p">),</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
+            <span class="n">k_reset01</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">p_reset</span><span class="p">)],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kraus_op</span> <span class="o">=</span> <span class="p">[</span><span class="n">ki</span><span class="p">,</span> <span class="n">kz</span><span class="p">,</span> <span class="n">k_reset00</span><span class="p">,</span> <span class="n">k_reset01</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">t1</span> <span class="o">&gt;=</span> <span class="n">t2</span><span class="p">:</span>
+            <span class="n">eigenvalue1</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">-</span> <span class="n">p_reset</span> <span class="o">+</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">p_reset</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">e_2</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">eigenvalue2</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">-</span> <span class="n">p_reset</span> <span class="o">-</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">p_reset</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">e_2</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">eigen_vector1</span> <span class="o">=</span> <span class="p">(</span><span class="n">eigenvalue1</span> <span class="o">-</span> <span class="n">e_1</span><span class="p">)</span> <span class="o">/</span> <span class="n">e_2</span>
+            <span class="n">eigen_vector2</span> <span class="o">=</span> <span class="p">(</span><span class="n">eigenvalue2</span> <span class="o">-</span> <span class="n">e_1</span><span class="p">)</span> <span class="o">/</span> <span class="n">e_2</span>
+            <span class="n">k0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">eigen_vector1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span> <span class="o">*</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">eigenvalue1</span> <span class="o">/</span> <span class="p">(</span><span class="n">eigen_vector1</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">k1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">eigen_vector2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span> <span class="o">*</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">eigenvalue2</span> <span class="o">/</span> <span class="p">(</span><span class="n">eigen_vector2</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">k2</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">p_reset</span><span class="p">)],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kraus_op</span> <span class="o">=</span> <span class="p">[</span><span class="n">k0</span><span class="p">,</span> <span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;(T2 &gt; 2 * T1) is invalid case.&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ThermalRelaxationChannel.get_cpp_obj"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.ThermalRelaxationChannel.html#mindquantum.core.gates.ThermalRelaxationChannel.get_cpp_obj">[文档]</a>    <span class="k">def</span> <span class="nf">get_cpp_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get underlying C++ object.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">mb</span><span class="o">.</span><span class="n">gate</span><span class="o">.</span><span class="n">KrausChannel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kraus_op</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj_qubits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ctrl_qubits</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__type_specific_str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a string representation of the object.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;t1=</span><span class="si">{</span><span class="n">string_expression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t1</span><span class="p">)</span><span class="si">}</span><span class="s1">,t2=</span><span class="si">{</span><span class="n">string_expression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t2</span><span class="p">)</span><span class="si">}</span><span class="s1">,tg=</span><span class="si">{</span><span class="n">string_expression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gate_time</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="ThermalRelaxationChannel.matrix"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.ThermalRelaxationChannel.html#mindquantum.core.gates.ThermalRelaxationChannel.matrix">[文档]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># pylint: disable=arguments-differ</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Kraus operator of the quantum channel.</span>
 
