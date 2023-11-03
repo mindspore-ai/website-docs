@@ -10,6 +10,8 @@ $(function () {
     const pagePath = pathPrefix[0] + lang + currentVersion;
     const body = $('body');
     let isDark = localStorage.getItem('ms-theme') === 'dark';
+    // 隐私版本号
+    const privacyVersion = '20231103';
 
     // 公共方法
     const utils = {
@@ -1004,10 +1006,11 @@ $(function () {
         if (sectionList[0] === undefined) {
           return;
         }
-        const $ul =
-          `<div class="navRightWraper"><div class="navRight">
+        const $ul = `<div class="navRightWraper"><div class="navRight">
             <ul class="navList">
-              <li class="navLi"><a href="#${ utils.filterXSS(sectionList[0].id)}" class="navLiTitle">${utils.filterXSS(h1List[0].innerText)}</a>
+              <li class="navLi"><a href="#${utils.filterXSS(
+                sectionList[0].id
+              )}" class="navLiTitle">${utils.filterXSS(h1List[0].innerText)}</a>
                 <ul class="navList2"></ul>
               </li></ul>
           </div></div>`;
@@ -1199,6 +1202,7 @@ $(function () {
       const themeIcon = $('.theme-change i');
       const documentElement = document.documentElement;
       themeIcon.removeClass('dark light');
+      let logoImg = 'logo-zh-light.svg';
 
       if (!themeStyle) {
         localStorage.getItem('ms-theme', 'light');
@@ -1245,7 +1249,7 @@ $(function () {
 
     // cookie管理
     const cookieNotice = {
-      COOKEY_KEY: 'agree-cookiepolicy',
+      COOKEY_KEY: 'agreed-cookiepolicy',
       COOKIE_AGREED_STATUS: {
         NOT_SIGNED: '0', // 未签署
         ALL_AGREED: '1', // 同意所有cookie
@@ -1289,8 +1293,8 @@ $(function () {
         enabled: !isEn ? '始终启用' : 'Always active',
         manageAction: [
           {
-            btn: '保存设置',
-            btnEn: 'Save Settings',
+            btn: '保存并接受',
+            btnEn: 'Save and Accept',
             type: 'save',
           },
           {
@@ -1303,7 +1307,11 @@ $(function () {
       isNoticeVisible: true,
       // setCookie 设置cookie
       setCustomCookie: (cname, cvalue, day = 1) => {
-        document.cookie = `${cname}=${cvalue};expires=${day};path=/`;
+        let expires = new Date(Date.now() + day * 864e5);
+        if (expires) {
+          expires = expires.toUTCString();
+        }
+        document.cookie = `${cname}=${cvalue};expires=${expires};path=/`;
       },
       // 获取cookie值
       getCookieByKey: (key) => {
@@ -1341,15 +1349,22 @@ $(function () {
       },
       // 获取cookie状态
       getUserCookieStatus: () => {
-        const cookieVal = cookieNotice.getCookieByKey(cookieNotice.COOKEY_KEY);
-        if (cookieVal === cookieNotice.COOKIE_AGREED_STATUS.ALL_AGREED) {
-          return cookieNotice.COOKIE_AGREED_STATUS.ALL_AGREED;
-        } else if (
-          cookieVal === cookieNotice.COOKIE_AGREED_STATUS.NECCESSARY_AGREED
-        ) {
-          return cookieNotice.COOKIE_AGREED_STATUS.NECCESSARY_AGREED;
+        const { COOKIE_AGREED_STATUS, COOKEY_KEY } = cookieNotice;
+        const cookieVal = cookieNotice.getCookieByKey(COOKEY_KEY) ?? '0';
+
+        const cookieStatusVal = cookieVal[0];
+        const privacyVersionVal = cookieVal.slice(1);
+
+        if (privacyVersionVal !== privacyVersion) {
+          return COOKIE_AGREED_STATUS.NOT_SIGNED;
+        }
+
+        if (cookieStatusVal === COOKIE_AGREED_STATUS.ALL_AGREED) {
+          return COOKIE_AGREED_STATUS.ALL_AGREED;
+        } else if (cookieStatusVal === COOKIE_AGREED_STATUS.NECCESSARY_AGREED) {
+          return COOKIE_AGREED_STATUS.NECCESSARY_AGREED;
         } else {
-          return cookieNotice.COOKIE_AGREED_STATUS.NOT_SIGNED;
+          return COOKIE_AGREED_STATUS.NOT_SIGNED;
         }
       },
       // cookie提示内容
@@ -1431,7 +1446,11 @@ $(function () {
         } = cookieNotice;
 
         getBaiduSensor();
-        setCustomCookie(COOKEY_KEY, COOKIE_AGREED_STATUS.ALL_AGREED, 180);
+        setCustomCookie(
+          COOKEY_KEY,
+          `${COOKIE_AGREED_STATUS.ALL_AGREED}${privacyVersion}`,
+          180
+        );
         toggleNoticeVisible(false);
       },
       // 用户拒绝所有cookie，即仅同意必要cookie
@@ -1445,7 +1464,7 @@ $(function () {
 
         setCustomCookie(
           COOKEY_KEY,
-          COOKIE_AGREED_STATUS.NECCESSARY_AGREED,
+          `${COOKIE_AGREED_STATUS.NECCESSARY_AGREED}${privacyVersion}`,
           180
         );
         toggleNoticeVisible(false);
@@ -1486,19 +1505,17 @@ $(function () {
             acceptAll();
             $('.statistics-switch').prop('checked', true);
           }
-          setTimeout(() => {
-            utils.destroyDialog();
-            if (utils.isPad()) {
-              $('#mask').hide();
-            }
-          }, 500);
+          utils.destroyDialog();
+          if (utils.isPad()) {
+            $('#mask').hide();
+          }
         });
         // 关闭弹窗
         $('.o-layer-mask,.o-dialog-closed').on('click', function () {
-          if (cookieNotice.isManageAgreed()) {
-            cookieNotice.acceptAll();
-          }
           utils.destroyDialog();
+          if (!cookieNotice.isAllAgreed()) {
+              $('.statistics-switch').prop('checked', false);
+          }
         });
         // 隐藏cookie
         $('.cookie-close').on('click', function () {
