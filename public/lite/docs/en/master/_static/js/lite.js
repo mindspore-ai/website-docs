@@ -1,21 +1,15 @@
 $(function () {
-  $('button.doc-btn').hover(
-    function () {
-      $(this).addClass('doc-btn-hover');
-    },
-    function () {
-      $(this).removeClass('doc-btn-hover');
-    }
-  );
   // 每页显示数
-  var curNum = 8;
+  const curNum = 8;
   // 计算总数
-  var all = $('.doc-article-list').children('div.doc-article-item').length;
-  var list = [];
+  let all = $('.doc-article-list').children('div.doc-article-item').length;
+  let list = [];
   const docArticleItem = $('.doc-article-item');
+  const pathname = window.location.pathname;
+  const isEn = pathname.includes('/en/');
 
   $('button.doc-btn').click(function () {
-    var id_val = $(this).attr('id');
+    const id_val = $(this).attr('id');
     docArticleItem.removeClass('OUO');
 
     if (id_val !== 'all') {
@@ -26,7 +20,7 @@ $(function () {
       }
     } else {
       $('button.doc-btn-color').each(function () {
-        var tag = $(this).attr('id');
+        let tag = $(this).attr('id');
         $('.' + tag).removeClass(tag + '_exist');
         list.splice(list.indexOf(tag + '_exist'), 1);
       });
@@ -47,18 +41,15 @@ $(function () {
         $('.' + id_val).addClass(id_val + '_exist');
         list.push(id_val + '_exist');
       } else {
-        $(this)
-          .addClass('doc-btn-color')
-          .append(
-            '<img src="./_static/img/choice.png" style="position: absolute; right: -5px; top: -5px;"></img>'
-          );
+        $(this).addClass('doc-btn-color');
+
         $('.' + id_val).addClass(id_val + '_exist');
         list.push(id_val + '_exist');
       }
     }
 
     if (list.length > 0) {
-      var options = {
+      let options = {
         os: [],
         hardware: [],
         user: [],
@@ -70,8 +61,8 @@ $(function () {
       docArticleItem.addClass('hidden');
       var str = 'OUO';
 
-      for (var item of list) {
-        var match = item.match(/^(os|hardware|user|stage|language)/);
+      for (let item of list) {
+        const match = item.match(/^(os|hardware|user|stage|language)/);
         if (match) {
           options[match[0]].push(item);
         } else {
@@ -79,7 +70,7 @@ $(function () {
         }
       }
 
-      for (var key in options) {
+      for (let key in options) {
         if (options[key].length > 0) {
           this[key + '_list'] = options[key];
         } else {
@@ -88,8 +79,8 @@ $(function () {
       }
 
       docArticleItem.each(function () {
-        var classList = this.classList;
-        var counts = {
+        const classList = this.classList;
+        const counts = {
           os: getCount(options.os, classList),
           hardware: getCount(options.hardware, classList),
           user: getCount(options.user, classList),
@@ -97,7 +88,7 @@ $(function () {
           language: getCount(options.language, classList),
           all: getCount(options.all, classList),
         };
-        var isValid =
+        const isValid =
           ((counts.os > 0 && counts.os <= options.os.length) ||
             counts.os === 'empty') &&
           ((counts.hardware > 0 &&
@@ -121,8 +112,8 @@ $(function () {
           return 'empty';
         }
 
-        var count = 0;
-        for (var i = 0; i < list.length; i++) {
+        let count = 0;
+        for (let i = 0; i < list.length; i++) {
           if (element.contains(list[i])) {
             count += 1;
           }
@@ -133,19 +124,23 @@ $(function () {
       docArticleItem.addClass('hidden');
     }
 
-    var hiddenCount = $('.doc-article-list .doc-article-item.hidden').length;
-    var visibleCount = all - hiddenCount;
-    var len = Math.ceil(visibleCount / curNum);
-    var pageNav = $('#pageNav');
-    var iNum = 0;
+    const hiddenCount = $('.doc-article-list .doc-article-item.hidden').length;
+    const visibleCount = all - hiddenCount;
+    const len = Math.ceil(visibleCount / curNum);
+    const pageNav = $('#pageNav');
+    let iNum = 0;
+    let pageList = '';
 
-    var pageList = '';
+    const total = isEn ? 'Total ' : '共 ';
+    const totalNum = isEn ? ' Result(s)' : ' 条';
+
     if (visibleCount > 0) {
-      pageList +=
-        '<li class="disabled"><span>共' + visibleCount + '条</span></li>';
+      pageList += `<li class="disabled"><span>${
+        total + visibleCount + totalNum
+      }</span></li>`;
       pageList +=
         '<li class="pre"><a href="javascript:;" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>';
-      for (var i = 0; i < len; i++) {
+      for (let i = 0; i < len; i++) {
         pageList +=
           '<li class="doc-data"><a href="javascript:;">' +
           (i + 1) +
@@ -164,14 +159,14 @@ $(function () {
     }
 
     // 标签页的点击事件
-    var articleItems = $('.doc-article-item[class*="' + str + '"]');
+    let articleItems = $('.doc-article-item[class*="' + str + '"]');
     pageNav.find('li.doc-data').click(function () {
       $(this).addClass('active').siblings('li').removeClass('active');
       iNum = $(this).index() - 2;
       $('li.pre').toggleClass('disabled', iNum <= 0);
       $('li.nex').toggleClass('disabled', iNum + 1 === len);
       articleItems.hide();
-      for (var i = iNum * curNum; i < (iNum + 1) * curNum; i++) {
+      for (let i = iNum * curNum; i < (iNum + 1) * curNum; i++) {
         $('div.doc-article-list').find(articleItems).eq(i).show();
       }
     });
@@ -204,7 +199,7 @@ $(function () {
           .siblings('li')
           .removeClass('active');
         articleItems.hide();
-        for (var i = iNum * curNum; i < (iNum + 1) * curNum; i++) {
+        for (let i = iNum * curNum; i < (iNum + 1) * curNum; i++) {
           articleItems.eq(i).show();
         }
       }

@@ -692,7 +692,7 @@ $(function () {
           path: `/legal${isEn ? '/en' : ''}`,
         },
         {
-          name: isEn ? 'Privacy Policy' : '个人信息保护政策',
+          name: isEn ? 'Privacy Policy' : '隐私政策',
           path: `/privacy${isEn ? '/en' : ''}`,
         },
       ],
@@ -1470,17 +1470,27 @@ $(function () {
         toggleNoticeVisible(false);
         utils.destroyDialog();
       },
+      removeNotice: () => {
+        $('.cookie-notice').remove();
+      },
       utils: () => {
         $('.cookie-notice-right button').on('click', function () {
-          const { locale, getManageContent, acceptAll, rejectAll } =
-            cookieNotice;
+          const {
+            locale,
+            getManageContent,
+            acceptAll,
+            rejectAll,
+            removeNotice,
+          } = cookieNotice;
           // 同意
           if ($(this).hasClass('all')) {
             acceptAll();
+            removeNotice();
           }
           // 拒绝
           if ($(this).hasClass('refuse')) {
             rejectAll();
+            removeNotice();
           }
           // 管理cookie
           if ($(this).hasClass('manage')) {
@@ -1495,7 +1505,8 @@ $(function () {
         });
         // 弹框按钮事件
         $('.manage-action button').on('click', function () {
-          const { acceptAll, rejectAll, isManageAgreed } = cookieNotice;
+          const { acceptAll, rejectAll, isManageAgreed, removeNotice } =
+            cookieNotice;
           // 保存设置
           if ($(this).hasClass('save')) {
             isManageAgreed() ? acceptAll() : rejectAll();
@@ -1505,6 +1516,7 @@ $(function () {
             acceptAll();
             $('.statistics-switch').prop('checked', true);
           }
+          removeNotice();
           utils.destroyDialog();
           if (utils.isPad()) {
             $('#mask').hide();
@@ -1514,7 +1526,7 @@ $(function () {
         $('.o-layer-mask,.o-dialog-closed').on('click', function () {
           utils.destroyDialog();
           if (!cookieNotice.isAllAgreed()) {
-              $('.statistics-switch').prop('checked', false);
+            $('.statistics-switch').prop('checked', false);
           }
         });
         // 隐藏cookie
