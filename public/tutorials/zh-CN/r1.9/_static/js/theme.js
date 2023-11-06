@@ -4,14 +4,12 @@
 // 公共css/js文件
 ;(function () {
   let s = document.getElementsByTagName('HEAD')[0]
-  let origin = window.location.origin
-
   let hm = document.createElement('script')
-  hm.src = origin + '/common.js'
+  hm.src = '/common.js'
 
   let oLink = document.createElement('link')
   oLink.rel = 'stylesheet'
-  oLink.href = origin + '/common.css'
+  oLink.href = '/common.css'
 
   s.appendChild(hm, s)
   s.appendChild(oLink, s)
