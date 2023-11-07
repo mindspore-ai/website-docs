@@ -1187,13 +1187,10 @@ $(function () {
 
     // 百度统计
     const getBaiduSensor = () => {
-      (function () {
-        const hm = document.createElement('script');
-        hm.src =
-          utils.configIP.BAIDU_HM + '/hm.js?7c2afdec4c0d635d30ebb361804d0464';
-        const s = document.getElementsByTagName('script')[0];
-        s.parentNode.insertBefore(hm, s);
-      })();
+      const hm = document.createElement('script');
+      hm.src = utils.configIP.BAIDU_HM;
+      const s = document.getElementsByTagName('script')[0];
+      s.parentNode.insertBefore(hm, s);
     };
 
     // 换肤
