@@ -10,6 +10,7 @@ def main(arg_version):
     theme_path = os.path.join(os.path.dirname(__file__),"../template")
     version_dir = os.path.join(os.path.dirname(__file__), "version")
     public_path = os.path.join(os.path.dirname(__file__),"../public")
+    update_js_path = os.path.join(os.path.dirname(__file__),"../template/update_js")
     for f_name in os.listdir(theme_path):
         if os.path.isfile(os.path.join(theme_path, f_name)):
             if os.path.exists(os.path.join(public_path, f_name)):
@@ -35,6 +36,8 @@ def main(arg_version):
             js_path_en = []
             css_path_zh = []
             css_path_en = []
+            static_path_zh = []
+            static_path_en = []
             version = data[i]["version"]
             theme_class = ''
             if "theme" in data[i] and data[i]["theme"]:
@@ -78,6 +81,9 @@ def main(arg_version):
                 js_path_en.append(os.path.join(public_path, first_name, 'en', version, "_static/js"))
                 css_path_zh.append(os.path.join(public_path, first_name, 'zh-CN', version, "_static/css"))
                 css_path_en.append(os.path.join(public_path, first_name, 'en', version, "_static/css"))
+                static_path_zh.append(os.path.join(public_path, first_name, 'zh-CN', version, "_static"))
+                static_path_en.append(os.path.join(public_path, first_name, 'en', version, "_static"))
+
             else:
                 group_set = set()
                 for group in data[i]["submenu"]["zh"]:
@@ -91,22 +97,42 @@ def main(arg_version):
                     js_path_en.append(os.path.join(public_path, first, 'en', version, "_static/js"))
                     css_path_zh.append(os.path.join(public_path, first, 'zh-CN', version, "_static/css"))
                     css_path_en.append(os.path.join(public_path, first, 'en', version, "_static/css"))
+                    static_path_en.append(os.path.join(public_path, first, 'en', version, "_static"))
+                    static_path_zh.append(os.path.join(public_path, first, 'zh-CN', version, "_static"))
 
+            
             for num in range(len(js_path_en)):
                 if not os.path.exists(js_path_zh[num]):
                     error_dir.append(js_path_zh[num])
                     continue
-                if not os.path.exists(js_path_en[num]):
+                elif not os.path.exists(js_path_en[num]):
                     error_dir.append(js_path_en[num])
                     continue
-                if not os.path.exists(css_path_zh[num]):
+                elif not os.path.exists(css_path_zh[num]):
                     error_dir.append(css_path_zh[num])
                     continue
-                if not os.path.exists(css_path_en[num]):
+                elif not os.path.exists(css_path_en[num]):
                     error_dir.append(css_path_en[num])
+                    continue
+                elif not os.path.exists(static_path_zh[num]):
+                    error_dir.append(static_path_zh[num])
+                    continue
+                elif not os.path.exists(static_path_en[num]):
+                    error_dir.append(static_path_en[num])
                     continue
 
                 # 拷贝样式文件至各组件工程内
+                if os.path.exists(os.path.join(static_path_zh[num], "jquery-3.5.1.js")):
+                    os.remove(os.path.join(static_path_zh[num], "jquery-3.5.1.js"))
+                if os.path.exists(os.path.join(static_path_en[num], "underscore-1.13.1.js")):
+                    os.remove(os.path.join(static_path_en[num], "underscore-1.13.1.js"))
+                if os.path.exists(os.path.join(static_path_zh[num], "jquery.js")):
+                    os.remove(os.path.join(static_path_zh[num], "jquery.js"))
+                shutil.copy(os.path.join(update_js_path, "jquery.js"), os.path.join(static_path_zh[num], "jquery.js"))
+                if os.path.exists(os.path.join(static_path_en[num], "underscore.js")):
+                    os.remove(os.path.join(static_path_en[num], "underscore.js"))
+                shutil.copy(os.path.join(update_js_path, "underscore.js"), os.path.join(static_path_en[num], "underscore.js"))
+
                 if os.path.exists(os.path.join(js_path_zh[num], "theme.js")):
                     os.remove(os.path.join(js_path_zh[num], "theme.js"))
                 shutil.copy(os.path.join(theme_class, "theme.js"), os.path.join(js_path_zh[num], "theme.js"))
