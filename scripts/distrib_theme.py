@@ -124,12 +124,22 @@ def main(arg_version):
                     os.remove(os.path.join(static_path_zh[num], "jquery-3.5.1.js"))
                 if os.path.exists(os.path.join(static_path_en[num], "underscore-1.13.1.js")):
                     os.remove(os.path.join(static_path_en[num], "underscore-1.13.1.js"))
+                if os.path.exists(os.path.join(static_path_en[num], "jquery-3.5.1.js")):
+                    os.remove(os.path.join(static_path_en[num], "jquery-3.5.1.js"))
+                if os.path.exists(os.path.join(static_path_zh[num], "underscore-1.13.1.js")):
+                    os.remove(os.path.join(static_path_zh[num], "underscore-1.13.1.js"))
                 if os.path.exists(os.path.join(static_path_zh[num], "jquery.js")):
                     os.remove(os.path.join(static_path_zh[num], "jquery.js"))
                 shutil.copy(os.path.join(update_js_path, "jquery.js"), os.path.join(static_path_zh[num], "jquery.js"))
                 if os.path.exists(os.path.join(static_path_en[num], "underscore.js")):
                     os.remove(os.path.join(static_path_en[num], "underscore.js"))
                 shutil.copy(os.path.join(update_js_path, "underscore.js"), os.path.join(static_path_en[num], "underscore.js"))
+                if os.path.exists(os.path.join(static_path_en[num], "jquery.js")):
+                    os.remove(os.path.join(static_path_en[num], "jquery.js"))
+                shutil.copy(os.path.join(update_js_path, "jquery.js"), os.path.join(static_path_en[num], "jquery.js"))
+                if os.path.exists(os.path.join(static_path_zh[num], "underscore.js")):
+                    os.remove(os.path.join(static_path_zh[num], "underscore.js"))
+                shutil.copy(os.path.join(update_js_path, "underscore.js"), os.path.join(static_path_zh[num], "underscore.js"))
 
                 if os.path.exists(os.path.join(js_path_zh[num], "theme.js")):
                     os.remove(os.path.join(js_path_zh[num], "theme.js"))
