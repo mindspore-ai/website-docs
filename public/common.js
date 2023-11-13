@@ -679,7 +679,7 @@ $(function () {
 
     // 初始化footer
     const appFooter = {
-      beian: ['粤A2-20044005号', '粤公网安备 44030702002890号'],
+      beian: ['粤A2-20044005号', '粤公网安备44030702002890号'],
       aboutTitle: isEn ? 'Follow us' : '关注我们',
       copyRight: isEn ? 'Copyright©MindSpore 2023' : '版权所有©MindSpore 2023',
       footLinks: [
@@ -708,7 +708,7 @@ $(function () {
           }">${appFooter.beian[0]}</a>
           <div>
           <a class="footer-record" rel="noopener noreferrer" target="_blank" href="${
-            utils.configIP.BEIAN_URL
+            utils.configIP.BEIAN_MPS_URL
           }">
           <img class="copyImg2" src="/pic/copyright3.png" alt="img" />
           <span class="keepRecord">${appFooter.beian[1]} </span>
