@@ -44,7 +44,7 @@ $(function () {
   }
   for (let i = 0; i < aList.length; i++) {
       let hash = aList[i].hash
-      if (hash != '') {
+      if (hash !== '') {
           aList[i].parentNode.parentNode.style.display = 'none'
           aList[i].parentNode.parentNode.parentNode.className =
               aList[i].parentNode.parentNode.parentNode.className +
