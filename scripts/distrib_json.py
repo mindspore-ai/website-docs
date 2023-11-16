@@ -122,6 +122,7 @@ def main(arg_version):
                     continue
 
                 # 拷贝样式文件至各组件工程内
+
                 if os.path.exists(os.path.join(static_path_zh[num], "jquery-3.5.1.js")):
                     os.remove(os.path.join(static_path_zh[num], "jquery-3.5.1.js"))
                 if os.path.exists(os.path.join(static_path_en[num], "underscore-1.13.1.js")):
@@ -142,6 +143,24 @@ def main(arg_version):
                 if os.path.exists(os.path.join(static_path_zh[num], "underscore.js")):
                     os.remove(os.path.join(static_path_zh[num], "underscore.js"))
                 shutil.copy(os.path.join(update_js_path, "underscore.js"), os.path.join(static_path_zh[num], "underscore.js"))
+
+                if os.path.exists(os.path.join(js_path_zh[num], "badge_only.js")):
+                    os.remove(os.path.join(js_path_zh[num], "badge_only.js"))
+                if os.path.exists(os.path.join(js_path_zh[num], "html5shiv-printshiv.min.js")):
+                    os.remove(os.path.join(js_path_zh[num], "html5shiv-printshiv.min.js"))
+                if os.path.exists(os.path.join(js_path_zh[num], "html5shiv.min.js")):
+                    os.remove(os.path.join(js_path_zh[num], "html5shiv.min.js"))
+                if os.path.exists(os.path.join(js_path_en[num], "badge_only.js")):
+                    os.remove(os.path.join(js_path_en[num], "badge_only.js"))
+                if os.path.exists(os.path.join(js_path_en[num], "html5shiv-printshiv.min.js")):
+                    os.remove(os.path.join(js_path_en[num], "html5shiv-printshiv.min.js"))
+                if os.path.exists(os.path.join(js_path_en[num], "html5shiv.min.js")):
+                    os.remove(os.path.join(js_path_en[num], "html5shiv.min.js"))
+
+                if os.path.exists(os.path.join(css_path_zh[num], "badge_only.css")):
+                    os.remove(os.path.join(css_path_zh[num], "badge_only.css"))
+                if os.path.exists(os.path.join(css_path_en[num], "badge_only.css")):
+                    os.remove(os.path.join(css_path_en[num], "badge_only.css"))
 
                 if os.path.exists(os.path.join(js_path_zh[num], "theme.js")):
                     os.remove(os.path.join(js_path_zh[num], "theme.js"))
