@@ -157,6 +157,11 @@ def main(arg_version):
                 if os.path.exists(os.path.join(js_path_en[num], "html5shiv.min.js")):
                     os.remove(os.path.join(js_path_en[num], "html5shiv.min.js"))
 
+                if os.path.exists(os.path.join(css_path_zh[num], "badge_only.css")):
+                    os.remove(os.path.join(css_path_zh[num], "badge_only.css"))
+                if os.path.exists(os.path.join(css_path_en[num], "badge_only.css")):
+                    os.remove(os.path.join(css_path_en[num], "badge_only.css"))
+
                 if os.path.exists(os.path.join(js_path_zh[num], "theme.js")):
                     os.remove(os.path.join(js_path_zh[num], "theme.js"))
                 shutil.copy(os.path.join(theme_class, "theme.js"), os.path.join(js_path_zh[num], "theme.js"))
