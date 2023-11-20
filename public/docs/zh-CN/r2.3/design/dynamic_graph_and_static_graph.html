@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>动静态图结合 &mdash; MindSpore master 文档</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
+        <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script src="../_static/js/mermaid-9.3.0.js"></script><script src="../_static/translations.js"></script><script crossorigin="anonymous" integrity="sha256-1fEPhSsRKlFKGfK3eO710tEweHh1fwokU5wFGDHO+vg=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script><script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script><script async="async" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/mathjax/MathJax-3.2.2/es5/tex-mml-chtml.js"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="分布式并行原生" href="distributed_training_design.html" />
+    <link rel="prev" title="函数式和对象式融合编程范式" href="programming_paradigm.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">设计</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">MindSpore设计概览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="programming_paradigm.html">函数式和对象式融合编程范式</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">动静态图结合</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#静态图和动态图的概念">静态图和动态图的概念</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mindspore静态图">MindSpore静态图</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#graph模式执行原理">Graph模式执行原理</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#graph模式自动微分原理">Graph模式自动微分原理</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#mindspore动态图">MindSpore动态图</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pynative模式执行原理">PyNative模式执行原理</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pynative模式自动微分原理">PyNative模式自动微分原理</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pynative模式下的控制流">PyNative模式下的控制流</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#动静统一">动静统一</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#概述">概述</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#动态图和静态图互相转换">动态图和静态图互相转换</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#动静结合">动静结合</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#静态图语法增强技术">静态图语法增强技术</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#调用第三方库">调用第三方库</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#支持自定义类的使用">支持自定义类的使用</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#基础运算符支持更多数据类型">基础运算符支持更多数据类型</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#基础类型">基础类型</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#内置函数支持更多数据类型">内置函数支持更多数据类型</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#支持控制流">支持控制流</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#支持属性设置与修改">支持属性设置与修改</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#支持求导">支持求导</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#annotation-type">Annotation Type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#使用须知">使用须知</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="distributed_training_design.html">分布式并行原生</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_engine.html">高性能数据处理引擎</a></li>
+<li class="toctree-l1"><a class="reference internal" href="all_scenarios.html">全场景统一架构</a></li>
+<li class="toctree-l1"><a class="reference internal" href="graph_fusion_engine.html">图算融合加速引擎</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pluggable_device.html">三方硬件对接</a></li>
+<li class="toctree-l1"><a class="reference internal" href="glossary.html">术语</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">模型库</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../note/official_models.html">官方模型库</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.html">mindspore</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.nn.html">mindspore.nn</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.ops.html">mindspore.ops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.ops.primitive.html">mindspore.ops.primitive</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.amp.html">mindspore.amp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.train.html">mindspore.train</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.communication.html">mindspore.communication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.boost.html">mindspore.boost</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_python/mindspore.experimental.html">mindspore.experimental</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API映射</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../note/api_mapping/pytorch_api_mapping.html">PyTorch与MindSpore API映射表</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">迁移指南</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/overview.html">迁移指南概述</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/enveriment_preparation.html">环境准备</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/analysis_and_preparation.html">模型分析与准备</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/model_development/model_development.html">网络搭建对比</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/debug_and_tune.html">调试调优</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/sample_code.html">网络迁移调试实例</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/faq.html">常见问题</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">语法支持</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../note/static_graph_syntax_support.html">静态图语法支持</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/static_graph_syntax/operators.html">静态图语法-运算符</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/static_graph_syntax/statements.html">静态图语法-Python语句</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/static_graph_syntax/python_builtin_functions.html">静态图语法-Python内置函数</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../note/index_support.html">Tensor索引支持</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">环境变量</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../note/env_var_list.html">环境变量</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">FAQ</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../faq/installation.html">安装</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/data_processing.html">数据处理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/implement_problem.html">执行问题</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/network_compilation.html">网络编译</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/operators_compile.html">算子编译</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/usage_migrate_3rd.html">第三方框架迁移使用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/performance_tuning.html">性能调优</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/precision_tuning.html">精度调优</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/distributed_parallel.html">分布式并行</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/inference.html">推理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/feature_advice.html">特性咨询</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../RELEASE.html">Release Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>动静态图结合</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/design/dynamic_graph_and_static_graph.ipynb.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars and line breaks on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+    white-space: pre;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt .copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+.jp-RenderedHTMLCommon table,
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.jp-RenderedHTMLCommon thead,
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+.jp-RenderedHTMLCommon tr,
+.jp-RenderedHTMLCommon th,
+.jp-RenderedHTMLCommon td,
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+.jp-RenderedHTMLCommon th,
+div.rendered_html th {
+  font-weight: bold;
+}
+.jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+.jp-RenderedHTMLCommon tbody tr:hover,
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="动静态图结合">
+<h1>动静态图结合<a class="headerlink" href="#动静态图结合" title="永久链接至标题"></a></h1>
+<p><a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/r2.3/zh_cn/design/mindspore_dynamic_graph_and_static_graph.ipynb"><img alt="下载Notebook" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3/resource/_static/logo_notebook.svg" /></a> <a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/r2.3/zh_cn/design/mindspore_dynamic_graph_and_static_graph.py"><img alt="下载样例代码" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3/resource/_static/logo_download_code.svg" /></a> <a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.3/docs/mindspore/source_zh_cn/design/dynamic_graph_and_static_graph.ipynb"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3/resource/_static/logo_source.svg" /></a></p>
+<section id="静态图和动态图的概念">
+<h2>静态图和动态图的概念<a class="headerlink" href="#静态图和动态图的概念" title="永久链接至标题"></a></h2>
+<p>目前主流的深度学习框架的执行模式有两种，分别为静态图模式和动态图模式。</p>
+<p>静态图模式下，程序在编译执行时先生成神经网络的图结构，然后再执行图中涉及的计算操作。因此，在静态图模式下，编译器利用图优化等技术对执行图进行更大程度的优化，从而获得更好的执行性能，有助于规模部署和跨平台运行。</p>
+<p>动态图模式下，程序按照代码的编写顺序执行，在执行正向过程中根据反向传播的原理，动态生成反向执行图。这种模式下，编译器将神经网络中的各个算子逐一下发执行，方便用户编写和调试神经网络模型。</p>
+</section>
+<section id="mindspore静态图">
+<h2>MindSpore静态图<a class="headerlink" href="#mindspore静态图" title="永久链接至标题"></a></h2>
+<p>在MindSpore中，静态图模式又被称为Graph模式，可以通过<code class="docutils literal notranslate"><span class="pre">set_context(mode=GRAPH_MODE)</span></code>来设置成静态图模式。静态图模式比较适合网络固定且需要高性能的场景。在静态图模式下，基于图优化、计算图整图下沉等技术，编译器可以针对图进行全局的优化，因此在静态图下能获得较好的性能，但是执行图是从源码转换而来，因此在静态图下不是所有的Python语法都能支持。</p>
+<section id="graph模式执行原理">
+<h3>Graph模式执行原理<a class="headerlink" href="#graph模式执行原理" title="永久链接至标题"></a></h3>
+<p>在Graph模式下，MindSpore通过源码转换的方式，将Python的源码转换成IR，再在此基础上进行相关的图优化，最终在硬件设备上执行优化后的图。MindSpore使用的是一种基于图表示的函数式IR，即MindIR，采用了接近于ANF函数式的语义。Graph模式是基于MindIR进行编译优化的，使用Graph模式时，需要使用<code class="docutils literal notranslate"><span class="pre">nn.Cell</span></code>类并且在<code class="docutils literal notranslate"><span class="pre">construct</span></code>函数中编写执行代码，或者调用<code class="docutils literal notranslate"><span class="pre">&#64;jit</span></code>装饰器。</p>
+<p>Graph模式的代码用例如下所示：</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;CPU&quot;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Mul</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[ 4. 10. 18.]
+</pre></div></div>
+</div>
+</section>
+<section id="graph模式自动微分原理">
+<h3>Graph模式自动微分原理<a class="headerlink" href="#graph模式自动微分原理" title="永久链接至标题"></a></h3>
+<p>在MindSpore中，Graph模式下的自动微分原理可以参考<a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/r2.3/beginner/autograd.html">自动微分</a>。</p>
+</section>
+</section>
+<section id="mindspore动态图">
+<h2>MindSpore动态图<a class="headerlink" href="#mindspore动态图" title="永久链接至标题"></a></h2>
+<p>在MindSpore中，动态图模式又被称为PyNative模式，可以通过<code class="docutils literal notranslate"><span class="pre">set_context(mode=PYNATIVE_MODE)</span></code>来设置成动态图模式。在脚本开发和网络流程调试中，推荐使用动态图模式进行调试，支持执行单算子、普通函数和网络、以及单独求梯度的操作。</p>
+<section id="pynative模式执行原理">
+<h3>PyNative模式执行原理<a class="headerlink" href="#pynative模式执行原理" title="永久链接至标题"></a></h3>
+<p>在PyNative模式下，用户可以使用完整的Python API，此外针对使用MindSpore提供的API时，框架会根据用户选择的硬件平台（Ascend，GPU，CPU），将算子API的操作在对应的硬件平台上执行，并返回相应的结果。框架整体的执行过程如下：</p>
+<p><img alt="process" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3/docs/mindspore/source_zh_cn/design/images/framework.png" /></p>
+<p>通过前端的Python API，调用到框架层，最终到相应的硬件设备上进行计算。例如：完成一个加法。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;CPU&quot;</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[[[[2. 2. 2. 2.]
+   [2. 2. 2. 2.]
+   [2. 2. 2. 2.]]
+
+  [[2. 2. 2. 2.]
+   [2. 2. 2. 2.]
+   [2. 2. 2. 2.]]
+
+  [[2. 2. 2. 2.]
+   [2. 2. 2. 2.]
+   [2. 2. 2. 2.]]]]
+</pre></div></div>
+</div>
+<p>此例中，当调用到Python接口ops.add(x, y)时，会将Python的接口调用通过Pybind11调用到框架的C++层，转换成C++的调用，接着框架会根据用户设置的device_target选择对应的硬件设备，在该硬件设备上执行add这个操作。</p>
+<p>从上述原理可以看到，在PyNative模式下，Python脚本代码会根据Python的语法进行执行，而执行过程中涉及到MindSpore的API，会根据用户设置在不同的硬件上进行执行，从而进行加速。因此，在PyNative模式下，用户可以随意使用Python的语法以及调试方法。例如可以使用常见的PyCharm、VS Code等IDE进行代码的调试。</p>
+</section>
+<section id="pynative模式自动微分原理">
+<h3>PyNative模式自动微分原理<a class="headerlink" href="#pynative模式自动微分原理" title="永久链接至标题"></a></h3>
+<p>在前面的介绍中，我们可以看出，在PyNative下执行正向过程完全是按照Python的语法进行执行。在PyNative下是基于Tensor进行实现反向传播的，我们在执行正向过程中，将所有应用于Tensor的操作记录下来，并针对每个操作求取其反向，并将所有反向过程串联起来形成整体反向传播图（简称反向图）。最终，将反向图在设备上进行执行计算出梯度。</p>
+<p>反向构图过程示例，如下代码，对矩阵x乘上固定参数z，然后与y进行矩阵乘法，最终对x进行求导。</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;CPU&quot;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MatMul</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">2.0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+<span class="k">class</span> <span class="nc">GradNetWrtX</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">net</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GradNetWrtX</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">net</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">gradient_function</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">net</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">gradient_function</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([[</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.8</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([[</span><span class="mf">0.11</span><span class="p">,</span> <span class="mf">3.3</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.1</span><span class="p">,</span> <span class="mf">2.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">GradNetWrtX</span><span class="p">(</span><span class="n">Net</span><span class="p">())(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[[9.02      5.4       7.2000003]
+ [9.02      5.4       7.2000003]]
+</pre></div></div>
+</div>
+<p><img alt="forward" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3/docs/mindspore/source_zh_cn/design/images/forward.png" /> <img alt="backward" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3/docs/mindspore/source_zh_cn/design/images/backward.png" /></p>
+<p>根据上述PyNative下构图原理，我们可以看到，在正向传播过程中，我们记录了Mul的计算过程，根据Mul对应的反向bprop的定义，得到了反向的MulGrad算子，根据Mul算子的bprop定义，如下：</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore.ops._grad.grad_base</span> <span class="kn">import</span> <span class="n">bprop_getters</span>
+
+<span class="nd">@bprop_getters</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">Mul</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_bprop_mul</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Grad definition for `Mul` operation.&quot;&quot;&quot;</span>
+    <span class="n">mul_func</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Mul</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">bprop</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">dout</span><span class="p">):</span>
+        <span class="n">bc_dx</span> <span class="o">=</span> <span class="n">mul_func</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dout</span><span class="p">)</span>
+        <span class="n">bc_dy</span> <span class="o">=</span> <span class="n">mul_func</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">binop_grad_common</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bc_dx</span><span class="p">,</span> <span class="n">bc_dy</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">bprop</span>
+</pre></div>
+</div>
+</div>
+<p>可以看到对Mul的输入求反向，需要两个输入和输出的反向传播梯度值，此时根据实际的输入值，可以将z连接到MulGrad。以此类推，对下一个算子Matmul，相应的得到MatmulGrad信息，再根据bprop的输入输出，将上下文梯度传播连接起来。</p>
+<p>同理对于输入y求导，可以使用同样的过程进行推导。</p>
+</section>
+<section id="pynative模式下的控制流">
+<h3>PyNative模式下的控制流<a class="headerlink" href="#pynative模式下的控制流" title="永久链接至标题"></a></h3>
+<p>在PyNative模式下，脚本按照Python的语法执行，因此在MindSpore中，针对控制流语法并没有做特殊处理，直接按照Python的语法直接展开执行，进而对展开的执行算子进行自动微分的操作。例如，对于for循环，在PyNative下会根据具体的循环次数，不断的执行for循环中的语句，并对其算子进行自动微分的操作。</p>
+</section>
+</section>
+<section id="动静统一">
+<h2>动静统一<a class="headerlink" href="#动静统一" title="永久链接至标题"></a></h2>
+<section id="概述">
+<h3>概述<a class="headerlink" href="#概述" title="永久链接至标题"></a></h3>
+<p>当前在业界支持动态图和静态图两种模式，动态图通过解释执行，具有动态语法亲和性，表达灵活；静态图使用jit编译优化执行，偏静态语法，在语法上有较多限制。动态图和静态图的编译流程不一致，语法约束不一致。MindSpore针对动态图和静态图模式，首先统一API表达，在两种模式下使用相同的API；其次统一动态图和静态图的底层微分机制。</p>
+<p><img alt="dynamic" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3/docs/mindspore/source_zh_cn/design/images/dynamic.png" /></p>
+</section>
+<section id="动态图和静态图互相转换">
+<h3>动态图和静态图互相转换<a class="headerlink" href="#动态图和静态图互相转换" title="永久链接至标题"></a></h3>
+<p>在MindSpore中，我们可以通过控制模式输入参数来切换执行使用动态图还是静态图。例如：</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>由于在静态图下，对于Python语法有所限制，因此从动态图切换成静态图时，需要符合静态图的语法限制，才能正确使用静态图来进行执行。更多静态图的语法限制可以参考<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>。</p>
+</section>
+<section id="动静结合">
+<h3>动静结合<a class="headerlink" href="#动静结合" title="永久链接至标题"></a></h3>
+<p>MindSpore支持在动态图下使用静态编译的方式来进行混合执行，通过使用jit修饰需要用静态图来执行的函数对象，即可实现动态图和静态图的混合执行，更多jit的使用可参考<a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/r2.3/beginner/accelerate_with_static_graph.html#基于装饰器的开启方式">jit文档</a>。</p>
+<p>例如：</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+
+<span class="k">class</span> <span class="nc">AddMulMul</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AddMulMul</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+
+    <span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">x</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">param</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="k">class</span> <span class="nc">CellCallSingleCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CellCallSingleCell</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;ones&quot;</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;valid&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span> <span class="n">gamma_init</span><span class="o">=</span><span class="s2">&quot;ones&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_mul_mul</span> <span class="o">=</span> <span class="n">AddMulMul</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_mul_mul</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;CPU&quot;</span><span class="p">)</span>
+<span class="n">inputs</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">CellCallSingleCell</span><span class="p">()</span>
+<span class="n">out</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[[[[15.99984]]
+
+  [[15.99984]]]]
+</pre></div></div>
+</div>
+</section>
+<section id="静态图语法增强技术">
+<h3>静态图语法增强技术<a class="headerlink" href="#静态图语法增强技术" title="永久链接至标题"></a></h3>
+<p>在MindSpore静态图模式下，用户编写程序时需要遵循MindSpore<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>，语法使用存在约束限制。而在动态图模式下，Python脚本代码会根据Python语法进行执行，用户可以使用任意Python语法。可以看出，静态图和动态图的语法约束限制是不同的。</p>
+<p>JIT Fallback是从静态图的角度出发考虑静态图和动态图的统一。在编译过程中发现不支持的语法时，将该语法Fallback到Python解释器进行解释执行。通过JIT Fallback特性，静态图可以支持尽量多的动态图语法，使得静态图提供接近动态图的语法使用体验，从而实现动静统一。</p>
+<p>在图模式场景下，MindSpore框架在图编译过程中遇到不支持语法或不支持符号时会报错，多数是在类型推导阶段。图编译阶段首先对用户编写的Python源码进行解析，然后执行后续的静态分析、类型推导、优化等步骤。因此，JIT
+Fallback特性需要预先检测不支持语法。常见的不支持语法主要包括：调用第三方库的方法、调用类名来创建对象、调用未支持的Python内置函数等。对不支持的语法Fallback到Python解释器进行解释执行。由于图模式采用<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/design/all_scenarios.html#中间表示mindir">中间表示MindIR</a>，需要将解释执行的语句转换到中间表示，记录下解释器需要的信息。</p>
+<p>下面主要介绍使用JIT Fallback扩展支持的静态图语法。JIT语法支持级别选项jit_syntax_level的默认值为<code class="docutils literal notranslate"><span class="pre">LAX</span></code>，即使用JIT Fallback的能力扩展静态图语法。</p>
+<section id="调用第三方库">
+<h4>调用第三方库<a class="headerlink" href="#调用第三方库" title="永久链接至标题"></a></h4>
+<p>完善支持NumPy、SciPy等第三方库。静态图模式支持np.ndarray等众多第三方库数据类型及其运算操作，支持获取调用第三方库的属性和方法，并支持通过Tensor的asnumpy()等方法与NumPy等三方库进行交互处理。也就是说，用户可以在静态图模式下调用MindSpore自身接口和算子，或者直接调用三方库的接口，也可以把它们融合在一起使用。</p>
+<ul class="simple">
+<li><p>支持第三方库(如NumPy、SciPy等)的数据类型，允许调用和返回第三方库的对象。</p></li>
+<li><p>支持调用第三方库的方法。</p></li>
+<li><p>支持使用NumPy第三方库数据类型创建Tensor对象。</p></li>
+<li><p>暂不支持对第三方库数据类型的下标索引赋值。</p></li>
+</ul>
+<p>更多使用可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>中的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html#调用第三方库">调用第三方库</a>。</p>
+</section>
+<section id="支持自定义类的使用">
+<h4>支持自定义类的使用<a class="headerlink" href="#支持自定义类的使用" title="永久链接至标题"></a></h4>
+<p>用户自定义的类，没有使用<code class="docutils literal notranslate"><span class="pre">&#64;jit_class</span></code>修饰，也没有继承<code class="docutils literal notranslate"><span class="pre">nn.Cell</span></code>。通过JIT Fallback技术方案，静态图模式下允许创建和引用自定义类的实例，可以支持直接获取和调用自定义类实例的属性和方法，并且允许修改属性(Inplace操作)。</p>
+<p>更多使用可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>中的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html#支持自定义类的使用">支持自定义类的使用</a>。</p>
+</section>
+<section id="基础运算符支持更多数据类型">
+<h4>基础运算符支持更多数据类型<a class="headerlink" href="#基础运算符支持更多数据类型" title="永久链接至标题"></a></h4>
+<p>在静态图语法重载了以下运算符: [‘+’, ‘-’, ’*‘,’/‘,’//‘,’%‘,’**‘,’&lt;&lt;‘,’&gt;&gt;‘,’&amp;‘,’|‘,’^‘, ’not’, ‘==’, ‘!=’, ‘&lt;’, ‘&gt;’, ‘&lt;=’, ‘&gt;=’, ‘in’, ‘not in’, ‘y=x[0]’]。图模式重载的运算符详见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax/operators.html">运算符</a>。列表中的运算符在输入图模式中不支持的输入类型时将使用扩展静态图语法支持，并使输出结果与动态图模式下的输出结果一致。</p>
+<p>更多使用可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>中的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html#基础运算符支持更多数据类型">基础运算符支持更多数据类型</a>。</p>
+</section>
+<section id="基础类型">
+<h4>基础类型<a class="headerlink" href="#基础类型" title="永久链接至标题"></a></h4>
+<p>扩展对Python原生数据类型<code class="docutils literal notranslate"><span class="pre">List</span></code>、<code class="docutils literal notranslate"><span class="pre">Dictionary</span></code>、<code class="docutils literal notranslate"><span class="pre">None</span></code>的支持。更多使用可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>中的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html#基础类型">基础类型</a>。</p>
+<section id="支持列表就地修改操作">
+<h5>支持列表就地修改操作<a class="headerlink" href="#支持列表就地修改操作" title="永久链接至标题"></a></h5>
+<ul class="simple">
+<li><p>支持从全局变量中获取原<code class="docutils literal notranslate"><span class="pre">List</span></code>对象。</p></li>
+<li><p>不支持对输入<code class="docutils literal notranslate"><span class="pre">List</span></code>对象进行inplace操作。</p></li>
+<li><p>支持部分<code class="docutils literal notranslate"><span class="pre">List</span></code>内置函数的就地修改操作。</p></li>
+</ul>
+</section>
+<section id="支持dictionary的高阶用法">
+<h5>支持Dictionary的高阶用法<a class="headerlink" href="#支持dictionary的高阶用法" title="永久链接至标题"></a></h5>
+<ul class="simple">
+<li><p>支持顶图返回Dictionary。</p></li>
+<li><p>支持Dictionary索引取值和赋值。</p></li>
+</ul>
+</section>
+<section id="支持使用none">
+<h5>支持使用None<a class="headerlink" href="#支持使用none" title="永久链接至标题"></a></h5>
+<p><code class="docutils literal notranslate"><span class="pre">None</span></code>是Python中的一个特殊值，表示空，可以赋值给任何变量。对于没有返回值语句的函数认为返回<code class="docutils literal notranslate"><span class="pre">None</span></code>。同时也支持<code class="docutils literal notranslate"><span class="pre">None</span></code>作为顶图或者子图的入参或者返回值。支持<code class="docutils literal notranslate"><span class="pre">None</span></code>作为切片的下标，作为<code class="docutils literal notranslate"><span class="pre">List</span></code>、<code class="docutils literal notranslate"><span class="pre">Tuple</span></code>、<code class="docutils literal notranslate"><span class="pre">Dictionary</span></code>的输入。</p>
+</section>
+</section>
+<section id="内置函数支持更多数据类型">
+<h4>内置函数支持更多数据类型<a class="headerlink" href="#内置函数支持更多数据类型" title="永久链接至标题"></a></h4>
+<p>扩展内置函数的支持范围。Python内置函数完善支持更多输入类型，例如第三方库数据类型。更多内置函数的支持情况可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax/python_builtin_functions.html">Python内置函数</a>章节。</p>
+</section>
+<section id="支持控制流">
+<h4>支持控制流<a class="headerlink" href="#支持控制流" title="永久链接至标题"></a></h4>
+<p>为了提高Python标准语法支持度，实现动静统一，扩展支持更多数据类型在控制流语句的使用。控制流语句是指<code class="docutils literal notranslate"><span class="pre">if</span></code>、<code class="docutils literal notranslate"><span class="pre">for</span></code>、<code class="docutils literal notranslate"><span class="pre">while</span></code>等流程控制语句。理论上，通过扩展支持的语法，在控制流场景中也支持。更多使用可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>中的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html#支持控制流">支持控制流</a>。</p>
+</section>
+<section id="支持属性设置与修改">
+<h4>支持属性设置与修改<a class="headerlink" href="#支持属性设置与修改" title="永久链接至标题"></a></h4>
+<p>支持更多类型的Inplace操作。之前版本只支持通过Inplace算子对Parameter类型进行值修改，在MindSpore2.1版本静态图模式下，支持了自定义类，Cell子类，jit_class类的属性修改。除了支持更改类self属性和全局变量的属性以外，也新增支持对List类型的extend()、reverse()、insert()、pop()等Inplace操作。更多使用可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>中的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html#支持属性设置与修改">支持属性设置与修改</a>。</p>
+<ul class="simple">
+<li><p>对自定义类对象以及第三方类型的属性进行设置与修改。</p></li>
+<li><p>对Cell的self对象进行修改。</p></li>
+<li><p>对静态图内的Cell对象以及jit_class对象进行设置与修改。</p></li>
+</ul>
+</section>
+<section id="支持求导">
+<h4>支持求导<a class="headerlink" href="#支持求导" title="永久链接至标题"></a></h4>
+<p>使用JIT Fallback支持的静态图语法，同样支持其在求导中使用。更多使用可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>中的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html#支持求导">支持求导</a>。</p>
+</section>
+<section id="annotation-type">
+<h4>Annotation Type<a class="headerlink" href="#annotation-type" title="永久链接至标题"></a></h4>
+<p>对于运行时的JIT
+Fallback支持的语法，会产生一些无法被类型推导出的节点，这种类型称为<code class="docutils literal notranslate"><span class="pre">Any</span></code>类型。因为该类型无法在编译时推导出正确的类型，所以这种<code class="docutils literal notranslate"><span class="pre">Any</span></code>将会以一种默认最大精度<code class="docutils literal notranslate"><span class="pre">Float64</span></code>进行运算，防止其精度丢失。为了能更好的优化相关性能，需要减少<code class="docutils literal notranslate"><span class="pre">Any</span></code>类型数据的产生。当用户可以明确知道当前通过扩展支持的语句会产生具体类型的时候，我们推荐使用<code class="docutils literal notranslate"><span class="pre">Annotation</span> <span class="pre">&#64;jit.typing:</span></code>的方式进行指定对应Python语句类型，从而确定解释节点的类型避免<code class="docutils literal notranslate"><span class="pre">Any</span></code>类型的生成。更多使用可见<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html">静态图语法支持</a>中的<a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/r2.3/note/static_graph_syntax_support.html#annotation-type">Annotation
+Type</a>。</p>
+</section>
+<section id="使用须知">
+<h4>使用须知<a class="headerlink" href="#使用须知" title="永久链接至标题"></a></h4>
+<p>在使用静态图JIT Fallback扩展支持语法时，请注意以下几点：</p>
+<ol class="arabic simple">
+<li><p>对标动态图的支持能力，即：须在动态图语法范围内，包括但不限于数据类型等。</p></li>
+<li><p>在扩展静态图语法时，支持了更多的语法，但执行性能可能会受影响，不是最佳。</p></li>
+<li><p>在扩展静态图语法时，支持了更多的语法，由于使用Python的能力，不能使用MindIR导入导出的能力。</p></li>
+<li><p>暂不支持跨Python文件重复定义同名的全局变量，且这些全局变量在网络中会被用到。</p></li>
+</ol>
+</section>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="programming_paradigm.html" class="btn btn-neutral float-left" title="函数式和对象式融合编程范式" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="distributed_training_design.html" class="btn btn-neutral float-right" title="分布式并行原生" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 MindSpore.</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+</body>
+</html>
