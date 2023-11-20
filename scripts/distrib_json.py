@@ -28,6 +28,7 @@ def main(arg_version):
         json_name_list = [arg_version + ".json"]
     else:
         json_name_list = [file for file in os.listdir(version_dir)]
+    json_name_list = sorted(json_name_list)
     for json_name in json_name_list:
         with open(os.path.join(version_dir, json_name), "r+", encoding="utf-8") as f:
             data = json.load(f)
