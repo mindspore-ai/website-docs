@@ -119,15 +119,102 @@
 <span class="sd">&quot;&quot;&quot;Quantum channel.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
-<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">sqrt</span><span class="p">,</span> <span class="n">exp</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">exp</span><span class="p">,</span> <span class="n">sqrt</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numpy.typing</span> <span class="k">as</span> <span class="nn">npt</span>
 
 <span class="kn">from</span> <span class="nn">mindquantum</span> <span class="kn">import</span> <span class="n">mqbackend</span> <span class="k">as</span> <span class="n">mb</span>
-<span class="kn">from</span> <span class="nn">mindquantum.utils.f</span> <span class="kn">import</span> <span class="n">_check_num_array</span>
+<span class="kn">from</span> <span class="nn">mindquantum.utils.f</span> <span class="kn">import</span> <span class="n">_check_input_type</span><span class="p">,</span> <span class="n">_check_num_array</span>
 <span class="kn">from</span> <span class="nn">mindquantum.utils.string_utils</span> <span class="kn">import</span> <span class="n">string_expression</span>
 
 <span class="kn">from</span> <span class="nn">.basic</span> <span class="kn">import</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="n">NoiseGate</span><span class="p">,</span> <span class="n">NonHermitianGate</span><span class="p">,</span> <span class="n">SelfHermitianGate</span>
+
+
+<div class="viewcode-block" id="GroupedPauliChannel"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.GroupedPauliChannel.html#mindquantum.core.gates.GroupedPauliChannel">[docs]</a><span class="k">class</span> <span class="nc">GroupedPauliChannel</span><span class="p">(</span><span class="n">NoiseGate</span><span class="p">,</span> <span class="n">SelfHermitianGate</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A group of pauli channels.</span>
+
+<span class="sd">    This quantum channel is equivalent to a list of pauli channels, but will evaluate much</span>
+<span class="sd">    faster than apply them one by one. For detail of pauli channel, please refers to</span>
+<span class="sd">    :class:`~.core.gates.PauliChannel`.</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \epsilon(\rho) = \otimes_i \epsilon_\text{pauli}^i(\rho)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        probs (numpy.ndarray): The error probabilities of pauli channel. It has dimension of</span>
+<span class="sd">            `(n, 3)`, where the first dimension `n` is the qubit number or the number of pauli channels</span>
+<span class="sd">            represented by this quantum channel . The second dimension `3` represents the probability of</span>
+<span class="sd">            applying :math:`X`, :math:`Y` or :math:`Z` gate.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.gates import GroupedPauliChannel</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.simulator import Simulator</span>
+<span class="sd">        &gt;&gt;&gt; probs = np.array([[1.0, 0.0, 0.0], [0.0, 0.3, 0.0]])</span>
+<span class="sd">        &gt;&gt;&gt; circ = Circuit([GroupedPauliChannel(probs).on([0, 1])]).measure_all()</span>
+<span class="sd">        &gt;&gt;&gt; Simulator(&#39;mqvector&#39;, circ.n_qubits).sampling(circ, shots=1000, seed=42)</span>
+<span class="sd">        shots: 1000</span>
+<span class="sd">        Keys: q1 q0│0.00   0.177       0.355       0.532        0.71       0.887</span>
+<span class="sd">        ───────────┼───────────┴───────────┴───────────┴───────────┴───────────┴</span>
+<span class="sd">                 01│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</span>
+<span class="sd">                   │</span>
+<span class="sd">                 11│▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒</span>
+<span class="sd">                   │</span>
+<span class="sd">        {&#39;01&#39;: 710, &#39;11&#39;: 290}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">probs</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a GroupedPauliChannel object.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;name&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;GPC&#39;</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;n_qubits&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s2">&quot;probs&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">probs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">probs</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;probs requires a real number type, but get </span><span class="si">{</span><span class="n">probs</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">probs</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;probs cannot be negative value.&quot;</span><span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;probs requires a two dimension array, but get dimension with </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The second dimension of probs should be two, but get </span><span class="si">{</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">wrong_channel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">probs</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">wrong_channel</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wrong probs for </span><span class="si">{</span><span class="n">wrong_channel</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">-pauli channel: </span><span class="si">{</span><span class="n">probs</span><span class="p">[</span><span class="n">wrong_channel</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">probs</span> <span class="o">=</span> <span class="n">probs</span>
+        <span class="n">NoiseGate</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">SelfHermitianGate</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Equality comparison operator.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">GroupedPauliChannel</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">BasicGate</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">probs</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="GroupedPauliChannel.get_cpp_obj"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.GroupedPauliChannel.html#mindquantum.core.gates.GroupedPauliChannel.get_cpp_obj">[docs]</a>    <span class="k">def</span> <span class="nf">get_cpp_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get underlying C++ object.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">mb</span><span class="o">.</span><span class="n">gate</span><span class="o">.</span><span class="n">GroupedPauliChannel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj_qubits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ctrl_qubits</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GroupedPauliChannel.matrix"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.GroupedPauliChannel.html#mindquantum.core.gates.GroupedPauliChannel.matrix">[docs]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># pylint: disable=arguments-differ</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kraus operator of the quantum channel.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list, contains all Kraus operators of every pauli channel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mat</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">prob</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">:</span>
+            <span class="n">px</span><span class="p">,</span> <span class="n">py</span><span class="p">,</span> <span class="n">pz</span> <span class="o">=</span> <span class="n">prob</span>
+            <span class="n">mat_i</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">px</span> <span class="o">-</span> <span class="n">py</span> <span class="o">-</span> <span class="n">pz</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+            <span class="n">mat_x</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">px</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+            <span class="n">mat_y</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">py</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="n">j</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="n">j</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+            <span class="n">mat_z</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">pz</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
+            <span class="n">mat</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">mat_i</span><span class="p">,</span> <span class="n">mat_x</span><span class="p">,</span> <span class="n">mat_y</span><span class="p">,</span> <span class="n">mat_z</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">mat</span></div></div>
 
 
 <div class="viewcode-block" id="PauliChannel"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.PauliChannel.html#mindquantum.core.gates.PauliChannel">[docs]</a><span class="k">class</span> <span class="nc">PauliChannel</span><span class="p">(</span><span class="n">NoiseGate</span><span class="p">,</span> <span class="n">SelfHermitianGate</span><span class="p">):</span>
@@ -189,6 +276,8 @@
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported type for py, get </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">py</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pz</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported type for pz, get </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">pz</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">px</span><span class="p">,</span> <span class="n">py</span><span class="p">,</span> <span class="n">pz</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Probability cannot be negative value.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">px</span> <span class="o">+</span> <span class="n">py</span> <span class="o">+</span> <span class="n">pz</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">px</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">px</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">py</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">py</span><span class="p">)</span>
@@ -809,7 +898,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a string representation of the object.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;t1=</span><span class="si">{</span><span class="n">string_expression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t1</span><span class="p">)</span><span class="si">}</span><span class="s1">,t2=</span><span class="si">{</span><span class="n">string_expression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t2</span><span class="p">)</span><span class="si">}</span><span class="s1">,tg=</span><span class="si">{</span><span class="n">string_expression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gate_time</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
 
-<div class="viewcode-block" id="ThermalRelaxationChannel.matrix"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.ThermalRelaxationChannel.html#mindquantum.core.gates.ThermalRelaxationChannel.matrix">[docs]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># pylint: disable=arguments-differ</span>
+<div class="viewcode-block" id="ThermalRelaxationChannel.matrix"><a class="viewcode-back" href="../../../../core/gates/mindquantum.core.gates.ThermalRelaxationChannel.html#mindquantum.core.gates.ThermalRelaxationChannel.matrix">[docs]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># pylint: disable=arguments-differ,too-many-locals</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Kraus operator of the quantum channel.</span>
 
