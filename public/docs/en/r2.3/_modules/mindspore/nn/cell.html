@@ -181,13 +181,6 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops._tracefunc</span> <span class="kn">import</span> <span class="n">_convert_tensor</span><span class="p">,</span> <span class="n">_SetMixedPrecision</span><span class="p">,</span> <span class="n">PackFunc</span>
 
 
-<span class="k">def</span> <span class="nf">_check_args</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check the input args&#39;s type&quot;&quot;&quot;</span>
-    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">has_init</span><span class="p">:</span>
-            <span class="n">item</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
-
-
 <div class="viewcode-block" id="Cell"><a class="viewcode-back" href="../../../api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell">[docs]</a><span class="k">class</span> <span class="nc">Cell</span><span class="p">(</span><span class="n">Cell_</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The basic building block of neural networks in MindSpore. The model or neural network layer should inherit this</span>
@@ -302,6 +295,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ge_sync_data</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_is_check_and_refresh</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_amp_level</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_flag</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">base</span> <span class="o">=</span> <span class="n">Cell_</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -360,7 +354,7 @@
 
 <span class="sd">        Tutorial Examples:</span>
 <span class="sd">            - `Cell and Parameter - Custom Cell Reverse</span>
-<span class="sd">              &lt;https://mindspore.cn/tutorials/en/master/advanced/modules/layer.html#custom-cell-reverse&gt;`_</span>
+<span class="sd">              &lt;https://mindspore.cn/tutorials/en/r2.3/advanced/modules/layer.html#custom-cell-reverse&gt;`_</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bprop_debug</span>
 
@@ -789,6 +783,14 @@
 
         <span class="k">return</span> <span class="n">cast_inputs</span></div>
 
+    <span class="k">def</span> <span class="nf">_init_check</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_flag</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">has_init</span><span class="p">:</span>
+                <span class="n">param</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_flag</span> <span class="o">=</span> <span class="kc">True</span>
+
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">construct</span> <span class="ow">is</span> <span class="n">Cell</span><span class="o">.</span><span class="n">construct</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;For &#39;Cell&#39;, the method &#39;construct&#39; is not defined.&quot;</span><span class="p">)</span>
@@ -822,7 +824,7 @@
             <span class="c1"># There many Casts in parameter_broadcast. Enable build faster.</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_do_parameter_broadcast</span><span class="p">()</span>
 
-        <span class="n">_check_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_check</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_cell_flags_in_pynative</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">and</span> <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
@@ -1503,7 +1505,7 @@
 
 <span class="sd">        Tutorial Examples:</span>
 <span class="sd">            - `Model Training - Optimizer</span>
-<span class="sd">              &lt;https://mindspore.cn/tutorials/en/master/beginner/train.html#optimizer&gt;`_</span>
+<span class="sd">              &lt;https://mindspore.cn/tutorials/en/r2.3/beginner/train.html#optimizer&gt;`_</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="n">recurse</span><span class="p">)))</span></div>
 
@@ -1614,7 +1616,7 @@
 
 <span class="sd">        Tutorial Examples:</span>
 <span class="sd">            - `Building a Network - Model Parameters</span>
-<span class="sd">              &lt;https://mindspore.cn/tutorials/en/master/beginner/model.html#model-parameters&gt;`_</span>
+<span class="sd">              &lt;https://mindspore.cn/tutorials/en/r2.3/beginner/model.html#model-parameters&gt;`_</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">cells</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="n">expand</span><span class="p">:</span>
@@ -1950,7 +1952,7 @@
 <span class="sd">        accelerate the algorithm in the algorithm library.</span>
 
 <span class="sd">        If `boost_type` is not in the algorithm library, please view the algorithm in the algorithm library through</span>
-<span class="sd">        `algorithm library &lt;https://gitee.com/mindspore/mindspore/tree/master/mindspore/python/mindspore/boost&gt;`_.</span>
+<span class="sd">        `algorithm library &lt;https://gitee.com/mindspore/mindspore/tree/r2.3/mindspore/python/mindspore/boost&gt;`_.</span>
 
 <span class="sd">        Note:</span>
 <span class="sd">            Some acceleration algorithms may affect the accuracy of the network, please choose carefully.</span>
@@ -2007,7 +2009,7 @@
 
 <span class="sd">        Tutorial Examples:</span>
 <span class="sd">            - `Model Training - Implementing Training and Evaluation</span>
-<span class="sd">              &lt;https://mindspore.cn/tutorials/en/master/beginner/train.html#training-and-evaluation&gt;`_</span>
+<span class="sd">              &lt;https://mindspore.cn/tutorials/en/r2.3/beginner/train.html#training-and-evaluation&gt;`_</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">mode</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_phase</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span>
