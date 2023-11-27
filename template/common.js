@@ -1544,6 +1544,14 @@ $(function () {
       },
     };
 
+    // 文档反馈
+    const getEvaluate = ()=>{
+      let s = document.getElementsByTagName('HEAD')[0]
+      let hm = document.createElement('script')
+      hm.src = '/evaluate.js';
+      s.appendChild(hm, s)
+    }
+
     const initPage = async () => {
       // 获取导航菜单json
       utils.getHeaderMenu = await utils.getRequest(`/header.json`);
@@ -1588,6 +1596,7 @@ $(function () {
       }
 
       themeInit();
+      getEvaluate();
     };
     initPage();
   })();
