@@ -24,7 +24,9 @@ $(function () {
 
     const locale = {
       title: isEn ? 'Document feedback' : '文档反馈',
-      participantion: isEn ? 'Click to submit Document feedback' : '点击参与文档反馈',
+      participantion: isEn
+        ? 'Click to submit Document feedback'
+        : '点击参与文档反馈',
       bugInput: [
         isEn ? 'Question document fragment' : '问题文档片段',
         isEn
@@ -95,7 +97,9 @@ $(function () {
               ? 'Commands inconsistent with the functions;'
               : '命令无法完成对应功能；',
             isEn ? 'Wrong screenshots.' : '界面错误，无法指导操作；',
-            isEn ? 'Sample code running error, or running results inconsistent with the expectation.' : '代码样例运行报错、运行结果不符',
+            isEn
+              ? 'Sample code running error, or running results inconsistent with the expectation.'
+              : '代码样例运行报错、运行结果不符',
           ],
         },
         {
@@ -149,22 +153,36 @@ $(function () {
       ],
       privacyLink: isEn ? '/privacy/en' : '/privacy',
       submit: isEn ? 'Submit' : '提交',
-      issue:['1. 【Document Link】/【文档链接】','2. 【Issues Section】/【问题文档片段】','2. 【Issues Section】/【问题文档片段】','4. 【Expected Result】【预期结果】','- Please fill in the expected result'],
-      fragment:isEn ? 'Please enter the "Question" section' : '请输入“问题”片段',
-      email:isEn ? 'Enter your email' : '请输入您的邮箱',
-      emailValid:isEn ? 'Enter a valid email' : '请输入正确的邮箱',
-      describe:isEn ? 'Choose a submission type and describe the bug' : '请选择提交类型并输入问题描述',
-      satisfactionDesc:isEn ? 'Rate your satisfaction with this document' : '请选择满意度',
-      privacyDesc:isEn ? 'Agree to Privacy Statement' : '请勾选同意隐私声明',
+      issue: [
+        '1. 【Document Link】/【文档链接】',
+        '2. 【Issues Section】/【问题文档片段】',
+        '2. 【Issues Section】/【问题文档片段】',
+        '4. 【Expected Result】【预期结果】',
+        '- Please fill in the expected result',
+      ],
+      fragment: isEn
+        ? 'Please enter the "Question" section'
+        : '请输入“问题”片段',
+      email: isEn ? 'Enter your email' : '请输入您的邮箱',
+      emailValid: isEn ? 'Enter a valid email' : '请输入正确的邮箱',
+      describe: isEn
+        ? 'Choose a submission type and describe the bug'
+        : '请选择提交类型并输入问题描述',
+      satisfactionDesc: isEn
+        ? 'Rate your satisfaction with this document'
+        : '请选择满意度',
+      privacyDesc: isEn ? 'Agree to Privacy Statement' : '请勾选同意隐私声明',
     };
     // 滑动条
     const getSilderContent = () => {
       const len = new Array(10).fill(0);
       return `<div class="ms-slider" data-tips="" style="--percent: 0;">
           <input type="range" id="sliderInput" value="0" min="0" max="10" step="1"  />
-          <div class="slider-bar"><div class='runway'><div class="trigger"></div></div><div class="ms-slider-dot">${len.map((idx)=>{
-            return `<i>•</i>`
-          }).join('')}</div></div>
+          <div class="slider-bar"><div class='runway'><div class="trigger"></div></div><div class="ms-slider-dot">${len
+            .map((idx) => {
+              return `<i>•</i>`;
+            })
+            .join('')}</div></div>
         </div>`;
     };
     // 过滤列表
@@ -382,13 +400,27 @@ ${locale.issue[3]}
       const min = 1;
       const max = 10;
       sliderNode.addEventListener('input', function () {
-        let silderValue = this.value;
+        let silderValue = Number(this.value);
         let v = (silderValue - min) / (max - min);
         sliderBar.style.setProperty('--percent', v);
         sliderBar.setAttribute('data-tips', silderValue);
         postData.comprehensiveSatisfication = silderValue;
         satisfactionTips.removeClass('show');
-        $('.ms-slider-dot i').removeClass('on').eq(silderValue).prevAll().addClass('on')
+        const dot = $('.ms-slider-dot i');
+        if(silderValue === max){
+          dot.addClass('on')
+        }else{
+          dot
+          .removeClass('on')
+          .eq(silderValue)
+          .prevAll()
+          .addClass('on');
+        }
+        if(silderValue === 0){
+         $('.ms-slider').addClass('zero')
+        }else{
+          $('.ms-slider').removeClass('zero')
+        }
       });
 
       // 提交事件
@@ -488,27 +520,18 @@ ${locale.issue[3]}
       const feedbackDom = `<div class="feedback"><img class="bug-icon" src="/pic/feeback.svg" title="${locale.participantion}" alt="">${locale.title}</div>`;
       body.prepend(feedbackDom);
 
-      function selectText() {
-        if (document.selection) {
-          return document.selection.createRange().text;
-        } else {
-          return window.getSelection().toString();
-        }
-      }
       let content = document.querySelector('.rst-content .document');
       let feedback = document.querySelector('.feedback');
+      let selection = window.getSelection();
+      let selectText = '';
       if (content && feedback) {
         content.onmouseup = function (event) {
           let ev = event || window.event;
           let left = ev.clientX;
           let top = ev.clientY + 16;
-          let select = selectText().trim();
           setTimeout(function () {
-            if (
-              select.length > 0 &&
-              window.getSelection() &&
-              window.getSelection().type === 'Range'
-            ) {
+            if (selection && selection.type === 'Range') {
+              selectText = selection.toString().trim() + '';
               feedback.style.display = 'flex';
               feedback.style.left = left + 'px';
               feedback.style.top = top + 'px';
@@ -527,15 +550,13 @@ ${locale.issue[3]}
         feedback.onclick = function (e) {
           e.stopPropagation();
           let value =
-            selectText().trim().length > 500
-              ? selectText().trim().substring(0, 500)
-              : selectText().trim();
+            selectText > 500 ? selectText.substring(0, 500) : selectText;
           $('.code-snippet').val(value);
           postData.bugDocFragment = value;
-          $('.docs-feedback .text').click()
+          $('.docs-feedback .text').click();
         };
         // 文档反馈点击事件
-        $('.docs-feedback .text').click(function(){
+        $('.docs-feedback .text').click(function () {
           const evaluateDialog = $('.evaluate-dialog');
           if (evaluateDialog.hasClass('show')) {
             evaluateDialog.removeClass('show');
@@ -544,7 +565,7 @@ ${locale.issue[3]}
             evaluateDialog.addClass('show');
             $('#evaluate-mark').show();
           }
-        })
+        });
       }
     })();
 
