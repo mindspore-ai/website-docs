@@ -10,6 +10,7 @@ $(function () {
     let isPR = true;
     let repositoryHref = '';
     let ideHref = '';
+    let repositoryComponent = 'docs';
 
     // data
     let postData = {
@@ -23,14 +24,13 @@ $(function () {
 
     const locale = {
       title: isEn ? 'Document feedback' : '文档反馈',
-      participantion: isEn ? 'Click to submit bugs' : '点击参与文档捉虫',
+      participantion: isEn ? 'Click to submit Document feedback' : '点击参与文档反馈',
       bugInput: [
         isEn ? 'Question document fragment' : '问题文档片段',
         isEn
           ? 'Click to input the question document fragment'
           : '点击输入问题文档片段',
       ],
-      reason: isEn ? 'Problem description' : '问题描述',
       submitType: isEn ? 'Submission type' : '提交类型',
       questionType: isEn ? 'Problem type' : '问题类型',
       questionTypeList: [
@@ -39,8 +39,8 @@ $(function () {
           children: [
             isEn ? 'Specifications and Common Mistakes:' : '规范和低错类:',
             isEn
-              ? 'Misspellings or punctuation mistakes;'
-              : '错别字或拼写错误；标点符号使用错误；',
+              ? 'Misspellings or punctuation mistakes,incorrect formulas, abnormal display'
+              : '错别字或拼写错误，标点符号使用错误、公式错误或显示异常；',
             isEn
               ? 'Incorrect links, empty cells, or wrong formats;'
               : '链接错误、空单元格、格式错误；',
@@ -67,11 +67,11 @@ $(function () {
               ? 'Incorrect or missing key steps;'
               : '关键步骤错误或缺失，无法指导用户完成任务；',
             isEn
-              ? 'Missing prerequisites or precautions;'
-              : '缺少必要的前提条件、注意事项等；',
+              ? 'Missing main function descriptions, keyword explanation, necessary prerequisites, or precautions.'
+              : '缺少主要功能描述、关键词解释、必要前提条件、注意事项等；',
             isEn
-              ? 'Ambiguous figures, tables, or texts;'
-              : '图形、表格、文字等晦涩难懂；',
+              ? 'Ambiguous descriptions, unclear reference, or contradictory context;'
+              : '描述内容存在歧义指代不明、上下文矛盾；',
             isEn
               ? 'Unclear logic, such as missing classifications, items, and steps.'
               : '逻辑不清晰，该分类、分项、分步骤的没有给出；',
@@ -82,8 +82,8 @@ $(function () {
           children: [
             isEn ? 'Correctness:' : '正确性:',
             isEn
-              ? 'Technical principles, function descriptions, or specifications inconsistent with those of the software;'
-              : '技术原理、功能、规格等描述和软件不一致，存在错误；',
+              ? 'Technical principles, function descriptions, supported platforms, parameter types, or exceptions inconsistent with that of software implementation;'
+              : '技术原理、功能、支持平台、参数类型、异常报错等描述和软件实现不一致；',
             isEn
               ? 'Incorrect schematic or architecture diagrams;'
               : '原理图、架构图等存在错误；',
@@ -95,6 +95,7 @@ $(function () {
               ? 'Commands inconsistent with the functions;'
               : '命令无法完成对应功能；',
             isEn ? 'Wrong screenshots.' : '界面错误，无法指导操作；',
+            isEn ? 'Sample code running error, or running results inconsistent with the expectation.' : '代码样例运行报错、运行结果不符',
           ],
         },
         {
@@ -132,8 +133,8 @@ $(function () {
       ],
       satisfaction: [
         isEn
-          ? 'How satisfied are you with this document'
-          : '您对文档的总体满意度',
+          ? 'How satisfied are you with this document(Optional)'
+          : '您对文档的总体满意度（可选）',
         isEn ? 'Not satisfied at all' : '不满意',
         isEn ? 'Very satisfied' : '非常满意',
       ],
@@ -148,12 +149,22 @@ $(function () {
       ],
       privacyLink: isEn ? '/privacy/en' : '/privacy',
       submit: isEn ? 'Submit' : '提交',
+      issue:['1. 【Document Link】/【文档链接】','2. 【Issues Section】/【问题文档片段】','2. 【Issues Section】/【问题文档片段】','4. 【Expected Result】【预期结果】','- Please fill in the expected result'],
+      fragment:isEn ? 'Please enter the "Question" section' : '请输入“问题”片段',
+      email:isEn ? 'Enter your email' : '请输入您的邮箱',
+      emailValid:isEn ? 'Enter a valid email' : '请输入正确的邮箱',
+      describe:isEn ? 'Choose a submission type and describe the bug' : '请选择提交类型并输入问题描述',
+      satisfactionDesc:isEn ? 'Rate your satisfaction with this document' : '请选择满意度',
+      privacyDesc:isEn ? 'Agree to Privacy Statement' : '请勾选同意隐私声明',
     };
     // 滑动条
     const getSilderContent = () => {
-      return `<div class="ms-slider" data-tips="0" style="--percent: 0;">
+      const len = new Array(10).fill(0);
+      return `<div class="ms-slider" data-tips="" style="--percent: 0;">
           <input type="range" id="sliderInput" value="0" min="0" max="10" step="1"  />
-          <div class="slider-bar"><div class='runway'><div class="trigger"></div></div></div>
+          <div class="slider-bar"><div class='runway'><div class="trigger"></div></div><div class="ms-slider-dot">${len.map((idx)=>{
+            return `<i>•</i>`
+          }).join('')}</div></div>
         </div>`;
     };
     // 过滤列表
@@ -188,7 +199,7 @@ $(function () {
         satisfactionTips,
         title,
       } = locale;
-      return `<div class="evaluate-dialog"><div id="evaluate-mark"></div><div class="evaluate-alert ${lang}">
+      return `<div class="evaluate-dialog "><div id="evaluate-mark"></div><div class="evaluate-alert ${lang}">
             <div class="evaluate-head">
               <h3>${title}</h3>
               <em class="evaluate-close"></em>
@@ -270,21 +281,21 @@ $(function () {
       data.existProblem.length == 0
         ? ''
         : (Problem = `- ${data.existProblem.join('、')}`);
-      return `1. 【文档链接】
+      return `${locale.issue[0]}
     
     > ${data.link}
     
-2. 【"有虫"文档片段】
+${locale.issue[1]}
     
     > ${data.bugDocFragment.replace(/(\r\n|\r|\n)+/g, '$1')}
     
-3. 【存在的问题】
+${locale.issue[2]}
     
     ${Problem}
     > ${data.problemDetail.replace(/(\r\n|\r|\n)+/g, '$1')}
     
-4. 【预期结果】
-    - 请填写预期结果`;
+${locale.issue[3]}
+    ${locale.issue[4]}`;
     };
 
     const utils = () => {
@@ -371,11 +382,13 @@ $(function () {
       const min = 1;
       const max = 10;
       sliderNode.addEventListener('input', function () {
-        let v = (this.value - min) / (max - min);
+        let silderValue = this.value;
+        let v = (silderValue - min) / (max - min);
         sliderBar.style.setProperty('--percent', v);
-        sliderBar.setAttribute('data-tips', this.value);
-        postData.comprehensiveSatisfication = this.value;
+        sliderBar.setAttribute('data-tips', silderValue);
+        postData.comprehensiveSatisfication = silderValue;
         satisfactionTips.removeClass('show');
+        $('.ms-slider-dot i').removeClass('on').eq(silderValue).prevAll().addClass('on')
       });
 
       // 提交事件
@@ -397,18 +410,16 @@ $(function () {
         const title = urlArr[urlArr.length - 1].replace('.html', '');
 
         if (!postData.bugDocFragment) {
-          tipText = !isEn ? '请输入“有虫”片段' : 'Enter the buggy content';
+          tipText = locale.fragment;
           codeSnippet.focus().addClass('error').val(tipText).select();
         } else if (!problemTxaValue || !submitType) {
-          tipText = !isEn
-            ? '请选择提交类型并输入问题描述'
-            : 'Choose a submission type and describe the bug';
+          tipText = locale.describe;
           problemTxa.focus().addClass('error').val(tipText).select();
         } else if (!email) {
-          tipText = !isEn ? '请输入您的邮箱' : 'Enter your email';
+          tipText = locale.email;
           emailInput.focus().addClass('error').val(tipText).select();
         } else if (!reg.test(email)) {
-          tipText = !isEn ? '请输入正确的邮箱' : 'Enter a valid email';
+          tipText = locale.emailValid;
           emailInput
             .focus()
             .addClass('error')
@@ -416,13 +427,8 @@ $(function () {
             .siblings('.error-tips')
             .show()
             .text(tipText);
-        } else if (sliderInput === '0') {
-          tipText = !isEn
-            ? '请选择满意度'
-            : 'Rate your satisfaction with this document';
-          satisfactionTips.addClass('show');
         } else if (privacy.length === 0) {
-          tipText = !isEn ? '请勾选同意隐私声明' : 'Agree to Privacy Statement';
+          tipText = locale.privacyDesc;
           $('.checkbox-item').addClass('shake1');
           setTimeout(function () {
             $('.checkbox-item').removeClass('shake1');
@@ -442,17 +448,6 @@ $(function () {
           componentName =
             componentName === 'docs' ? 'mindspore' : componentName;
 
-          if (submitType === 'issue') {
-            let desc = encodeURIComponent(issueTemplate(postData));
-            openUrl(
-              `https://gitee.com/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=有奖捉虫-${componentName}&description=${desc}`
-            );
-          } else {
-            openUrl(
-              `${ideHref}?search=${first}&title=文档捉虫-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档捉虫`
-            );
-          }
-
           $.ajax({
             type: 'POST',
             url: `https://dsapi.osinfra.cn/query/add/bugquestionnaire?community=mindspore&lang=${lang}`,
@@ -466,17 +461,15 @@ $(function () {
                   if (submitType === 'issue') {
                     let desc = encodeURIComponent(issueTemplate(postData));
                     openUrl(
-                      `https://gitee.com/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=有奖捉虫-${componentName}&description=${desc}`
+                      `https://gitee.com/mindspore/${repositoryComponent}/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=文档反馈-${componentName}&description=${desc}`
                     );
                   } else {
                     openUrl(
-                      `${ideHref}?search=${first}&title=文档捉虫-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档捉虫`
+                      `${ideHref}?search=${first}&title=文档反馈-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
                     );
                   }
                 }
               } catch (error) {}
-              $('#title-evaluate').css('z-index', '1003');
-              $('#title-evaluate img').css('display', 'none');
             },
             error: function (err) {},
           });
@@ -492,8 +485,7 @@ $(function () {
     // 选中文字出现捉虫图标
     (function () {
       // 插入捉虫图标
-      const feedbackDom = `<div class="feedback"><img class="bug-icon" src="/pic/bug.svg" title="${locale.participantion}" alt="">
-      <img class="bug-icon-dark" src="/pic/bug-dark.svg" title="${locale.participantion}" alt=""></div>`;
+      const feedbackDom = `<div class="feedback"><img class="bug-icon" src="/pic/feeback.svg" title="${locale.participantion}" alt="">${locale.title}</div>`;
       body.prepend(feedbackDom);
 
       function selectText() {
@@ -509,7 +501,7 @@ $(function () {
         content.onmouseup = function (event) {
           let ev = event || window.event;
           let left = ev.clientX;
-          let top = ev.clientY + 30;
+          let top = ev.clientY + 16;
           let select = selectText().trim();
           setTimeout(function () {
             if (
@@ -517,7 +509,7 @@ $(function () {
               window.getSelection() &&
               window.getSelection().type === 'Range'
             ) {
-              feedback.style.display = 'block';
+              feedback.style.display = 'flex';
               feedback.style.left = left + 'px';
               feedback.style.top = top + 'px';
             } else {
@@ -540,6 +532,10 @@ $(function () {
               : selectText().trim();
           $('.code-snippet').val(value);
           postData.bugDocFragment = value;
+          $('.docs-feedback .text').click()
+        };
+        // 文档反馈点击事件
+        $('.docs-feedback .text').click(function(){
           const evaluateDialog = $('.evaluate-dialog');
           if (evaluateDialog.hasClass('show')) {
             evaluateDialog.removeClass('show');
@@ -548,7 +544,7 @@ $(function () {
             evaluateDialog.addClass('show');
             $('#evaluate-mark').show();
           }
-        };
+        })
       }
     })();
 
@@ -569,12 +565,10 @@ $(function () {
             const BLOB = '/blob/';
             const giteeUrlArr = repositoryHref.split(BLOB);
             currentVersion = giteeUrlArr[1].split('/')[0];
+            repositoryComponent = giteeUrlArr[0].split('/')[4];
             // 根据版本获取文件路径
             let source = repositoryHref.split(currentVersion)[1];
-            ideHref = `https://gitee.com/-/ide/project/mindspore/docs/edit/${currentVersion}/-${source}`;
-
-            console.log('repositoryHref :>> ', repositoryHref, currentVersion);
-            console.log('ideHref :>> ', ideHref);
+            ideHref = `https://gitee.com/-/ide/project/mindspore/${repositoryComponent}/edit/${currentVersion}/-${source}`;
           } else {
             isPR = false;
           }
