@@ -34,91 +34,99 @@ $(function () {
           : '点击输入问题文档片段',
       ],
       submitType: isEn ? 'Submission type' : '提交类型',
+      issueTips: [
+        isEn ? "It's a little complicated..." : '有点复杂...',
+        isEn ? "I'd like to ask someone." : '找人问问吧。',
+      ],
+      prTips: [
+        isEn ? 'Just a small problem. ' : '小问题，全程线上修改...',
+        isEn ? 'I can fix it online!' : '一键搞定！',
+      ],
       questionType: isEn ? 'Problem type' : '问题类型',
       questionTypeList: [
         {
           name: isEn ? 'Specifications and Common Mistakes' : '规范和低错类',
           children: [
-            isEn ? 'Specifications and Common Mistakes:' : '规范和低错类:',
+            isEn ? 'Specifications and Common Mistakes:' : '规范和低错类：',
             isEn
-              ? 'Misspellings or punctuation mistakes,incorrect formulas, abnormal display'
-              : '错别字或拼写错误，标点符号使用错误、公式错误或显示异常；',
+              ? '- Misspellings or punctuation mistakes,incorrect formulas, abnormal display;'
+              : '- 错别字或拼写错误，标点符号使用错误、公式错误或显示异常；',
             isEn
-              ? 'Incorrect links, empty cells, or wrong formats;'
-              : '链接错误、空单元格、格式错误；',
+              ? '- Incorrect links, empty cells, or wrong formats;'
+              : '- 链接错误、空单元格、格式错误；',
             isEn
-              ? 'Chinese characters in English context;'
-              : '英文中包含中文字符；',
+              ? '- Chinese characters in English context;'
+              : '- 英文中包含中文字符；',
             isEn
-              ? 'Minor inconsistencies between the UI and descriptions;'
-              : '界面和描述不一致，但不影响操作；',
+              ? '- Minor inconsistencies between the UI and descriptions;'
+              : '- 界面和描述不一致，但不影响操作；',
             isEn
-              ? 'Low writing fluency that does not affect understanding;'
-              : '表述不通顺，但不影响理解；',
+              ? '- Low writing fluency that does not affect understanding;'
+              : '- 表述不通顺，但不影响理解；',
             isEn
-              ? 'Incorrect version numbers, including software package names and version numbers on the UI.'
-              : '版本号不匹配：如软件包名称、界面版本号；',
+              ? '- Incorrect version numbers, including software package names and version numbers on the UI.'
+              : '- 版本号不匹配：如软件包名称、界面版本号；',
           ],
         },
         {
           name: isEn ? 'Usability' : '易用性',
 
           children: [
-            isEn ? 'Usability:' : '易用性:',
+            isEn ? 'Usability:' : '易用性：',
             isEn
-              ? 'Incorrect or missing key steps;'
-              : '关键步骤错误或缺失，无法指导用户完成任务；',
+              ? '- Incorrect or missing key steps;'
+              : '- 关键步骤错误或缺失，无法指导用户完成任务；',
             isEn
-              ? 'Missing main function descriptions, keyword explanation, necessary prerequisites, or precautions.'
-              : '缺少主要功能描述、关键词解释、必要前提条件、注意事项等；',
+              ? '- Missing main function descriptions, keyword explanation, necessary prerequisites, or precautions.'
+              : '- 缺少主要功能描述、关键词解释、必要前提条件、注意事项等；',
             isEn
-              ? 'Ambiguous descriptions, unclear reference, or contradictory context;'
-              : '描述内容存在歧义指代不明、上下文矛盾；',
+              ? '- Ambiguous descriptions, unclear reference, or contradictory context;'
+              : '- 描述内容存在歧义指代不明、上下文矛盾；',
             isEn
-              ? 'Unclear logic, such as missing classifications, items, and steps.'
-              : '逻辑不清晰，该分类、分项、分步骤的没有给出；',
+              ? '- Unclear logic, such as missing classifications, items, and steps.'
+              : '- 逻辑不清晰，该分类、分项、分步骤的没有给出；',
           ],
         },
         {
           name: isEn ? 'Correctness' : '正确性',
           children: [
-            isEn ? 'Correctness:' : '正确性:',
+            isEn ? 'Correctness:' : '正确性：',
             isEn
-              ? 'Technical principles, function descriptions, supported platforms, parameter types, or exceptions inconsistent with that of software implementation;'
-              : '技术原理、功能、支持平台、参数类型、异常报错等描述和软件实现不一致；',
+              ? '- Technical principles, function descriptions, supported platforms, parameter types, or exceptions inconsistent with that of software implementation;'
+              : '- 技术原理、功能、支持平台、参数类型、异常报错等描述和软件实现不一致；',
             isEn
-              ? 'Incorrect schematic or architecture diagrams;'
-              : '原理图、架构图等存在错误；',
+              ? '- Incorrect schematic or architecture diagrams;'
+              : '- 原理图、架构图等存在错误；',
             isEn
-              ? 'Incorrect commands or command parameters;'
-              : '命令、命令参数等错误；',
-            isEn ? 'Incorrect code;' : '代码片段错误；',
+              ? '- Incorrect commands or command parameters;'
+              : '- 命令、命令参数等错误；',
+            isEn ? '- Incorrect code;' : '- 代码片段错误；',
             isEn
-              ? 'Commands inconsistent with the functions;'
-              : '命令无法完成对应功能；',
-            isEn ? 'Wrong screenshots.' : '界面错误，无法指导操作；',
+              ? '- Commands inconsistent with the functions;'
+              : '- 命令无法完成对应功能；',
+            isEn ? '- Wrong screenshots.' : '- 界面错误，无法指导操作；',
             isEn
-              ? 'Sample code running error, or running results inconsistent with the expectation.'
-              : '代码样例运行报错、运行结果不符',
+              ? '- Sample code running error, or running results inconsistent with the expectation.'
+              : '- 代码样例运行报错、运行结果不符；',
           ],
         },
         {
           name: isEn ? 'Risk Warnings' : '风险提示',
           children: [
-            isEn ? 'Risk Warnings:' : '风险提示:',
+            isEn ? 'Risk Warnings:' : '风险提示：',
             isEn
-              ? 'Lack of risk warnings for operations that may damage the system or important data.'
-              : '对重要数据或系统存在风险的操作，缺少安全提示；',
+              ? '- Lack of risk warnings for operations that may damage the system or important data.'
+              : '- 对重要数据或系统存在风险的操作，缺少安全提示；',
           ],
         },
         {
           name: isEn ? 'Content Compliance' : '内容合规',
           children: [
-            isEn ? 'Content Compliance:' : '内容合规:',
+            isEn ? 'Content Compliance:' : '内容合规：',
             isEn
-              ? 'Contents that may violate applicable laws and regulations or geo-cultural context-sensitive words and expressions;'
-              : '违反法律法规，涉及政治、领土主权等敏感词；',
-            isEn ? 'Copyright infringement.' : '内容侵权；',
+              ? '- Contents that may violate applicable laws and regulations or geo-cultural context-sensitive words and expressions;'
+              : '- 违反法律法规，涉及政治、领土主权等敏感词；',
+            isEn ? '- Copyright infringement.' : '- 内容侵权；',
           ],
         },
       ],
@@ -205,7 +213,8 @@ $(function () {
       const {
         bugInput,
         submitType,
-        submitTypeList,
+        issueTips,
+        prTips,
         questionType,
         questionTypeList,
         problemDesc,
@@ -238,10 +247,19 @@ $(function () {
                     isPR ? '' : 'active-submit'
                   }" attr_type="issue">
                     <span>issue</span>
+                    <div class="tips">${issueTips
+                      .map((item) => {
+                        return `<p>${item}</p>`;
+                      })
+                      .join('')}</div>
                   </div>
                   ${
                     isPR
-                      ? '<div class="doc-filter-btn active-submit" attr_type="PR"><span>PR</span></div>'
+                      ? `<div class="doc-filter-btn active-submit" attr_type="PR"><span>PR</span><div class="tips">${prTips
+                          .map((item) => {
+                            return `<p>${item}</p>`;
+                          })
+                          .join('')}</div></div>`
                       : ''
                   }
               </div>
@@ -407,19 +425,15 @@ ${locale.issue[3]}
         postData.comprehensiveSatisfication = silderValue;
         satisfactionTips.removeClass('show');
         const dot = $('.ms-slider-dot i');
-        if(silderValue === max){
-          dot.addClass('on')
-        }else{
-          dot
-          .removeClass('on')
-          .eq(silderValue)
-          .prevAll()
-          .addClass('on');
+        if (silderValue === max) {
+          dot.addClass('on');
+        } else {
+          dot.removeClass('on').eq(silderValue).prevAll().addClass('on');
         }
-        if(silderValue === 0){
-         $('.ms-slider').addClass('zero')
-        }else{
-          $('.ms-slider').removeClass('zero')
+        if (silderValue === 0) {
+          $('.ms-slider').addClass('zero');
+        } else {
+          $('.ms-slider').removeClass('zero');
         }
       });
 
