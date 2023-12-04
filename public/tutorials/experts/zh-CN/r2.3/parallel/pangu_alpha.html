@@ -65,7 +65,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">算法优化</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累积</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累加</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../optimize/thor.html">二阶优化</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">高阶函数式编程</span></p>
@@ -155,7 +155,7 @@
 </section>
 <section id="embedding层">
 <h2>Embedding层<a class="headerlink" href="#embedding层" title="永久链接至标题"></a></h2>
-<p>在语言类模型训练中，输入的数据是由单词组成的句子，我们通常使用embedding算法实现词的向量化，将单词及其位置信息映射为<code class="docutils literal notranslate"><span class="pre">config.hidden_size</span></code>大小维度的词向量。盘古模型中的Embedding层由位置编码和词嵌入两个部分组成，通过<code class="docutils literal notranslate"><span class="pre">mindformers.modules.VocabEmbedding</span></code>实现基本的数据并行和模型并行逻辑。</p>
+<p>在语言类模型训练中，输入的数据是由单词组成的句子，我们通常使用Embedding算法实现词的向量化，将单词及其位置信息映射为<code class="docutils literal notranslate"><span class="pre">config.hidden_size</span></code>大小维度的词向量。盘古模型中的Embedding层由位置编码和词嵌入两个部分组成，通过<code class="docutils literal notranslate"><span class="pre">mindformers.modules.VocabEmbedding</span></code>实现基本的数据并行和模型并行逻辑。</p>
 <p>如下代码所示，其中<code class="docutils literal notranslate"><span class="pre">Gather</span></code>算子接收两个输入，根据索引<code class="docutils literal notranslate"><span class="pre">input_ids</span></code>在查找表<code class="docutils literal notranslate"><span class="pre">embedding_table</span></code>中查找对应向量。查找表是在训练中需要学习的参数，静态占用卡上内存资源，我们可以根据查找表的大小决定对<code class="docutils literal notranslate"><span class="pre">Gather</span></code>算子采用数据并行策略切分索引batch维度，或者模型并行策略对查找表进行行切。当词表范围<code class="docutils literal notranslate"><span class="pre">config.vocab_size</span></code>较大时，建议对<code class="docutils literal notranslate"><span class="pre">word_embedding</span></code>选择模型并行策略，框架会自动引入计算和通信算子处理越界查找情况。</p>
 <ul class="simple">
 <li><p>数据并行策略 <code class="docutils literal notranslate"><span class="pre">gather.shard(((1,</span> <span class="pre">1),</span> <span class="pre">(parallel_config.data_parallel,</span> <span class="pre">1)))</span></code></p></li>
@@ -233,7 +233,7 @@
 <p><img alt="image" src="../_images/pangu_strategy.png" /></p>
 <section id="self-attention">
 <h3>Self-Attention<a class="headerlink" href="#self-attention" title="永久链接至标题"></a></h3>
-<p>Self-Attention可以直接通过<code class="docutils literal notranslate"><span class="pre">mindformers.modules.MultiHeadAttention</span></code>实现。在计算Attention的过程中，需要将输入向量投影到Query、Key、Value三个向量，然后在attention计算完成之后，需要将attention的输出再经过Dense层。下面分别介绍这三个部分的策略配置。</p>
+<p>Self-Attention可以直接通过<code class="docutils literal notranslate"><span class="pre">mindformers.modules.MultiHeadAttention</span></code>实现。在计算Attention的过程中，需要将输入向量投影到Query、Key、Value三个向量，然后在Attention计算完成之后，需要将Attention的输出再经过Dense层。下面分别介绍这三个部分的策略配置。</p>
 <ul>
 <li><p>三个Dense矩阵乘法</p>
 <p>此处负责将shape为<code class="docutils literal notranslate"><span class="pre">[batch*sequence_length,</span> <span class="pre">hidden_size]</span></code>的输入tensor投影到三个向量，作为Attention计算的Query、Key、Value三个向量。</p>
@@ -249,7 +249,7 @@
 </div>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Softmax</span></code>以及<code class="docutils literal notranslate"><span class="pre">BatchMatMul</span></code></p>
-<p>在计算Attention的过程中，通过<code class="docutils literal notranslate"><span class="pre">BatchMatMul</span></code>实现Query和Key向量的矩阵乘法。此处，<code class="docutils literal notranslate"><span class="pre">softmax</span></code>的输入shape为<code class="docutils literal notranslate"><span class="pre">[batch,</span> <span class="pre">sequence_length,</span> <span class="pre">num_heads,</span> <span class="pre">size_per_head]</span></code>。因为每个<code class="docutils literal notranslate"><span class="pre">head</span></code>之间在计算attention score时是独立的，所以可以在<code class="docutils literal notranslate"><span class="pre">batch</span></code>维度和<code class="docutils literal notranslate"><span class="pre">heads</span></code>维度对<code class="docutils literal notranslate"><span class="pre">softmax</span></code>算子进行切分。</p>
+<p>在计算Attention的过程中，通过<code class="docutils literal notranslate"><span class="pre">BatchMatMul</span></code>实现Query和Key向量的矩阵乘法。此处，<code class="docutils literal notranslate"><span class="pre">softmax</span></code>的输入shape为<code class="docutils literal notranslate"><span class="pre">[batch,</span> <span class="pre">sequence_length,</span> <span class="pre">num_heads,</span> <span class="pre">size_per_head]</span></code>。因为每个<code class="docutils literal notranslate"><span class="pre">head</span></code>之间在计算Attention score时是独立的，所以可以在<code class="docutils literal notranslate"><span class="pre">batch</span></code>维度和<code class="docutils literal notranslate"><span class="pre">heads</span></code>维度对<code class="docutils literal notranslate"><span class="pre">softmax</span></code>算子进行切分。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">softmax</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Softmax</span><span class="p">()</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">softmax</span><span class="o">.</span><span class="n">softmax</span><span class="o">.</span><span class="n">shard</span><span class="p">(((</span><span class="n">parallel_config</span><span class="o">.</span><span class="n">data_parallel</span><span class="p">,</span> <span class="n">parallel_config</span><span class="o">.</span><span class="n">model_parallel</span><span class="p">,</span> <span class="mi">1</span><span class="p">),))</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">batch_matmul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">BatchMatMul</span><span class="p">()</span><span class="o">.</span><span class="n">shard</span><span class="p">(</span>
@@ -259,7 +259,7 @@
 </div>
 </li>
 <li><p>Projection层</p>
-<p>Projection负责将attention的输出结果进行一次投影。在<code class="docutils literal notranslate"><span class="pre">MatMul</span></code>算子的相关维度进行切分。</p>
+<p>Projection负责将Attention的输出结果进行一次投影。在<code class="docutils literal notranslate"><span class="pre">MatMul</span></code>算子的相关维度进行切分。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span>
                            <span class="n">hidden_size</span><span class="p">)</span><span class="o">.</span><span class="n">to_float</span><span class="p">(</span><span class="n">compute_dtype</span><span class="p">)</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">projection</span><span class="o">.</span><span class="n">matmul</span><span class="o">.</span><span class="n">shard</span><span class="p">(((</span><span class="n">parallel_config</span><span class="o">.</span><span class="n">data_parallel</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">parallel_config</span><span class="o">.</span><span class="n">model_parallel</span><span class="p">)))</span>
@@ -270,7 +270,7 @@
 </section>
 <section id="feedforward">
 <h3>FeedForward<a class="headerlink" href="#feedforward" title="永久链接至标题"></a></h3>
-<p>FeedForward可以直接调用<code class="docutils literal notranslate"><span class="pre">mindformers.modules.FeedForward</span></code>实现。FeedForward网络层由两个矩阵乘组成，第一个矩阵乘切分方式和attention一致，输出矩阵行、列均切，即在<code class="docutils literal notranslate"><span class="pre">batch</span></code>维度和<code class="docutils literal notranslate"><span class="pre">输出维度</span></code>进行切分。为了避免引入算子间的重排布通信，第二个矩阵乘对权重的input_channel维度切分，即<code class="docutils literal notranslate"><span class="pre">matmul.shard(((parallel_config.data_parallel,</span> <span class="pre">parallel_config.model_parallel),</span> <span class="pre">(parallel_config.model_parallel,</span> <span class="pre">1)))</span></code>，相关维切分时框架会自动插入<code class="docutils literal notranslate"><span class="pre">AllReduce</span></code>算子，在模型并行维度上累加切片结果。输出矩阵仅在<code class="docutils literal notranslate"><span class="pre">batch</span></code>维度切分，再加上偏置项<code class="docutils literal notranslate"><span class="pre">add.shard(((parallel_config.data_parallel,</span> <span class="pre">1),</span> <span class="pre">(1,)))</span></code>。</p>
+<p>FeedForward可以直接调用<code class="docutils literal notranslate"><span class="pre">mindformers.modules.FeedForward</span></code>实现。FeedForward网络层由两个矩阵乘组成，第一个矩阵乘切分方式和Attention一致，输出矩阵行、列均切，即在<code class="docutils literal notranslate"><span class="pre">batch</span></code>维度和<code class="docutils literal notranslate"><span class="pre">输出维度</span></code>进行切分。为了避免引入算子间的重排布通信，第二个矩阵乘对权重的input_channel维度切分，即<code class="docutils literal notranslate"><span class="pre">matmul.shard(((parallel_config.data_parallel,</span> <span class="pre">parallel_config.model_parallel),</span> <span class="pre">(parallel_config.model_parallel,</span> <span class="pre">1)))</span></code>，相关维切分时框架会自动插入<code class="docutils literal notranslate"><span class="pre">AllReduce</span></code>算子，在模型并行维度上累加切片结果。输出矩阵仅在<code class="docutils literal notranslate"><span class="pre">batch</span></code>维度切分，再加上偏置项<code class="docutils literal notranslate"><span class="pre">add.shard(((parallel_config.data_parallel,</span> <span class="pre">1),</span> <span class="pre">(1,)))</span></code>。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
@@ -417,7 +417,7 @@
 </section>
 <section id="预测层">
 <h2>预测层<a class="headerlink" href="#预测层" title="永久链接至标题"></a></h2>
-<p>计算loss前需要经过一个全连接层将输出特征从<code class="docutils literal notranslate"><span class="pre">config.hidden_size</span></code>映射回<code class="docutils literal notranslate"><span class="pre">config.vocab_size</span></code>维度得到logits。这里全连接层和<code class="docutils literal notranslate"><span class="pre">word_embedding</span></code>操作共享权重，所以要求全连接层权重的切分方式与embedding层保持一致。</p>
+<p>计算loss前需要经过一个全连接层将输出特征从<code class="docutils literal notranslate"><span class="pre">config.hidden_size</span></code>映射回<code class="docutils literal notranslate"><span class="pre">config.vocab_size</span></code>维度得到logits。这里全连接层和<code class="docutils literal notranslate"><span class="pre">word_embedding</span></code>操作共享权重，所以要求全连接层权重的切分方式与Embedding层保持一致。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="k">class</span> <span class="nc">PanguAlpha_Head</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
@@ -427,7 +427,7 @@
 <span class="sd">        config(PanguAlphaConfig): the config of network</span>
 <span class="sd">    Inputs:</span>
 <span class="sd">        state: the output of the backbone</span>
-<span class="sd">        embedding_table: the embedding table of the vocabulary</span>
+<span class="sd">        embedding_table: the Embedding table of the vocabulary</span>
 <span class="sd">    Returns:</span>
 <span class="sd">        logits: Tensor, the logits of the corresponding inputs</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -450,7 +450,7 @@
         <span class="k">return</span> <span class="n">logits</span>
 </pre></div>
 </div>
-<p>在这篇文章中，我们了解到如何通过配置算子切分策略的方式在单机脚本基础上快速实现Transformer类网络的分布式训练。具体到网络结构，embedding层、decorder层、residual层和linear层都有各自的切分特点，用户可以通过掌握算子策略配置方法，提升分布式训练、调优效率。</p>
+<p>在这篇文章中，我们了解到如何通过配置算子切分策略的方式在单机脚本基础上快速实现Transformer类网络的分布式训练。具体到网络结构，Embedding层、Decoder层、Residual层和Linear层都有各自的切分特点，用户可以通过掌握算子策略配置方法，提升分布式训练、调优效率。</p>
 </section>
 <section id="参考文献">
 <h2>参考文献<a class="headerlink" href="#参考文献" title="永久链接至标题"></a></h2>

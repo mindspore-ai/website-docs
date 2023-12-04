@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.multiprocessing.html">mindspore.multiprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
@@ -147,8 +148,11 @@
 <span class="c1"># limitations under the License.</span>
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;debug_ops&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">stat</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span>
 
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">security</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Tensor</span> <span class="k">as</span> <span class="n">Tensor_</span>
@@ -160,6 +164,7 @@
 
 
 <span class="n">SUMMARY_TENSOR_CACHE</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">TENSORDUMP_ID</span> <span class="o">=</span> <span class="mi">0</span>
 
 
 <span class="k">def</span> <span class="nf">_cache_summary_data</span><span class="p">(</span><span class="n">op_name</span><span class="p">,</span> <span class="n">define_name</span><span class="p">,</span> <span class="n">tensor</span><span class="p">):</span>
@@ -362,6 +367,88 @@
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="n">_cache_summary_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="TensorDump"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.TensorDump.html#mindspore.ops.TensorDump">[docs]</a><span class="k">class</span> <span class="nc">TensorDump</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save the Tensor as an npy file in numpy format.</span>
+
+<span class="sd">    The file name will automatically have a prefix added based on the execution order. For example, if `file` is `a`,</span>
+<span class="sd">    the first saved file will be named `0_a.npy`, and the second one will be named `1_a.npy`, and so on.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        - If a large amount of data is stored within a short period, it may lead to memory overflow on the device side.</span>
+<span class="sd">            Consider slicing the data to reduce the data scale.</span>
+<span class="sd">        - Since data saving is processed asynchronously, when the amount of data is too large or the main process exits</span>
+<span class="sd">            too quickly, data loss may occur. You need to actively control the destruction time of the main process,</span>
+<span class="sd">            such as using sleep.</span>
+
+<span class="sd">    Inputs:</span>
+<span class="sd">        - **file** (str) - The path of the file to be saved.</span>
+<span class="sd">        - **input_x** (Tensor) - Input Tensor of any dimension.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If `file` is not a str.</span>
+<span class="sd">        TypeError: If `input_x` is not a Tensor.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend``</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">        &gt;&gt;&gt; import time</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import nn, Tensor, ops</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_context(mode=ms.GRAPH_MODE, device_target=&quot;Ascend&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; class Net(nn.Cell):</span>
+<span class="sd">        ...     def __init__(self):</span>
+<span class="sd">        ...         super(Net, self).__init__()</span>
+<span class="sd">        ...         self.dump = ops.TensorDump()</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     def construct(self, x):</span>
+<span class="sd">        ...         x += 1.</span>
+<span class="sd">        ...         self.dump(&#39;add&#39;, x)</span>
+<span class="sd">        ...         x /= 2.</span>
+<span class="sd">        ...         self.dump(&#39;div&#39;, x)</span>
+<span class="sd">        ...         x *= 5.</span>
+<span class="sd">        ...         self.dump(&#39;mul&#39;, x)</span>
+<span class="sd">        ...         return x</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; x = np.array([[1, 2, 3, 4], [5, 6, 7, 8]]).astype(np.float32)</span>
+<span class="sd">        &gt;&gt;&gt; input_x = Tensor(x)</span>
+<span class="sd">        &gt;&gt;&gt; net = Net()</span>
+<span class="sd">        &gt;&gt;&gt; net(input_x)</span>
+<span class="sd">        &gt;&gt;&gt; time.sleep(0.5)</span>
+<span class="sd">        &gt;&gt;&gt; add = np.load(&#39;0_add.npy&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; print(add)</span>
+<span class="sd">        [[2. 3. 4. 5.]</span>
+<span class="sd">         [6. 7. 8. 9.]]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@prim_attr_register</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize TensorDump.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">security</span><span class="o">.</span><span class="n">enable_security</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The TensorDump is not supported, please without `-s on` and recompile source.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;side_effect_io&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;channel_name&quot;</span><span class="p">,</span> <span class="s2">&quot;ms_tensor_dump&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">input_x</span><span class="p">):</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">file</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;For &#39;TensorDump&#39;, the input argument[file] cannot be an empty string.&quot;</span><span class="p">)</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;input_x&#39;</span><span class="p">,</span> <span class="n">input_x</span><span class="p">,</span> <span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="k">global</span> <span class="n">TENSORDUMP_ID</span>
+        <span class="n">npy_suffix</span> <span class="o">=</span> <span class="s2">&quot;.npy&quot;</span>
+        <span class="n">directory</span><span class="p">,</span> <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">directory</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">directory</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="mo">0o700</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">new_filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">TENSORDUMP_ID</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">new_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">new_filename</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">new_file</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">npy_suffix</span><span class="p">):</span>
+            <span class="n">new_file</span> <span class="o">+=</span> <span class="n">npy_suffix</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_file</span><span class="p">,</span> <span class="n">input_x</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">new_file</span><span class="p">,</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IREAD</span><span class="p">)</span>
+        <span class="n">TENSORDUMP_ID</span> <span class="o">+=</span> <span class="mi">1</span></div>
 
 
 <div class="viewcode-block" id="HistogramSummary"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.HistogramSummary.html#mindspore.ops.HistogramSummary">[docs]</a><span class="k">class</span> <span class="nc">HistogramSummary</span><span class="p">(</span><span class="n">PrimitiveWithInfer</span><span class="p">):</span>
