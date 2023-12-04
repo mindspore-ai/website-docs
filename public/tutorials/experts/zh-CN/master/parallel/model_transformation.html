@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>模型转换 &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -66,7 +65,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">算法优化</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累积</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累加</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../optimize/thor.html">二阶优化</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">高阶函数式编程</span></p>
@@ -150,18 +149,20 @@
 <h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline"></a></h2>
 <section id="背景">
 <h3>背景<a class="headerlink" href="#背景" title="Permalink to this headline"></a></h3>
-<p>在使用MindSpore进行分布式训练时，常常需要对训练得到的分布式Checkpoint进行转换以进行下一步工作，如推理、微调、多阶段训练等。本教程将介绍如何将分布式训练得到的Checkpoint进行转换以开展分布式策略与集群卡数改变的弹性训练与推理。</p>
+<p>在使用MindSpore进行分布式训练时，常常需要对训练得到的分布式Checkpoint进行转换，以进行下一步工作，如推理、微调、多阶段训练等。本教程将介绍如何将分布式训练得到的Checkpoint进行转换，以开展分布式策略与集群卡数改变的弹性训练与推理。</p>
 <blockquote>
-<div><p>本功能仅支持SEMI_AUTO_PARALLEL和AUTO_PARALLEL模式。</p>
+<div><p>本功能仅支持半自动并行（SEMI_AUTO_PARALLEL）和自动并行（AUTO_PARALLEL）模式。</p>
 </div></blockquote>
 </section>
 <section id="使用场景">
 <h3>使用场景<a class="headerlink" href="#使用场景" title="Permalink to this headline"></a></h3>
 <p>如果您遇到如下场景，需要参考本教程操作，进行弹性训练与推理：</p>
-<p>场景1：M卡训练，N卡微调训练，M与N可以没有倍数关系。
-场景2：训练分为多阶段，每个阶段的集群大小不一样。
-场景3：M卡训练，N卡推理，M与N可以没有倍数关系。
-场景4：需要对网络的切分策略进行变更。</p>
+<ul class="simple">
+<li><p>场景1：M卡训练，N卡微调训练，M与N可以没有倍数关系。</p></li>
+<li><p>场景2：训练分为多阶段，每个阶段的集群大小不一样。</p></li>
+<li><p>场景3：M卡训练，N卡推理，M与N可以没有倍数关系。</p></li>
+<li><p>场景4：需要对网络的切分策略进行变更。</p></li>
+</ul>
 <p>相关接口：</p>
 <ol class="arabic simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">mindspore.transform_checkpoints(src_checkpoints_dir,</span> <span class="pre">dst_checkpoints_dir,</span> <span class="pre">src_strategy_file,</span> <span class="pre">dst_strategy_file)</span></code>：将一个分布式网络的Checkpoint由源切分策略转换到目标切分策略。其中<code class="docutils literal notranslate"><span class="pre">src_checkpoints_dir</span></code>为源Checkpoint文件所在的目录，其子目录要求按照<code class="docutils literal notranslate"><span class="pre">rank_x/checkpoint_x.ckpt</span></code>格式进行存储，x为对应的rank id。<code class="docutils literal notranslate"><span class="pre">dst_checkpoints_dir</span></code>为目标Checkpoint文件存储的目录，<code class="docutils literal notranslate"><span class="pre">src_strategy_file</span></code>为源切分策略文件名，<code class="docutils literal notranslate"><span class="pre">dst_strategy_file</span></code>为目标切分策略文件名。</p></li>
@@ -180,7 +181,7 @@
 <li><p>编译微调网络后，加载转换得到的分布式Checkpoint文件。</p></li>
 <li><p>执行微调网络。</p></li>
 </ol>
-<p>需要注意，加载分布式的Checkpoint，要求对网络进行编译后才可以加载。</p>
+<p>需要注意，加载分布式的Checkpoint，要求<a class="reference internal" href="#对目标网络执行编译"><span class="std std-doc">对网络进行编译</span></a>后才可以加载。</p>
 <section id="样例代码说明">
 <h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="Permalink to this headline"></a></h3>
 <blockquote>
@@ -253,7 +254,7 @@ src_strategy.ckpt
 </section>
 <section id="生成目标策略文件">
 <h3>生成目标策略文件<a class="headerlink" href="#生成目标策略文件" title="Permalink to this headline"></a></h3>
-<p>然后需要编译新的卡数或者切分策略下的网络，生成目标网络的模型切分策略文件，本示例中，原始策略以8卡进行训练，layer1的<code class="docutils literal notranslate"><span class="pre">ops.MatMul()</span></code>算子并行策略为((2, 1), (1, 2))，不开启优化器并行，策略文件命名为src_strategy.ckpt；目标策略以4卡进行训练，layer1的<code class="docutils literal notranslate"><span class="pre">ops.MatMul()</span></code>算子并行策略为((2, 2), (2, 1))，且开启优化器并行，策略文件命名为dst_stategy.ckpt。</p>
+<p>然后需要编译新的卡数或者切分策略下的网络，生成目标网络的模型切分策略文件，本示例中，原始策略以8卡进行训练，layer1的<code class="docutils literal notranslate"><span class="pre">ops.MatMul()</span></code>算子并行策略为((2, 1), (1, 2))，不开启优化器并行，策略文件命名为src_strategy.ckpt；目标策略以4卡进行训练，layer1的<code class="docutils literal notranslate"><span class="pre">ops.MatMul()</span></code>算子并行策略为((2, 2), (2, 1))，且开启优化器并行，策略文件命名为dst_strategy.ckpt。</p>
 <section id="配置分布式环境">
 <h4>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="Permalink to this headline"></a></h4>
 <p>通过context接口指定运行模式、并行模式，通过<code class="docutils literal notranslate"><span class="pre">strategy_ckpt_config</span></code>配置需要保存的分布式策略文件路径，开启优化器并行，并通过init初始化HCCL或NCCL通信。</p>
@@ -343,7 +344,7 @@ src_strategy.ckpt
 <span class="n">model</span><span class="o">.</span><span class="n">infer_train_layout</span><span class="p">(</span><span class="n">data_set</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>当目标网络是进行推理时，则将<code class="docutils literal notranslate"><span class="pre">model.infer_train_layout</span></code>更换为<code class="docutils literal notranslate"><span class="pre">model.infer_preict_layout</span></code>以执行编译：</p>
+<p>当目标网络是进行推理时，则将<code class="docutils literal notranslate"><span class="pre">model.infer_train_layout</span></code>更换为<code class="docutils literal notranslate"><span class="pre">model.infer_predict_layout</span></code>以执行编译：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 
@@ -357,7 +358,9 @@ src_strategy.ckpt
 </section>
 <section id="执行分布式checkpoint转换">
 <h3>执行分布式Checkpoint转换<a class="headerlink" href="#执行分布式checkpoint转换" title="Permalink to this headline"></a></h3>
-<p>在这一步，需要调用分布式Checkpoint转换的接口进行分布式Checkpoint的转换，分布式Checkpoint提供两个接口对Checkpoint进行转换。第一个接口<code class="docutils literal notranslate"><span class="pre">transform_checkpoints</span></code>，要求用户将所有的Checkpoint放置于一个目录，并且子目录必须以”rank_0、rank_1、rank_2、…“格式进行命名。用户调用该接口直接对整个目录进行转换。该方式使用较为方便，但是转换需要的内存开销会略高一些。第二个接口<code class="docutils literal notranslate"><span class="pre">transform_checkpoint_by_rank</span></code>，用以获取到特定的rank的Checkpoint，有更大的灵活性与更低的内存开销，需要配合<code class="docutils literal notranslate"><span class="pre">rank_list_for_transform</span></code>接口使用，以获取本rank的目标Checkpoint需要哪些原始Checkpoint。</p>
+<p>在这一步，需要调用分布式Checkpoint转换的接口进行分布式Checkpoint的转换，分布式Checkpoint提供两个接口对Checkpoint进行转换。</p>
+<p>第一个接口<code class="docutils literal notranslate"><span class="pre">transform_checkpoints</span></code>，要求用户将所有的Checkpoint放置于一个目录，并且子目录必须以”rank_0、rank_1、rank_2、…“格式进行命名。用户调用该接口直接对整个目录进行转换。该方式使用较为方便，但是转换需要的内存开销会略高一些。</p>
+<p>第二个接口<code class="docutils literal notranslate"><span class="pre">transform_checkpoint_by_rank</span></code>，用以获取到特定的rank的Checkpoint，有更大的灵活性与更低的内存开销，需要配合<code class="docutils literal notranslate"><span class="pre">rank_list_for_transform</span></code>接口使用，以获取本rank的目标Checkpoint需要哪些原始Checkpoint。</p>
 <ol class="arabic">
 <li><p>使用接口<code class="docutils literal notranslate"><span class="pre">transform_checkpoints</span></code>。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
