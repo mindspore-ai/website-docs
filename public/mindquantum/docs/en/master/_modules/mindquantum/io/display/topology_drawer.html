@@ -115,7 +115,13 @@
 <span class="c1"># limitations under the License.</span>
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;Method to draw a qubit topology.&quot;&quot;&quot;</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="c1"># pylint: disable=too-few-public-methods,too-many-arguments</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Circle</span> <span class="k">as</span> <span class="n">PltCircle</span>
+<span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Rectangle</span> <span class="k">as</span> <span class="n">PltRectangle</span>
 
 <span class="kn">from</span> <span class="nn">...core.circuit</span> <span class="kn">import</span> <span class="n">Circuit</span>
 <span class="kn">from</span> <span class="nn">...device</span> <span class="kn">import</span> <span class="n">QubitNode</span><span class="p">,</span> <span class="n">QubitsTopology</span>
@@ -153,7 +159,6 @@
     <span class="n">topo</span><span class="p">:</span> <span class="n">QubitsTopology</span><span class="p">,</span>
     <span class="n">circuit</span><span class="p">:</span> <span class="n">Circuit</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">style</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">edge_color</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Draw a qubit topology as a svg picture.</span>
@@ -163,9 +168,6 @@
 <span class="sd">        circuit (:class:`~.core.circuit.Circuit`): The given quantum circuit you want to execute on</span>
 <span class="sd">            given qubit topology. Default: ``None``.</span>
 <span class="sd">        style (Dict): The picture style configuration. Default: ``None``.</span>
-<span class="sd">        edge_color (Union[str, Dict[Tuple[int, int], str]]): The color of edge. If it is a color string,</span>
-<span class="sd">            every edge will display as this color. It can also be a dict with edge as key and color string as</span>
-<span class="sd">            value.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">style</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">style</span> <span class="o">=</span> <span class="n">_topology_default_style</span>
@@ -182,10 +184,10 @@
         <span class="n">qubits_view</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">SVGQNode</span><span class="p">(</span><span class="n">topo</span><span class="p">[</span><span class="n">q_id</span><span class="p">],</span> <span class="n">style</span><span class="p">))</span>
 
     <span class="n">edges_view</span> <span class="o">=</span> <span class="n">SVGContainer</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">edge_color</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">edge_color</span> <span class="o">=</span> <span class="n">style</span><span class="p">[</span><span class="s1">&#39;couple_color&#39;</span><span class="p">]</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">edge_color</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">edge_color</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">edge_color</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">topo</span><span class="o">.</span><span class="n">edges_with_id</span><span class="p">()}</span>
+    <span class="n">edge_color</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">topo</span><span class="o">.</span><span class="n">edges_with_id</span><span class="p">():</span>
+        <span class="n">color</span> <span class="o">=</span> <span class="n">topo</span><span class="o">.</span><span class="n">get_edge_color</span><span class="p">(</span><span class="o">*</span><span class="n">edge</span><span class="p">)</span>
+        <span class="n">edge_color</span><span class="p">[</span><span class="n">edge</span><span class="p">]</span> <span class="o">=</span> <span class="n">style</span><span class="p">[</span><span class="s1">&#39;couple_color&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">color</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">color</span>
     <span class="k">for</span> <span class="n">id1</span><span class="p">,</span> <span class="n">id2</span> <span class="ow">in</span> <span class="n">topo</span><span class="o">.</span><span class="n">edges_with_id</span><span class="p">():</span>
         <span class="n">q1</span><span class="p">,</span> <span class="n">q2</span> <span class="o">=</span> <span class="n">topo</span><span class="p">[</span><span class="n">id1</span><span class="p">],</span> <span class="n">topo</span><span class="p">[</span><span class="n">id2</span><span class="p">]</span>
         <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="n">q1</span><span class="o">.</span><span class="n">poi_x</span><span class="p">,</span> <span class="n">q1</span><span class="o">.</span><span class="n">poi_y</span>
@@ -211,6 +213,92 @@
     <span class="n">view</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">edges_view</span><span class="p">)</span>
     <span class="n">view</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">qubits_view</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">view</span></div>
+
+
+<span class="k">class</span> <span class="nc">PltQNode</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;QNode in matplotlib.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qnode</span><span class="p">:</span> <span class="n">QubitNode</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">svg_config</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a qnode.&quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">qnode</span><span class="o">.</span><span class="n">poi_x</span> <span class="o">*</span> <span class="n">svg_config</span><span class="p">[</span><span class="s1">&#39;f&#39;</span><span class="p">]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="o">-</span><span class="n">qnode</span><span class="o">.</span><span class="n">poi_y</span> <span class="o">*</span> <span class="n">svg_config</span><span class="p">[</span><span class="s1">&#39;f&#39;</span><span class="p">]</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">PltCircle</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">svg_config</span><span class="p">[</span><span class="s1">&#39;r&#39;</span><span class="p">],</span> <span class="n">facecolor</span><span class="o">=</span><span class="n">qnode</span><span class="o">.</span><span class="n">color</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
+            <span class="n">x</span><span class="p">,</span>
+            <span class="n">y</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">qnode</span><span class="o">.</span><span class="n">qubit_id</span><span class="p">),</span>
+            <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span>
+            <span class="n">va</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span>
+            <span class="n">color</span><span class="o">=</span><span class="n">svg_config</span><span class="p">[</span><span class="s1">&#39;id_color&#39;</span><span class="p">],</span>
+            <span class="n">fontsize</span><span class="o">=</span><span class="n">svg_config</span><span class="p">[</span><span class="s1">&#39;id_fs&#39;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">PltLine</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Line object in matplotlib.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">ax</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a line object.&quot;&quot;&quot;</span>
+        <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span> <span class="o">=</span> <span class="o">-</span><span class="n">y1</span><span class="p">,</span> <span class="o">-</span><span class="n">y2</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="n">x2</span> <span class="o">-</span> <span class="n">x1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="p">(</span><span class="n">y2</span> <span class="o">-</span> <span class="n">y1</span><span class="p">)</span>
+        <span class="n">ang</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">w</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+        <span class="n">v</span> <span class="o">=</span> <span class="n">h</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="p">(</span><span class="n">ang</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">corner</span> <span class="o">=</span> <span class="n">x1</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">y1</span> <span class="o">+</span> <span class="n">v</span>
+        <span class="n">real_x</span> <span class="o">=</span> <span class="n">corner</span><span class="o">.</span><span class="n">real</span>
+        <span class="n">real_y</span> <span class="o">=</span> <span class="n">corner</span><span class="o">.</span><span class="n">imag</span>
+        <span class="n">rect</span> <span class="o">=</span> <span class="n">PltRectangle</span><span class="p">((</span><span class="n">real_x</span><span class="p">,</span> <span class="n">real_y</span><span class="p">),</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">angle</span><span class="o">=</span><span class="n">ang</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">180</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">rect</span><span class="p">)</span>
+
+
+<span class="c1"># pylint: disable=too-many-locals</span>
+<div class="viewcode-block" id="draw_topology_plt"><a class="viewcode-back" href="../../../../io/mindquantum.io.draw_topology_plt.html#mindquantum.io.draw_topology_plt">[docs]</a><span class="k">def</span> <span class="nf">draw_topology_plt</span><span class="p">(</span>
+    <span class="n">topo</span><span class="p">:</span> <span class="n">QubitsTopology</span><span class="p">,</span>
+    <span class="n">circuit</span><span class="p">:</span> <span class="n">Circuit</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">style</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Draw a qubit topology with matplotlib.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        topo (:class:`.device.QubitsTopology`): The qubit topology.</span>
+<span class="sd">        circuit (:class:`~.core.circuit.Circuit`): The given quantum circuit you want to execute on</span>
+<span class="sd">            given qubit topology. Default: ``None``.</span>
+<span class="sd">        style (Dict): The picture style configuration. Default: ``None``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">style</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">style</span> <span class="o">=</span> <span class="n">_topology_default_style</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">style</span><span class="p">[</span><span class="s1">&#39;f&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">circuit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">selected</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">selected</span> <span class="o">=</span> <span class="n">_ext_edges</span><span class="p">(</span><span class="n">circ</span><span class="o">=</span><span class="n">circuit</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">q1</span><span class="p">,</span> <span class="n">q2</span> <span class="ow">in</span> <span class="n">selected</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">topo</span><span class="o">.</span><span class="n">is_coupled_with</span><span class="p">(</span><span class="n">q1</span><span class="p">,</span> <span class="n">q2</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to execute circuit: qubit </span><span class="si">{</span><span class="n">q1</span><span class="si">}</span><span class="s2"> is not coupled with </span><span class="si">{</span><span class="n">q2</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+
+    <span class="n">edge_color</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">topo</span><span class="o">.</span><span class="n">edges_with_id</span><span class="p">():</span>
+        <span class="n">color</span> <span class="o">=</span> <span class="n">topo</span><span class="o">.</span><span class="n">get_edge_color</span><span class="p">(</span><span class="o">*</span><span class="n">edge</span><span class="p">)</span>
+        <span class="n">edge_color</span><span class="p">[</span><span class="n">edge</span><span class="p">]</span> <span class="o">=</span> <span class="n">style</span><span class="p">[</span><span class="s1">&#39;couple_color&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">color</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">color</span>
+    <span class="k">for</span> <span class="n">id1</span><span class="p">,</span> <span class="n">id2</span> <span class="ow">in</span> <span class="n">topo</span><span class="o">.</span><span class="n">edges_with_id</span><span class="p">():</span>
+        <span class="n">q1</span><span class="p">,</span> <span class="n">q2</span> <span class="o">=</span> <span class="n">topo</span><span class="p">[</span><span class="n">id1</span><span class="p">],</span> <span class="n">topo</span><span class="p">[</span><span class="n">id2</span><span class="p">]</span>
+        <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="n">q1</span><span class="o">.</span><span class="n">poi_x</span><span class="p">,</span> <span class="n">q1</span><span class="o">.</span><span class="n">poi_y</span>
+        <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span> <span class="o">=</span> <span class="n">q2</span><span class="o">.</span><span class="n">poi_x</span><span class="p">,</span> <span class="n">q2</span><span class="o">.</span><span class="n">poi_y</span>
+        <span class="n">color</span> <span class="o">=</span> <span class="n">edge_color</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="n">id1</span><span class="p">,</span> <span class="n">id2</span><span class="p">),</span> <span class="n">style</span><span class="p">[</span><span class="s1">&#39;couple_color&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">id1</span><span class="p">,</span> <span class="n">id2</span><span class="p">)</span> <span class="ow">in</span> <span class="n">selected</span> <span class="ow">or</span> <span class="p">(</span><span class="n">id2</span><span class="p">,</span> <span class="n">id1</span><span class="p">)</span> <span class="ow">in</span> <span class="n">selected</span><span class="p">:</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="n">style</span><span class="p">[</span><span class="s1">&#39;selected_edge_c&#39;</span><span class="p">]</span>
+        <span class="n">PltLine</span><span class="p">(</span><span class="n">x1</span> <span class="o">*</span> <span class="n">f</span><span class="p">,</span> <span class="n">x2</span> <span class="o">*</span> <span class="n">f</span><span class="p">,</span> <span class="n">y1</span> <span class="o">*</span> <span class="n">f</span><span class="p">,</span> <span class="n">y2</span> <span class="o">*</span> <span class="n">f</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">style</span><span class="p">[</span><span class="s1">&#39;couple_w&#39;</span><span class="p">],</span> <span class="n">ax</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">q_id</span> <span class="ow">in</span> <span class="n">topo</span><span class="o">.</span><span class="n">all_qubit_id</span><span class="p">():</span>
+        <span class="n">PltQNode</span><span class="p">(</span><span class="n">topo</span><span class="p">[</span><span class="n">q_id</span><span class="p">],</span> <span class="n">ax</span><span class="p">,</span> <span class="n">style</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_axis_off</span><span class="p">()</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 </pre></div>
 
            </div>
