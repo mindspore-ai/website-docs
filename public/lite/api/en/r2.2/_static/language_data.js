@@ -275,11 +275,10 @@ var splitChars = (function() {
     return result;
 })();
 
-function splitQuery(query, dict, all_dict) {
+function splitQuery(query) {
     var result = [];
-    if (query.includes(" ")) {
-      var start = -1;
-      for (var i = 0; i < query.length; i++) {
+    var start = -1;
+    for (var i = 0; i < query.length; i++) {
         if (splitChars[query.charCodeAt(i)]) {
             if (start !== -1) {
                 result.push(query.slice(start, i));
@@ -287,36 +286,10 @@ function splitQuery(query, dict, all_dict) {
             }
         } else if (start === -1) {
             start = i;
-          }
-      }
-    if (start !== -1) {
-      result.push(query.slice(start));
+        }
     }
-    } else {
-      var tmp = []
-      for (var i = 0; i < dict.length; i++) {
-          if (query.indexOf(dict[i])!=-1) {
-            tmp.push(dict[i])
-          }
-      }
-      if (escape(query).indexOf("%u")== -1 && query.indexOf(all_dict[i])==-1){
-        query = query.replace("(", " ").replace(")", " ")
-        query = query.split('.').slice(-1)
-        return query
-      }
-      if (!tmp.length){
-        return [query]
-      }
-      min_freq = all_dict[tmp[0]].length
-      var min_freq_word = tmp[0]
-      for (var i = 0; i < tmp.length-1; i++) {
-          var a = all_dict[tmp[i]].length
-          if (a<min_freq){
-            min_freq = a
-            min_freq_word = tmp[i]
-          }
-      }
-      result.push(min_freq_word)
+    if (start !== -1) {
+        result.push(query.slice(start));
     }
     return result;
 }

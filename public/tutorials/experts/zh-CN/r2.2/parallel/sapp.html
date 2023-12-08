@@ -2,14 +2,13 @@
 <html class="writer-html5" lang="zh-CN" >
 <head>
   <meta charset="utf-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>双递归策略搜索算法 &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>双递归策略搜索算法 &mdash; MindSpore master 文档</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
         <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script src="../_static/translations.js"></script><script crossorigin="anonymous" integrity="sha256-1fEPhSsRKlFKGfK3eO710tEweHh1fwokU5wFGDHO+vg=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="手动并行" href="manual_parallel.html" />
     <link rel="prev" title="切分策略传播算法" href="sharding_propagation.html" /> 
 </head>
@@ -23,7 +22,7 @@
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="在文档中搜索" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -65,7 +64,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">算法优化</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累积</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累加</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../optimize/thor.html">二阶优化</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">高阶函数式编程</span></p>
@@ -110,7 +109,7 @@
           <li><a href="auto_parallel.html">自动并行</a> &raquo;</li>
       <li>双递归策略搜索算法</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/parallel/sapp.md.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/parallel/sapp.md.txt" rel="nofollow"> 查看页面源码</a>
       </li>
   </ul>
   <hr/>
@@ -143,10 +142,10 @@
 }
 </style>
 <section class="tex2jax_ignore mathjax_ignore" id="双递归策略搜索算法">
-<h1>双递归策略搜索算法<a class="headerlink" href="#双递归策略搜索算法" title="Permalink to this headline"></a></h1>
+<h1>双递归策略搜索算法<a class="headerlink" href="#双递归策略搜索算法" title="永久链接至标题"></a></h1>
 <p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.2/tutorials/experts/source_zh_cn/parallel/sapp.md"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.2/resource/_static/logo_source.svg" /></a></p>
 <section id="概述">
-<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline"></a></h2>
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题"></a></h2>
 <p>双递归策略搜索算法基于符号化自动策略生成(Symbolic Automatic Parallel Planner 缩写SAPP)。SAPP算法能够对于巨大网络以及大规模切分瞬间生成最优策略。SAPP基于并行原理建模，通过建立抽象机来描述硬件集群拓扑，通过符号化简优化代价模型。其代价模型比较的不是预估的绝对时延，而是不同并行策略的相对代价，因此能够大大压缩搜索空间，对于百卡集群能够保证分钟级的搜索时间。</p>
 <blockquote>
 <div><p>双递归策略搜索算法支持的硬件平台包括Ascend、GPU，需要在Graph模式下运行。</p>
@@ -156,17 +155,17 @@
 <p>除了以上context，双递归策略搜索算法无需额外配置。</p>
 </section>
 <section id="基本原理">
-<h2>基本原理<a class="headerlink" href="#基本原理" title="Permalink to this headline"></a></h2>
+<h2>基本原理<a class="headerlink" href="#基本原理" title="永久链接至标题"></a></h2>
 <p>双递归策略搜索算法是一种全自动的算子级策略搜索方案，用户无需对模型进行任何配置，算法可以自动搜索出通信代价最小的并行策略。自动算子级策略搜索的核心难点在于，指数级的切分可能带来庞大的搜索空间以及构造代价模型需要的profiling信息的获取代价。</p>
 <p>对于第一个问题，双递归策略搜索算法通过对AI训练集群进行抽象，总结出其对称多阶的特点，因此可以等价地进行递归二分，来压缩设备数带来的搜索空间；另一方面，双递归策略搜索算法将算子的通信代价进行分类，比较算子内的通信代价以及算子间的重排布代价，通过对算子的权重进行排序的方法，将指数级的搜索复杂度压缩到线性。</p>
 <p>对于第二个问题，双递归策略搜索算法建立符号化的代价模型，传统方法的代价模型着眼于如何准确地预估不同策略的绝对时延，而双递归策略搜索算法的代价模型比较的是不同策略的相对代价，因此可以大大节省profiling的成本。</p>
 <p>因此双递归策略搜索算法对于巨大网络以及大规模集群切分能够快速生成最优策略。总而言之，双递归策略搜索算法基于并行原理建模，通过建立抽象机来描述硬件集群拓扑，通过符号化简化代价模型。其代价模型比较的不是预估的绝对时延，而是不同并行策略的相对代价，因此能够大大压缩搜索空间，对于百卡集群能够保证分钟级的搜索时间。</p>
 </section>
 <section id="操作实践">
-<h2>操作实践<a class="headerlink" href="#操作实践" title="Permalink to this headline"></a></h2>
+<h2>操作实践<a class="headerlink" href="#操作实践" title="永久链接至标题"></a></h2>
 <p>下面以Ascend或者GPU单机8卡为例，进行双递归策略搜索算法操作说明：</p>
 <section id="样例代码说明">
-<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="Permalink to this headline"></a></h3>
+<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="永久链接至标题"></a></h3>
 <blockquote>
 <div><p>下载完整的样例代码：<a class="reference external" href="https://gitee.com/mindspore/docs/tree/r2.2/docs/sample_code/sapp">sapp</a>。</p>
 </div></blockquote>
@@ -181,7 +180,7 @@
 <p>其中，<code class="docutils literal notranslate"><span class="pre">train.py</span></code>是定义网络结构和训练过程的脚本。<code class="docutils literal notranslate"><span class="pre">run.sh</span></code>是执行脚本。</p>
 </section>
 <section id="配置分布式环境">
-<h3>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="Permalink to this headline"></a></h3>
+<h3>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="永久链接至标题"></a></h3>
 <p>通过context接口指定运行模式、运行设备、运行卡号等，与单卡脚本不同，并行脚本还需指定并行模式<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>为自动并行模式，搜索模式<code class="docutils literal notranslate"><span class="pre">search_mode</span></code>为双递归策略，并通过init初始化HCCL或NCCL通信。<code class="docutils literal notranslate"><span class="pre">device_target</span></code>会自动指定为MindSpore包对应的后端硬件设备。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
@@ -194,7 +193,7 @@
 </div>
 </section>
 <section id="数据集加载定义网络训练网络">
-<h3>数据集加载、定义网络、训练网络<a class="headerlink" href="#数据集加载定义网络训练网络" title="Permalink to this headline"></a></h3>
+<h3>数据集加载、定义网络、训练网络<a class="headerlink" href="#数据集加载定义网络训练网络" title="永久链接至标题"></a></h3>
 <p>数据集加载、定义网络和训练网络方式与单卡模型一致，代码如下：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
@@ -265,7 +264,7 @@
 </div>
 </section>
 <section id="运行单机八卡脚本">
-<h3>运行单机八卡脚本<a class="headerlink" href="#运行单机八卡脚本" title="Permalink to this headline"></a></h3>
+<h3>运行单机八卡脚本<a class="headerlink" href="#运行单机八卡脚本" title="永久链接至标题"></a></h3>
 <p>接下来通过命令调用对应的脚本，以<code class="docutils literal notranslate"><span class="pre">mpirun</span></code>启动方式，8卡的分布式训练脚本为例，进行分布式训练：</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run.sh
 </pre></div>
@@ -361,19 +360,19 @@ epoch: 0, step: 300, loss is 0.9567921
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="sharding_propagation.html" class="btn btn-neutral float-left" title="切分策略传播算法" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="manual_parallel.html" class="btn btn-neutral float-right" title="手动并行" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="sharding_propagation.html" class="btn btn-neutral float-left" title="切分策略传播算法" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="manual_parallel.html" class="btn btn-neutral float-right" title="手动并行" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright MindSpore.</p>
+    <p>&#169; 版权所有 MindSpore.</p>
   </div>
 
-  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发.
    
 
 </footer>

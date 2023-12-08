@@ -2,14 +2,13 @@
 <html class="writer-html5" lang="zh-CN" >
 <head>
   <meta charset="utf-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>切分策略传播算法 &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>切分策略传播算法 &mdash; MindSpore master 文档</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
         <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script src="../_static/translations.js"></script><script crossorigin="anonymous" integrity="sha256-1fEPhSsRKlFKGfK3eO710tEweHh1fwokU5wFGDHO+vg=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="双递归策略搜索算法" href="sapp.html" />
     <link rel="prev" title="自动并行" href="auto_parallel.html" /> 
 </head>
@@ -23,7 +22,7 @@
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="在文档中搜索" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -65,7 +64,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">算法优化</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累积</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累加</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../optimize/thor.html">二阶优化</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">高阶函数式编程</span></p>
@@ -110,7 +109,7 @@
           <li><a href="auto_parallel.html">自动并行</a> &raquo;</li>
       <li>切分策略传播算法</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/parallel/sharding_propagation.md.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/parallel/sharding_propagation.md.txt" rel="nofollow"> 查看页面源码</a>
       </li>
   </ul>
   <hr/>
@@ -143,10 +142,10 @@
 }
 </style>
 <section class="tex2jax_ignore mathjax_ignore" id="切分策略传播算法">
-<h1>切分策略传播算法<a class="headerlink" href="#切分策略传播算法" title="Permalink to this headline"></a></h1>
+<h1>切分策略传播算法<a class="headerlink" href="#切分策略传播算法" title="永久链接至标题"></a></h1>
 <p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.2/tutorials/experts/source_zh_cn/parallel/sharding_propagation.md"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.2/resource/_static/logo_source.svg" /></a></p>
 <section id="概述">
-<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline"></a></h2>
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题"></a></h2>
 <p>切分策略传播算法是指，用户仅需要手工定义几个关键算子的策略，计算图中其余算子的策略由算法自动生成。因为关键算子的策略已被定义，该算法的代价模型主要描述的算子之间的重排布代价(Redistribution Cost)，优化目标为全图重排代价最小。因为已经定义了主要算子策略，相当于认为压缩了搜索空间，这种方案的搜索时间较短，其策略性能依赖于关键算子策略的定义，因此仍然要求用户具备一定的分析定义策略的能力。</p>
 <blockquote>
 <div><p>切分策略传播算法支持的硬件平台包括Ascend、GPU，此外还同时支持PyNative模式和Graph模式。</p>
@@ -159,7 +158,7 @@
 <p>总而言之，切分策略传播算法需要用户手动配置关键算子的切分策略。</p>
 </section>
 <section id="基本原理">
-<h2>基本原理<a class="headerlink" href="#基本原理" title="Permalink to this headline"></a></h2>
+<h2>基本原理<a class="headerlink" href="#基本原理" title="永久链接至标题"></a></h2>
 <p>给定计算图，<strong>切分策略传播</strong>（Sharding Propagation）使得策略由配置的算子传播到整张计算图的所有算子。在传播过程中，策略选择的目标是最小化张量重排布产生的通信代价。</p>
 <p>切分策略传播的输入是带有一些算子切分策略的计算图，其中的点表示算子，有向边表示数据依赖关系。切分策略传播的执行流程如下：</p>
 <ol class="arabic simple">
@@ -171,10 +170,10 @@
 <p><img alt="sharding_propagation" src="../_images/sharding_propagation_zh.png" /></p>
 </section>
 <section id="操作实践">
-<h2>操作实践<a class="headerlink" href="#操作实践" title="Permalink to this headline"></a></h2>
+<h2>操作实践<a class="headerlink" href="#操作实践" title="永久链接至标题"></a></h2>
 <p>下面以Ascend或者GPU单机8卡为例，进行切分策略传播操作说明：</p>
 <section id="样例代码说明">
-<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="Permalink to this headline"></a></h3>
+<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="永久链接至标题"></a></h3>
 <blockquote>
 <div><p>下载完整的样例代码：<a class="reference external" href="https://gitee.com/mindspore/docs/tree/r2.2/docs/sample_code/sharding_propagation">sharding_propagation</a>。</p>
 </div></blockquote>
@@ -189,7 +188,7 @@
 <p>其中，<code class="docutils literal notranslate"><span class="pre">train.py</span></code>是定义网络结构和训练过程的脚本。<code class="docutils literal notranslate"><span class="pre">run.sh</span></code>是执行脚本。</p>
 </section>
 <section id="配置分布式环境">
-<h3>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="Permalink to this headline"></a></h3>
+<h3>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="永久链接至标题"></a></h3>
 <p>通过context接口指定运行模式、运行设备、运行卡号等，与单卡脚本不同，并行脚本还需指定并行模式<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>为自动并行模式，搜索模式<code class="docutils literal notranslate"><span class="pre">search_mode</span></code>为切分策略传播，并通过init初始化HCCL或NCCL通信。<code class="docutils literal notranslate"><span class="pre">device_target</span></code>会自动指定为MindSpore包对应的后端硬件设备。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
@@ -202,7 +201,7 @@
 </div>
 </section>
 <section id="数据集加载">
-<h3>数据集加载<a class="headerlink" href="#数据集加载" title="Permalink to this headline"></a></h3>
+<h3>数据集加载<a class="headerlink" href="#数据集加载" title="永久链接至标题"></a></h3>
 <p>数据集加载方式与单机加载方式一致，代码如下：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
@@ -226,7 +225,7 @@
 </div>
 </section>
 <section id="定义网络">
-<h3>定义网络<a class="headerlink" href="#定义网络" title="Permalink to this headline"></a></h3>
+<h3>定义网络<a class="headerlink" href="#定义网络" title="永久链接至标题"></a></h3>
 <p>网络的定义以FeedForward Network（<code class="docutils literal notranslate"><span class="pre">FFN</span></code>）为例，与单卡网络区别在于增加了<code class="docutils literal notranslate"><span class="pre">ops.MatMul()</span></code>算子的切分策略：</p>
 <blockquote>
 <div><p>目前Graph模式下仅支持对ops算子进行切分。</p>
@@ -271,7 +270,7 @@
 </div>
 </section>
 <section id="训练网络">
-<h3>训练网络<a class="headerlink" href="#训练网络" title="Permalink to this headline"></a></h3>
+<h3>训练网络<a class="headerlink" href="#训练网络" title="永久链接至标题"></a></h3>
 <p>在这一步，我们需要定义损失函数、优化器以及训练过程，这部分与单卡写法一致：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
@@ -303,7 +302,7 @@
 </div>
 </section>
 <section id="运行单机八卡脚本">
-<h3>运行单机八卡脚本<a class="headerlink" href="#运行单机八卡脚本" title="Permalink to this headline"></a></h3>
+<h3>运行单机八卡脚本<a class="headerlink" href="#运行单机八卡脚本" title="永久链接至标题"></a></h3>
 <p>接下来通过命令调用对应的脚本，以<code class="docutils literal notranslate"><span class="pre">mpirun</span></code>启动方式，8卡的分布式训练脚本为例，进行分布式训练：</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run.sh
 </pre></div>
@@ -401,24 +400,8 @@ epoch: 0, step: 1000, loss is 0.46586612
 <p>其他启动方式如动态组网、<code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">table</span></code>的启动可参考<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/r2.2/parallel/startup_method.html">启动方式</a>。</p>
 </section>
 <section id="配置算子切分策略的经验性原则">
-<h3>配置算子切分策略的经验性原则<a class="headerlink" href="#配置算子切分策略的经验性原则" title="Permalink to this headline"></a></h3>
-<p>给定一个新模型，从用户的角度，关键问题是配置哪些算子的切分策略来获得较好的性能。由于策略传播的目标是最小化张量重排布的代价，而非最小化端到端的迭代时间，因此，为“关键算子”配置合适的切分策略是十分重要的。然而，并不存在明确的规定约束哪些算子是必须配置切分策略的。尽管如此，基于我们训练大模型的经验，确实有一些原则可以用来指导新用户配置并行策略。这里，我们列出3条经验性的原则。</p>
-<section id="配置涉及权重的算子">
-<h4>配置涉及权重的算子<a class="headerlink" href="#配置涉及权重的算子" title="Permalink to this headline"></a></h4>
-<p>参数权重的切分策略是十分重要的，尤其对大模型来说，因为参数权重引起的内存消耗占据模型训练总内存消耗的大部分。因此，涉及权重的算子通常需要显式地配置切分策略。在下图的两个例子中，涉及权重的Gather和MatMul算子配置了切分策略，而其他算子没有配置。这分别对应<a class="reference external" href="https://gitee.com/mindspore/mindformers/tree/r0.8/mindformers/modules">mindformers</a>中的数据并行Embedding层和混合并行FeedForward层。</p>
-<p><img alt="sp_case1_zh" src="../_images/sp_case1_zh.png" /></p>
-</section>
-<section id="配置维度改变的算子">
-<h4>配置维度改变的算子<a class="headerlink" href="#配置维度改变的算子" title="Permalink to this headline"></a></h4>
-<p>深度学习框架的算子大致可以分为两类：语义简单的维度保持的算子；会改变输入张量维度的算子。对于维度保持算子，策略传播算法可以较容易地将切分策略传播出去。但是，对于维度改变算子，显式地配置切分策略才能更好地表达用户的初始想法，避免策略传播算法推导出非用户期望的切分策略。在下图的例子中，ReduceMean和MatMul是维度改变算子，它们被配置了切分策略。</p>
-<p><img alt="sp_case2_zh" src="../_images/sp_case2_zh.png" /></p>
-</section>
-<section id="配置并行方式改变的边界算子">
-<h4>配置并行方式改变的边界算子<a class="headerlink" href="#配置并行方式改变的边界算子" title="Permalink to this headline"></a></h4>
-<p>对于类似ResNet类的模型，模型的不同部分偏好的并行方式不同：前半部分使用数据并行，后半部分使用模型并行，以此获得最优的迭代性能。这可以通过为并行方式改变的边界算子配置策略来实现。在下图的例子中，第一个MatMul配置了数据并行的策略，它会将数据并行的策略向前传播到模型的前半部分；第二个MatMul配置了模型并行的策略，它会将模型并行的策略向后传播到模型的后半部分。</p>
-<p><img alt="sp_case3_zh" src="../_images/sp_case3_zh.png" /></p>
-<p>用户在用策略传播时不仅需要对其传播算法本身有一定的了解，还要对要训练的模型的并行方式有一定的理解。如果存在某个由策略传播算法决定的算子的并行策略不符合用户的期望，那总可以通过多配置一个算子并行策略的方式解决。实际中，对于一个新模型，确实需要尝试几次才能获得性能较优的整体并行配置。</p>
-</section>
+<h3>配置算子切分策略的经验性原则<a class="headerlink" href="#配置算子切分策略的经验性原则" title="永久链接至标题"></a></h3>
+<p>给定一个新模型，从用户的角度，关键问题是配置哪些算子的切分策略来获得较好的性能。由于策略传播的目标是最小化张量重排布的代价，而非最小化端到端的迭代时间，因此，为“关键算子”配置合适的切分策略是十分重要的。然而，并不存在明确的规定约束哪些算子是必须配置切分策略的。尽管如此，基于我们训练大模型的经验，确实有一些原则可以用来指导新用户配置并行策略。我们总结出3条经验性的原则供参考，详见<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/r2.2/parallel/split_technique.html">切分技巧</a>。</p>
 </section>
 </section>
 </section>
@@ -427,19 +410,19 @@ epoch: 0, step: 1000, loss is 0.46586612
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="auto_parallel.html" class="btn btn-neutral float-left" title="自动并行" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="sapp.html" class="btn btn-neutral float-right" title="双递归策略搜索算法" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="auto_parallel.html" class="btn btn-neutral float-left" title="自动并行" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="sapp.html" class="btn btn-neutral float-right" title="双递归策略搜索算法" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright MindSpore.</p>
+    <p>&#169; 版权所有 MindSpore.</p>
   </div>
 
-  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发.
    
 
 </footer>
