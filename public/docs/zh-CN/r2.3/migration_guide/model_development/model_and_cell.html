@@ -372,7 +372,8 @@ MindSpore默认使用<code class="docutils literal notranslate"><span class="pre
 <blockquote>
 <div><p><code class="docutils literal notranslate"><span class="pre">gain</span></code> 用来衡量非线性关系对于数据标准差的影响。由于非线性会影响数据的标准差，可能会导致梯度爆炸或消失。</p>
 </div></blockquote>
-<table>
+<div class="wy-table-responsive">
+<table class="colwidths-auto docutils align-default">
 <tr>
 <td style="text-align:center"> mindspore.common.initializer </td> <td style="text-align:center"> torch.nn.init </td>
 </tr>
@@ -397,6 +398,7 @@ MindSpore默认使用<code class="docutils literal notranslate"><span class="pre
 </td>
 </tr>
 </table>
+</div>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">mindspore.common.initializer</span></code> 用于在并行模式中延迟Tensor的数据的初始化。只有在调用了 <code class="docutils literal notranslate"><span class="pre">init_data()</span></code> 之后，才会使用指定的 <code class="docutils literal notranslate"><span class="pre">init</span></code> 来初始化Tensor的数据。每个Tensor只能使用一次 <code class="docutils literal notranslate"><span class="pre">init_data()</span></code> 。在运行以上代码之后，<code class="docutils literal notranslate"><span class="pre">x</span></code> 其实尚未完成初始化。如果此时 <code class="docutils literal notranslate"><span class="pre">x</span></code> 被用来计算，将会作为0来处理。然而，在打印时，会自动调用 <code class="docutils literal notranslate"><span class="pre">init_data()</span></code> 。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">torch.nn.init</span></code> 需要一个Tensor作为输入，将输入的Tensor原地修改为目标结果，运行上述代码之后，x将不再是非初始化状态，其元素将服从均匀分布。</p></li>
@@ -785,8 +787,14 @@ box_select_torch tensor([[0.1468, 0.0923, 0.1863, 0.3456]])
 </div>
 <p>在后续计算中，如果涉及box的一些操作，需要注意是否需要乘mask用来过滤非有效结果。</p>
 <p>对于求loss时对feature做选取，导致获取到不固定shape的Tensor的场景，处理方式基本和网络运行过程中不固定shape的处理方式相同，只是loss部分后续可能没有其他的操作，不需要返回mask。</p>
-<p>举个例子，我们想选取前70%的正样本的值求loss。
-PyTorch的实现如下：</p>
+<p>举个例子，我们想选取前70%的正样本的值求loss。实现如下：</p>
+<div class="wy-table-responsive">
+<table class="colwidths-auto docutils align-default">
+<tr>
+<td style="text-align:center"> PyTorch </td> <td style="text-align:center"> MindSpore </td>
+</tr>
+<tr>
+<td style="vertical-align:top"><pre>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">torch_nn</span>
 
@@ -795,6 +803,7 @@ PyTorch的实现如下：</p>
         <span class="nb">super</span><span class="p">(</span><span class="n">ClassLoss_pt</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">con_loss</span> <span class="o">=</span> <span class="n">torch_nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">)</span>
 
+    <span class="c1"># 使用 torch.topk 来获取前70%的正样本数据</span>
     <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="n">label</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="n">vaild_label</span> <span class="o">=</span> <span class="n">label</span> <span class="o">*</span> <span class="n">mask</span>
@@ -804,17 +813,18 @@ PyTorch的实现如下：</p>
         <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>在里面使用了<code class="docutils literal notranslate"><span class="pre">torch.topk</span></code>来获取前70%的正样本数据，在MindSpore里目前不支持TopK的K是变量，所以需要转换下思路，获取到第K大的值，然后通过这个值获取到topk的mask，MindSpore的实现方式如下：</p>
+</pre>
+</td>
+<td style="vertical-align:top"><pre>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ops</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span> <span class="k">as</span> <span class="n">ms_nn</span>
-
 <span class="k">class</span> <span class="nc">ClassLoss_ms</span><span class="p">(</span><span class="n">ms_nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ClassLoss_ms</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">con_loss</span> <span class="o">=</span> <span class="n">ms_nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sort_descending</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Sort</span><span class="p">(</span><span class="n">descending</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
+    <span class="c1"># MindSpore目前不支持TopK的K是变量，转换思路，获取到第K大的值，然后通过该值获取到topk的mask</span>
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="n">label</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="n">vaild_label</span> <span class="o">=</span> <span class="n">label</span> <span class="o">*</span> <span class="n">mask</span>
@@ -826,6 +836,11 @@ PyTorch的实现如下：</p>
         <span class="n">loss</span> <span class="o">=</span> <span class="n">con</span> <span class="o">*</span> <span class="n">con_mask</span>
         <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">con_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 </pre></div>
+</div>
+</pre>
+</td>
+</tr>
+</table>
 </div>
 <p>我们来看一下实验结果：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
