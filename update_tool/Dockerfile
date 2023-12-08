@@ -51,7 +51,8 @@ RUN pip install sphinx_rtd_theme==1.0.0 \
     && pip install gitpython \
     && pip install lxml \
     && pip install protobuf==3.20.1 \
-    && pip install astor
+    && pip install astor \
+    && pip install regex
 
 ENV VERSION=VERSION
 ENV WGETDIR=WGETDIR
