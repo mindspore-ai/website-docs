@@ -372,7 +372,8 @@ By default, MindSpore uses the <code class="docutils literal notranslate"><span 
 <blockquote>
 <div><p><code class="docutils literal notranslate"><span class="pre">gain</span></code> is used to describe the influence of the non-linearity to the standard deviation of the data. Because non-linearity will affect the standard deviation, the gradient may explode or vanish.</p>
 </div></blockquote>
-<table>
+<div class="wy-table-responsive">
+<table class="colwidths-auto docutils align-default">
 <tr>
 <td style="text-align:center"> mindspore.common.initializer </td> <td style="text-align:center"> torch.nn.init </td>
 </tr>
@@ -397,6 +398,7 @@ By default, MindSpore uses the <code class="docutils literal notranslate"><span 
 </td>
 </tr>
 </table>
+</div>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">mindspore.common.initializer</span></code> is used for delayed initialization in parallel mode. Only after calling <code class="docutils literal notranslate"><span class="pre">init_data()</span></code>, the elements will be assigned based on its <code class="docutils literal notranslate"><span class="pre">init</span></code>. Every Tensor could only use <code class="docutils literal notranslate"><span class="pre">init_data</span></code> once. After running the code above, <code class="docutils literal notranslate"><span class="pre">x</span></code> is still not fully initialized. If it is used for further calculation, 0 will be used. However, when printing the Tensor, <code class="docutils literal notranslate"><span class="pre">init_data()</span></code> will be called automatically.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">torch.nn.init</span></code> takes a Tensor as input, and the input Tensor will be changed to the target in-place. After running the code above, x is no longer an uninitialized Tensor, and its elements will follow the uniform distribution.</p></li>
@@ -786,8 +788,14 @@ box_select_torch tensor([[0.1468, 0.0923, 0.1863, 0.3456]])
 </div>
 <p>In subsequent computation, if some box operations are involved, check whether the mask needs to be multiplied to filter invalid results.</p>
 <p>If a tensor with an unfixed shape is obtained due to feature selection during loss computation, the processing method is basically the same as that during network running. The only difference is that the loss part may not have other operations and the mask does not need to be returned.</p>
-<p>For example, we want to select the values of the first 70% positive samples to compute the loss.
-The PyTorch implementation is as follows:</p>
+<p>For example, we want to select the values of the first 70% positive samples to compute the loss. The implementation is as follows:</p>
+<div class="wy-table-responsive">
+<table class="colwidths-auto docutils align-default">
+<tr>
+<td style="text-align:center"> PyTorch </td> <td style="text-align:center"> MindSpore </td>
+</tr>
+<tr>
+<td style="vertical-align:top"><pre>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">torch_nn</span>
 
@@ -796,6 +804,7 @@ The PyTorch implementation is as follows:</p>
         <span class="nb">super</span><span class="p">(</span><span class="n">ClassLoss_pt</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">con_loss</span> <span class="o">=</span> <span class="n">torch_nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">)</span>
 
+    <span class="c1"># `torch.topk` is used to obtain the first 70% positive sample data.</span>
     <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="n">label</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="n">vaild_label</span> <span class="o">=</span> <span class="n">label</span> <span class="o">*</span> <span class="n">mask</span>
@@ -805,17 +814,19 @@ The PyTorch implementation is as follows:</p>
         <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">torch.topk</span></code> is used to obtain the first 70% positive sample data. Currently, MindSpore does not support K as a variable. Therefore, you need to convert the method to obtain the Kth largest value and then obtain the mask of topk based on the value. The MindSpore implementation is as follows:</p>
+</pre>
+</td>
+<td style="vertical-align:top"><pre>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ops</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span> <span class="k">as</span> <span class="n">ms_nn</span>
-
 <span class="k">class</span> <span class="nc">ClassLoss_ms</span><span class="p">(</span><span class="n">ms_nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ClassLoss_ms</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">con_loss</span> <span class="o">=</span> <span class="n">ms_nn</span><span class="o">.</span><span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sort_descending</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Sort</span><span class="p">(</span><span class="n">descending</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
+    <span class="c1"># Currently, MindSpore does not support K as a variable.</span>
+    <span class="c1"># Therefore, obtain the Kth largest value and then obtain the mask of topk based on the value.</span>
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="n">label</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="n">vaild_label</span> <span class="o">=</span> <span class="n">label</span> <span class="o">*</span> <span class="n">mask</span>
@@ -827,6 +838,11 @@ The PyTorch implementation is as follows:</p>
         <span class="n">loss</span> <span class="o">=</span> <span class="n">con</span> <span class="o">*</span> <span class="n">con_mask</span>
         <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">con_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 </pre></div>
+</div>
+</pre>
+</td>
+</tr>
+</table>
 </div>
 <p>Let’s look at the test result.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
