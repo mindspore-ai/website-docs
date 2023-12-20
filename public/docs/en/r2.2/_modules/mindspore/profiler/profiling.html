@@ -184,12 +184,12 @@
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.profiler_info</span> <span class="kn">import</span> <span class="n">ProfilerInfo</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_pynative_executor</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_msprof_exporter</span> <span class="kn">import</span> <span class="n">AscendMsprofExporter</span>
-<span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_msprof_generator</span> <span class="kn">import</span> <span class="n">AscendMsprofDataGenerator</span>
+<span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_msprof_generator</span> <span class="kn">import</span> <span class="n">AscendMsprofDataGenerator</span><span class="p">,</span> <span class="n">AscendMsprofDataGeneratorOld</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_fpbp_generator</span> <span class="kn">import</span> <span class="n">AscendFPBPGenerator</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_op_generator</span> <span class="kn">import</span> <span class="n">AscendOPGenerator</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_steptrace_generator</span> <span class="kn">import</span> <span class="n">AscendStepTraceGenerator</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_flops_generator</span> <span class="kn">import</span> <span class="n">AscendFlopsGenerator</span>
-<span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_hccl_generator</span> <span class="kn">import</span> <span class="n">AscendHCCLGenerator</span>
+<span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_hccl_generator</span> <span class="kn">import</span> <span class="n">AscendHCCLGenerator</span><span class="p">,</span> <span class="n">AscendHCCLGeneratorOld</span>
 
 <span class="n">INIT_OP_NAME</span> <span class="o">=</span> <span class="s1">&#39;Default/InitDataSetQueue&#39;</span>
 
@@ -410,16 +410,20 @@
 
 
 <span class="k">def</span> <span class="nf">_ascend_graph_msprof_generator</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">model_iteration_dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Executing the msprof export mode.&quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
+        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_export_start_time</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">()))</span>
         <span class="n">msprof_exporter</span> <span class="o">=</span> <span class="n">AscendMsprofExporter</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
-        <span class="n">msprof_exporter</span><span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="n">model_iteration_dict</span><span class="p">)</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="n">msprof_exporter</span><span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="n">model_iteration_dict</span><span class="p">)</span>
+        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_export_end_time</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">()))</span>
+        <span class="k">return</span> <span class="n">flag</span>
+
     <span class="k">except</span> <span class="n">ProfilerException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
-    <span class="k">finally</span><span class="p">:</span>
-        <span class="k">pass</span>
+        <span class="k">return</span> <span class="kc">False</span>
 
 
-<span class="k">def</span> <span class="nf">_ascend_graph_msprof_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_ascend_graph_msprof_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Ascend graph model msprof data analyse.</span>
 
@@ -430,7 +434,10 @@
     <span class="n">df_op_statistic</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">df_step_trace</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">msprof_analyser</span> <span class="o">=</span> <span class="n">AscendMsprofDataGenerator</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="s1">&#39;summary&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+            <span class="n">msprof_analyser</span> <span class="o">=</span> <span class="n">AscendMsprofDataGenerator</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="s1">&#39;summary&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msprof_analyser</span> <span class="o">=</span> <span class="n">AscendMsprofDataGeneratorOld</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="s1">&#39;summary&#39;</span><span class="p">))</span>
         <span class="n">df_op_summary</span><span class="p">,</span> <span class="n">df_op_statistic</span><span class="p">,</span> <span class="n">df_step_trace</span> <span class="o">=</span> <span class="n">msprof_analyser</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
     <span class="k">except</span> <span class="n">ProfilerException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
@@ -572,6 +579,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_profiler</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_timeline_size_limit_byte</span> <span class="o">=</span> <span class="mi">500</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>  <span class="c1"># 500MB</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parallel_strategy</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model_iteration_dict</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">_environment_check</span><span class="p">()</span>
         <span class="c1"># default aicore_metrics type is ArithmeticUtilization</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_aicore_metrics_id</span> <span class="o">=</span> <span class="mi">0</span>
@@ -586,7 +594,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_sync_enable</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stop_time</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_status</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_model_iteration_dict</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_profile_framework</span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_msprof_enable</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PROFILER_SAMPLECONFIG&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_msprof_enable</span><span class="p">:</span>
@@ -745,9 +752,21 @@
 <span class="sd">            model_iteration_dict: Dictionary with model id as the key and iteration id as the value, Default: ``None``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_model_iteration_dict</span> <span class="o">=</span> <span class="n">model_iteration_dict</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_profiler_info</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_support_step_info_collect</span><span class="p">()</span>
+        <span class="n">parallel_mode</span> <span class="o">=</span> <span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;parallel_mode&quot;</span><span class="p">)</span>
+        <span class="n">stage_num</span> <span class="o">=</span> <span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;pipeline_stages&quot;</span><span class="p">)</span>
+
+        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_parallel_info</span><span class="p">(</span><span class="n">parallel_mode</span><span class="p">,</span> <span class="n">stage_num</span><span class="p">)</span>
+        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_rank_size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rank_size</span><span class="p">)</span>
+        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_heterogeneous</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_heterogeneous</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">offline_path</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_offline_parser</span><span class="p">():</span>
+                <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_analyse_start_time</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">()))</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_analyse</span><span class="p">()</span>
+                <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_analyse_end_time</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">()))</span>
+                <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span>
             <span class="n">_offline_parse</span><span class="p">(</span><span class="n">offline_path</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_msprof_enable</span><span class="p">:</span>
@@ -781,15 +800,7 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;The parameter &#39;profile_framework&#39; is not support for CPU, so there no host_info&quot;</span>
                                <span class="s2">&quot; directory in the output path.&quot;</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: all the data have been analyzed.&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_init_profiler_info</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_is_support_step_info_collect</span><span class="p">()</span>
-        <span class="n">parallel_mode</span> <span class="o">=</span> <span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;parallel_mode&quot;</span><span class="p">)</span>
-        <span class="n">stage_num</span> <span class="o">=</span> <span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;pipeline_stages&quot;</span><span class="p">)</span>
-
-        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_parallel_info</span><span class="p">(</span><span class="n">parallel_mode</span><span class="p">,</span> <span class="n">stage_num</span><span class="p">)</span>
         <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_analyse_end_time</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">()))</span>
-        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_rank_size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rank_size</span><span class="p">)</span>
-        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_heterogeneous</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_heterogeneous</span><span class="p">)</span>
         <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Profiler.start"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.Profiler.html#mindspore.Profiler.start">[docs]</a>    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -921,6 +932,8 @@
 
             <span class="bp">self</span><span class="o">.</span><span class="n">_stop_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">10000000</span><span class="p">)</span>
         <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_profiling_stop_time</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">()))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_profiler_info</span><span class="p">()</span>
+        <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: stop time: </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_time</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_profiler_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
@@ -1294,7 +1307,7 @@
 
     <span class="k">def</span> <span class="nf">_ascend_flops_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op_summary</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get op FLOPs from op_summary, write output_op_flops_x.csv.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">op_summary</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">18</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;vector_fops&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">op_summary</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span> <span class="ow">and</span> <span class="s1">&#39;cube_fops&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">op_summary</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;[Profiler] Can not found cube fops and vector fops data in the op summary.&quot;</span><span class="p">)</span>
             <span class="k">return</span>
 
@@ -1331,7 +1344,7 @@
         <span class="k">finally</span><span class="p">:</span>
             <span class="k">pass</span>
 
-    <span class="k">def</span> <span class="nf">_ascend_graph_hccl_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_ascend_graph_hccl_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">steptrace</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyse hccl profiler info.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_profile_communication</span><span class="p">:</span>
             <span class="k">return</span>
@@ -1345,8 +1358,10 @@
 
             <span class="n">hccl_raw_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;hccl_raw_</span><span class="si">{</span><span class="n">dev_id</span><span class="si">}</span><span class="s1">.csv&#39;</span><span class="p">)</span>
             <span class="n">hccl_raw_path</span> <span class="o">=</span> <span class="n">validate_and_normalize_path</span><span class="p">(</span><span class="n">hccl_raw_path</span><span class="p">)</span>
-
-            <span class="n">hccl_analyse</span> <span class="o">=</span> <span class="n">AscendHCCLGenerator</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="s1">&#39;timeline&#39;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+                <span class="n">hccl_analyse</span> <span class="o">=</span> <span class="n">AscendHCCLGenerator</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="s1">&#39;timeline&#39;</span><span class="p">),</span> <span class="n">steptrace</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">hccl_analyse</span> <span class="o">=</span> <span class="n">AscendHCCLGeneratorOld</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="s1">&#39;timeline&#39;</span><span class="p">))</span>
             <span class="n">hccl_analyse</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
             <span class="n">hccl_analyse</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">hccl_raw_path</span><span class="p">)</span>
 
@@ -1388,8 +1403,12 @@
         <span class="n">source_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_minddata_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_op_time</span><span class="p">:</span>
-            <span class="n">_ascend_graph_msprof_generator</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_iteration_dict</span><span class="p">)</span>
-            <span class="n">op_summary</span><span class="p">,</span> <span class="n">op_statistic</span><span class="p">,</span> <span class="n">steptrace</span> <span class="o">=</span> <span class="n">_ascend_graph_msprof_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="n">_ascend_graph_msprof_generator</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_iteration_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">flag</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Current driver package not support all export mode, use single export mode, &#39;</span>
+                               <span class="s1">&#39;this may lead to performance degradation. Suggest upgrading the driver package.&#39;</span><span class="p">)</span>
+            <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_export_flag</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+            <span class="n">op_summary</span><span class="p">,</span> <span class="n">op_statistic</span><span class="p">,</span> <span class="n">steptrace</span> <span class="o">=</span> <span class="n">_ascend_graph_msprof_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">flag</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_op_analyse</span><span class="p">(</span><span class="n">op_summary</span><span class="p">,</span> <span class="n">op_statistic</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_status</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_timeline_analyse</span><span class="p">(</span><span class="n">op_summary</span><span class="p">,</span> <span class="n">steptrace</span><span class="p">)</span>
             <span class="n">graph_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">op_summary</span><span class="p">[</span><span class="s1">&#39;Model ID&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
@@ -1400,7 +1419,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_dynamic_net_analyse</span><span class="p">(</span><span class="n">op_summary</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_flops_analyse</span><span class="p">(</span><span class="n">op_summary</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_memory_analyse</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_hccl_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_hccl_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">steptrace</span><span class="p">,</span> <span class="n">flag</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_msadvisor_analyse</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
             <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_graph_ids</span><span class="p">(</span><span class="n">graph_ids</span><span class="p">)</span>
 
@@ -1595,6 +1614,9 @@
             <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_job_id</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">job_id</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;PROF&#39;</span><span class="p">):</span>
                 <span class="n">device_dir</span> <span class="o">=</span> <span class="p">[</span><span class="nb">dir</span> <span class="k">for</span> <span class="nb">dir</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_job_id</span><span class="p">)</span> <span class="k">if</span> <span class="nb">dir</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;device&#39;</span><span class="p">)]</span>
+                <span class="n">info_file_path</span> <span class="o">=</span> <span class="n">get_file_path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_job_id</span><span class="p">,</span> <span class="n">device_dir</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="s2">&quot;info.json&quot;</span><span class="p">)</span>
+                <span class="n">training_rank_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_info_json</span><span class="p">(</span><span class="n">info_file_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">training_rank_id</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">device_dir</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             <span class="k">return</span> <span class="n">job_id</span>
 
@@ -1625,8 +1647,8 @@
                                <span class="s2">&quot;profiler will ignore this job dir.&quot;</span><span class="p">,</span> <span class="n">job_dir</span><span class="p">)</span>
                 <span class="k">continue</span>
 
-            <span class="n">_</span><span class="p">,</span> <span class="n">training_device_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_info_json</span><span class="p">(</span><span class="n">info_file_path</span><span class="p">)</span>
             <span class="n">job_start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_start_log</span><span class="p">(</span><span class="n">start_file_path</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">training_device_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_info_json</span><span class="p">(</span><span class="n">info_file_path</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dev_id</span> <span class="o">!=</span> <span class="n">training_device_id</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Find profiling find job path </span><span class="si">%s</span><span class="s2">, but not current training device id. &quot;</span>
