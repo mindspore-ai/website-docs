@@ -154,6 +154,7 @@
 <span class="kn">import</span> <span class="nn">platform</span>
 <span class="kn">import</span> <span class="nn">queue</span>
 <span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">stat</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
@@ -166,6 +167,7 @@
 <span class="kn">from</span> <span class="nn">.shardutils</span> <span class="kn">import</span> <span class="n">MIN_SHARD_COUNT</span><span class="p">,</span> <span class="n">MAX_SHARD_COUNT</span><span class="p">,</span> <span class="n">VALID_ATTRIBUTES</span><span class="p">,</span> <span class="n">VALID_ARRAY_ATTRIBUTES</span><span class="p">,</span> \
     <span class="n">check_filename</span><span class="p">,</span> <span class="n">VALUE_TYPE_MAP</span><span class="p">,</span> <span class="n">SUCCESS</span>
 <span class="kn">from</span> <span class="nn">.common.exceptions</span> <span class="kn">import</span> <span class="n">ParamValueError</span><span class="p">,</span> <span class="n">ParamTypeError</span><span class="p">,</span> <span class="n">MRMInvalidSchemaError</span><span class="p">,</span> <span class="n">MRMDefineIndexError</span>
+<span class="kn">from</span> <span class="nn">.config</span> <span class="kn">import</span> <span class="n">_get_enc_key</span><span class="p">,</span> <span class="n">_get_enc_mode</span><span class="p">,</span> <span class="n">_get_dec_mode</span><span class="p">,</span> <span class="n">_get_hash_mode</span><span class="p">,</span> <span class="n">encrypt</span><span class="p">,</span> <span class="n">decrypt</span><span class="p">,</span> <span class="n">append_hash_to_file</span><span class="p">,</span> <span class="n">verify_file_hash</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FileWriter&#39;</span><span class="p">]</span>
 
@@ -228,6 +230,9 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shard_num</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">_get_enc_key</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">_get_hash_mode</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;When encode mode or hash check is enabled, &quot;</span> <span class="o">+</span>
+                                   <span class="s2">&quot;the automatic sharding function is unavailable.&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span>
                                          <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="n">suffix_shard_size</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">))</span>
                            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_shard_num</span><span class="p">)]</span>
@@ -285,6 +290,19 @@
             <span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
         <span class="n">check_filename</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
 
+        <span class="c1"># decrypt the data file and index file</span>
+        <span class="n">index_file_name</span> <span class="o">=</span> <span class="n">file_name</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span>
+        <span class="n">decrypt_filename</span> <span class="o">=</span> <span class="n">decrypt</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_dec_mode</span><span class="p">())</span>
+        <span class="n">decrypt_index_filename</span> <span class="o">=</span> <span class="n">decrypt</span><span class="p">(</span><span class="n">index_file_name</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_dec_mode</span><span class="p">())</span>
+
+        <span class="c1"># verify integrity check</span>
+        <span class="n">verify_file_hash</span><span class="p">(</span><span class="n">decrypt_filename</span><span class="p">)</span>
+        <span class="n">verify_file_hash</span><span class="p">(</span><span class="n">decrypt_index_filename</span><span class="p">)</span>
+
+        <span class="c1"># move after decrypt and hash check all success</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">decrypt_filename</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">decrypt_index_filename</span><span class="p">,</span> <span class="n">index_file_name</span><span class="p">)</span>
+
         <span class="c1"># construct ShardHeader</span>
         <span class="n">reader</span> <span class="o">=</span> <span class="n">ShardReader</span><span class="p">()</span>
         <span class="n">reader</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
@@ -296,6 +314,7 @@
         <span class="k">return</span> <span class="n">instance</span></div>
 
     <span class="k">def</span> <span class="nf">init_append</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">header</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;init open for append&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_append</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;windows&quot;</span><span class="p">:</span>
@@ -305,6 +324,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_header</span> <span class="o">=</span> <span class="n">header</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_writer</span><span class="o">.</span><span class="n">open_for_append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">]</span>
 
 <div class="viewcode-block" id="FileWriter.add_schema"><a class="viewcode-back" href="../../../api_python/mindspore.mindrecord.html#mindspore.mindrecord.FileWriter.add_schema">[文档]</a>    <span class="k">def</span> <span class="nf">add_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -582,7 +602,7 @@
 
             <span class="bp">self</span><span class="o">.</span><span class="n">_parallel_commit</span><span class="p">()</span>
 
-        <span class="c1"># change the file mode to 600</span>
+        <span class="c1"># change file mode first, because encrypt / hash check may failed</span>
         <span class="n">mindrecord_files</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">index_files</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="p">:</span>
@@ -593,6 +613,18 @@
             <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">index_file</span><span class="p">):</span>
                 <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">index_file</span><span class="p">,</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IRUSR</span> <span class="o">|</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IWUSR</span><span class="p">)</span>
                 <span class="n">index_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index_file</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+                <span class="c1"># add the integrity check string</span>
+                <span class="k">if</span> <span class="n">_get_hash_mode</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">append_hash_to_file</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+                    <span class="n">append_hash_to_file</span><span class="p">(</span><span class="n">item</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span><span class="p">)</span>
+
+                <span class="c1"># encrypt the mindrecord file</span>
+                <span class="k">if</span> <span class="n">_get_enc_key</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">encrypt</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_enc_mode</span><span class="p">())</span>
+                    <span class="n">encrypt</span><span class="p">(</span><span class="n">item</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_enc_mode</span><span class="p">())</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;The list of mindrecord files created are: </span><span class="si">{}</span><span class="s2">, and the list of index files are: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
             <span class="n">mindrecord_files</span><span class="p">,</span> <span class="n">index_files</span><span class="p">))</span></div>

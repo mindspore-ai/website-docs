@@ -154,6 +154,7 @@
 <span class="kn">from</span> <span class="nn">.shardsegment</span> <span class="kn">import</span> <span class="n">ShardSegment</span>
 <span class="kn">from</span> <span class="nn">.shardutils</span> <span class="kn">import</span> <span class="n">check_parameter</span>
 <span class="kn">from</span> <span class="nn">.common.exceptions</span> <span class="kn">import</span> <span class="n">ParamValueError</span><span class="p">,</span> <span class="n">ParamTypeError</span><span class="p">,</span> <span class="n">MRMDefineCategoryError</span>
+<span class="kn">from</span> <span class="nn">.config</span> <span class="kn">import</span> <span class="n">_get_enc_key</span><span class="p">,</span> <span class="n">_get_dec_mode</span><span class="p">,</span> <span class="n">decrypt</span><span class="p">,</span> <span class="n">verify_file_hash</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;MindPage&#39;</span><span class="p">]</span>
 
@@ -195,6 +196,31 @@
     <span class="nd">@check_parameter</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">num_consumer</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_segment</span> <span class="o">=</span> <span class="n">ShardSegment</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="c1"># decrypt the data file and index file</span>
+            <span class="n">index_file_name</span> <span class="o">=</span> <span class="n">file_name</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span>
+            <span class="n">decrypt_filename</span> <span class="o">=</span> <span class="n">decrypt</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_dec_mode</span><span class="p">())</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="n">decrypt_filename</span>
+            <span class="n">decrypt</span><span class="p">(</span><span class="n">index_file_name</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_dec_mode</span><span class="p">())</span>
+
+            <span class="c1"># verify integrity check</span>
+            <span class="n">verify_file_hash</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+            <span class="n">verify_file_hash</span><span class="p">(</span><span class="n">file_name</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">file_names_decrypted</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">file_name</span><span class="p">:</span>
+                <span class="c1"># decrypt the data file and index file</span>
+                <span class="n">index_file_name</span> <span class="o">=</span> <span class="n">item</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span>
+                <span class="n">decrypt_filename</span> <span class="o">=</span> <span class="n">decrypt</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_dec_mode</span><span class="p">())</span>
+                <span class="n">file_names_decrypted</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">decrypt_filename</span><span class="p">)</span>
+                <span class="n">decrypt</span><span class="p">(</span><span class="n">index_file_name</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_dec_mode</span><span class="p">())</span>
+
+                <span class="c1"># verify integrity check</span>
+                <span class="n">verify_file_hash</span><span class="p">(</span><span class="n">decrypt_filename</span><span class="p">)</span>
+                <span class="n">verify_file_hash</span><span class="p">(</span><span class="n">decrypt_filename</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span><span class="p">)</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="n">file_names_decrypted</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_segment</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">num_consumer</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_category_field</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_candidate_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span><span class="p">[:</span><span class="n">field</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)]</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_segment</span><span class="o">.</span><span class="n">get_category_fields</span><span class="p">()]</span>
