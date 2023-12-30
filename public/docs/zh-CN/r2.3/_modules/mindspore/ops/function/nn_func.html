@@ -3611,10 +3611,6 @@
 
 <span class="sd">        ReLU(input) = (input)^+ = \max(0, input)</span>
 
-<span class="sd">    Note:</span>
-<span class="sd">        In general, this operator is more commonly used. The difference from `ReLuV2` is that the `ReLuV2` will</span>
-<span class="sd">        output one more Mask.</span>
-
 <span class="sd">    ReLU Activation Function Graph:</span>
 
 <span class="sd">    .. image:: ../images/ReLU.png</span>
@@ -7490,6 +7486,82 @@
     <span class="k">if</span> <span class="n">return_indices</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="n">indices</span>
     <span class="k">return</span> <span class="n">out</span></div>
+
+
+<span class="k">def</span> <span class="nf">prompt_flash_attention</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">padding_mask</span><span class="p">,</span> <span class="n">attn_mask</span><span class="p">,</span> <span class="n">actual_seq_lengths</span><span class="p">,</span> <span class="n">actual_seq_lengths_kv</span><span class="p">,</span>
+                           <span class="n">deq_scale1</span><span class="p">,</span> <span class="n">quant_scale1</span><span class="p">,</span> <span class="n">deq_scale2</span><span class="p">,</span> <span class="n">quant_scale2</span><span class="p">,</span> <span class="n">quant_offset2</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">,</span>
+                           <span class="n">scale_value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">pre_tokens</span><span class="o">=</span><span class="mi">2147483547</span><span class="p">,</span> <span class="n">next_tokens</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">input_layout</span><span class="o">=</span><span class="s1">&#39;BSH&#39;</span><span class="p">,</span>
+                           <span class="n">num_key_value_heads</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">sparse_mode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">inner_precise</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The interface for fully inference.</span>
+<span class="sd">    B -- Batch size</span>
+<span class="sd">    S -- Sequence length</span>
+<span class="sd">    H -- Hidden size</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">    experiment ops</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This is an experimental API that is subject to change or deletion.</span>
+
+<span class="sd">    Inputs:</span>
+<span class="sd">        query (Tensor) - The query tensor with data type of float16 or float32.</span>
+<span class="sd">          Input tensor of shape :math:`(B, S, H)` / `(B, N, S, D)`.</span>
+<span class="sd">        key (Tensor) - The key tensor with data type of float16 or float32.</span>
+<span class="sd">          Input tensor of shape :math:`(B, S, H)` / `(B, N, S, D)`.</span>
+<span class="sd">        value (Tensor) - The value tensor with data type of float16 or float32.</span>
+<span class="sd">          Input tensor of shape :math:`(B, S, H)` / `(B, N, S, D)`.</span>
+<span class="sd">        padding_mask (Tensor) - The padding mask tensor with data type of float16 or float32</span>
+<span class="sd">        attn_mask (Tensor) - The attention mask tensor with data type of float16 or float32.</span>
+<span class="sd">          For each element, 0 indicates retention and 1 indicates discard. Input tensor of shape :math:`(B, 1, S, S)`.</span>
+<span class="sd">        actual_seq_lengths (Tensor): Describe actual sequence length of each input with data type of int64.</span>
+<span class="sd">        actual_seq_lengths_kv (Tensor): Describe actual sequence length of each input with data type of int64.</span>
+<span class="sd">        dep_scale1 (Tensor)</span>
+<span class="sd">        quant_scale1 (Tensor)</span>
+<span class="sd">        deq_scale2 (Tensor)</span>
+<span class="sd">        quant_scale2 (Tensor)</span>
+<span class="sd">        quant_offset2 (Tensor)</span>
+<span class="sd">        num_heads (int): The number of heads.</span>
+<span class="sd">        scale_value (float): The scale value indicating the scale coefficient, which is used as the scalar of</span>
+<span class="sd">          Muls in the calculation. Default: 1.0.</span>
+<span class="sd">        pre_tokens (int): Previous tokens. Default: 2147483547.</span>
+<span class="sd">        next_tokens (int): next tokens.  Default: 0.</span>
+<span class="sd">          indicate the upper triangle, Indicate the number of data blocks involved in the calculation. The value 0</span>
+<span class="sd">          indicates that the data blocks in the upper triangle are not involved in the calculation</span>
+<span class="sd">        input_layout (str): the data layout of the input qkv, support `(BSH)` and `(BNSD)`, Default `BSH`.</span>
+<span class="sd">        num_key_value_heads (int): head numbers of key/value which are used in GQA algorithm.</span>
+<span class="sd">          The value o indicates if the key and value have the same head nums, use numHeads.  Default: 0.</span>
+<span class="sd">        sparse_mode (int): Default: 0</span>
+<span class="sd">        inner_precise (int): 0, float16 high precision. 1, high performance. default 1</span>
+
+
+<span class="sd">    Outputs:</span>
+<span class="sd">        attention_out (Tensor) - Input tensor of shape :math:`(B, S, H)` / `(B, N, S, D)`.</span>
+
+<span class="sd">        Supported Platforms:</span>
+<span class="sd">        ``Ascend``</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.ops.function.nn_func import prompt_flash_attention</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import Tensor</span>
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">        &gt;&gt;&gt; B = 1</span>
+<span class="sd">        &gt;&gt;&gt; N = 16</span>
+<span class="sd">        &gt;&gt;&gt; S = 256</span>
+<span class="sd">        &gt;&gt;&gt; D = 16</span>
+<span class="sd">        &gt;&gt;&gt; query = Tensor(np.ones((B, N, S, D), dtype=np.float16))</span>
+<span class="sd">        &gt;&gt;&gt; key = Tensor(np.ones((B, N, S, D), dtype=np.float16))</span>
+<span class="sd">        &gt;&gt;&gt; value = Tensor(np.ones((B, N, S, D), dtype=np.float16))</span>
+<span class="sd">        &gt;&gt;&gt; out = ops.prompt_flash_attention(query, key, value, None, None, None, None, None, None, None, None,</span>
+<span class="sd">                                             None, N, input_layout=&#39;BNSD&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; print(out[0].shape)</span>
+<span class="sd">        (1, 16, 256, 16)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pfa</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NN_OPS</span><span class="o">.</span><span class="n">PromptFlashAttention</span><span class="p">)(</span><span class="n">num_heads</span><span class="p">,</span> <span class="n">scale_value</span><span class="p">,</span> <span class="n">pre_tokens</span><span class="p">,</span> <span class="n">next_tokens</span><span class="p">,</span> <span class="n">input_layout</span><span class="p">,</span>
+                                                       <span class="n">num_key_value_heads</span><span class="p">,</span> <span class="n">sparse_mode</span><span class="p">,</span> <span class="n">inner_precise</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pfa</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">padding_mask</span><span class="p">,</span> <span class="n">attn_mask</span><span class="p">,</span> <span class="n">actual_seq_lengths</span><span class="p">,</span> <span class="n">actual_seq_lengths_kv</span><span class="p">,</span> <span class="n">deq_scale1</span><span class="p">,</span>
+               <span class="n">quant_scale1</span><span class="p">,</span> <span class="n">deq_scale2</span><span class="p">,</span> <span class="n">quant_scale2</span><span class="p">,</span> <span class="n">quant_offset2</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">incre_flash_attention</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">attn_mask</span><span class="p">,</span> <span class="n">actual_seq_lengths</span><span class="p">,</span> <span class="n">padding_mask</span><span class="p">,</span> <span class="n">dequant_scale1</span><span class="p">,</span> <span class="n">quant_scale1</span><span class="p">,</span>
