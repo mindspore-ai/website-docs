@@ -120,7 +120,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">mindquantum.algorithm.nisq._ansatz</span> <span class="kn">import</span> <span class="n">Ansatz</span>
-<span class="kn">from</span> <span class="nn">mindquantum.core.circuit</span> <span class="kn">import</span> <span class="n">UN</span><span class="p">,</span> <span class="n">Circuit</span>
+<span class="kn">from</span> <span class="nn">mindquantum.core.circuit</span> <span class="kn">import</span> <span class="n">UN</span><span class="p">,</span> <span class="n">Circuit</span><span class="p">,</span> <span class="n">add_prefix</span><span class="p">,</span> <span class="n">add_suffix</span>
 <span class="kn">from</span> <span class="nn">mindquantum.core.gates</span> <span class="kn">import</span> <span class="n">BARRIER</span><span class="p">,</span> <span class="n">RZ</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="n">ParameterGate</span><span class="p">,</span> <span class="n">X</span>
 <span class="kn">from</span> <span class="nn">mindquantum.utils.type_value_check</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">_check_input_type</span><span class="p">,</span>
@@ -152,11 +152,15 @@
 <span class="sd">        &gt;&gt;&gt; from mindquantum.algorithm.nisq import IQPEncoding</span>
 <span class="sd">        &gt;&gt;&gt; iqp = IQPEncoding(3)</span>
 <span class="sd">        &gt;&gt;&gt; iqp.circuit</span>
-<span class="sd">        q0: ──H────RZ(alpha0)────●───────────────────────────●───────────────────────────────────</span>
-<span class="sd">                                 │                           │</span>
-<span class="sd">        q1: ──H────RZ(alpha1)────X────RZ(alpha0 * alpha1)────X────●───────────────────────────●──</span>
-<span class="sd">                                                                  │                           │</span>
-<span class="sd">        q2: ──H────RZ(alpha2)─────────────────────────────────────X────RZ(alpha1 * alpha2)────X──</span>
+<span class="sd">              ┏━━━┓ ┏━━━━━━━━━━━━┓</span>
+<span class="sd">        q0: ──┨ H ┠─┨ RZ(alpha0) ┠───■─────────────────────────────■─────────────────────────────────────────</span>
+<span class="sd">              ┗━━━┛ ┗━━━━━━━━━━━━┛   ┃                             ┃</span>
+<span class="sd">              ┏━━━┓ ┏━━━━━━━━━━━━┓ ┏━┻━┓ ┏━━━━━━━━━━━━━━━━━━━━━┓ ┏━┻━┓</span>
+<span class="sd">        q1: ──┨ H ┠─┨ RZ(alpha1) ┠─┨╺╋╸┠─┨ RZ(alpha0 * alpha1) ┠─┨╺╋╸┠───■─────────────────────────────■─────</span>
+<span class="sd">              ┗━━━┛ ┗━━━━━━━━━━━━┛ ┗━━━┛ ┗━━━━━━━━━━━━━━━━━━━━━┛ ┗━━━┛   ┃                             ┃</span>
+<span class="sd">              ┏━━━┓ ┏━━━━━━━━━━━━┓                                     ┏━┻━┓ ┏━━━━━━━━━━━━━━━━━━━━━┓ ┏━┻━┓</span>
+<span class="sd">        q2: ──┨ H ┠─┨ RZ(alpha2) ┠─────────────────────────────────────┨╺╋╸┠─┨ RZ(alpha1 * alpha2) ┠─┨╺╋╸┠───</span>
+<span class="sd">              ┗━━━┛ ┗━━━━━━━━━━━━┛                                     ┗━━━┛ ┗━━━━━━━━━━━━━━━━━━━━━┛ ┗━━━┛</span>
 <span class="sd">        &gt;&gt;&gt; iqp.circuit.params_name</span>
 <span class="sd">        [&#39;alpha0&#39;, &#39;alpha1&#39;, &#39;alpha2&#39;, &#39;alpha0 * alpha1&#39;, &#39;alpha1 * alpha2&#39;]</span>
 <span class="sd">        &gt;&gt;&gt; iqp.circuit.params_name</span>
@@ -170,7 +174,15 @@
 <span class="sd">                0.31027229+0.16950252j,  0.31027229+0.16950252j])</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_feature</span><span class="p">,</span> <span class="n">first_rotation_gate</span><span class="o">=</span><span class="n">RZ</span><span class="p">,</span> <span class="n">second_rotation_gate</span><span class="o">=</span><span class="n">RZ</span><span class="p">,</span> <span class="n">num_repeats</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">n_feature</span><span class="p">,</span>
+        <span class="n">first_rotation_gate</span><span class="o">=</span><span class="n">RZ</span><span class="p">,</span>
+        <span class="n">second_rotation_gate</span><span class="o">=</span><span class="n">RZ</span><span class="p">,</span>
+        <span class="n">num_repeats</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="n">suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+    <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize an IQPEncoding object.&quot;&quot;&quot;</span>
         <span class="n">_check_int_type</span><span class="p">(</span><span class="s2">&quot;n_feature&quot;</span><span class="p">,</span> <span class="n">n_feature</span><span class="p">)</span>
         <span class="n">_check_value_should_not_less</span><span class="p">(</span><span class="s2">&quot;n_feature&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_feature</span><span class="p">)</span>
@@ -178,11 +190,15 @@
         <span class="n">_check_value_should_not_less</span><span class="p">(</span><span class="s2">&quot;num_repeats&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_repeats</span><span class="p">)</span>
         <span class="n">_check_intrinsconeparagate</span><span class="p">(</span><span class="s2">&quot;first_rotation_gate&quot;</span><span class="p">,</span> <span class="n">first_rotation_gate</span><span class="p">)</span>
         <span class="n">_check_intrinsconeparagate</span><span class="p">(</span><span class="s2">&quot;second_rotation_gate&quot;</span><span class="p">,</span> <span class="n">second_rotation_gate</span><span class="p">)</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s1">&#39;prefix&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">prefix</span><span class="p">)</span>
+        <span class="n">_check_input_type</span><span class="p">(</span><span class="s1">&#39;suffix&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">n_feature</span> <span class="o">=</span> <span class="n">n_feature</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">first_rotation_gate</span> <span class="o">=</span> <span class="n">first_rotation_gate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">second_rotation_gate</span> <span class="o">=</span> <span class="n">second_rotation_gate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_repeats</span> <span class="o">=</span> <span class="n">num_repeats</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span> <span class="o">=</span> <span class="n">prefix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">suffix</span> <span class="o">=</span> <span class="n">suffix</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;IQPEncoding&quot;</span><span class="p">,</span> <span class="n">n_feature</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_implement</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># pylint: disable=arguments-differ</span>
@@ -197,6 +213,10 @@
             <span class="n">repeat_unit</span> <span class="o">+=</span> <span class="n">X</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">repeat_unit</span> <span class="o">+=</span> <span class="n">BARRIER</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_circuit</span> <span class="o">+=</span> <span class="n">repeat_unit</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_repeats</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_circuit</span> <span class="o">=</span> <span class="n">add_prefix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_circuit</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">suffix</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_circuit</span> <span class="o">=</span> <span class="n">add_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_circuit</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">suffix</span><span class="p">)</span>
 
 <div class="viewcode-block" id="IQPEncoding.data_preparation"><a class="viewcode-back" href="../../../../../algorithm/nisq/mindquantum.algorithm.nisq.IQPEncoding.html#mindquantum.algorithm.nisq.IQPEncoding.data_preparation">[文档]</a>    <span class="k">def</span> <span class="nf">data_preparation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>

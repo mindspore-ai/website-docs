@@ -117,22 +117,30 @@
 <span class="c1"># ============================================================================</span>
 
 <span class="sd">&quot;&quot;&quot;Useful functions.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span> <span class="nn">numbers</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">mindquantum.config.config</span> <span class="kn">import</span> <span class="n">_GLOBAL_MAT_VALUE</span>
 
 <span class="kn">from</span> <span class="nn">.type_value_check</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_check_gate_type</span><span class="p">,</span>
     <span class="n">_check_input_type</span><span class="p">,</span>
     <span class="n">_check_int_type</span><span class="p">,</span>
+    <span class="n">_check_seed</span><span class="p">,</span>
     <span class="n">_check_value_should_between_close_set</span><span class="p">,</span>
     <span class="n">_check_value_should_not_less</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;random_circuit&#39;</span><span class="p">,</span> <span class="s1">&#39;mod&#39;</span><span class="p">,</span> <span class="s1">&#39;normalize&#39;</span><span class="p">,</span> <span class="s1">&#39;random_state&#39;</span><span class="p">]</span>
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">mindquantum.core</span> <span class="kn">import</span> <span class="n">BasicGate</span><span class="p">,</span> <span class="n">Circuit</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;random_circuit&#39;</span><span class="p">,</span> <span class="s1">&#39;random_insert_gates&#39;</span><span class="p">,</span> <span class="s1">&#39;mod&#39;</span><span class="p">,</span> <span class="s1">&#39;normalize&#39;</span><span class="p">,</span> <span class="s1">&#39;random_state&#39;</span><span class="p">]</span>
 
 
 <div class="viewcode-block" id="random_circuit"><a class="viewcode-back" href="../../../utils/mindquantum.utils.random_circuit.html#mindquantum.utils.random_circuit">[文档]</a><span class="k">def</span> <span class="nf">random_circuit</span><span class="p">(</span><span class="n">n_qubits</span><span class="p">,</span> <span class="n">gate_num</span><span class="p">,</span> <span class="n">sd_rate</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">ctrl_rate</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -149,11 +157,14 @@
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; from mindquantum.utils import random_circuit</span>
 <span class="sd">        &gt;&gt;&gt; random_circuit(3, 4, 0.5, 0.5, 100)</span>
-<span class="sd">        q1: ──Z────RX(0.944)────────●────────RX(-0.858)──</span>
-<span class="sd">              │        │            │            │</span>
-<span class="sd">        q2: ──●────────●────────RZ(-2.42)────────●───────</span>
+<span class="sd">              ┏━━━┓ ┏━━━━━━━━━━━━┓               ┏━━━━━━━━━━━━━┓</span>
+<span class="sd">        q1: ──┨ Z ┠─┨ RX(0.9437) ┠───────■───────┨ RX(-0.8582) ┠───</span>
+<span class="sd">              ┗━┳━┛ ┗━━━━━━┳━━━━━┛       ┃       ┗━━━━━━┳━━━━━━┛</span>
+<span class="sd">                ┃          ┃       ┏━━━━━┻━━━━━┓        ┃</span>
+<span class="sd">        q2: ────■──────────■───────┨ RZ(-2.42) ┠────────■──────────</span>
+<span class="sd">                                   ┗━━━━━━━━━━━┛</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># pylint: disable=import-outside-toplevel,cyclic-import</span>
+    <span class="c1"># pylint: disable=import-outside-toplevel,cyclic-import,redefined-outer-name</span>
     <span class="kn">from</span> <span class="nn">..core</span> <span class="kn">import</span> <span class="n">gates</span>
     <span class="kn">from</span> <span class="nn">..core.circuit</span> <span class="kn">import</span> <span class="n">Circuit</span>
 
@@ -205,6 +216,126 @@
                 <span class="n">gate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">double</span><span class="p">[</span><span class="s1">&#39;non_param&#39;</span><span class="p">])</span>
                 <span class="n">circuit</span> <span class="o">+=</span> <span class="n">gate</span><span class="o">.</span><span class="n">on</span><span class="p">([</span><span class="n">q1</span><span class="p">,</span> <span class="n">q2</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">circuit</span></div>
+
+
+<span class="c1"># pylint: disable=too-many-arguments,too-many-locals,too-many-branches</span>
+<div class="viewcode-block" id="random_insert_gates"><a class="viewcode-back" href="../../../utils/mindquantum.utils.random_insert_gates.html#mindquantum.utils.random_insert_gates">[文档]</a><span class="k">def</span> <span class="nf">random_insert_gates</span><span class="p">(</span>
+    <span class="n">circuit</span><span class="p">:</span> <span class="n">Circuit</span><span class="p">,</span>
+    <span class="n">gates</span><span class="p">:</span> <span class="n">BasicGate</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="n">BasicGate</span><span class="p">],</span>
+    <span class="n">nums</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">focus_on</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">with_ctrl</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">after_measure</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">shots</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Randomly insert given numbers of single-qubit gates into a quantum circuit.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        circuit (Circuit): The circuit with gates to be inserted into.</span>
+<span class="sd">        gates (Union[BasicGate, List[BasicGate]]): The selected single-qubit gates to be inserted.</span>
+<span class="sd">        nums (Union[int, List[int]]):The number of each gate to be inserted.</span>
+<span class="sd">            Note that the length of the nums should be equal to that of the gates.</span>
+<span class="sd">        with_ctrl (bool): Whether insert gates for control qubits. Default: ``True``.</span>
+<span class="sd">        focus_on (Optional[Union[int, List[int]]]): only insert gates on ``focus_on`` qubits. If ``None``, insert to</span>
+<span class="sd">            all qubits of selected gates. Default: ``None``.</span>
+<span class="sd">        after_measure (bool): Whether insert gates after measure gates. Default: ``False``.</span>
+<span class="sd">        shots (int): How many shots you want to sampling this circuit. Default: ``1``.</span>
+<span class="sd">        seed (int): Random seed for random sampling. If ``None``, seed will be a random int number. Default: ``None``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A generator that can generate quantum circuits.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.gates import X, Z, BitFlipChannel, PhaseFlipChannel</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.core.circuit import Circuit</span>
+<span class="sd">        &gt;&gt;&gt; from mindquantum.utils import random_insert_gates</span>
+<span class="sd">        &gt;&gt;&gt; origin = Circuit().rx(&#39;theta&#39;, 0).rz(&#39;beta&#39;, 1, 0).barrier().measure(0)</span>
+<span class="sd">        &gt;&gt;&gt; print(origin)</span>
+<span class="sd">              ┏━━━━━━━━━━━┓                ┍━━━━━━┑</span>
+<span class="sd">        q0: ──┨ RX(theta) ┠───────■──────▓─┤ M q0 ├───</span>
+<span class="sd">              ┗━━━━━━━━━━━┛       ┃      ▓ ┕━━━━━━┙</span>
+<span class="sd">                            ┏━━━━━┻━━━━┓ ▓</span>
+<span class="sd">        q1: ────────────────┨ RZ(beta) ┠─▓────────────</span>
+<span class="sd">                            ┗━━━━━━━━━━┛</span>
+<span class="sd">        &gt;&gt;&gt; circs = list(random_insert_gates(origin, [BitFlipChannel(p=1), PhaseFlipChannel(p=1)], [2, 1]))</span>
+<span class="sd">        &gt;&gt;&gt; print(circs[0])</span>
+<span class="sd">              ┏━━━━━━━━━━━┓ ╔══════════╗ ╔══════════╗                             ┍━━━━━━┑</span>
+<span class="sd">        q0: ──┨ RX(theta) ┠─╢ BFC(p=1) ╟─╢ PFC(p=1) ╟───────■───────────────────▓─┤ M q0 ├───</span>
+<span class="sd">              ┗━━━━━━━━━━━┛ ╚══════════╝ ╚══════════╝       ┃                   ▓ ┕━━━━━━┙</span>
+<span class="sd">                                                      ┏━━━━━┻━━━━┓ ╔══════════╗ ▓</span>
+<span class="sd">        q1: ──────────────────────────────────────────┨ RZ(beta) ┠─╢ BFC(p=1) ╟─▓────────────</span>
+<span class="sd">                                                      ┗━━━━━━━━━━┛ ╚══════════╝</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># pylint: disable=import-outside-toplevel,cyclic-import</span>
+
+    <span class="kn">from</span> <span class="nn">..core.gates</span> <span class="kn">import</span> <span class="n">BarrierGate</span><span class="p">,</span> <span class="n">Measure</span>
+
+    <span class="k">if</span> <span class="n">seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_check_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gates</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="p">[</span><span class="n">gates</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">gate</span> <span class="ow">in</span> <span class="n">gates</span><span class="p">:</span>
+        <span class="n">_check_gate_type</span><span class="p">(</span><span class="n">gate</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">gate</span> <span class="ow">in</span> <span class="n">gates</span><span class="p">:</span>
+        <span class="n">_check_gate_type</span><span class="p">(</span><span class="n">gate</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gate</span><span class="o">.</span><span class="n">n_qubits</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">gate</span><span class="o">.</span><span class="n">obj_qubits</span> <span class="o">+</span> <span class="n">gate</span><span class="o">.</span><span class="n">ctrl_qubits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Only single-qubit gates can be inserted, but get </span><span class="si">{</span><span class="n">gate</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">nums</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
+        <span class="n">nums</span> <span class="o">=</span> <span class="p">[</span><span class="n">nums</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">nums</span><span class="p">:</span>
+        <span class="n">_check_int_type</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The number of quantum gates to insert requires a non-negative integer, but get </span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">num</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">nums</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">gates</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The length of nums and the length of gates are not the same.&quot;</span><span class="p">)</span>
+
+    <span class="n">focus</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">circuit</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">focus_on</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">focus_on</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
+            <span class="n">focus</span> <span class="o">=</span> <span class="p">[</span><span class="n">focus_on</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">qubit</span> <span class="ow">in</span> <span class="n">focus</span><span class="p">:</span>
+        <span class="n">_check_int_type</span><span class="p">(</span><span class="s2">&quot;focus_on&quot;</span><span class="p">,</span> <span class="n">qubit</span><span class="p">)</span>
+
+    <span class="n">_check_int_type</span><span class="p">(</span><span class="s2">&quot;shots&quot;</span><span class="p">,</span> <span class="n">shots</span><span class="p">)</span>
+
+    <span class="n">available_indices</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">gate</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">circuit</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">BarrierGate</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">after_measure</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">Measure</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="n">available_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="c1"># pylint: disable=too-many-nested-blocks</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">shots</span><span class="p">):</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">nums</span><span class="p">:</span>
+            <span class="n">tem</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">available_indices</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">num</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+            <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tem</span><span class="p">)</span>
+
+        <span class="n">circ</span> <span class="o">=</span> <span class="n">Circuit</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">gate</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">circuit</span><span class="p">):</span>
+            <span class="n">circ</span> <span class="o">+=</span> <span class="n">gate</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">tem_indices</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">indices</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">tem_indices</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="n">i</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">with_ctrl</span><span class="p">:</span>
+                            <span class="n">qubits</span> <span class="o">=</span> <span class="n">gate</span><span class="o">.</span><span class="n">ctrl_qubits</span> <span class="o">+</span> <span class="n">gate</span><span class="o">.</span><span class="n">obj_qubits</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">qubits</span> <span class="o">=</span> <span class="n">gate</span><span class="o">.</span><span class="n">obj_qubits</span>
+                        <span class="n">sample</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">qubits</span><span class="p">)</span> <span class="o">&amp;</span> <span class="nb">set</span><span class="p">(</span><span class="n">focus</span><span class="p">))</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">sample</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                                <span class="s2">&quot;gate cannot be inserted, because its qubits are not covered &quot;</span>
+                                <span class="s2">&quot;by the focus_on. Please resample or modify the settings.&quot;</span>
+                            <span class="p">)</span>
+                        <span class="n">qubit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+                        <span class="n">circ</span> <span class="o">+=</span> <span class="n">gates</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">qubit</span><span class="p">))</span>
+        <span class="k">yield</span> <span class="n">circ</span></div>
 
 
 <span class="k">def</span> <span class="nf">_check_num_array</span><span class="p">(</span><span class="n">vec</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
