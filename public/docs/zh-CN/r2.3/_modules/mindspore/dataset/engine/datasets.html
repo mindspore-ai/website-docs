@@ -214,6 +214,7 @@
 <span class="kn">from</span> <span class="nn">..core.py_util_helpers</span> <span class="kn">import</span> <span class="n">ExceptionHandler</span>
 <span class="kn">from</span> <span class="nn">..transforms.py_transforms_util</span> <span class="kn">import</span> <span class="n">FuncWrapper</span><span class="p">,</span> <span class="n">Implementation</span>
 <span class="kn">from</span> <span class="nn">..vision.transforms</span> <span class="kn">import</span> <span class="n">ToNumpy</span>
+<span class="kn">from</span> <span class="nn">...mindrecord.config</span> <span class="kn">import</span> <span class="n">_get_enc_key</span><span class="p">,</span> <span class="n">_get_enc_mode</span><span class="p">,</span> <span class="n">_get_hash_mode</span><span class="p">,</span> <span class="n">encrypt</span><span class="p">,</span> <span class="n">append_hash_to_file</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="n">context</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s2">&quot;mindspore.context&quot;</span><span class="p">)</span>
@@ -801,15 +802,17 @@
 <span class="sd">                be dropped and not propagated to the child node.</span>
 <span class="sd">            num_parallel_workers (int, optional): Number of workers(threads) to process the dataset in parallel.</span>
 <span class="sd">                Default: ``None``.</span>
-<span class="sd">            pad_info (dict, optional): The information about how to batch each column. The key</span>
+<span class="sd">            pad_info (dict, optional): The pad information about how to batch each column. The key</span>
 <span class="sd">                corresponds to the column name, and the value must be a tuple of 2 elements.</span>
 <span class="sd">                The first element corresponds to the shape to pad to, and the second</span>
 <span class="sd">                element corresponds to the value to pad with. If a column is not</span>
 <span class="sd">                specified, then that column will be padded to the longest in the current</span>
-<span class="sd">                batch, and 0 will be used as the padding value. Any None dimensions will</span>
-<span class="sd">                be padded to the longest in the current batch, unless if</span>
-<span class="sd">                pad_to_bucket_boundary is True. If no padding is wanted, set `pad_info`</span>
-<span class="sd">                to ``None``. Default: ``None``.</span>
+<span class="sd">                batch, and 0 will be used as the padding value. If ``pad_info={&quot;col1&quot;: ([224, 224], 0)}``,</span>
+<span class="sd">                expand the data column named ``col1`` to shape (224, 224), and fill in the missing values with 0.</span>
+<span class="sd">                If ``pad_info={}``, all samples in the batch will be filled to the shape with the largest sample</span>
+<span class="sd">                in the current batch. If ``pad_info={&quot;col1&quot;: (None, 100)}``, all samples in the batch will be filled</span>
+<span class="sd">                to the shape with the largest sample in the current batch, and fill in the missing values with 100.</span>
+<span class="sd">                If no padding is wanted, set `pad_info` to ``None``. Default: ``None``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Dataset, a new dataset with the above operation applied.</span>
@@ -1165,20 +1168,28 @@
 
 <span class="sd">        Examples:</span>
 <span class="sd">            &gt;&gt;&gt; import mindspore.dataset as ds</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # Create a dataset with 10 elements</span>
 <span class="sd">            &gt;&gt;&gt; dataset = ds.GeneratorDataset([i for i in range(10)], &quot;column1&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; ori_size = dataset.get_dataset_size()</span>
 <span class="sd">            &gt;&gt;&gt;</span>
-<span class="sd">            &gt;&gt;&gt; # Create a dataset where the dataset is repeated for 50 epochs</span>
+<span class="sd">            &gt;&gt;&gt; # Repeat the dataset 50 times.</span>
 <span class="sd">            &gt;&gt;&gt; dataset = dataset.repeat(50)</span>
+<span class="sd">            &gt;&gt;&gt; repeated_size = dataset.get_dataset_size()</span>
+<span class="sd">            &gt;&gt;&gt; print(&quot;ori_size&quot;, ori_size, &quot;, repeated_size&quot;, repeated_size)</span>
+<span class="sd">            ori_size 10 , repeated_size 500</span>
 <span class="sd">            &gt;&gt;&gt;</span>
-<span class="sd">            &gt;&gt;&gt; # Create a dataset where each epoch is shuffled individually</span>
-<span class="sd">            &gt;&gt;&gt; dataset = dataset.shuffle(10)</span>
-<span class="sd">            &gt;&gt;&gt; dataset = dataset.repeat(50)</span>
+<span class="sd">            &gt;&gt;&gt; # Since the original dataset size is less than batch_size, thus no data is returned</span>
+<span class="sd">            &gt;&gt;&gt; dataset1 = ds.GeneratorDataset([i for i in range(10)], &quot;column1&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; dataset1 = dataset1.batch(batch_size=20, drop_remainder=True)</span>
+<span class="sd">            &gt;&gt;&gt; dataset1 = dataset1.repeat(6)</span>
 <span class="sd">            &gt;&gt;&gt;</span>
-<span class="sd">            &gt;&gt;&gt; # Create a dataset where the dataset is first repeated for</span>
-<span class="sd">            &gt;&gt;&gt; # 50 epochs before shuffling. The shuffle operation will treat</span>
-<span class="sd">            &gt;&gt;&gt; # the entire 50 epochs as one big dataset.</span>
-<span class="sd">            &gt;&gt;&gt; dataset = dataset.repeat(50)</span>
-<span class="sd">            &gt;&gt;&gt; dataset = dataset.shuffle(10)</span>
+<span class="sd">            &gt;&gt;&gt; # Repeat the original dataset to 60 elements, thus 3 batches are returned</span>
+<span class="sd">            &gt;&gt;&gt; dataset2 = ds.GeneratorDataset([i for i in range(10)], &quot;column1&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; dataset2 = dataset2.repeat(6)</span>
+<span class="sd">            &gt;&gt;&gt; dataset2 = dataset2.batch(batch_size=20, drop_remainder=True)</span>
+<span class="sd">            &gt;&gt;&gt; print(&quot;dataset1 size&quot;, dataset1.get_dataset_size(), &quot;, dataset2 size&quot;, dataset2.get_dataset_size())</span>
+<span class="sd">            dataset1 size 0 , dataset2 size 3</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">RepeatDataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span></div>
 
@@ -1664,6 +1675,10 @@
 <span class="sd">            &gt;&gt;&gt; d1 = ds.GeneratorDataset(generator_1d, [&quot;data&quot;], shuffle=False)</span>
 <span class="sd">            &gt;&gt;&gt; d1.save(&#39;/path/to/save_file&#39;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">_get_enc_key</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">_get_hash_mode</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">num_files</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;When encode mode or hash check is enabled, &quot;</span> <span class="o">+</span>
+                               <span class="s2">&quot;the automatic sharding function is unavailable.&quot;</span><span class="p">)</span>
+
         <span class="n">ir_tree</span><span class="p">,</span> <span class="n">api_tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_ir_tree</span><span class="p">()</span>
 
         <span class="n">runtime_context</span> <span class="o">=</span> <span class="n">cde</span><span class="o">.</span><span class="n">PythonRuntimeContext</span><span class="p">()</span>
@@ -1673,6 +1688,15 @@
         <span class="n">runtime_context</span><span class="o">.</span><span class="n">AssignConsumer</span><span class="p">(</span><span class="n">consumer</span><span class="p">)</span>
 
         <span class="n">consumer</span><span class="o">.</span><span class="n">Save</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">_get_hash_mode</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">append_hash_to_file</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+            <span class="n">append_hash_to_file</span><span class="p">(</span><span class="n">file_name</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">_get_enc_key</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">encrypt</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_enc_mode</span><span class="p">())</span>
+            <span class="n">encrypt</span><span class="p">(</span><span class="n">file_name</span> <span class="o">+</span> <span class="s2">&quot;.db&quot;</span><span class="p">,</span> <span class="n">_get_enc_key</span><span class="p">(),</span> <span class="n">_get_enc_mode</span><span class="p">())</span>
+
         <span class="n">_set_dataset_permissions</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">num_files</span><span class="p">)</span>
         <span class="k">del</span> <span class="n">api_tree</span></div>
 

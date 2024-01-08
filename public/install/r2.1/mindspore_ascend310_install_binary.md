@@ -72,7 +72,7 @@ python -m pip install -U pip
 
 昇腾软件包提供商用版和社区版两种下载途径：
 
-- 商用版下载需要申请权限，下载链接与安装方式请参考[Ascend Training Solution 23.0.RC2安装指引文档](https://support.huawei.com/enterprise/zh/doc/EDOC1100318640)。
+- 商用版下载需要申请权限，下载链接与安装方式请参考[Ascend Training Solution 23.0.RC2安装指引文档](https://support.huawei.com/enterprise/zh/doc/EDOC1100348301)。
 
 - 社区版下载不受限制，下载链接请前往[CANN社区版](https://www.hiascend.com/software/cann/community-history)，选择`6.3.RC2.alpha005`版本，以及在[固件与驱动](https://www.hiascend.com/hardware/firmware-drivers?tag=community)链接中获取对应的固件和驱动安装包，安装包的选择与安装方式请参照上述的商用版安装指引文档。
 
@@ -211,7 +211,7 @@ export LD_LIBRARY_PATH={mindspore_path}:${LD_LIBRARY_PATH}
 
 ## 验证是否成功安装
 
-创建目录放置样例代码工程，例如`/home/HwHiAiUser/Ascend/ascend-toolkit/20.0.RC1/acllib_linux.arm64/sample/acl_execute_model/ascend310_single_op_sample`，代码可以从[官网示例下载](https://obs.dualstack.cn-north-4.myhuaweicloud.com/mindspore-website/sample_resources/ascend310_single_op_sample.zip)获取，这是一个`[1, 2, 3, 4]`与`[2, 3, 4, 5]`相加的简单样例，代码工程目录结构如下:
+创建目录放置样例代码工程，例如`/home/HwHiAiUser/Ascend/ascend-toolkit/20.0.RC1/acllib_linux.arm64/sample/acl_execute_model/ascend310_single_op_sample`，代码可以从[官网示例下载](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/sample_resources/ascend310_single_op_sample.zip)获取，这是一个`[1, 2, 3, 4]`与`[2, 3, 4, 5]`相加的简单样例，代码工程目录结构如下:
 
 ```text
 └─ascend310_single_op_sample

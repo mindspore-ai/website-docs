@@ -2,14 +2,13 @@
 <html class="writer-html5" lang="zh-CN" >
 <head>
   <meta charset="utf-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>优化器并行 &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>优化器并行 &mdash; MindSpore master 文档</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
         <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script src="../_static/translations.js"></script><script crossorigin="anonymous" integrity="sha256-1fEPhSsRKlFKGfK3eO710tEweHh1fwokU5wFGDHO+vg=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="流水线并行" href="pipeline_parallel.html" />
     <link rel="prev" title="算子级并行" href="operator_parallel.html" /> 
 </head>
@@ -23,7 +22,7 @@
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="在文档中搜索" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -66,7 +65,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">算法优化</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累积</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累加</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../optimize/thor.html">二阶优化</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">高阶函数式编程</span></p>
@@ -111,7 +110,7 @@
           <li><a href="semi_auto_parallel.html">半自动并行</a> &raquo;</li>
       <li>优化器并行</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/parallel/optimizer_parallel.md.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/parallel/optimizer_parallel.md.txt" rel="nofollow"> 查看页面源码</a>
       </li>
   </ul>
   <hr/>
@@ -144,10 +143,10 @@
 }
 </style>
 <section class="tex2jax_ignore mathjax_ignore" id="优化器并行">
-<h1>优化器并行<a class="headerlink" href="#优化器并行" title="Permalink to this headline"></a></h1>
+<h1>优化器并行<a class="headerlink" href="#优化器并行" title="永久链接至标题"></a></h1>
 <p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.2/tutorials/experts/source_zh_cn/parallel/optimizer_parallel.md"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.2/resource/_static/logo_source.svg" /></a></p>
 <section id="概述">
-<h2>概述<a class="headerlink" href="#概述" title="Permalink to this headline"></a></h2>
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题"></a></h2>
 <p>在进行数据并行训练时，模型的参数更新部分在各卡间存在冗余计算，优化器并行通过将优化器的计算量分散到数据并行维度的卡上，在大规模网络上（比如Bert、GPT）可以有效减少内存消耗并提升网络性能。</p>
 <p>在数据并行（DATA_PARALLEL）模式下使能优化器并行，框架会将需要更新的参数进行分散到不同卡上，各自更新后再通过Broadcast算子在集群间做权重共享。需要注意的是参数量应当大于机器数，当前只支持Lamb和AdamWeightDecay优化器。</p>
 <p>在自动并行（AUTO_PARALLEL）或者半自动并行（SEMI_AUTO_PARALLEL）模式下使能优化器并行，如果经过策略切分后的参数在机器间存在重复切片，并且shape的最高维可以被重复切片的卡数整除，框架会以最小切片的方式保存参数并在优化器中更新。该模式下支持所有优化器。</p>
@@ -183,7 +182,7 @@
 </ol>
 </section>
 <section id="基本原理">
-<h2>基本原理<a class="headerlink" href="#基本原理" title="Permalink to this headline"></a></h2>
+<h2>基本原理<a class="headerlink" href="#基本原理" title="永久链接至标题"></a></h2>
 <p>传统的数据并行模式将模型参数在每台设备上都有保有副本，把训练数据切分，在每次迭代后利用通信算子同步梯度信息，最后通过优化器计算对参数进行更新。数据并行虽然能够有效提升训练吞吐量，但并没有最大限度地利用机器资源。其中优化器会引入冗余内存和计算，消除这些冗余是需关注的优化点。</p>
 <p>在一个训练迭代中，数据并行为了收集各卡上不同样本产生的参数梯度，引入通信操作将梯度在多卡间同步。因为不涉及模型并行，每张卡上的优化器运算其实是基于相同的参数、在相同的方向上更新。而消除优化器冗余的根本思想就是将这部分内存和计算量分散到各个卡上，实现内存和性能的收益。</p>
 <p>如果要对优化器实现并行运算，有两种实现思路，参数分组(Weights Grouping)和参数切分(Weights Sharding)。其中参数分组是将优化器内的参数及梯度做层间划分，大致的训练流程如图1所示。将参数和梯度分组放到不同卡上更新，再通过通信广播操作在设备间共享更新后的权值。该方案的内存和性能收益取决于参数比例最大的group。当参数均匀划分时，理论上的正收益是N-1/N的优化器运行时间和动态内存，以及N-1/N的优化器状态参数内存大小，其中N表示设备数。而引入的负收益是共享网络权重时带来的通信时间。</p>
@@ -197,10 +196,10 @@
 <p>MindSpore实现的优化器参数切分还具有与算子级并行混合使用的优势。当算子级模型并行参数未切满时，可以继续在数据并行的维度上进行优化器参数切分，增大机器资源的利用率，从而提升端到端性能。</p>
 </section>
 <section id="操作实践">
-<h2>操作实践<a class="headerlink" href="#操作实践" title="Permalink to this headline"></a></h2>
+<h2>操作实践<a class="headerlink" href="#操作实践" title="永久链接至标题"></a></h2>
 <p>下面以Ascend或者GPU单机8卡为例，进行优化器并行操作说明：</p>
 <section id="样例代码说明">
-<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="Permalink to this headline"></a></h3>
+<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="永久链接至标题"></a></h3>
 <blockquote>
 <div><p>下载完整的样例代码：<a class="reference external" href="https://gitee.com/mindspore/docs/tree/r2.2/docs/sample_code/distributed_optimizer_parallel">distributed_optimizer_parallel</a>。</p>
 </div></blockquote>
@@ -215,7 +214,7 @@
 <p>其中，<code class="docutils literal notranslate"><span class="pre">distributed_optimizer_parallel.py</span></code>是定义网络结构和训练过程的脚本。<code class="docutils literal notranslate"><span class="pre">run.sh</span></code>是执行脚本。</p>
 </section>
 <section id="配置分布式环境">
-<h3>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="Permalink to this headline"></a></h3>
+<h3>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="永久链接至标题"></a></h3>
 <p>通过context接口指定运行模式、运行设备、运行卡号等，与单卡脚本不同，并行脚本还需指定并行模式<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>为半自动并行模式，并通过init初始化HCCL或NCCL通信。此外，还需开启优化器并行，配置<code class="docutils literal notranslate"><span class="pre">enable_parallel_optimizer=True</span></code>。此处不设置<code class="docutils literal notranslate"><span class="pre">device_target</span></code>会自动指定为MindSpore包对应的后端硬件设备。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
@@ -228,7 +227,7 @@
 </div>
 </section>
 <section id="数据集加载">
-<h3>数据集加载<a class="headerlink" href="#数据集加载" title="Permalink to this headline"></a></h3>
+<h3>数据集加载<a class="headerlink" href="#数据集加载" title="永久链接至标题"></a></h3>
 <p>在优化器并行场景下，数据集加载方式与单卡加载方式一致，代码如下：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
@@ -253,7 +252,7 @@
 </div>
 </section>
 <section id="定义网络">
-<h3>定义网络<a class="headerlink" href="#定义网络" title="Permalink to this headline"></a></h3>
+<h3>定义网络<a class="headerlink" href="#定义网络" title="永久链接至标题"></a></h3>
 <p>优化器并行网络结构与单卡网络结构基本一致，区别在于增加了通信算子融合的配置：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 
@@ -286,7 +285,7 @@
 </div></blockquote>
 </section>
 <section id="训练网络">
-<h3>训练网络<a class="headerlink" href="#训练网络" title="Permalink to this headline"></a></h3>
+<h3>训练网络<a class="headerlink" href="#训练网络" title="永久链接至标题"></a></h3>
 <p>在这一步，我们需要定义损失函数、优化器以及训练过程，这部分与单卡写法一致：</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
@@ -318,7 +317,7 @@
 </div>
 </section>
 <section id="运行单机8卡脚本">
-<h3>运行单机8卡脚本<a class="headerlink" href="#运行单机8卡脚本" title="Permalink to this headline"></a></h3>
+<h3>运行单机8卡脚本<a class="headerlink" href="#运行单机8卡脚本" title="永久链接至标题"></a></h3>
 <p>接下来通过命令调用对应的脚本，以<code class="docutils literal notranslate"><span class="pre">mpirun</span></code>启动方式，8卡的分布式训练脚本为例，进行分布式训练：</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run.sh
 </pre></div>
@@ -352,11 +351,11 @@ epoch: 0, step: 100, loss is 0.6854114
 </section>
 </section>
 <section id="高级接口">
-<h2>高级接口<a class="headerlink" href="#高级接口" title="Permalink to this headline"></a></h2>
+<h2>高级接口<a class="headerlink" href="#高级接口" title="永久链接至标题"></a></h2>
 <ol class="arabic">
 <li><p><code class="docutils literal notranslate"><span class="pre">parallel_optimizer_config</span></code>：优化器并行特性还提供了配置字典<code class="docutils literal notranslate"><span class="pre">parallel_optimizer_config={}</span></code>。通过在<code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context()</span></code>中配置不同的键值，可以达到不同的效果：</p>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">gradient_accumulation_shard</span></code>：如果为True，则累积梯度变量将在数据并行维度上进行分片。在累积梯度时，每个累积迭代中将会引入额外的通信(ReduceScatter)以保证计算的一致性，但节省了大量的计算设备内存(例如GPU显存)，因此可以使模型以更大的批量进行训练。仅当模型在流水线并行训练或梯度累积中设置此配置，并且具有数据并行维度时，此配置才会有效。默认值为True。</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">gradient_accumulation_shard</span></code>：如果为True，则累加梯度变量将在数据并行维度上进行分片。在累加梯度时，每个累加迭代中将会引入额外的通信(ReduceScatter)以保证计算的一致性，但节省了大量的计算设备内存(例如GPU显存)，因此可以使模型以更大的批量进行训练。仅当模型在流水线并行训练或梯度累加中设置此配置，并且具有数据并行维度时，此配置才会有效。默认值为True。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_optimizer_config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;gradient_accumulation_shard&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="n">enable_parallel_optimizer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
@@ -399,19 +398,19 @@ epoch: 0, step: 100, loss is 0.6854114
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="operator_parallel.html" class="btn btn-neutral float-left" title="算子级并行" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="pipeline_parallel.html" class="btn btn-neutral float-right" title="流水线并行" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="operator_parallel.html" class="btn btn-neutral float-left" title="算子级并行" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="pipeline_parallel.html" class="btn btn-neutral float-right" title="流水线并行" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright MindSpore.</p>
+    <p>&#169; 版权所有 MindSpore.</p>
   </div>
 
-  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发.
    
 
 </footer>
