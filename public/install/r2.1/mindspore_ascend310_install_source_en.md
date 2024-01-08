@@ -116,7 +116,7 @@ python --version
 
 Ascend software package provides two distributions, commercial edition and community edition:
 
-- Commercial edition needs approval from Ascend to download, for detailed installation guide, please refer to [Ascend Training Solution 23.0.RC2 Installation Guide](https://support.huawei.com/enterprise/zh/doc/EDOC1100318640).
+- Commercial edition needs approval from Ascend to download, for detailed installation guide, please refer to [Ascend Training Solution 23.0.RC2 Installation Guide](https://support.huawei.com/enterprise/zh/doc/EDOC1100348301).
 
 - Community edition has no restrictions, choose `6.3.RC2.alpha005` in [CANN community edition](https://www.hiascend.com/software/cann/community-history), then choose relevant driver and firmware packages in [firmware and driver](https://www.hiascend.com/hardware/firmware-drivers?tag=community). Please refer to the abovementioned commercial edition installation guide to choose which packages are to be installed and how to install them.
 
@@ -277,7 +277,7 @@ Where:
 
 ## Verifying the Installation
 
-Create a directory to store the sample code project, for example, `/home/HwHiAiUser/Ascend/ascend-toolkit/20.0.RC1/acllib_linux.arm64/sample/acl_execute_model/ascend310_single_op_sample`. You can obtain the code from the [official website](https://obs.dualstack.cn-north-4.myhuaweicloud.com/mindspore-website/sample_resources/ascend310_single_op_sample.zip). A simple example of adding `[1, 2, 3, 4]` to `[2, 3, 4, 5]` is used and the code project directory structure is as follows:
+Create a directory to store the sample code project, for example, `/home/HwHiAiUser/Ascend/ascend-toolkit/20.0.RC1/acllib_linux.arm64/sample/acl_execute_model/ascend310_single_op_sample`. You can obtain the code from the [official website](https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/sample_resources/ascend310_single_op_sample.zip). A simple example of adding `[1, 2, 3, 4]` to `[2, 3, 4, 5]` is used and the code project directory structure is as follows:
 
 ```text
 
