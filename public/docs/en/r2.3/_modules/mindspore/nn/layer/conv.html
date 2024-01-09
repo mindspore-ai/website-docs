@@ -163,6 +163,7 @@
 <span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">twice</span><span class="p">,</span> <span class="n">_check_3d_int_or_tuple</span>
 <span class="kn">from</span> <span class="nn">mindspore._extends</span> <span class="kn">import</span> <span class="n">cell_attr_register</span>
 <span class="kn">from</span> <span class="nn">mindspore.nn.cell</span> <span class="kn">import</span> <span class="n">Cell</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.primitive</span> <span class="kn">import</span> <span class="n">_primexpr</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Conv2d&#39;</span><span class="p">,</span> <span class="s1">&#39;Conv2dTranspose&#39;</span><span class="p">,</span> <span class="s1">&#39;Conv1d&#39;</span><span class="p">,</span> <span class="s1">&#39;Conv1dTranspose&#39;</span><span class="p">,</span> <span class="s1">&#39;Conv3d&#39;</span><span class="p">,</span> <span class="s1">&#39;Conv3dTranspose&#39;</span><span class="p">]</span>
 
@@ -379,7 +380,7 @@
 <span class="sd">            `Initializer &lt;https://www.mindspore.cn/docs/en/r2.3/api_python/mindspore.common.initializer.html&gt;`_,</span>
 <span class="sd">            for more details. Default: ``None`` , bias will be initialized using ``&#39;Uniform&#39;`` .</span>
 <span class="sd">        data_format (str, optional): The optional value for data format, is ``&#39;NHWC&#39;`` or ``&#39;NCHW&#39;`` .</span>
-<span class="sd">            Default: ``&#39;NCHW&#39;`` .</span>
+<span class="sd">            Default: ``&#39;NCHW&#39;`` . (NHWC is only supported in GPU now.)</span>
 <span class="sd">        dtype (:class:`mindspore.dtype`): Dtype of Parameters. Default: ``mstype.float32`` .</span>
 
 <span class="sd">    Inputs:</span>
@@ -1427,6 +1428,12 @@
         <span class="k">return</span> <span class="n">pad</span><span class="p">(</span><span class="n">conv2d_trans_ret</span><span class="p">)</span></div>
 
 
+<span class="nd">@_primexpr</span>
+<span class="k">def</span> <span class="nf">_check_input_3d</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">op_name</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="n">op_name</span><span class="si">}</span><span class="s2">&#39;, the dimension of input must be 3d, but got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">input_shape</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="Conv1dTranspose"><a class="viewcode-back" href="../../../../api_python/nn/mindspore.nn.Conv1dTranspose.html#mindspore.nn.Conv1dTranspose">[docs]</a><span class="k">class</span> <span class="nc">Conv1dTranspose</span><span class="p">(</span><span class="n">_Conv</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Calculates a 1D transposed convolution, which can be regarded as Conv1d for the gradient of the input,</span>
@@ -1594,10 +1601,10 @@
         <span class="k">return</span> <span class="bp">self</span>
 
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">_check_input_3d</span><span class="p">(</span><span class="n">x_shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span><span class="p">)</span>
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-
         <span class="n">n</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
         <span class="n">h_out</span> <span class="o">=</span> <span class="n">_deconv_output_length</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">is_valid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_same</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_pad</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
                                       <span class="bp">self</span><span class="o">.</span><span class="n">stride</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dilation</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
         <span class="n">w_out</span> <span class="o">=</span> <span class="n">_deconv_output_length</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">is_valid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_same</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_pad</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
