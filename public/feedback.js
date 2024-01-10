@@ -5,10 +5,9 @@ $(function () {
     const isEn = pathname.includes('/en/');
     const lang = isEn ? 'en' : 'zh';
     let currentVersion = '';
-    let componentName = pathname.split('/')[1];
+    let componentName = $('.header-nav-info h3').text();
 
     let isPR = true;
-    let repositoryHref = '';
     let ideHref = '';
     let repositoryComponent = 'docs';
 
@@ -49,42 +48,41 @@ $(function () {
           children: [
             isEn ? 'Specifications and Common Mistakes:' : '规范和低错类：',
             isEn
-              ? '- Misspellings or punctuation mistakes,incorrect formulas, abnormal display;'
-              : '- 错别字或拼写错误，标点符号使用错误、公式错误或显示异常；',
+              ? 'Misspellings or punctuation mistakes,incorrect formulas, abnormal display;'
+              : '错别字或拼写错误，标点符号使用错误、公式错误或显示异常；',
             isEn
-              ? '- Incorrect links, empty cells, or wrong formats;'
-              : '- 链接错误、空单元格、格式错误；',
+              ? 'Incorrect links, empty cells, or wrong formats;'
+              : '链接错误、空单元格、格式错误；',
             isEn
-              ? '- Chinese characters in English context;'
-              : '- 英文中包含中文字符；',
+              ? 'Chinese characters in English context;'
+              : '英文中包含中文字符；',
             isEn
-              ? '- Minor inconsistencies between the UI and descriptions;'
-              : '- 界面和描述不一致，但不影响操作；',
+              ? 'Minor inconsistencies between the UI and descriptions;'
+              : '界面和描述不一致，但不影响操作；',
             isEn
-              ? '- Low writing fluency that does not affect understanding;'
-              : '- 表述不通顺，但不影响理解；',
+              ? 'Low writing fluency that does not affect understanding;'
+              : '表述不通顺，但不影响理解；',
             isEn
-              ? '- Incorrect version numbers, including software package names and version numbers on the UI.'
-              : '- 版本号不匹配：如软件包名称、界面版本号；',
+              ? 'Incorrect version numbers, including software package names and version numbers on the UI.'
+              : '版本号不匹配：如软件包名称、界面版本号；',
           ],
         },
         {
           name: isEn ? 'Usability' : '易用性',
-
           children: [
             isEn ? 'Usability:' : '易用性：',
             isEn
-              ? '- Incorrect or missing key steps;'
-              : '- 关键步骤错误或缺失，无法指导用户完成任务；',
+              ? 'Incorrect or missing key steps;'
+              : '关键步骤错误或缺失，无法指导用户完成任务；',
             isEn
-              ? '- Missing main function descriptions, keyword explanation, necessary prerequisites, or precautions.'
-              : '- 缺少主要功能描述、关键词解释、必要前提条件、注意事项等；',
+              ? 'Missing main function descriptions, keyword explanation, necessary prerequisites, or precautions.'
+              : '缺少主要功能描述、关键词解释、必要前提条件、注意事项等；',
             isEn
-              ? '- Ambiguous descriptions, unclear reference, or contradictory context;'
-              : '- 描述内容存在歧义指代不明、上下文矛盾；',
+              ? 'Ambiguous descriptions, unclear reference, or contradictory context;'
+              : '描述内容存在歧义指代不明、上下文矛盾；',
             isEn
-              ? '- Unclear logic, such as missing classifications, items, and steps.'
-              : '- 逻辑不清晰，该分类、分项、分步骤的没有给出；',
+              ? 'Unclear logic, such as missing classifications, items, and steps.'
+              : '逻辑不清晰，该分类、分项、分步骤的没有给出；',
           ],
         },
         {
@@ -92,22 +90,22 @@ $(function () {
           children: [
             isEn ? 'Correctness:' : '正确性：',
             isEn
-              ? '- Technical principles, function descriptions, supported platforms, parameter types, or exceptions inconsistent with that of software implementation;'
-              : '- 技术原理、功能、支持平台、参数类型、异常报错等描述和软件实现不一致；',
+              ? 'Technical principles, function descriptions, supported platforms, parameter types, or exceptions inconsistent with that of software implementation;'
+              : '技术原理、功能、支持平台、参数类型、异常报错等描述和软件实现不一致；',
             isEn
-              ? '- Incorrect schematic or architecture diagrams;'
-              : '- 原理图、架构图等存在错误；',
+              ? 'Incorrect schematic or architecture diagrams;'
+              : '原理图、架构图等存在错误；',
             isEn
-              ? '- Incorrect commands or command parameters;'
-              : '- 命令、命令参数等错误；',
-            isEn ? '- Incorrect code;' : '- 代码片段错误；',
+              ? 'Incorrect commands or command parameters;'
+              : '命令、命令参数等错误；',
+            isEn ? 'Incorrect code;' : '代码片段错误；',
             isEn
-              ? '- Commands inconsistent with the functions;'
-              : '- 命令无法完成对应功能；',
-            isEn ? '- Wrong screenshots.' : '- 界面错误，无法指导操作；',
+              ? 'Commands inconsistent with the functions;'
+              : '命令无法完成对应功能；',
+            isEn ? 'Wrong screenshots.' : '界面错误，无法指导操作；',
             isEn
-              ? '- Sample code running error, or running results inconsistent with the expectation.'
-              : '- 代码样例运行报错、运行结果不符；',
+              ? 'Sample code running error, or running results inconsistent with the expectation.'
+              : '代码样例运行报错、运行结果不符；',
           ],
         },
         {
@@ -115,8 +113,8 @@ $(function () {
           children: [
             isEn ? 'Risk Warnings:' : '风险提示：',
             isEn
-              ? '- Lack of risk warnings for operations that may damage the system or important data.'
-              : '- 对重要数据或系统存在风险的操作，缺少安全提示；',
+              ? 'Lack of risk warnings for operations that may damage the system or important data.'
+              : '对重要数据或系统存在风险的操作，缺少安全提示；',
           ],
         },
         {
@@ -124,9 +122,9 @@ $(function () {
           children: [
             isEn ? 'Content Compliance:' : '内容合规：',
             isEn
-              ? '- Contents that may violate applicable laws and regulations or geo-cultural context-sensitive words and expressions;'
-              : '- 违反法律法规，涉及政治、领土主权等敏感词；',
-            isEn ? '- Copyright infringement.' : '- 内容侵权；',
+              ? 'Contents that may violate applicable laws and regulations or geo-cultural context-sensitive words and expressions;'
+              : '违反法律法规，涉及政治、领土主权等敏感词；',
+            isEn ? 'Copyright infringement.' : '内容侵权；',
           ],
         },
       ],
@@ -157,14 +155,15 @@ $(function () {
         isEn
           ? 'By submitting the contents, you fully understand and agree to the terms of the MindSpore '
           : '您理解并同意，您填写和提交的内容，即视为您已充分阅读并同意MindSpore的',
-        isEn ? 'Privacy Statement.' : '《隐私政策声明》',
+        isEn ? 'Privacy Policy.' : '《隐私政策》',
       ],
       privacyLink: isEn ? '/privacy/en' : '/privacy',
+      feedbackLink: isEn ? '/feedback/en' : '/feedback',
       submit: isEn ? 'Submit' : '提交',
       issue: [
         '1. 【Document Link】/【文档链接】',
         '2. 【Issues Section】/【问题文档片段】',
-        '2. 【Issues Section】/【问题文档片段】',
+        '3. 【Issues Section】/【问题文档片段】',
         '4. 【Expected Result】【预期结果】',
         '- Please fill in the expected result',
       ],
@@ -222,13 +221,14 @@ $(function () {
         satisfaction,
         privacyText,
         privacyLink,
+        feedbackLink,
         submit,
         satisfactionTips,
         title,
       } = locale;
       return `<div class="evaluate-dialog "><div id="evaluate-mark"></div><div class="evaluate-alert ${lang}">
             <div class="evaluate-head">
-              <h3>${title}</h3>
+              <h3>${title} <a href="${feedbackLink}" target="_blank" rel="noopener noreferrer" class="evaluate-help"></a></h3>
               <em class="evaluate-close"></em>
             </div>
           <div class="docs-evaluate">
@@ -313,25 +313,19 @@ $(function () {
 
     // issue模板
     const issueTemplate = (data) => {
-      let Problem = '';
-      data.existProblem.length == 0
-        ? ''
-        : (Problem = `- ${data.existProblem.join('、')}`);
       return `${locale.issue[0]}
-    
-    > ${data.link}
+> ${data.link}
     
 ${locale.issue[1]}
     
-    > ${data.bugDocFragment.replace(/(\r\n|\r|\n)+/g, '$1')}
+> ${data.bugDocFragment.replace(/(\r\n|\r|\n)+/g, '$1')}
     
 ${locale.issue[2]}
     
-    ${Problem}
-    > ${data.problemDetail.replace(/(\r\n|\r|\n)+/g, '$1')}
+${data.problemDetail.replace(/(\-)+/g, '>')}
     
 ${locale.issue[3]}
-    ${locale.issue[4]}`;
+${locale.issue[4]}`;
     };
 
     const utils = () => {
@@ -398,7 +392,7 @@ ${locale.issue[3]}
             .removeClass('active-submit');
           const index = $(this).index();
           const questionValue =
-            locale.questionTypeList[index].children.join('\n');
+            locale.questionTypeList[index].children.join('\n -  ');
           if (questionValue.trim().length > 500) {
             problemTxa.val(questionValue.trim().substring(0, 500));
           } else if (questionValue.length === 0) {
@@ -491,8 +485,17 @@ ${locale.issue[3]}
           }
 
           const first = codeSnippet.val().split(regR)[0];
-          componentName =
-            componentName === 'docs' ? 'mindspore' : componentName;
+
+          if (submitType === 'issue') {
+            let desc = encodeURIComponent(issueTemplate(postData));
+            openUrl(
+              `https://gitee.com/mindspore/${repositoryComponent}/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=文档反馈-${componentName}&description=${desc}`
+            );
+          } else {
+            openUrl(
+              `${ideHref}?search=${first}&title=文档反馈-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
+            );
+          }
 
           $.ajax({
             type: 'POST',
@@ -595,14 +598,13 @@ ${locale.issue[3]}
             source.includes(imgAlt.toLocaleLowerCase()) &&
             link.startsWith('https://gitee.')
           ) {
-            repositoryHref = link;
             isPR = true;
             const BLOB = '/blob/';
-            const giteeUrlArr = repositoryHref.split(BLOB);
+            const giteeUrlArr = link.split(BLOB);
             currentVersion = giteeUrlArr[1].split('/')[0];
             repositoryComponent = giteeUrlArr[0].split('/')[4];
             // 根据版本获取文件路径
-            let source = repositoryHref.split(currentVersion)[1];
+            let source = link.split(currentVersion)[1];
             ideHref = `https://gitee.com/-/ide/project/mindspore/${repositoryComponent}/edit/${currentVersion}/-${source}`;
           } else {
             isPR = false;

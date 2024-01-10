@@ -153,7 +153,7 @@ If not, Dataset AutoTune will also try to reduce the memory usage of the dataset
 </section>
 <section id="enabling-dataset-autotune">
 <h2>Enabling Dataset AutoTune<a class="headerlink" href="#enabling-dataset-autotune" title="Permalink to this headline"></a></h2>
-<p>To enable Dataset AutoTune and not save the more efficient dataset pipeline:</p>
+<p>To enable Dataset AutoTune (without saving the recommended configuration after tuning):</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 <span class="n">ds</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">set_enable_autotune</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
@@ -188,7 +188,7 @@ To set the tuning interval in steps:</p>
 <li><p><a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/r2.3/dataset/dataset_offload.html">Offload for Dataset</a> and Dataset AutoTune can be enabled simultaneously. If any dataset node has been offloaded for hardware acceleration, the more efficient dataset pipeline configuration file will not be stored and a warning will be logged, because the dataset pipeline that is actually running is not the predefined one.</p></li>
 <li><p>If the Dataset pipeline consists of a node that does not support deserialization (e.g. user-defined Python functions, GeneratorDataset), any attempt to deserialize the saved and improved dataset pipeline configuration file will report an error. In this case, it is recommended to manually modify the dataset pipeline script based on the contents of the tuning configuration file to achieve the purpose of a more efficient dataset pipeline.</p></li>
 <li><p>In the distributed training scenario, <code class="docutils literal notranslate"><span class="pre">set_enable_autotune()</span></code> must be called after cluster communication has been initialized (mindspore.communication.management.init()), otherwise AutoTune can only detect device with id 0 and create only one tuned file (the number of expected tuned files equal to the number of devices). See the following example:</p>
-<p>Code in distributed training scenario must be:</p>
+<p>In distributed multi-card training scenarios, Dataset AutoTune needs to be enabled only after cluster initialization is complete:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication.management</span> <span class="kn">import</span> <span class="n">init</span>
 <span class="n">init</span><span class="p">()</span>
@@ -232,7 +232,7 @@ To set the tuning interval in steps:</p>
     <span class="c1"># enable Dataset AutoTune</span>
     <span class="n">ds</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">set_enable_autotune</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;/path/to/autotune_out&quot;</span><span class="p">)</span>
 
-    <span class="c1"># define dataset</span>
+    <span class="c1"># no changes required for other dataset codes</span>
     <span class="n">data_set</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">Cifar10Dataset</span><span class="p">(</span><span class="n">data_path</span><span class="p">)</span>
     <span class="o">...</span>
 </pre></div>
@@ -289,7 +289,7 @@ epoch time: 17116.234 ms, per step time: 9.129 ms
 [WARNING] [auto_tune.cc:236 IsDSaBottleneck] Utilization: 2.24% &lt; 75% threshold, dataset pipeline performance needs tuning.
 </pre></div>
 </div>
-<p>Then, Dataset AutoTune increases the number of parallel workers from 2 to 4 for MapOp(ID:3) and increases the prefetch size from 1 to 5 for BatchOp(ID:2).</p>
+<p>The reason is mainly that the data processing pipeline generates data slowly and the network side reads the generated data very quickly. Based on this, Dataset AutoTune module adjusts the number of working threads (“num_parallel_workers”) of MapOp(ID:3) and the depth of internal queue (“prefetch_size”) of BatchOp(ID:2) operation.</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[WARNING] [auto_tune.cc:297 Analyse] Op (MapOp(ID:3)) is slow, input connector utilization=0.975806, output connector utilization=0.298387, diff= 0.677419 &gt; 0.35 threshold.
 [WARNING] [auto_tune.cc:253 RequestNumWorkerChange] Added request to change &quot;num_parallel_workers&quot; of Operator: MapOp(ID:3)From old value: [2] to new value: [4].
 [WARNING] [auto_tune.cc:309 Analyse] Op (BatchOp(ID:2)) getting low average worker cpu utilization 1.64516% &lt; 35% threshold.
@@ -323,7 +323,7 @@ For prefetch_size, Dataset AutoTune suggests to choose the maximum value and set
 <h3>Saving AutoTune Recommended Configuration<a class="headerlink" href="#saving-autotune-recommended-configuration" title="Permalink to this headline"></a></h3>
 <p>Since Dataset AutoTune was enabled to generate a more efficient dataset pipeline, the improved dataset pipeline can be serialized (by passing in the ‘filepath_prefix’ parameter) and saved to the JSON configuration file.</p>
 <p>After passing string to <code class="docutils literal notranslate"><span class="pre">filepath_prefix</span></code>, AutoTune will automatically generate JSON files corresponding to the device number according to the current training mode in a standalone or distributed environment.</p>
-<p>For example, let <code class="docutils literal notranslate"><span class="pre">filepath_prefix='autotune_out'</span></code>.</p>
+<p>For example, configure <code class="docutils literal notranslate"><span class="pre">filepath_prefix='autotune_out'</span></code>.</p>
 <ul class="simple">
 <li><p>In distributed training on 4 devices, AutoTune will generate 4 tuning files: autotune_out_0.json, autotune_out_1.json, autotune_out_2.json, autotune_out_3.json, corresponding to the configuration of the dataset pipeline of the 4 devices.</p></li>
 <li><p>In a standalone training on 1 device, AutoTune will generate autotune_out_0.json, which corresponds to the configuration of the dataset pipeline on this device.</p></li>
