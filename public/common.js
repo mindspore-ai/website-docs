@@ -681,7 +681,7 @@ $(function () {
     const appFooter = {
       beian: ['粤A2-20044005号', '粤公网安备44030702002890号'],
       aboutTitle: isEn ? 'Follow us' : '关注我们',
-      copyRight: isEn ? 'Copyright©MindSpore 2023' : '版权所有©MindSpore 2023',
+      copyRight: isEn ? 'Copyright©MindSpore 2024' : '版权所有©MindSpore 2024',
       footLinks: [
         {
           name: isEn ? 'Security' : '安全',
