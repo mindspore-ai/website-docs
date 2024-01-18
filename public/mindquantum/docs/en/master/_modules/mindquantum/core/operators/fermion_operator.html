@@ -145,7 +145,11 @@
 <span class="kn">from</span> <span class="nn">mindquantum.dtype.dtype</span> <span class="kn">import</span> <span class="n">str_dtype_map</span>
 <span class="kn">from</span> <span class="nn">mindquantum.mqbackend</span> <span class="kn">import</span> <span class="n">EQ_TOLERANCE</span>
 <span class="kn">from</span> <span class="nn">mindquantum.third_party.interaction_operator</span> <span class="kn">import</span> <span class="n">InteractionOperator</span>
-<span class="kn">from</span> <span class="nn">mindquantum.utils.type_value_check</span> <span class="kn">import</span> <span class="n">_check_int_type</span><span class="p">,</span> <span class="n">_require_package</span>
+<span class="kn">from</span> <span class="nn">mindquantum.utils.type_value_check</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_check_and_generate_pr_type</span><span class="p">,</span>
+    <span class="n">_check_int_type</span><span class="p">,</span>
+    <span class="n">_require_package</span><span class="p">,</span>
+<span class="p">)</span>
 
 
 <span class="nd">@lru_cache</span><span class="p">()</span>
@@ -651,20 +655,27 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">FermionOperator</span><span class="p">(</span><span class="n">FermionOperator_</span><span class="o">.</span><span class="n">hermitian_conjugated</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">internal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="FermionOperator.matrix"><a class="viewcode-back" href="../../../../core/operators/mindquantum.core.operators.FermionOperator.html#mindquantum.core.operators.FermionOperator.matrix">[docs]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=too-many-branches</span>
+<div class="viewcode-block" id="FermionOperator.matrix"><a class="viewcode-back" href="../../../../core/operators/mindquantum.core.operators.FermionOperator.html#mindquantum.core.operators.FermionOperator.matrix">[docs]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=too-many-branches</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert this fermion operator to csr_matrix under jordan_wigner mapping.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            n_qubits (int): The total qubit of final matrix. If None, the value will be</span>
 <span class="sd">                the maximum local qubit number. Default: None.</span>
+<span class="sd">            pr (ParameterResolver, dict, numpy.ndarray, list, numbers.Number): The parameter</span>
+<span class="sd">                resolver for parameterized FermionOperator. Default: None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameterized</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Cannot convert a parameterized fermion operator to matrix.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pr</span> <span class="o">=</span> <span class="n">ParameterResolver</span><span class="p">()</span>
+        <span class="n">pr</span> <span class="o">=</span> <span class="n">_check_and_generate_pr_type</span><span class="p">(</span><span class="n">pr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params_name</span><span class="p">)</span>
         <span class="n">np_type</span> <span class="o">=</span> <span class="n">mq</span><span class="o">.</span><span class="n">to_np_type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">ops</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameterized</span><span class="p">:</span>
+            <span class="n">ops</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">ops</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">pr</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">terms</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot convert empty fermion operator to matrix&quot;</span><span class="p">)</span>
-        <span class="n">n_qubits_local</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">count_qubits</span><span class="p">()</span>
+        <span class="n">n_qubits_local</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">count_qubits</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">n_qubits_local</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">n_qubits</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;You should specific n_qubits for converting a identity fermion operator.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">n_qubits</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -675,7 +686,7 @@
                 <span class="sa">f</span><span class="s2">&quot;Given n_qubits </span><span class="si">{</span><span class="n">n_qubits</span><span class="si">}</span><span class="s2"> is small than qubit of fermion operator, which is </span><span class="si">{</span><span class="n">n_qubits_local</span><span class="si">}</span><span class="s2">.&quot;</span>
             <span class="p">)</span>
         <span class="n">out</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">term</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">terms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">term</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">ops</span><span class="o">.</span><span class="n">terms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">coeff</span> <span class="o">=</span> <span class="n">coeff</span><span class="o">.</span><span class="n">const</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">term</span><span class="p">:</span>
                 <span class="n">out</span> <span class="o">+=</span> <span class="n">csr_matrix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n_qubits</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np_type</span><span class="p">))</span> <span class="o">*</span> <span class="n">coeff</span>
@@ -696,6 +707,14 @@
                             <span class="n">tmp</span> <span class="o">*=</span> <span class="n">_single_fermion_word</span><span class="p">(</span><span class="n">gate</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">gate</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">n_qubits</span><span class="p">,</span> <span class="n">np_type</span><span class="p">)</span>
                 <span class="n">out</span> <span class="o">+=</span> <span class="n">tmp</span> <span class="o">*</span> <span class="n">coeff</span>
         <span class="k">return</span> <span class="n">out</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">params_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all parameters of this operator.&quot;&quot;&quot;</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">terms</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">names</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">pr</span><span class="o">.</span><span class="n">params_name</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">names</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">names</span>
 
 <div class="viewcode-block" id="FermionOperator.normal_ordered"><a class="viewcode-back" href="../../../../core/operators/mindquantum.core.operators.FermionOperator.html#mindquantum.core.operators.FermionOperator.normal_ordered">[docs]</a>    <span class="k">def</span> <span class="nf">normal_ordered</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;FermionOperator&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
