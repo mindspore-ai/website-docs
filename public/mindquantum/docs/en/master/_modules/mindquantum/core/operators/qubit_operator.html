@@ -142,7 +142,11 @@
 <span class="kn">from</span> <span class="nn">mindquantum.core.parameterresolver</span> <span class="kn">import</span> <span class="n">ParameterResolver</span><span class="p">,</span> <span class="n">PRConvertible</span>
 <span class="kn">from</span> <span class="nn">mindquantum.dtype.dtype</span> <span class="kn">import</span> <span class="n">str_dtype_map</span>
 <span class="kn">from</span> <span class="nn">mindquantum.mqbackend</span> <span class="kn">import</span> <span class="n">EQ_TOLERANCE</span>
-<span class="kn">from</span> <span class="nn">mindquantum.utils.type_value_check</span> <span class="kn">import</span> <span class="n">_check_int_type</span><span class="p">,</span> <span class="n">_require_package</span>
+<span class="kn">from</span> <span class="nn">mindquantum.utils.type_value_check</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_check_and_generate_pr_type</span><span class="p">,</span>
+    <span class="n">_check_int_type</span><span class="p">,</span>
+    <span class="n">_require_package</span><span class="p">,</span>
+<span class="p">)</span>
 
 
 <span class="c1"># pylint: disable=too-many-public-methods</span>
@@ -609,22 +613,39 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">QubitOperator</span><span class="p">(</span><span class="n">QubitOperator_</span><span class="o">.</span><span class="n">hermitian_conjugated</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">internal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="QubitOperator.matrix"><a class="viewcode-back" href="../../../../core/operators/mindquantum.core.operators.QubitOperator.html#mindquantum.core.operators.QubitOperator.matrix">[docs]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="QubitOperator.matrix"><a class="viewcode-back" href="../../../../core/operators/mindquantum.core.operators.QubitOperator.html#mindquantum.core.operators.QubitOperator.matrix">[docs]</a>    <span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert this qubit operator to csr_matrix.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            n_qubits (int): The total qubits of final matrix. If ``None``, the value will be</span>
 <span class="sd">                the maximum local qubit number. Default: ``None``.</span>
+<span class="sd">            pr (ParameterResolver, dict, numpy.ndarray, list, numbers.Number): The parameter</span>
+<span class="sd">                resolver for parameterized QubitOperator. Default: None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">pr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pr</span> <span class="o">=</span> <span class="n">ParameterResolver</span><span class="p">()</span>
+        <span class="n">pr</span> <span class="o">=</span> <span class="n">_check_and_generate_pr_type</span><span class="p">(</span><span class="n">pr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params_name</span><span class="p">)</span>
+        <span class="n">ops</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameterized</span><span class="p">:</span>
+            <span class="n">ops</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">ops</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">pr</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">n_qubits</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">n_qubits</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
         <span class="n">_check_int_type</span><span class="p">(</span><span class="s1">&#39;n_qubits&#39;</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">)</span>
-        <span class="n">csr</span> <span class="o">=</span> <span class="n">QubitOperator_</span><span class="o">.</span><span class="n">sparsing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">)</span>
+        <span class="n">csr</span> <span class="o">=</span> <span class="n">QubitOperator_</span><span class="o">.</span><span class="n">sparsing</span><span class="p">(</span><span class="n">ops</span><span class="p">,</span> <span class="n">n_qubits</span><span class="p">)</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">csr</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">indptr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">csr</span><span class="o">.</span><span class="n">get_indptr</span><span class="p">(),</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">csr</span><span class="o">.</span><span class="n">get_indices</span><span class="p">(),</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">csr_matrix</span><span class="p">((</span><span class="n">data</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">indptr</span><span class="p">),</span> <span class="p">(</span><span class="n">csr</span><span class="o">.</span><span class="n">n_row</span><span class="p">,</span> <span class="n">csr</span><span class="o">.</span><span class="n">n_col</span><span class="p">))</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">params_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all parameters of this operator.&quot;&quot;&quot;</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">terms</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">names</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">pr</span><span class="o">.</span><span class="n">params_name</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">names</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">names</span>
 
 <div class="viewcode-block" id="QubitOperator.relabel"><a class="viewcode-back" href="../../../../core/operators/mindquantum.core.operators.QubitOperator.html#mindquantum.core.operators.QubitOperator.relabel">[docs]</a>    <span class="k">def</span> <span class="nf">relabel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logic_qubits</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">&quot;QubitOperator&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
