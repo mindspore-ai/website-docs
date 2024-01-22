@@ -207,9 +207,7 @@ $(function () {
             <div class="evaluate-item">
               <span class="label">${submitType}</span>
               <div class="box evaluate-type">
-                  <div class="doc-filter-btn ${
-                    isPR ? '' : 'active-submit'
-                  }" attr_type="issue">
+                  <div class="doc-filter-btn attr_type="issue">
                     <span>issue</span>
                     <div class="tips">${issueTips
                       .map((item) => {
@@ -219,7 +217,7 @@ $(function () {
                   </div>
                   ${
                     isPR
-                      ? `<div class="doc-filter-btn active-submit" attr_type="PR"><span>PR</span><div class="tips">${prTips
+                      ? `<div class="doc-filter-btn " attr_type="PR"><span>PR</span><div class="tips">${prTips
                           .map((item) => {
                             return `<p>${item}</p>`;
                           })
@@ -295,11 +293,11 @@ ${locale.issue[4]}`;
         if ($radio.data('checked')) {
           $radio.prop('checked', false);
           $radio.data('checked', false);
-          submitBtnaddClass('disable');
+          submitBtn.addClass('disable');
         } else {
           $radio.prop('checked', true);
           $radio.data('checked', true);
-          submitBtnremoveClass('disable');
+          submitBtn.removeClass('disable');
         }
       });
 
