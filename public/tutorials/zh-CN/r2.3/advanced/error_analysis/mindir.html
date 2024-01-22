@@ -114,7 +114,7 @@
 <h2>概述<a class="headerlink" href="#概述" title="永久链接至标题"></a></h2>
 <p>在图模式<code class="docutils literal notranslate"><span class="pre">set_context(mode=GRAPH_MODE)</span></code>下运行用MindSpore编写的模型时，若配置中设置了<code class="docutils literal notranslate"><span class="pre">set_context(save_graphs=2)</span></code>，运行时会输出一些图编译过程中生成的中间文件，我们称为IR文件。当前主要有两种格式的IR文件：</p>
 <ul class="simple">
-<li><p>ir后缀结尾的IR文件：一种比较直观易懂的以文本格式描述模型结构的文件，可以直接用文本编辑软件查看。可以通过设置环境变量<code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">MS_DEV_SAVE_GRAPHS_SORT_MODE=1</span></code>打印异序排序方式的ir文件。异序ir文件将按照图的调用顺序打印ir图。可以通过将该环境变量设置为<code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">MS_DEV_SAVE_GRAPHS_SORT_MODE=0</span></code>来切换为打印原来的排序方式的ir文件。</p></li>
+<li><p>ir后缀结尾的IR文件：一种比较直观易懂的以文本格式描述模型结构的文件，可以直接用文本编辑软件查看。</p></li>
 <li><p>dot后缀结尾的IR文件：若在配置中设置了<code class="docutils literal notranslate"><span class="pre">set_context(save_graphs=3)</span></code>, 运行时会输出后缀为dot的ir文件。该文件描述了不同节点间的拓扑关系，可以用<a class="reference external" href="http://graphviz.org">graphviz</a>将此文件作为输入生成图片，方便用户直观地查看模型结构。对于算子比较多的模型，推荐使用可视化组件<a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/zh-CN/master/dashboard.html#%E8%AE%A1%E7%AE%97%E5%9B%BE%E5%8F%AF%E8%A7%86%E5%8C%96">MindSpore Insight</a>对计算图进行可视化。</p></li>
 </ul>
 </section>
@@ -310,102 +310,6 @@
 </ul>
 </div></blockquote>
 </section>
-<section id="异序ir文件介绍">
-<h3>异序ir文件介绍<a class="headerlink" href="#异序ir文件介绍" title="永久链接至标题"></a></h3>
-<p>使用文本编辑软件（例如<code class="docutils literal notranslate"><span class="pre">vi</span></code>）打开在设置了环境变量<code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">MS_DEV_SAVE_GRAPHS_SORT_MODE=1</span></code>并执行样例：</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>  1 import mindspore as ms
-  2 import mindspore.nn as nn
-  3 from mindspore import ops
-  4
-  5 ms.set_context(mode=ms.GRAPH_MODE)
-  6 ms.set_context(save_graphs=2, save_graphs_path=&quot;./ir&quot;)
-  7
-  8 class Net(nn.Cell):
-  9     def __init__(self):
- 10         super().__init__()
- 11
- 12     def func(x, y):
- 13         return ops.mul(x, y)
- 14
- 15     def construct(self, x, y):
- 16         b = self.func(x, y)
- 17         return b
- 18
- 19 input1 = ms.Tensor(3, ms.float32)
- 20 input2 = ms.Tensor(2, ms.float32)
- 21 net = Net()
- 22 out = net(input1, input2)
- 23 print(out)
-</pre></div>
-</div>
-<p>输出的IR文件<code class="docutils literal notranslate"><span class="pre">04_abstract_specialize_0004.ir</span></code>，内容如下所示（此处版本为MindSpore 2.1，后续版本中内容可能会有一些细微变化）：</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>  1 #IR entry      : @1___main___Net_construct.12
-  2 #Total subgraph: 3
-  3
-  4 #attrs         :
-  5 # Total params: 2
-  6 # Params:
-  7 %para1_x : &lt;Tensor[Float32], ()&gt;
-  8 %para2_y : &lt;Tensor[Float32], ()&gt;
-  9
- 10 subgraph attr:
- 11 subgraph instance: 1___main___Net_construct.12 : 0x55844586acc0
- 12 # In file t6.py:15/    def construct(self, x, y):/
- 13 subgraph @1___main___Net_construct.12() {
- 14   %0(b) = call @2_func.13(%para1_x, %para2_y)
- 15       : (&lt;Tensor[Float32], ()&gt;, &lt;Tensor[Float32], ()&gt;) -&gt; (&lt;Tensor[Float32], ()&gt;)
- 16       # Scope: (Default)
- 17       # In file t6.py:16/        b = self.func(x, y)/
- 18   Return(%0)
- 19       : (&lt;Tensor[Float32], ()&gt;)
- 20       # Scope: (Default)
- 21       # In file t6.py:17/        return b/
- 22 }
- 23 # Order:
- 24 #   1: @1___main___Net_construct.12:b{[0]: ValueNode&lt;FuncGraph&gt; 2_func.13, [1]: x, [2]: y}
- 25 #   2: @1___main___Net_construct.12:[CNode]5{[0]: ValueNode&lt;Primitive&gt; Return, [1]: b}
- 26
- 27
- 28 subgraph attr:
- 29 undeterminate : 0
- 30 subgraph instance: 2_func.13 : 0x55844588f4d0
- 31 # In file t6.py:12/    def func(x, y):/
- 32 subgraph @2_func.13(%para3_x, %para4_y) {
- 33   %0([CNode]8) = call @3_mul.14(%para3_x, %para4_y)
- 34       : (&lt;Tensor[Float32], ()&gt;, &lt;Tensor[Float32], ()&gt;) -&gt; (&lt;Tensor[Float32], ()&gt;)
- 35       # Scope: (Default)
- 36       # In file t6.py:13/        return ops.mul(x, y)/
- 37   Return(%0)
- 38       : (&lt;Tensor[Float32], ()&gt;)
- 39       # Scope: (Default)
- 40       # In file t6.py:13/        return ops.mul(x, y)/
- 41 }
- 42 # Order:
- 43 #   1: @2_func.13:[CNode]8{[0]: ValueNode&lt;FuncGraph&gt; 3_mul.14, [1]: x, [2]: y}
- 44 #   2: @2_func.13:[CNode]9{[0]: ValueNode&lt;Primitive&gt; Return, [1]: [CNode]8}
- 45
- 46
- 47 subgraph attr:
- 48 undeterminate : 0
- 49 subgraph instance: 3_mul.14 : 0x558445891190
- 50 # In file /workspace/mindspore/build/package/mindspore/ops/function/math_func.py:936/def mul(input, other):/
- 51 subgraph @3_mul.14(%para3_input, %para4_other) {
- 52   %0([CNode]10) = Mul(%para3_input, %para4_other) primitive_attrs: {output_names: [output], input_names: [x, y]}
- 53       : (&lt;Tensor[Float32], ()&gt;, &lt;Tensor[Float32], ()&gt;) -&gt; (&lt;Tensor[Float32], ()&gt;)
- 54       # Scope: (Default)
- 55       # In file /workspace/mindspore/build/package/mindspore/ops/function/math_func.py:982/    return tensor_mul(input, other)/
- 56   Return(%0)
- 57       : (&lt;Tensor[Float32], ()&gt;)
- 58       # Scope: (Default)
- 59       # In file /workspace/mindspore/build/package/mindspore/ops/function/math_func.py:982/    return tensor_mul(input, other)/
- 60 }
- 61 # Order:
- 62 #   1: @3_mul.14:[CNode]10{[0]: ValueNode&lt;PrimitivePy&gt; Mul, [1]: input, [2]: other}
- 63 #   2: @3_mul.14:[CNode]11{[0]: ValueNode&lt;Primitive&gt; Return, [1]: [CNode]10}
-</pre></div>
-</div>
-<p>以上内容，从顶图开始，以拓扑排序的方式展示了所有图的信息。图将根据调用顺序打印出来。如有需要追踪图的调用，可以使用此种排序的ir图。</p>
-</section>
 <section id="dot文件介绍">
 <h3>dot文件介绍<a class="headerlink" href="#dot文件介绍" title="永久链接至标题"></a></h3>
 <p>可以用<a class="reference external" href="http://graphviz.org">graphviz</a>将<code class="docutils literal notranslate"><span class="pre">dot</span></code>格式的IR文件作为输入生成图片。例如，在Linux操作系统下，可以通过以下命令转换成一张PNG图片。</p>
@@ -533,8 +437,7 @@
  49 # num of function graphs in stack: 1
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">analyze_fail.ir</span></code>文件与前文介绍过的异序ir文件格式一致，唯一有区别的地方在于<code class="docutils literal notranslate"><span class="pre">analyze_fail.ir</span></code>文件中会指出推导出错的节点所在的位置。
-即第19行的<code class="docutils literal notranslate"><span class="pre">------------------------&gt;</span> <span class="pre">0</span></code>。该箭头指向了推导出错的节点，为<code class="docutils literal notranslate"><span class="pre">%3([CNode]5)</span> <span class="pre">=</span> <span class="pre">call</span> <span class="pre">&#64;func.21(%1,</span> <span class="pre">%1,</span> <span class="pre">%2)</span> <span class="pre">...</span></code>，如何查看analyze_fail.ir文件前文<code class="docutils literal notranslate"><span class="pre">异序ir文件介绍</span></code>一节中已经介绍，此处不再赘述。
+<p><code class="docutils literal notranslate"><span class="pre">analyze_fail.ir</span></code>文件与前文介绍过的ir文件格式一致，唯一有区别的地方在于<code class="docutils literal notranslate"><span class="pre">analyze_fail.ir</span></code>文件中会指出推导出错的节点所在的位置，即第19行的<code class="docutils literal notranslate"><span class="pre">------------------------&gt;</span> <span class="pre">0</span></code>。该箭头指向了推导出错的节点，为<code class="docutils literal notranslate"><span class="pre">%3([CNode]5)</span> <span class="pre">=</span> <span class="pre">call</span> <span class="pre">&#64;func.21(%1,</span> <span class="pre">%1,</span> <span class="pre">%2)</span> <span class="pre">...</span></code>。
 根据<code class="docutils literal notranslate"><span class="pre">(%1,</span> <span class="pre">%1,</span> <span class="pre">%2)</span></code>可知，该节点的输入参数有三个。从源码解析调用栈中可以知道实际该函数为<code class="docutils literal notranslate"><span class="pre">self.func</span></code>，在脚本中的定义为<code class="docutils literal notranslate"><span class="pre">def</span> <span class="pre">dunc(x,</span> <span class="pre">y):...</span></code>。
 在函数定义中，只需要两个参数，故会在此处出现推导失败的报错，我们需要修改脚本中传入的参数个数以解决该问题。</p>
 </section>

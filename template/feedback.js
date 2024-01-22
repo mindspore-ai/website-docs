@@ -5,10 +5,9 @@ $(function () {
     const isEn = pathname.includes('/en/');
     const lang = isEn ? 'en' : 'zh';
     let currentVersion = '';
-    let componentName = pathname.split('/')[1];
+    let componentName = $('.header-nav-info h3').text();
 
     let isPR = true;
-    let repositoryHref = '';
     let ideHref = '';
     let repositoryComponent = 'docs';
 
@@ -17,8 +16,6 @@ $(function () {
       bugDocFragment: '',
       existProblem: [],
       problemDetail: '',
-      comprehensiveSatisfication: 0,
-      email: '',
       link: window.location.href,
     };
 
@@ -49,42 +46,41 @@ $(function () {
           children: [
             isEn ? 'Specifications and Common Mistakes:' : '规范和低错类：',
             isEn
-              ? '- Misspellings or punctuation mistakes,incorrect formulas, abnormal display;'
-              : '- 错别字或拼写错误，标点符号使用错误、公式错误或显示异常；',
+              ? 'Misspellings or punctuation mistakes,incorrect formulas, abnormal display;'
+              : '错别字或拼写错误，标点符号使用错误、公式错误或显示异常；',
             isEn
-              ? '- Incorrect links, empty cells, or wrong formats;'
-              : '- 链接错误、空单元格、格式错误；',
+              ? 'Incorrect links, empty cells, or wrong formats;'
+              : '链接错误、空单元格、格式错误；',
             isEn
-              ? '- Chinese characters in English context;'
-              : '- 英文中包含中文字符；',
+              ? 'Chinese characters in English context;'
+              : '英文中包含中文字符；',
             isEn
-              ? '- Minor inconsistencies between the UI and descriptions;'
-              : '- 界面和描述不一致，但不影响操作；',
+              ? 'Minor inconsistencies between the UI and descriptions;'
+              : '界面和描述不一致，但不影响操作；',
             isEn
-              ? '- Low writing fluency that does not affect understanding;'
-              : '- 表述不通顺，但不影响理解；',
+              ? 'Low writing fluency that does not affect understanding;'
+              : '表述不通顺，但不影响理解；',
             isEn
-              ? '- Incorrect version numbers, including software package names and version numbers on the UI.'
-              : '- 版本号不匹配：如软件包名称、界面版本号；',
+              ? 'Incorrect version numbers, including software package names and version numbers on the UI.'
+              : '版本号不匹配：如软件包名称、界面版本号；',
           ],
         },
         {
           name: isEn ? 'Usability' : '易用性',
-
           children: [
             isEn ? 'Usability:' : '易用性：',
             isEn
-              ? '- Incorrect or missing key steps;'
-              : '- 关键步骤错误或缺失，无法指导用户完成任务；',
+              ? 'Incorrect or missing key steps;'
+              : '关键步骤错误或缺失，无法指导用户完成任务；',
             isEn
-              ? '- Missing main function descriptions, keyword explanation, necessary prerequisites, or precautions.'
-              : '- 缺少主要功能描述、关键词解释、必要前提条件、注意事项等；',
+              ? 'Missing main function descriptions, keyword explanation, necessary prerequisites, or precautions.'
+              : '缺少主要功能描述、关键词解释、必要前提条件、注意事项等；',
             isEn
-              ? '- Ambiguous descriptions, unclear reference, or contradictory context;'
-              : '- 描述内容存在歧义指代不明、上下文矛盾；',
+              ? 'Ambiguous descriptions, unclear reference, or contradictory context;'
+              : '描述内容存在歧义指代不明、上下文矛盾；',
             isEn
-              ? '- Unclear logic, such as missing classifications, items, and steps.'
-              : '- 逻辑不清晰，该分类、分项、分步骤的没有给出；',
+              ? 'Unclear logic, such as missing classifications, items, and steps.'
+              : '逻辑不清晰，该分类、分项、分步骤的没有给出；',
           ],
         },
         {
@@ -92,22 +88,22 @@ $(function () {
           children: [
             isEn ? 'Correctness:' : '正确性：',
             isEn
-              ? '- Technical principles, function descriptions, supported platforms, parameter types, or exceptions inconsistent with that of software implementation;'
-              : '- 技术原理、功能、支持平台、参数类型、异常报错等描述和软件实现不一致；',
+              ? 'Technical principles, function descriptions, supported platforms, parameter types, or exceptions inconsistent with that of software implementation;'
+              : '技术原理、功能、支持平台、参数类型、异常报错等描述和软件实现不一致；',
             isEn
-              ? '- Incorrect schematic or architecture diagrams;'
-              : '- 原理图、架构图等存在错误；',
+              ? 'Incorrect schematic or architecture diagrams;'
+              : '原理图、架构图等存在错误；',
             isEn
-              ? '- Incorrect commands or command parameters;'
-              : '- 命令、命令参数等错误；',
-            isEn ? '- Incorrect code;' : '- 代码片段错误；',
+              ? 'Incorrect commands or command parameters;'
+              : '命令、命令参数等错误；',
+            isEn ? 'Incorrect code;' : '代码片段错误；',
             isEn
-              ? '- Commands inconsistent with the functions;'
-              : '- 命令无法完成对应功能；',
-            isEn ? '- Wrong screenshots.' : '- 界面错误，无法指导操作；',
+              ? 'Commands inconsistent with the functions;'
+              : '命令无法完成对应功能；',
+            isEn ? 'Wrong screenshots.' : '界面错误，无法指导操作；',
             isEn
-              ? '- Sample code running error, or running results inconsistent with the expectation.'
-              : '- 代码样例运行报错、运行结果不符；',
+              ? 'Sample code running error, or running results inconsistent with the expectation.'
+              : '代码样例运行报错、运行结果不符；',
           ],
         },
         {
@@ -115,8 +111,8 @@ $(function () {
           children: [
             isEn ? 'Risk Warnings:' : '风险提示：',
             isEn
-              ? '- Lack of risk warnings for operations that may damage the system or important data.'
-              : '- 对重要数据或系统存在风险的操作，缺少安全提示；',
+              ? 'Lack of risk warnings for operations that may damage the system or important data.'
+              : '对重要数据或系统存在风险的操作，缺少安全提示；',
           ],
         },
         {
@@ -124,9 +120,9 @@ $(function () {
           children: [
             isEn ? 'Content Compliance:' : '内容合规：',
             isEn
-              ? '- Contents that may violate applicable laws and regulations or geo-cultural context-sensitive words and expressions;'
-              : '- 违反法律法规，涉及政治、领土主权等敏感词；',
-            isEn ? '- Copyright infringement.' : '- 内容侵权；',
+              ? 'Contents that may violate applicable laws and regulations or geo-cultural context-sensitive words and expressions;'
+              : '违反法律法规，涉及政治、领土主权等敏感词；',
+            isEn ? 'Copyright infringement.' : '内容侵权；',
           ],
         },
       ],
@@ -136,43 +132,25 @@ $(function () {
           ? 'Describe the bug so that we can quickly locate the problem.'
           : '点击输入详细问题描述，以帮助我们快速定位问题。',
       ],
-      emailInput: [
-        isEn
-          ? 'We may contact you through email in regard to the bug fixing solution. You will also be notified through email if you win any prize during the activity.'
-          : '我们可能针对您提出的问题，向您发送邮件反馈改进方案。如有获奖信息，我们也会通过此方式通知您。',
-        isEn ? 'Email' : '邮箱',
-        isEn ? 'Your email address' : '点击输入您的邮箱',
-      ],
-      satisfaction: [
-        isEn
-          ? 'How satisfied are you with this document(Optional)'
-          : '您对文档的总体满意度（可选）',
-        isEn ? 'Not satisfied at all' : '不满意',
-        isEn ? 'Very satisfied' : '非常满意',
-      ],
-      satisfactionTips: isEn
-        ? 'Please rate your overall satisfaction with this document'
-        : '请填写您对本文档的总体满意度',
       privacyText: [
         isEn
           ? 'By submitting the contents, you fully understand and agree to the terms of the MindSpore '
           : '您理解并同意，您填写和提交的内容，即视为您已充分阅读并同意MindSpore的',
-        isEn ? 'Privacy Statement.' : '《隐私政策声明》',
+        isEn ? 'Privacy Policy.' : '《隐私政策》',
       ],
       privacyLink: isEn ? '/privacy/en' : '/privacy',
+      feedbackLink: isEn ? '/feedback/en' : '/feedback',
       submit: isEn ? 'Submit' : '提交',
       issue: [
         '1. 【Document Link】/【文档链接】',
         '2. 【Issues Section】/【问题文档片段】',
-        '2. 【Issues Section】/【问题文档片段】',
+        '3. 【Issues Section】/【问题文档片段】',
         '4. 【Expected Result】【预期结果】',
         '- Please fill in the expected result',
       ],
       fragment: isEn
         ? 'Please enter the "Question" section'
         : '请输入“问题”片段',
-      email: isEn ? 'Enter your email' : '请输入您的邮箱',
-      emailValid: isEn ? 'Enter a valid email' : '请输入正确的邮箱',
       describe: isEn
         ? 'Choose a submission type and describe the bug'
         : '请选择提交类型并输入问题描述',
@@ -180,18 +158,6 @@ $(function () {
         ? 'Rate your satisfaction with this document'
         : '请选择满意度',
       privacyDesc: isEn ? 'Agree to Privacy Statement' : '请勾选同意隐私声明',
-    };
-    // 滑动条
-    const getSilderContent = () => {
-      const len = new Array(10).fill(0);
-      return `<div class="ms-slider" data-tips="" style="--percent: 0;">
-          <input type="range" id="sliderInput" value="0" min="0" max="10" step="1"  />
-          <div class="slider-bar"><div class='runway'><div class="trigger"></div></div><div class="ms-slider-dot">${len
-            .map((idx) => {
-              return `<i>•</i>`;
-            })
-            .join('')}</div></div>
-        </div>`;
     };
     // 过滤列表
     const getFilterList = (data, num) => {
@@ -218,17 +184,15 @@ $(function () {
         questionType,
         questionTypeList,
         problemDesc,
-        emailInput,
-        satisfaction,
         privacyText,
         privacyLink,
+        feedbackLink,
         submit,
-        satisfactionTips,
         title,
       } = locale;
       return `<div class="evaluate-dialog "><div id="evaluate-mark"></div><div class="evaluate-alert ${lang}">
             <div class="evaluate-head">
-              <h3>${title}</h3>
+              <h3>${title} <a href="${feedbackLink}" target="_blank" rel="noopener noreferrer" class="evaluate-help"></a></h3>
               <em class="evaluate-close"></em>
             </div>
           <div class="docs-evaluate">
@@ -278,25 +242,6 @@ $(function () {
                 }" maxlength="500"></textarea>
               </div>
             </div>
-            <p class="email-tips">${emailInput[0]}</p>
-            <div class="evaluate-item">
-              <span class="label">${emailInput[1]}</span>
-              <div class="box">
-                <input type="text" class="email-input" placeholder="${
-                  emailInput[2]
-                }"  />
-                <span class="error-tips"></span>
-              </div>
-            </div>
-            <div class="satisfaction">
-              <span class="label">${satisfaction[0]}</span>
-              <span class="satisfaction-tips">${satisfactionTips}</span>
-              <div class="satisfaction-box">
-                <span class="txt">0-${satisfaction[1]}</span>
-                ${getSilderContent()}
-                <span class="txt">10-${satisfaction[2]}</span>
-              </div>
-            </div>
             <div class="privacy-box">
             <div class="checkbox-item">
               <input type="radio" id="privacy" name="privacy">
@@ -307,38 +252,31 @@ $(function () {
       }</a></label>
             </div>
             </div>
-            <button class="evaluate-submit">${submit}</button>
+            <button class="evaluate-submit disable">${submit}</button>
           </div> </div></div>`;
     };
 
     // issue模板
     const issueTemplate = (data) => {
-      let Problem = '';
-      data.existProblem.length == 0
-        ? ''
-        : (Problem = `- ${data.existProblem.join('、')}`);
       return `${locale.issue[0]}
-    
-    > ${data.link}
+> ${data.link}
     
 ${locale.issue[1]}
     
-    > ${data.bugDocFragment.replace(/(\r\n|\r|\n)+/g, '$1')}
+> ${data.bugDocFragment.replace(/(\r\n|\r|\n)+/g, '$1')}
     
 ${locale.issue[2]}
     
-    ${Problem}
-    > ${data.problemDetail.replace(/(\r\n|\r|\n)+/g, '$1')}
+${data.problemDetail.replace(/(\-)+/g, '>')}
     
 ${locale.issue[3]}
-    ${locale.issue[4]}`;
+${locale.issue[4]}`;
     };
 
     const utils = () => {
       let problemTxa = $('.problem-txa'),
         codeSnippet = $('.code-snippet'),
-        satisfactionTips = $('.satisfaction-tips'),
-        emailInput = $('.email-input');
+        satisfactionTips = $('.satisfaction-tips');
 
       // 问题文档片段
       codeSnippet.on('input propertychange', function () {
@@ -352,13 +290,16 @@ ${locale.issue[3]}
 
       // 切换同意隐私政策
       $('#privacy').click(function () {
-        let $radio = $(this);
+        let $radio = $(this),
+          submitBtn = $('.evaluate-submit');
         if ($radio.data('checked')) {
           $radio.prop('checked', false);
           $radio.data('checked', false);
+          submitBtnaddClass('disable');
         } else {
           $radio.prop('checked', true);
           $radio.data('checked', true);
+          submitBtnremoveClass('disable');
         }
       });
 
@@ -380,11 +321,6 @@ ${locale.issue[3]}
         postData.problemDetail = $(this).val();
       });
 
-      // 问题描述
-      emailInput.on('input propertychange', function () {
-        $(this).removeClass('error').siblings('.error-tips').text('').hide();
-      });
-
       // 问题类型选择
       $('.question-type .doc-filter-btn').on('click', function () {
         problemTxa.removeClass('error');
@@ -398,7 +334,7 @@ ${locale.issue[3]}
             .removeClass('active-submit');
           const index = $(this).index();
           const questionValue =
-            locale.questionTypeList[index].children.join('\n');
+            locale.questionTypeList[index].children.join('\n -  ');
           if (questionValue.trim().length > 500) {
             problemTxa.val(questionValue.trim().substring(0, 500));
           } else if (questionValue.length === 0) {
@@ -412,44 +348,14 @@ ${locale.issue[3]}
         }
       });
 
-      //满意度
-      const sliderNode = document.getElementById('sliderInput');
-      const sliderBar = document.querySelector('.ms-slider');
-      const min = 1;
-      const max = 10;
-      sliderNode.addEventListener('input', function () {
-        let silderValue = Number(this.value);
-        let v = (silderValue - min) / (max - min);
-        sliderBar.style.setProperty('--percent', v);
-        sliderBar.setAttribute('data-tips', silderValue);
-        postData.comprehensiveSatisfication = silderValue;
-        satisfactionTips.removeClass('show');
-        const dot = $('.ms-slider-dot i');
-        if (silderValue === max) {
-          dot.addClass('on');
-        } else {
-          dot.removeClass('on').eq(silderValue).prevAll().addClass('on');
-        }
-        if (silderValue === 0) {
-          $('.ms-slider').addClass('zero');
-        } else {
-          $('.ms-slider').removeClass('zero');
-        }
-      });
-
       // 提交事件
       $('.evaluate-submit').on('click', function () {
         const regR = /[\r\n]+/g;
-        let reg = new RegExp(
-          '^[a-z0-9A-Z]+[- | a-z0-9A-Z . _]+@([a-z0-9A-Z]+(-[a-z0-9A-Z]+)?\\.)+[a-z]{2,}$'
-        );
-        let email = emailInput.val().trim();
+
         let problemTxaValue = problemTxa.val().trim();
         let submitType = $('.evaluate-type .active-submit').attr('attr_type');
         let privacy = $(".checkbox-item input[type='radio']:checked");
-        let sliderInput = $('#sliderInput').val().trim();
         let tipText = '';
-        postData.email = email;
 
         // 获取要提交的文件的路径
         const urlArr = location.href.split('/');
@@ -461,18 +367,6 @@ ${locale.issue[3]}
         } else if (!problemTxaValue || !submitType) {
           tipText = locale.describe;
           problemTxa.focus().addClass('error').val(tipText).select();
-        } else if (!email) {
-          tipText = locale.email;
-          emailInput.focus().addClass('error').val(tipText).select();
-        } else if (!reg.test(email)) {
-          tipText = locale.emailValid;
-          emailInput
-            .focus()
-            .addClass('error')
-            .select()
-            .siblings('.error-tips')
-            .show()
-            .text(tipText);
         } else if (privacy.length === 0) {
           tipText = locale.privacyDesc;
           $('.checkbox-item').addClass('shake1');
@@ -480,6 +374,7 @@ ${locale.issue[3]}
             $('.checkbox-item').removeClass('shake1');
           }, 1000);
         } else {
+          $(this).removeClass('disable');
           function openUrl(url = '#') {
             let tempALink = document.createElement('a');
             tempALink.setAttribute('target', '_blank');
@@ -491,34 +386,18 @@ ${locale.issue[3]}
           }
 
           const first = codeSnippet.val().split(regR)[0];
-          componentName =
-            componentName === 'docs' ? 'mindspore' : componentName;
 
-          $.ajax({
-            type: 'POST',
-            url: `https://dsapi.osinfra.cn/query/add/bugquestionnaire?community=mindspore&lang=${lang}`,
-            data: JSON.stringify(postData),
-            contentType: 'application/json; charset=utf-8',
-            datatype: 'json',
-            success: function (data) {
-              postData.link = window.location.href;
-              try {
-                if (JSON.parse(data).code === 200) {
-                  if (submitType === 'issue') {
-                    let desc = encodeURIComponent(issueTemplate(postData));
-                    openUrl(
-                      `https://gitee.com/mindspore/${repositoryComponent}/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=文档反馈-${componentName}&description=${desc}`
-                    );
-                  } else {
-                    openUrl(
-                      `${ideHref}?search=${first}&title=文档反馈-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
-                    );
-                  }
-                }
-              } catch (error) {}
-            },
-            error: function (err) {},
-          });
+          if (submitType === 'issue') {
+            let desc = encodeURIComponent(issueTemplate(postData));
+            openUrl(
+              `https://gitee.com/mindspore/${repositoryComponent}/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=文档反馈-${componentName}&description=${desc}`
+            );
+          } else {
+            openUrl(
+              `${ideHref}?search=${first}&title=文档反馈-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
+            );
+          }
+
           $('.evaluate-dialog').removeClass('show');
         }
       });
@@ -595,14 +474,13 @@ ${locale.issue[3]}
             source.includes(imgAlt.toLocaleLowerCase()) &&
             link.startsWith('https://gitee.')
           ) {
-            repositoryHref = link;
             isPR = true;
             const BLOB = '/blob/';
-            const giteeUrlArr = repositoryHref.split(BLOB);
+            const giteeUrlArr = link.split(BLOB);
             currentVersion = giteeUrlArr[1].split('/')[0];
             repositoryComponent = giteeUrlArr[0].split('/')[4];
             // 根据版本获取文件路径
-            let source = repositoryHref.split(currentVersion)[1];
+            let source = link.split(currentVersion)[1];
             ideHref = `https://gitee.com/-/ide/project/mindspore/${repositoryComponent}/edit/${currentVersion}/-${source}`;
           } else {
             isPR = false;

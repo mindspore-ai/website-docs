@@ -16,8 +16,6 @@ $(function () {
       bugDocFragment: '',
       existProblem: [],
       problemDetail: '',
-      comprehensiveSatisfication: 0,
-      email: '',
       link: window.location.href,
     };
 
@@ -134,23 +132,6 @@ $(function () {
           ? 'Describe the bug so that we can quickly locate the problem.'
           : '点击输入详细问题描述，以帮助我们快速定位问题。',
       ],
-      emailInput: [
-        isEn
-          ? 'We may contact you through email in regard to the bug fixing solution. You will also be notified through email if you win any prize during the activity.'
-          : '我们可能针对您提出的问题，向您发送邮件反馈改进方案。如有获奖信息，我们也会通过此方式通知您。',
-        isEn ? 'Email' : '邮箱',
-        isEn ? 'Your email address' : '点击输入您的邮箱',
-      ],
-      satisfaction: [
-        isEn
-          ? 'How satisfied are you with this document(Optional)'
-          : '您对文档的总体满意度（可选）',
-        isEn ? 'Not satisfied at all' : '不满意',
-        isEn ? 'Very satisfied' : '非常满意',
-      ],
-      satisfactionTips: isEn
-        ? 'Please rate your overall satisfaction with this document'
-        : '请填写您对本文档的总体满意度',
       privacyText: [
         isEn
           ? 'By submitting the contents, you fully understand and agree to the terms of the MindSpore '
@@ -170,8 +151,6 @@ $(function () {
       fragment: isEn
         ? 'Please enter the "Question" section'
         : '请输入“问题”片段',
-      email: isEn ? 'Enter your email' : '请输入您的邮箱',
-      emailValid: isEn ? 'Enter a valid email' : '请输入正确的邮箱',
       describe: isEn
         ? 'Choose a submission type and describe the bug'
         : '请选择提交类型并输入问题描述',
@@ -179,18 +158,6 @@ $(function () {
         ? 'Rate your satisfaction with this document'
         : '请选择满意度',
       privacyDesc: isEn ? 'Agree to Privacy Statement' : '请勾选同意隐私声明',
-    };
-    // 滑动条
-    const getSilderContent = () => {
-      const len = new Array(10).fill(0);
-      return `<div class="ms-slider" data-tips="" style="--percent: 0;">
-          <input type="range" id="sliderInput" value="0" min="0" max="10" step="1"  />
-          <div class="slider-bar"><div class='runway'><div class="trigger"></div></div><div class="ms-slider-dot">${len
-            .map((idx) => {
-              return `<i>•</i>`;
-            })
-            .join('')}</div></div>
-        </div>`;
     };
     // 过滤列表
     const getFilterList = (data, num) => {
@@ -217,13 +184,10 @@ $(function () {
         questionType,
         questionTypeList,
         problemDesc,
-        emailInput,
-        satisfaction,
         privacyText,
         privacyLink,
         feedbackLink,
         submit,
-        satisfactionTips,
         title,
       } = locale;
       return `<div class="evaluate-dialog "><div id="evaluate-mark"></div><div class="evaluate-alert ${lang}">
@@ -278,25 +242,6 @@ $(function () {
                 }" maxlength="500"></textarea>
               </div>
             </div>
-            <p class="email-tips">${emailInput[0]}</p>
-            <div class="evaluate-item">
-              <span class="label">${emailInput[1]}</span>
-              <div class="box">
-                <input type="text" class="email-input" placeholder="${
-                  emailInput[2]
-                }"  />
-                <span class="error-tips"></span>
-              </div>
-            </div>
-            <div class="satisfaction">
-              <span class="label">${satisfaction[0]}</span>
-              <span class="satisfaction-tips">${satisfactionTips}</span>
-              <div class="satisfaction-box">
-                <span class="txt">0-${satisfaction[1]}</span>
-                ${getSilderContent()}
-                <span class="txt">10-${satisfaction[2]}</span>
-              </div>
-            </div>
             <div class="privacy-box">
             <div class="checkbox-item">
               <input type="radio" id="privacy" name="privacy">
@@ -307,7 +252,7 @@ $(function () {
       }</a></label>
             </div>
             </div>
-            <button class="evaluate-submit">${submit}</button>
+            <button class="evaluate-submit disable">${submit}</button>
           </div> </div></div>`;
     };
 
@@ -331,8 +276,7 @@ ${locale.issue[4]}`;
     const utils = () => {
       let problemTxa = $('.problem-txa'),
         codeSnippet = $('.code-snippet'),
-        satisfactionTips = $('.satisfaction-tips'),
-        emailInput = $('.email-input');
+        satisfactionTips = $('.satisfaction-tips');
 
       // 问题文档片段
       codeSnippet.on('input propertychange', function () {
@@ -346,13 +290,16 @@ ${locale.issue[4]}`;
 
       // 切换同意隐私政策
       $('#privacy').click(function () {
-        let $radio = $(this);
+        let $radio = $(this),
+          submitBtn = $('.evaluate-submit');
         if ($radio.data('checked')) {
           $radio.prop('checked', false);
           $radio.data('checked', false);
+          submitBtnaddClass('disable');
         } else {
           $radio.prop('checked', true);
           $radio.data('checked', true);
+          submitBtnremoveClass('disable');
         }
       });
 
@@ -372,11 +319,6 @@ ${locale.issue[4]}`;
           $(this).val(_val.substring(0, 500));
         }
         postData.problemDetail = $(this).val();
-      });
-
-      // 问题描述
-      emailInput.on('input propertychange', function () {
-        $(this).removeClass('error').siblings('.error-tips').text('').hide();
       });
 
       // 问题类型选择
@@ -406,44 +348,14 @@ ${locale.issue[4]}`;
         }
       });
 
-      //满意度
-      const sliderNode = document.getElementById('sliderInput');
-      const sliderBar = document.querySelector('.ms-slider');
-      const min = 1;
-      const max = 10;
-      sliderNode.addEventListener('input', function () {
-        let silderValue = Number(this.value);
-        let v = (silderValue - min) / (max - min);
-        sliderBar.style.setProperty('--percent', v);
-        sliderBar.setAttribute('data-tips', silderValue);
-        postData.comprehensiveSatisfication = silderValue;
-        satisfactionTips.removeClass('show');
-        const dot = $('.ms-slider-dot i');
-        if (silderValue === max) {
-          dot.addClass('on');
-        } else {
-          dot.removeClass('on').eq(silderValue).prevAll().addClass('on');
-        }
-        if (silderValue === 0) {
-          $('.ms-slider').addClass('zero');
-        } else {
-          $('.ms-slider').removeClass('zero');
-        }
-      });
-
       // 提交事件
       $('.evaluate-submit').on('click', function () {
         const regR = /[\r\n]+/g;
-        let reg = new RegExp(
-          '^[a-z0-9A-Z]+[- | a-z0-9A-Z . _]+@([a-z0-9A-Z]+(-[a-z0-9A-Z]+)?\\.)+[a-z]{2,}$'
-        );
-        let email = emailInput.val().trim();
+
         let problemTxaValue = problemTxa.val().trim();
         let submitType = $('.evaluate-type .active-submit').attr('attr_type');
         let privacy = $(".checkbox-item input[type='radio']:checked");
-        let sliderInput = $('#sliderInput').val().trim();
         let tipText = '';
-        postData.email = email;
 
         // 获取要提交的文件的路径
         const urlArr = location.href.split('/');
@@ -455,18 +367,6 @@ ${locale.issue[4]}`;
         } else if (!problemTxaValue || !submitType) {
           tipText = locale.describe;
           problemTxa.focus().addClass('error').val(tipText).select();
-        } else if (!email) {
-          tipText = locale.email;
-          emailInput.focus().addClass('error').val(tipText).select();
-        } else if (!reg.test(email)) {
-          tipText = locale.emailValid;
-          emailInput
-            .focus()
-            .addClass('error')
-            .select()
-            .siblings('.error-tips')
-            .show()
-            .text(tipText);
         } else if (privacy.length === 0) {
           tipText = locale.privacyDesc;
           $('.checkbox-item').addClass('shake1');
@@ -474,6 +374,7 @@ ${locale.issue[4]}`;
             $('.checkbox-item').removeClass('shake1');
           }, 1000);
         } else {
+          $(this).removeClass('disable');
           function openUrl(url = '#') {
             let tempALink = document.createElement('a');
             tempALink.setAttribute('target', '_blank');
@@ -497,31 +398,6 @@ ${locale.issue[4]}`;
             );
           }
 
-          $.ajax({
-            type: 'POST',
-            url: `https://dsapi.osinfra.cn/query/add/bugquestionnaire?community=mindspore&lang=${lang}`,
-            data: JSON.stringify(postData),
-            contentType: 'application/json; charset=utf-8',
-            datatype: 'json',
-            success: function (data) {
-              postData.link = window.location.href;
-              try {
-                if (JSON.parse(data).code === 200) {
-                  if (submitType === 'issue') {
-                    let desc = encodeURIComponent(issueTemplate(postData));
-                    openUrl(
-                      `https://gitee.com/mindspore/${repositoryComponent}/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=文档反馈-${componentName}&description=${desc}`
-                    );
-                  } else {
-                    openUrl(
-                      `${ideHref}?search=${first}&title=文档反馈-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
-                    );
-                  }
-                }
-              } catch (error) {}
-            },
-            error: function (err) {},
-          });
           $('.evaluate-dialog').removeClass('show');
         }
       });
