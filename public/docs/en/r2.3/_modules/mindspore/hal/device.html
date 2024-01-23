@@ -195,7 +195,7 @@
 
 <span class="k">def</span> <span class="nf">_check_inputs_validation</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Decorator to check whether the device target validation.</span>
+<span class="sd">    Decorator to check inputs validation of device interfaces.</span>
 <span class="sd">    If device target&#39;s hal instance is not created, throw an exception.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
@@ -208,6 +208,9 @@
             <span class="k">if</span> <span class="n">device_target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">device_target</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)</span>
                 <span class="n">params</span><span class="p">[</span><span class="s2">&quot;device_target&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">device_target</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">device_target</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The argument &#39;device_target&#39; must be str, but got </span><span class="si">{</span><span class="n">device_target</span><span class="si">}</span><span class="s2">, &quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;type is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">device_target</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">device_target</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_targets</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The argument &#39;device_target&#39; must be one of &quot;</span>
                                  <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">valid_targets</span><span class="si">}</span><span class="s2">, but got </span><span class="si">{</span><span class="n">device_target</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
@@ -215,12 +218,39 @@
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">device_target</span><span class="si">}</span><span class="s2"> backend is not available for this MindSpore package.&quot;</span>
                                  <span class="s2">&quot;You can call hal.is_available to check the reason.&quot;</span><span class="p">)</span>
 
+        <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">bound_args</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">bound_args</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">deco</span>
+
+
+<span class="k">def</span> <span class="nf">_check_device_id</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator to check whether the device id is valid: must be equal or greater than 0 and less than device count.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">deco</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">bound_args</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">bound_args</span><span class="o">.</span><span class="n">apply_defaults</span><span class="p">()</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">bound_args</span><span class="o">.</span><span class="n">arguments</span>
+
+        <span class="n">device_target</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s2">&quot;device_target&quot;</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+            <span class="n">device_target</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;device_target&quot;</span><span class="p">]</span>
+        <span class="n">dev_count</span> <span class="o">=</span> <span class="n">device_count</span><span class="p">(</span><span class="n">device_target</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="s2">&quot;device_id&quot;</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
             <span class="n">device_id</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;device_id&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The argument &#39;device_id&#39; must be int, but got </span><span class="si">{</span><span class="n">device_id</span><span class="si">}</span><span class="s2">, &quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;type is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">device_id</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">device_id</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;`device_id` should not be negative, but got </span><span class="si">{</span><span class="n">device_id</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">bound_args</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">bound_args</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The argument &#39;device_id&#39; should not be negative, but got </span><span class="si">{</span><span class="n">device_id</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">device_id</span> <span class="o">&gt;=</span> <span class="n">dev_count</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The argument &#39;device_id&#39; must be less than device count: </span><span class="si">{</span><span class="n">dev_count</span><span class="si">}</span><span class="s2">, &quot;</span>
+                                 <span class="sa">f</span><span class="s2">&quot;but got </span><span class="si">{</span><span class="n">device_id</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Function </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> has no input named &#39;device_id&#39;. &quot;</span>
+                               <span class="s2">&quot;Please do not use &#39;_check_device_id&#39; decorator.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">deco</span>
 
 
@@ -230,6 +260,7 @@
 
 <span class="sd">    Note:</span>
 <span class="sd">        MindSpore&#39;s backends &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot; will be initialized in the following scenarios:</span>
+
 <span class="sd">        - For distributed job, backend will be initialized after `mindspore.communication.init` method is called.</span>
 <span class="sd">        - For standalone job, backend will be initialized after running</span>
 <span class="sd">          the first operator or calling creating stream/event interfaces.</span>
@@ -304,7 +335,7 @@
 <span class="sd">        For CPU backend, this method always returns 1.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        device_target (str): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
+<span class="sd">        device_target (str, optional): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        int.</span>
@@ -317,7 +348,8 @@
     <span class="k">return</span> <span class="n">hal_instances</span><span class="p">[</span><span class="n">device_target</span><span class="p">]</span><span class="o">.</span><span class="n">device_count</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="get_device_capability"><a class="viewcode-back" href="../../../api_python/hal/mindspore.hal.get_device_capability.html#mindspore.hal.get_device_capability">[docs]</a><span class="nd">@_check_inputs_validation</span>
+<div class="viewcode-block" id="get_device_capability"><a class="viewcode-back" href="../../../api_python/hal/mindspore.hal.get_device_capability.html#mindspore.hal.get_device_capability">[docs]</a><span class="nd">@_check_device_id</span>
+<span class="nd">@_check_inputs_validation</span>
 <span class="k">def</span> <span class="nf">get_device_capability</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get specified device&#39;s capability.</span>
@@ -327,13 +359,13 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        device_id (int): The device id of which the capability will be returned.</span>
-<span class="sd">        device_target (str): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
+<span class="sd">        device_target (str, optional): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        tuple(int, int) for GPU.</span>
 
-<span class="sd">        - param1：int，cuda major revision number.</span>
-<span class="sd">        - param2：int，cuda minor revision number.</span>
+<span class="sd">        - param1 - int, cuda major revision number.</span>
+<span class="sd">        - param2 - int, cuda minor revision number.</span>
 
 <span class="sd">        None for Ascend and CPU.</span>
 
@@ -345,7 +377,8 @@
     <span class="k">return</span> <span class="n">hal_instances</span><span class="p">[</span><span class="n">device_target</span><span class="p">]</span><span class="o">.</span><span class="n">get_device_capability</span><span class="p">(</span><span class="n">device_id</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_device_properties"><a class="viewcode-back" href="../../../api_python/hal/mindspore.hal.get_device_properties.html#mindspore.hal.get_device_properties">[docs]</a><span class="nd">@_check_inputs_validation</span>
+<div class="viewcode-block" id="get_device_properties"><a class="viewcode-back" href="../../../api_python/hal/mindspore.hal.get_device_properties.html#mindspore.hal.get_device_properties">[docs]</a><span class="nd">@_check_device_id</span>
+<span class="nd">@_check_inputs_validation</span>
 <span class="k">def</span> <span class="nf">get_device_properties</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get specified device&#39;s properties.</span>
@@ -358,11 +391,11 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        device_id (int): The device id of which the properties will be returned.</span>
-<span class="sd">        device_target (str): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
+<span class="sd">        device_target (str, optional): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        - `cudaDeviceProp &lt;https://docs.nvidia.com/cuda/cuda-runtime-api/structcudaDeviceProp.html#structcudaDeviceProp&gt;`_ for GPU.</span>
-<span class="sd">        - `AscendDeviceProperties` for Ascend:</span>
+<span class="sd">        - `cudaDeviceProp`_ for GPU.</span>
+<span class="sd">        - `AscendDeviceProperties` for Ascend.</span>
 
 <span class="sd">          .. code-block::</span>
 
@@ -374,6 +407,8 @@
 
 <span class="sd">        - None for CPU.</span>
 
+<span class="sd">    .. _cudaDeviceProp: https://docs.nvidia.com/cuda/cuda-runtime-api/structcudaDeviceProp.html#structcudaDeviceProp</span>
+
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
 <span class="sd">        &gt;&gt;&gt; device_target = ms.context.get_context(&quot;device_target&quot;)</span>
@@ -382,7 +417,8 @@
     <span class="k">return</span> <span class="n">hal_instances</span><span class="p">[</span><span class="n">device_target</span><span class="p">]</span><span class="o">.</span><span class="n">get_device_properties</span><span class="p">(</span><span class="n">device_id</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_device_name"><a class="viewcode-back" href="../../../api_python/hal/mindspore.hal.get_device_name.html#mindspore.hal.get_device_name">[docs]</a><span class="nd">@_check_inputs_validation</span>
+<div class="viewcode-block" id="get_device_name"><a class="viewcode-back" href="../../../api_python/hal/mindspore.hal.get_device_name.html#mindspore.hal.get_device_name">[docs]</a><span class="nd">@_check_device_id</span>
+<span class="nd">@_check_inputs_validation</span>
 <span class="k">def</span> <span class="nf">get_device_name</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">device_target</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get specified device&#39;s name.</span>
@@ -393,7 +429,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        device_id (int): The device id of which the name will be returned.</span>
-<span class="sd">        device_target (str): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
+<span class="sd">        device_target (str, optional): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        str.</span>
@@ -415,7 +451,7 @@
 <span class="sd">        If `device_target` is not specified, get the device name of the current backend set by context.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        device_target (str): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
+<span class="sd">        device_target (str, optional): The device name of backend, should be one of &quot;CPU&quot;, &quot;GPU&quot; and &quot;Ascend&quot;.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        str for GPU.</span>
