@@ -11553,41 +11553,50 @@
 <span class="sd">    .. warning::</span>
 <span class="sd">        This is an experimental API that is subject to change or deletion.</span>
 <span class="sd">    B -- Batch size</span>
-<span class="sd">    S -- Sequence length</span>
-<span class="sd">    H -- Hidden size</span>
-<span class="sd">    N -- Num heads</span>
-<span class="sd">    D -- Dim size</span>
+<span class="sd">    S1 -- Sequence length of query</span>
+<span class="sd">    S2 -- Sequence length of key and value</span>
+<span class="sd">    N1 -- Num heads of query</span>
+<span class="sd">    N2 -- Num heads of key and value, and N2 must be a factor of N1</span>
+<span class="sd">    D -- head size</span>
+<span class="sd">    H1 -- Hidden size of query, which equals to N1 * D</span>
+<span class="sd">    H2 -- Hidden size of key and value, which equals to N2 * D</span>
 <span class="sd">    Args:</span>
-<span class="sd">        head_num (int): The number of the heads.</span>
+<span class="sd">        head_num (int): The head num of query.</span>
 <span class="sd">        keep_prob (float): The keep probability of dropout. Default: 1.0.</span>
 <span class="sd">        scale_value (float): The scale value. Default: 1.0.</span>
 <span class="sd">        pre_tokens (int): Previous tokens. Default: 65536.</span>
 <span class="sd">        next_tokens (int): Next tokens. Default: 65536.</span>
 <span class="sd">        inner_precise (int): Specify the execution mode, where 0 indicates high precision mode and 1 indicates high</span>
-<span class="sd">        performance mode. Default: 0.</span>
+<span class="sd">        performance mode. Only support 0 currently. Default: 0.</span>
 <span class="sd">        input_layout (str, optional): Specifies the layout of `query`, the value must be one of [&quot;BSH&quot;, &quot;BNSD&quot;].</span>
 <span class="sd">        Default: &quot;BSH&quot;.</span>
 <span class="sd">        sparse_mode (int): Default 0.</span>
 
 <span class="sd">    Inputs:</span>
-<span class="sd">        - **query** (Tensor) - The query tensor with data type must be in [float16, float32, bfloat16].</span>
-<span class="sd">          Input tensor of shape :math:`(B, S, H)`.</span>
-<span class="sd">        - **key** (Tensor) - The key tensor with data must be in [float16, float32, bfloat16].</span>
-<span class="sd">          Input tensor of shape :math:`(B, S, H)`.</span>
-<span class="sd">        - **value** (Tensor) - The value tensor with data must be in [float16, float32, bfloat16].</span>
-<span class="sd">          Input tensor of shape :math:`(B, S, H)`.</span>
-<span class="sd">        - **attn_mask** (Tensor) - The attention mask tensor with data type of uint8.</span>
-<span class="sd">          For each element, 0 indicates retention and 1 indicates discard. Input tensor of shape :math:`(B, 1, S, S)`.</span>
-<span class="sd">        - **drop_mask** (Tensor) - The dropout mask tensor with data type of UInt8.</span>
-<span class="sd">          Input tensor of shape :math:`(B, N, S, S // 8) or ()`.</span>
-<span class="sd">        - **real_shift** (None) - The position embedding code of float16 or float32, not implemented yet.</span>
+<span class="sd">        - **query** (Tensor[float16, float32, bfloat16]) - The query tensor.</span>
+<span class="sd">          Input tensor of shape :math:`(B, S1, H1)` or `(B, N1, S1, D)`.</span>
+<span class="sd">        - **key** (Tensor[float16, float32, bfloat16]) - The key tensor.</span>
+<span class="sd">          Input tensor of shape :math:`(B, S2, H2)` or `(B, N2, S2, D)`.</span>
+<span class="sd">        - **value** (Tensor[float16, float32, bfloat16]) - The value tensor.</span>
+<span class="sd">          Input tensor of shape :math:`(B, S2, H2)` or `(B, N2, S2, D)`.</span>
+<span class="sd">        - **real_shift** (Tensor[float16, float32, bfloat16], None) - The position embedding code.</span>
+<span class="sd">          Input tensor of shape :math: `(B, N1, S1, S2)` or `(B, N1, 1, S2)`.</span>
+<span class="sd">        - **drop_mask** (Tensor[uint8], None) - The dropout mask tensor.</span>
+<span class="sd">          Input tensor of shape :math:`(B, N1, S1, S2 // 8) or None`.</span>
 <span class="sd">        - **padding_mask** (None) - The padding mask of float16 or float32, not implemented yet.</span>
-<span class="sd">        - **prefix** (None) - Not implemented yet.</span>
+<span class="sd">        - **attn_mask** (Tensor[uint8], None) - The attention mask tensor.</span>
+<span class="sd">          For each element, 0 indicates retention and 1 indicates discard.</span>
+<span class="sd">          Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` or `(S1, S2)`.</span>
+<span class="sd">        - **prefix** (Tensor[int64], None) - Not implemented yet.</span>
+<span class="sd">          Input tensor of shape :math:`(B,)`.</span>
 
 <span class="sd">    Outputs:</span>
-<span class="sd">        - **attention_out** (Tensor) - (B, S, H)</span>
-<span class="sd">        - **softmax_max** (Tensor) - (B, N, S, 16)/(B, N, S, 8) when fp16/fp32</span>
-<span class="sd">        - **softmax_sum** (Tensor) - (B, N, S, 16)/(B, N, S, 8) when fp16/fp32</span>
+<span class="sd">        - **softmax_max** (Tensor[float32]) - (B, N1, S1, 8)</span>
+<span class="sd">        - **softmax_sum** (Tensor[float32]) - (B, N1, S1, 8)</span>
+<span class="sd">        - **softmax_out** (Tensor[float32]) - Useless output, ignore it. Output tensor of shape : `()`</span>
+<span class="sd">        - **attention_out** (Tensor[float16, float32, bfloat16]) - The output of attention, its shape, and data type</span>
+<span class="sd">          are the same as the query.</span>
+
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend``</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -11605,14 +11614,14 @@
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;next_tokens&#39;</span><span class="p">,</span> <span class="n">next_tokens</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;inner_precise&#39;</span><span class="p">,</span> <span class="n">inner_precise</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;sparse_mode&#39;</span><span class="p">,</span> <span class="n">sparse_mode</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">inner_precise</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attribute &#39;inner_precise&#39; must be either 0 or 1, but got </span><span class="si">{</span><span class="n">inner_precise</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">inner_precise</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attribute &#39;inner_precise&#39; must be 0, but got </span><span class="si">{</span><span class="n">inner_precise</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;input_layout&#39;</span><span class="p">,</span> <span class="n">input_layout</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">input_layout</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;BSH&quot;</span><span class="p">,</span> <span class="s2">&quot;BNSD&quot;</span><span class="p">]:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attribute &#39;input_layout&#39; must be either &#39;BSH&#39; or &#39;BNSD&#39;, but got </span><span class="si">{</span><span class="n">input_layout</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span>
-            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;query&#39;</span><span class="p">,</span> <span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;attn_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;drop_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;real_shift&#39;</span><span class="p">,</span> <span class="s1">&#39;padding_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;prefix&#39;</span><span class="p">],</span>
-            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;attention_out&#39;</span><span class="p">,</span> <span class="s1">&#39;softmax_max&#39;</span><span class="p">,</span> <span class="s1">&#39;softmax_sum&#39;</span><span class="p">])</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;query&#39;</span><span class="p">,</span> <span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;real_shift&#39;</span><span class="p">,</span> <span class="s1">&#39;drop_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;padding_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;attn_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;prefix&#39;</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;softmax_max&#39;</span><span class="p">,</span> <span class="s1">&#39;softmax_sum&#39;</span><span class="p">,</span> <span class="s1">&#39;softmax_out&#39;</span><span class="p">,</span> <span class="s1">&#39;attention_out&#39;</span><span class="p">])</span>
 
 
 <span class="k">class</span> <span class="nc">RmsNorm</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
@@ -11650,6 +11659,60 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize Dense.&quot;&quot;&quot;</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s2">&quot;epsilon&quot;</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">,</span> <span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;gamma&#39;</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;rstd&quot;</span><span class="p">])</span>
+
+
+<span class="k">class</span> <span class="nc">PagedAttention</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    .. warning::</span>
+<span class="sd">        This is an experimental API that is subject to change or deletion.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@prim_attr_register</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">head_num</span><span class="p">,</span> <span class="n">scale_value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">kv_head_num</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize PagedAttention&quot;&quot;&quot;</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;head_num&#39;</span><span class="p">,</span> <span class="n">head_num</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;scale_value&#39;</span><span class="p">,</span> <span class="n">scale_value</span><span class="p">,</span> <span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="c1"># scale after qkbmm</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;kv_head_num&#39;</span><span class="p">,</span> <span class="n">kv_head_num</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="c1"># for MQA</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;query&#39;</span><span class="p">,</span> <span class="s1">&#39;key_cache&#39;</span><span class="p">,</span> <span class="s1">&#39;value_cache&#39;</span><span class="p">,</span> <span class="s1">&#39;block_tables&#39;</span><span class="p">,</span> <span class="s1">&#39;context_lens&#39;</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;attention_out&#39;</span><span class="p">])</span>
+
+
+<span class="k">class</span> <span class="nc">PagedAttentionMask</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    .. warning::</span>
+<span class="sd">        This is an experimental API that is subject to change or deletion.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@prim_attr_register</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">head_num</span><span class="p">,</span> <span class="n">scale_value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">kv_head_num</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize PagedAttentionMask&quot;&quot;&quot;</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;head_num&#39;</span><span class="p">,</span> <span class="n">head_num</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;scale_value&#39;</span><span class="p">,</span> <span class="n">scale_value</span><span class="p">,</span> <span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="c1"># scale after qkbmm</span>
+        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;kv_head_num&#39;</span><span class="p">,</span> <span class="n">kv_head_num</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="c1"># for MQA</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;query&#39;</span><span class="p">,</span> <span class="s1">&#39;key_cache&#39;</span><span class="p">,</span> <span class="s1">&#39;value_cache&#39;</span><span class="p">,</span> <span class="s1">&#39;block_tables&#39;</span><span class="p">,</span> <span class="s1">&#39;context_lens&#39;</span><span class="p">,</span> <span class="s1">&#39;alibi_mask&#39;</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;attention_out&#39;</span><span class="p">])</span>
+
+
+<span class="k">class</span> <span class="nc">ReshapeAndCache</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    .. warning::</span>
+<span class="sd">        This is an experimental API that is subject to change or deletion.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__mindspore_signature__</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sig</span><span class="o">.</span><span class="n">sig_dtype</span><span class="o">.</span><span class="n">T</span><span class="p">),</span>
+        <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sig</span><span class="o">.</span><span class="n">sig_dtype</span><span class="o">.</span><span class="n">T</span><span class="p">),</span>
+        <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;key_cache&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="o">.</span><span class="n">sig_rw</span><span class="o">.</span><span class="n">RW_WRITE</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sig</span><span class="o">.</span><span class="n">sig_dtype</span><span class="o">.</span><span class="n">T</span><span class="p">),</span>
+        <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;value_cache&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="o">.</span><span class="n">sig_rw</span><span class="o">.</span><span class="n">RW_WRITE</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sig</span><span class="o">.</span><span class="n">sig_dtype</span><span class="o">.</span><span class="n">T</span><span class="p">),</span>
+        <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;slot_mapping&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sig</span><span class="o">.</span><span class="n">sig_dtype</span><span class="o">.</span><span class="n">T1</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="nd">@prim_attr_register</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize ReshapeAndCache&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;key_cache&#39;</span><span class="p">,</span> <span class="s1">&#39;value_cache&#39;</span><span class="p">,</span> <span class="s1">&#39;slot_mapping&#39;</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;key_out&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s1">&#39;side_effect_mem&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
 </pre></div>
 
            </div>

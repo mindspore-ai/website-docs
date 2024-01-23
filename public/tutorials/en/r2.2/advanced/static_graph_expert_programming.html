@@ -600,7 +600,7 @@ Enable comile_cache cost time: 0.09379792213439941
 </pre></div>
 </div>
 <p>The error message is as follows:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>RumtimeError: MsClassObject: &#39;InnerNet&#39; has no __call__ function, please check the code.
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>ValueError: MsClassObject: &#39;InnerNet&#39; has no __call__ function, please check the code.
 </pre></div>
 </div>
 </section>
@@ -711,7 +711,7 @@ for loop cost time: 1.9284062385559082
 <span class="n">b</span> <span class="o">=</span> <span class="n">B</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>It is worth stating that the particular set of operators used for floating-point overflow state detection have implicit side effects, but are not IO side effects or memory side effects. In addition, there are strict order requirements for their use, i.e., you need to ensure that NPUAllocFloatStatus has been executed before using the NPUClearFloatStatus operator, and ensure that NPUClearFloatStatus has been executed before using the NPUGetFloatStatus operator. Because these operators are used less, the current scheme is to keep their definitions in a side-effect free form to ensure the order of execution with Depend.</p>
+<p>It is worth stating that the particular set of operators used for floating-point overflow state detection have implicit side effects, but are not IO side effects or memory side effects. In addition, there are strict order requirements for their use, i.e., you need to ensure that NPUAllocFloatStatus has been executed before using the NPUClearFloatStatus operator, and ensure that NPUClearFloatStatus has been executed before using the NPUGetFloatStatus operator. Because these operators are used less, the current scheme is to keep their definitions in a side-effect free form to ensure the order of execution with Depend. Note: the operators used for floating-point overflow state detection is only supported on the Ascend platform.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
@@ -764,12 +764,12 @@ for loop cost time: 1.9284062385559082
 <p>We can further understand this through the use case and the generated intermediate representation (IR).</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">mindspore.nn</span> <span class="kn">import</span> <span class="n">Cell</span>
-<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">Parameter</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">composite</span> <span class="k">as</span> <span class="n">C</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 
-<span class="n">context</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">ForwardNet</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -804,7 +804,7 @@ for loop cost time: 1.9284062385559082
 <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">graph_mode_grads</span> <span class="o">==</span> <span class="n">output_except</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>As in the above use case, save the intermediate file through the settings: context.set_context(mode=context.GRAPH_MODE, save_graphs=True), you can get the intermediate file IR, for easy viewing, we simplify the resulting intermediate file as follows:</p>
+<p>As in the above use case, save the intermediate file through the settings: ms.set_context(mode=ms.GRAPH_MODE, save_graphs=True), you can get the intermediate file IR, for easy viewing, we simplify the resulting intermediate file as follows:</p>
 <p>The IR file when the real operator is not inserted into the Load operator inside the framework is as follows, and you can see that there are 3 Load operators, all of which take the value of para2_param this global variable at different times, and this global variable will modify the value through the Assign operator. That is, the values taken by the 3 Loads are different. And if we do not insert the real operator into the Load operator, that is, we do not save the value of the global variable para2_param at different times, then the final result obtained is incorrect. That is, this case is set to 3 in the MS_DEV_SIDE_EFFECT_LOAD_ELIM, which has the least memory footprint, but the result has precision problems.</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span># IR entry: @BackwardNet_construct
 # Total subgraphs: 1
