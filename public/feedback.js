@@ -31,6 +31,9 @@ $(function () {
           : '点击输入问题文档片段',
       ],
       submitType: isEn ? 'Submission type' : '提交类型',
+      submitTypeTips: isEn
+        ? 'Please select the submission type'
+        : '请选择提交类型',
       issueTips: [
         isEn ? "It's a little complicated..." : '有点复杂...',
         isEn ? "I'd like to ask someone." : '找人问问吧。',
@@ -136,7 +139,7 @@ $(function () {
         isEn
           ? 'By submitting the contents, you fully understand and agree to the terms of the MindSpore '
           : '您理解并同意，您填写和提交的内容，即视为您已充分阅读并同意MindSpore的',
-        isEn ? 'Privacy Policy.' : '《隐私政策》',
+        isEn ? ' Privacy Policy.' : '《隐私政策》',
       ],
       privacyLink: isEn ? '/privacy/en' : '/privacy',
       feedbackLink: isEn ? '/feedback/en' : '/feedback',
@@ -152,13 +155,14 @@ $(function () {
         ? 'Please enter the "Question" section'
         : '请输入“问题”片段',
       describe: isEn
-        ? 'Choose a submission type and describe the bug'
-        : '请选择提交类型并输入问题描述',
+        ? 'Describe the bug so that we can quickly locate the problem.'
+        : '点击输入详细问题描述，以帮助我们快速定位问题。',
       satisfactionDesc: isEn
         ? 'Rate your satisfaction with this document'
         : '请选择满意度',
       privacyDesc: isEn ? 'Agree to Privacy Statement' : '请勾选同意隐私声明',
     };
+
     // 过滤列表
     const getFilterList = (data, num) => {
       return `${data
@@ -179,6 +183,7 @@ $(function () {
       const {
         bugInput,
         submitType,
+        submitTypeTips,
         issueTips,
         prTips,
         questionType,
@@ -187,6 +192,7 @@ $(function () {
         privacyText,
         privacyLink,
         feedbackLink,
+        privacyDesc,
         submit,
         title,
       } = locale;
@@ -207,7 +213,7 @@ $(function () {
             <div class="evaluate-item">
               <span class="label">${submitType}</span>
               <div class="box evaluate-type">
-                  <div class="doc-filter-btn attr_type="issue">
+                  <div class="doc-filter-btn" attr_type="issue">
                     <span>issue</span>
                     <div class="tips">${issueTips
                       .map((item) => {
@@ -224,6 +230,7 @@ $(function () {
                           .join('')}</div></div>`
                       : ''
                   }
+                  <p class="error">${submitTypeTips}</p>
               </div>
             </div>
             <div class="evaluate-item">
@@ -249,6 +256,7 @@ $(function () {
         privacyText[1]
       }</a></label>
             </div>
+            <p class="error">${privacyDesc}</p>
             </div>
             <button class="evaluate-submit disable">${submit}</button>
           </div> </div></div>`;
@@ -273,8 +281,7 @@ ${locale.issue[4]}`;
 
     const utils = () => {
       let problemTxa = $('.problem-txa'),
-        codeSnippet = $('.code-snippet'),
-        satisfactionTips = $('.satisfaction-tips');
+        codeSnippet = $('.code-snippet');
 
       // 问题文档片段
       codeSnippet.on('input propertychange', function () {
@@ -293,10 +300,12 @@ ${locale.issue[4]}`;
         if ($radio.data('checked')) {
           $radio.prop('checked', false);
           $radio.data('checked', false);
+          $('.privacy-box .error').fadeIn();
           submitBtn.addClass('disable');
         } else {
           $radio.prop('checked', true);
           $radio.data('checked', true);
+          $('.privacy-box .error').fadeOut();
           submitBtn.removeClass('disable');
         }
       });
@@ -307,6 +316,7 @@ ${locale.issue[4]}`;
           .addClass('active-submit')
           .siblings('.doc-filter-btn')
           .removeClass('active-submit');
+        $('.evaluate-type').find('.error').fadeOut();
       });
 
       // 问题描述
@@ -333,6 +343,7 @@ ${locale.issue[4]}`;
           const index = $(this).index();
           const questionValue =
             locale.questionTypeList[index].children.join('\n -  ');
+
           if (questionValue.trim().length > 500) {
             problemTxa.val(questionValue.trim().substring(0, 500));
           } else if (questionValue.length === 0) {
@@ -340,6 +351,7 @@ ${locale.issue[4]}`;
           } else {
             problemTxa.val(`${questionValue.trim()}\n`);
           }
+
           postData.problemDetail = questionValue;
           postData.existProblem = [];
           postData.existProblem.push($(this).attr('attr_type'));
@@ -359,18 +371,17 @@ ${locale.issue[4]}`;
         const urlArr = location.href.split('/');
         const title = urlArr[urlArr.length - 1].replace('.html', '');
 
-        if (!postData.bugDocFragment) {
+        if (privacy.length === 0) {
+          $('.privacy-box .error').fadeIn();
+        } else if (!postData.bugDocFragment) {
           tipText = locale.fragment;
           codeSnippet.focus().addClass('error').val(tipText).select();
-        } else if (!problemTxaValue || !submitType) {
+        } else if (!submitType) {
+          tipText = locale.submitTypeTips;
+          $('.evaluate-type .error').fadeIn();
+        } else if (!problemTxaValue) {
           tipText = locale.describe;
           problemTxa.focus().addClass('error').val(tipText).select();
-        } else if (privacy.length === 0) {
-          tipText = locale.privacyDesc;
-          $('.checkbox-item').addClass('shake1');
-          setTimeout(function () {
-            $('.checkbox-item').removeClass('shake1');
-          }, 1000);
         } else {
           $(this).removeClass('disable');
           function openUrl(url = '#') {
@@ -390,10 +401,11 @@ ${locale.issue[4]}`;
             openUrl(
               `https://gitee.com/mindspore/${repositoryComponent}/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=文档反馈-${componentName}&description=${desc}`
             );
-          } else {
+          } else if (submitType === 'PR') {
             openUrl(
               `${ideHref}?search=${first}&title=文档反馈-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
             );
+          } else {
           }
 
           $('.evaluate-dialog').removeClass('show');
@@ -460,8 +472,8 @@ ${locale.issue[4]}`;
       }
     })();
 
-    const init = () => {
-      // 判断是否gitee链接
+    // 判断是否gitee链接
+    const checkImgLink = () => {
       if ($('.document a img').length > 0) {
         $('.document a img').each(function () {
           const imgAlt = $(this).attr('alt');
@@ -473,10 +485,12 @@ ${locale.issue[4]}`;
             link.startsWith('https://gitee.')
           ) {
             isPR = true;
+
             const BLOB = '/blob/';
             const giteeUrlArr = link.split(BLOB);
             currentVersion = giteeUrlArr[1].split('/')[0];
             repositoryComponent = giteeUrlArr[0].split('/')[4];
+
             // 根据版本获取文件路径
             let source = link.split(currentVersion)[1];
             ideHref = `https://gitee.com/-/ide/project/mindspore/${repositoryComponent}/edit/${currentVersion}/-${source}`;
@@ -487,13 +501,14 @@ ${locale.issue[4]}`;
       } else {
         isPR = false;
       }
+    };
 
+    const init = () => {
+      checkImgLink();
       body.prepend(getEvaluateContent());
       utils();
     };
 
     init();
-
-    //end
   })();
 });
