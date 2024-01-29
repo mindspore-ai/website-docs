@@ -172,6 +172,11 @@ $(function () {
           index === num ? 'active-submit' : ''
         }" attr_type="${item.name}">
           <span>${item.name}</span>
+          <div class="tips">${item.children
+            .map((subitem) => {
+              return `<p>${subitem}</p>`;
+            })
+            .join('')}</div>
         </div>
         `;
         })
@@ -432,9 +437,28 @@ ${locale.issue[4]}`;
           let ev = event || window.event;
           let left = ev.clientX;
           let top = ev.clientY + 16;
+          const range = selection.getRangeAt(0).commonAncestorContainer;
+          let filteredElements = [];
+          if (range.childNodes.length > 0) {
+            range.childNodes.forEach((item) => {
+              if (
+                item.nodeName !== 'SPAN' ||
+                !item.classList.contains('math')
+              ) {
+                if (item.nodeName === '#text') {
+                  filteredElements.push(item.textContent);
+                } else if (item.nodeType === 1) {
+                  filteredElements.push(item.innerText);
+                } else {
+                  filteredElements.push(item);
+                }
+              }
+            });
+            selectText = filteredElements.join('').trim();
+          }
+
           setTimeout(function () {
             if (selection && selection.type === 'Range') {
-              selectText = selection.toString().trim() + '';
               feedback.style.display = 'flex';
               feedback.style.left = left + 'px';
               feedback.style.top = top + 'px';
@@ -443,6 +467,28 @@ ${locale.issue[4]}`;
             }
           }, 100);
         };
+
+        const filterMathElements = (range) => {
+          let filteredElements = [];
+          if (range.commonAncestorContainer.childNodes.length > 0) {
+            range.commonAncestorContainer.childNodes.forEach((item) => {
+              if (
+                item.nodeName !== 'SPAN' ||
+                !item.classList.contains('math')
+              ) {
+                if (item.nodeName === '#text') {
+                  filteredElements.push(item.textContent);
+                } else if (item.nodeType === 1) {
+                  filteredElements.push(item.innerText);
+                } else {
+                  filteredElements.push(item);
+                }
+              }
+            });
+          }
+          return filteredElements.join('');
+        };
+
         content.onclick = function (ev) {
           var ev = ev || window.event;
           ev.cancelBubble = true;
