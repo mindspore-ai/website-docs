@@ -163,7 +163,7 @@ $(function () {
       privacyDesc: isEn ? 'Agree to Privacy Statement' : '请勾选同意隐私声明',
     };
 
-    // 过滤列表
+    // 生成问题类型列表
     const getFilterList = (data, num) => {
       return `${data
         .map((item, index) => {
@@ -174,7 +174,9 @@ $(function () {
           <span>${item.name}</span>
           <div class="tips">${item.children
             .map((subitem) => {
-              return `<p>${subitem}</p>`;
+              return `<p>- ${subitem
+                .replace('；', '。')
+                .replace(';', '.')}</p>`;
             })
             .join('')}</div>
         </div>
@@ -410,7 +412,6 @@ ${locale.issue[4]}`;
             openUrl(
               `${ideHref}?search=${first}&title=文档反馈-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
             );
-          } else {
           }
 
           $('.evaluate-dialog').removeClass('show');
@@ -422,7 +423,7 @@ ${locale.issue[4]}`;
       });
     };
 
-    // 选中文字出现捉虫图标
+    // 选中文字出现反馈图标
     (function () {
       // 插入捉虫图标
       const feedbackDom = `<div class="feedback"><img class="bug-icon" src="/pic/feeback.svg" title="${locale.participantion}" alt="">${locale.title}</div>`;
@@ -441,6 +442,7 @@ ${locale.issue[4]}`;
           let filteredElements = [];
           if (range.childNodes.length > 0) {
             range.childNodes.forEach((item) => {
+              // 过滤math
               if (
                 item.nodeName !== 'SPAN' ||
                 !item.classList.contains('math')
@@ -466,27 +468,6 @@ ${locale.issue[4]}`;
               feedback.style.display = 'none';
             }
           }, 100);
-        };
-
-        const filterMathElements = (range) => {
-          let filteredElements = [];
-          if (range.commonAncestorContainer.childNodes.length > 0) {
-            range.commonAncestorContainer.childNodes.forEach((item) => {
-              if (
-                item.nodeName !== 'SPAN' ||
-                !item.classList.contains('math')
-              ) {
-                if (item.nodeName === '#text') {
-                  filteredElements.push(item.textContent);
-                } else if (item.nodeType === 1) {
-                  filteredElements.push(item.innerText);
-                } else {
-                  filteredElements.push(item);
-                }
-              }
-            });
-          }
-          return filteredElements.join('');
         };
 
         content.onclick = function (ev) {
@@ -518,7 +499,7 @@ ${locale.issue[4]}`;
       }
     })();
 
-    // 判断是否gitee链接
+    // 检查是否有gitee链接
     const checkImgLink = () => {
       if ($('.document a img').length > 0) {
         $('.document a img').each(function () {
