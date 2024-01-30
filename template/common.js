@@ -816,11 +816,11 @@ $(function () {
         });
       },
       // 文档反馈
-      getFeedback: () => {
-        let s = document.getElementsByTagName('HEAD')[0];
-        let hm = document.createElement('script');
+      getFeedback : ()=>{
+        let s = document.getElementsByTagName('HEAD')[0]
+        let hm = document.createElement('script')
         hm.src = '/feedback.js';
-        s.appendChild(hm, s);
+        s.appendChild(hm, s)
       },
       // 文档反馈
       getFeedbackContent: () => {
@@ -985,9 +985,7 @@ $(function () {
           return `<li>
           <span class="line"></span>
           <a title="${name}" href="#${utils.filterXSS(
-            isId
-              ? docsAnchor.getReplaceStr(node.closest('dt').id)
-              : docsAnchor.getReplaceStr(node.parentNode.id)
+            isId ? docsAnchor.getReplaceStr(node.closest('dt').id) : docsAnchor.getReplaceStr(node.parentNode.id)
           )}">${name}</a>
           ${
             isShow
@@ -997,11 +995,8 @@ $(function () {
         </li> `;
         } catch (error) {}
       },
-      getReplaceStr: (str) => {
-        return str
-          .replace(/\(([^).']*)\)/g, '$1')
-          .replace(/\“|\”|\'/g, '')
-          .replace(/\!|\=|\:/g, '');
+      getReplaceStr:(str)=>{
+        return str.replace(/\(([^).']*)\)/g, '$1').replace(/\“|\”|\'/g, '').replace(/\!|\=|\:/g, '');
       },
       getAnchorList: () => {
         const sectionList = $('.document>div:first-of-type>section');
