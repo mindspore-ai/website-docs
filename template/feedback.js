@@ -42,6 +42,9 @@ $(function () {
         isEn ? 'Just a small problem. ' : '小问题，全程线上修改...',
         isEn ? 'I can fix it online!' : '一键搞定！',
       ],
+      fragmentTips: isEn
+        ? 'When a question  document fragment contains a formula, it is displayed as a space.'
+        : '问题文档片段包含公式时，显示为空格。',
       questionType: isEn ? 'Problem type' : '问题类型',
       questionTypeList: [
         {
@@ -135,6 +138,7 @@ $(function () {
           ? 'Describe the bug so that we can quickly locate the problem.'
           : '点击输入详细问题描述，以帮助我们快速定位问题。',
       ],
+
       privacyText: [
         isEn
           ? 'By submitting the contents, you fully understand and agree to the terms of the MindSpore '
@@ -201,6 +205,7 @@ $(function () {
         feedbackLink,
         privacyDesc,
         submit,
+        fragmentTips,
         title,
       } = locale;
       return `<div class="evaluate-dialog "><div id="evaluate-mark"></div><div class="evaluate-alert ${lang}">
@@ -215,6 +220,7 @@ $(function () {
                 <textarea class="txa code-snippet" placeholder="${
                   bugInput[1]
                 }" maxlength="500"></textarea>
+                <p class="fragment-tips">${fragmentTips}</p>
               </div>
             </div>
             <div class="evaluate-item">
@@ -406,11 +412,11 @@ ${locale.issue[4]}`;
           if (submitType === 'issue') {
             let desc = encodeURIComponent(issueTemplate(postData));
             openUrl(
-              `https://gitee.com/mindspore/${repositoryComponent}/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=文档反馈-${componentName}&description=${desc}`
+              `https://gitee.com/mindspore/${repositoryComponent}/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0&title=${locale.title}-${componentName}&description=${desc}`
             );
           } else if (submitType === 'PR') {
             openUrl(
-              `${ideHref}?search=${first}&title=文档反馈-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
+              `${ideHref}?search=${first}&title=${locale.title}-${componentName} ${currentVersion}-${title}&description=${problemTxaValue}&message=${problemTxaValue}&label_names=文档反馈`
             );
           }
 
@@ -431,8 +437,9 @@ ${locale.issue[4]}`;
 
       let content = document.querySelector('.rst-content .document');
       let feedback = document.querySelector('.feedback');
-      let selection = window.getSelection();
+      let selection = document.getSelection();
       let selectText = '';
+
       if (content && feedback) {
         content.onmouseup = function (event) {
           let ev = event || window.event;
@@ -441,16 +448,7 @@ ${locale.issue[4]}`;
 
           setTimeout(function () {
             if (selection && selection.type === 'Range') {
-              // 过滤数据 \n\uD835\n  >>>
-              selectText =
-                selection
-                  .toString()
-                  .replace(/\n\(\n\uD835\n[\s\S]*?\n\)\n/g, '')
-                  .replace(/\n\uD835[\s\S]*?\n/g, '')
-                  .replace(/\uD835[\s\S]*?\n/g, '')
-                  .replace(/>>> /g, '')
-                  .trim() + '';
-              console.log('selectText :>> ', selectText);
+              selectText = getSelectionFragment(selection);
               feedback.style.display = 'flex';
               feedback.style.left = left + 'px';
               feedback.style.top = top + 'px';
@@ -486,6 +484,30 @@ ${locale.issue[4]}`;
             $('#evaluate-mark').show();
           }
         });
+
+        // 过滤选中片段 math 的内容 替换成空格
+        const getSelectionFragment = (selection) => {
+          const filteredFragment = document.createDocumentFragment();
+
+          for (let i = 0; i < selection.rangeCount; i++) {
+            const range = selection.getRangeAt(i);
+            const clonedContent = range.cloneContents();
+
+            const mathElements = clonedContent.querySelectorAll('.math');
+            mathElements.forEach((element) => {
+              const replacementText = document.createTextNode(' ');
+              element.parentNode.insertBefore(replacementText, element);
+              element.parentNode.removeChild(element);
+            });
+
+            filteredFragment.appendChild(clonedContent);
+          }
+
+          const filteredDiv = document.createElement('div');
+          filteredDiv.appendChild(filteredFragment);
+
+          return filteredDiv.innerText;
+        };
       }
     })();
 
