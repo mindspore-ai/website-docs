@@ -827,8 +827,8 @@ $(function () {
         const askQuestion = isEn ? 'Document Feedback' : '文档反馈';
         const askQuestion1 = isEn ? 'Quick Feedback' : '快速反馈问题';
         const askQuestionInfo = isEn
-          ? 'Click the blue button to commit an issue in the code repository. Describe the issue in the template. We will follow up on it.'
-          : '点击蓝色按钮，可跳转代码仓提issue，按照issue模板填写问题描述，我们将会跟进处理';
+          ? 'Click the blue button to fill in document feedback information and go to the code repository to submit an issue or PR. We will follow up on it.'
+          : '点击蓝色按钮，可填写文档反馈相关信息，并跳转代码仓提issue或PR，我们将会跟进处理';
         const askQuestionInfo1 = isEn
           ? 'Remember to add the tag below:'
           : '记得添加mindspore-assistant标签哦！';
