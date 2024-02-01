@@ -816,18 +816,14 @@ $(function () {
         });
       },
       // 文档反馈
+      getFeedback: () => {
+        let s = document.getElementsByTagName('HEAD')[0];
+        let hm = document.createElement('script');
+        hm.src = '/feedback.js';
+        s.appendChild(hm, s);
+      },
+      // 文档反馈
       getFeedbackContent: () => {
-        let issueUrl =
-          utils.configIP.GITEE_URL +
-          '/mindspore/docs/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0';
-        if (
-          pathname.startsWith('/docs/') &&
-          pathname.includes('/api_python/')
-        ) {
-          issueUrl =
-            utils.configIP.GITEE_URL +
-            '/mindspore/mindspore/issues/new?issue%5Bassignee_id%5D=0&issue%5Bmilestone_id%5D=0';
-        }
         const askQuestion = isEn ? 'Document Feedback' : '文档反馈';
         const askQuestion1 = isEn ? 'Quick Feedback' : '快速反馈问题';
         const askQuestionInfo = isEn
@@ -839,7 +835,7 @@ $(function () {
 
         const feedbackDom = `<div class="docs-feedback">
           <div class="feedback-box ${isEn ? 'en' : ''}">
-          <a href="${issueUrl}" rel="noopener noreferrer" target="_blank" class="text askQuestion">${askQuestion}</a>
+          <span class="text askQuestion">${askQuestion}</span>
           <div class="feedback-layer">
             <p class="title"><i class="feedback-icon"></i>${askQuestion1}</p>
             <p class="desc">${askQuestionInfo}</p>
@@ -859,6 +855,7 @@ $(function () {
         docsUtils.onClipboard();
         docsUtils.watchWinResize();
         docsUtils.getFeedbackContent();
+        docsUtils.getFeedback();
         docsAnchor.init();
 
         // 解决公式显示问题
@@ -984,17 +981,27 @@ $(function () {
         className = ''
       ) => {
         const name = utils.filterXSS(node.innerText);
-        return `<li>
-        <span class="line"></span>
-        <a title="${name}" href="#${utils.filterXSS(
-          isId ? node.closest('dt').id : node.parentNode.id
-        )}">${name}</a>
-        ${
-          isShow
-            ? `<ul class='${utils.filterXSS(className)}'>${child || ''}</ul>`
-            : ''
-        }
-      </li> `;
+        try {
+          return `<li>
+          <span class="line"></span>
+          <a title="${name}" href="#${utils.filterXSS(
+            isId
+              ? docsAnchor.getReplaceStr(node.closest('dt').id)
+              : docsAnchor.getReplaceStr(node.parentNode.id)
+          )}">${name}</a>
+          ${
+            isShow
+              ? `<ul class='${utils.filterXSS(className)}'>${child || ''}</ul>`
+              : ''
+          }
+        </li> `;
+        } catch (error) {}
+      },
+      getReplaceStr: (str) => {
+        return str
+          .replace(/\(([^).']*)\)/g, '$1')
+          .replace(/\“|\”|\'/g, '')
+          .replace(/\!|\=|\:/g, '');
       },
       getAnchorList: () => {
         const sectionList = $('.document>div:first-of-type>section');
@@ -1021,9 +1028,7 @@ $(function () {
         if (h2List.length > 0) {
           for (let i = 0; i < h2List.length; i++) {
             // 正则去除括号、保留内容
-            const id = h2List[i].parentNode.id
-              .replace(/\(([^).']*)\)/g, '$1')
-              .replace(/\“|\”|\'/g, '');
+            const id = docsAnchor.getReplaceStr(h2List[i].parentNode.id);
             const h3 = document.getElementById(id).querySelectorAll('h3');
             if (h3.length > 0) {
               navLi2 = '';
@@ -1157,14 +1162,16 @@ $(function () {
           for (let i = 0; i < navListLink.length; i++) {
             const id = navListLink.eq(i).attr('href').substring(1);
             const newId = id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-            if (!newId) return;
-            if (
-              $('#' + newId).length > 0 &&
-              $('#' + newId).offset().top - 140 < 116
-            ) {
-              navListLink.closest('li').removeClass('selected');
-              navListLink.eq(i).closest('li').addClass('selected');
-            }
+            try {
+              if (!newId) return;
+              if (
+                $('#' + newId).length > 0 &&
+                $('#' + newId).offset().top - 140 < 116
+              ) {
+                navListLink.closest('li').removeClass('selected');
+                navListLink.eq(i).closest('li').addClass('selected');
+              }
+            } catch (error) {}
           }
           return false;
         };
