@@ -142,7 +142,7 @@ $(function () {
       privacyText: [
         isEn
           ? 'By submitting the contents, you fully understand and agree to the terms of the MindSpore '
-          : '您理解并同意，您填写和提交的内容，即视为您已充分阅读并同意MindSpore的',
+          : '您理解并同意：您填写和提交的内容，即视为您已充分阅读并同意MindSpore的',
         isEn ? ' Privacy Policy.' : '《隐私政策》',
       ],
       privacyLink: isEn ? '/privacy/en' : '/privacy',
