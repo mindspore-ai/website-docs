@@ -150,6 +150,7 @@
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;Profiling api file.&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">stat</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">json</span>
@@ -193,6 +194,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_flops_generator</span> <span class="kn">import</span> <span class="n">AscendFlopsGenerator</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_cluster_generator</span> <span class="kn">import</span> <span class="n">AscendClusterGenerator</span>
 <span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_hccl_generator</span> <span class="kn">import</span> <span class="n">AscendHCCLGenerator</span><span class="p">,</span> <span class="n">AscendHCCLGeneratorOld</span>
+<span class="kn">from</span> <span class="nn">mindspore.profiler.parser.ascend_communicate_generator</span> <span class="kn">import</span> <span class="n">AscendCommunicationGenerator</span>
 
 <span class="n">INIT_OP_NAME</span> <span class="o">=</span> <span class="s1">&#39;Default/InitDataSetQueue&#39;</span>
 
@@ -205,6 +207,7 @@
     <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;MemoryUB&quot;</span><span class="p">,</span>
     <span class="o">-</span><span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;None&quot;</span>
 <span class="p">}</span>
+
 
 <span class="k">class</span> <span class="nc">ModelTraingMode</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
     <span class="n">PYNATIVE</span> <span class="o">=</span> <span class="mi">0</span>
@@ -1360,20 +1363,65 @@
         <span class="k">finally</span><span class="p">:</span>
             <span class="k">pass</span>
 
-    <span class="k">def</span> <span class="nf">_ascend_graph_cluster_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_ascend_ms_analyze</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ascend ms generate&quot;&quot;&quot;</span>
+
+        <span class="n">dev_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_target</span> <span class="o">==</span> <span class="n">DeviceTarget</span><span class="o">.</span><span class="n">ASCEND</span><span class="o">.</span><span class="n">value</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dev_id</span>
+        <span class="n">ascend_profiler_output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_ms_path</span><span class="p">,</span> <span class="s1">&#39;ASCEND_PROFILER_OUTPUT&#39;</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">ascend_profiler_output_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">source_profiler_info_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;profiler_info_</span><span class="si">{</span><span class="n">dev_id</span><span class="si">}</span><span class="s2">.json&quot;</span><span class="p">)</span>
+        <span class="n">target_profiler_info_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_ms_path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;profiler_info_</span><span class="si">{</span><span class="n">dev_id</span><span class="si">}</span><span class="s2">.json&quot;</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">source_profiler_info_path</span><span class="p">,</span> <span class="n">target_profiler_info_path</span><span class="p">)</span>
+
+        <span class="n">source_timeline_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;ascend_timeline_display_</span><span class="si">{</span><span class="n">dev_id</span><span class="si">}</span><span class="s2">.json&quot;</span><span class="p">)</span>
+        <span class="n">target_timeline_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ascend_profiler_output_path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;trace_view.json&quot;</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">source_timeline_path</span><span class="p">,</span> <span class="n">target_timeline_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_cluster_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">ascend_profiler_output_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_communicate_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">ascend_profiler_output_path</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_ascend_graph_cluster_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">ascend_profiler_output_path</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyse step trace time info&quot;&quot;&quot;</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: analyzing the step trace time profiler info.&quot;</span><span class="p">)</span>
-            <span class="n">dev_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_target</span> <span class="o">==</span> <span class="n">DeviceTarget</span><span class="o">.</span><span class="n">ASCEND</span><span class="o">.</span><span class="n">value</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dev_id</span>
 
-            <span class="n">step_trace_time_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;step_trace_time_</span><span class="si">{</span><span class="n">dev_id</span><span class="si">}</span><span class="s1">.csv&#39;</span><span class="p">)</span>
+            <span class="n">step_trace_time_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ascend_profiler_output_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;step_trace_time.csv&#39;</span><span class="p">)</span>
             <span class="n">step_trace_time_path</span> <span class="o">=</span> <span class="n">validate_and_normalize_path</span><span class="p">(</span><span class="n">step_trace_time_path</span><span class="p">)</span>
 
             <span class="n">cluster_analyse</span> <span class="o">=</span> <span class="n">AscendClusterGenerator</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="s1">&#39;timeline&#39;</span><span class="p">))</span>
             <span class="n">cluster_analyse</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
             <span class="n">cluster_analyse</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">step_trace_time_path</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">ProfilerException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">ProfilerIOException</span><span class="p">,</span> <span class="n">ProfilerFileNotFoundException</span><span class="p">,</span> <span class="n">ProfilerRawFileException</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_ascend_graph_communicate_analyse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">ascend_profiler_output_path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyse communicate info&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_profile_communication</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_profile_communication</span> <span class="ow">and</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;[Profiler]The parameter profile_communication is not supported on Ascend &quot;</span>
+                           <span class="s2">&quot;PyNative mode currently.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Profiling: analyzing the communicate and communicate_matrix profiler info.&quot;</span><span class="p">)</span>
+
+            <span class="n">communication_file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ascend_profiler_output_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;communication.json&#39;</span><span class="p">)</span>
+            <span class="n">communication_file_path</span> <span class="o">=</span> <span class="n">validate_and_normalize_path</span><span class="p">(</span><span class="n">communication_file_path</span><span class="p">)</span>
+
+            <span class="n">communication_matrix_file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ascend_profiler_output_path</span><span class="p">,</span>
+                                                          <span class="sa">f</span><span class="s2">&quot;communication_matrix.json&quot;</span><span class="p">)</span>
+            <span class="n">communication_matrix_file_path</span> <span class="o">=</span> <span class="n">validate_and_normalize_path</span><span class="p">(</span><span class="n">communication_matrix_file_path</span><span class="p">)</span>
+
+            <span class="n">analyze_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">source_path</span><span class="p">),</span> <span class="s1">&#39;analyze&#39;</span><span class="p">)</span>
+            <span class="n">communicate_analyser</span> <span class="o">=</span> <span class="n">AscendCommunicationGenerator</span><span class="p">(</span><span class="n">analyze_path</span><span class="p">)</span>
+            <span class="n">communicate_analyser</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
+            <span class="n">communicate_analyser</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">communication_file_path</span><span class="p">,</span> <span class="n">communication_matrix_file_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">ProfilerIOException</span><span class="p">,</span> <span class="n">ProfilerFileNotFoundException</span><span class="p">,</span> <span class="n">ProfilerRawFileException</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="k">pass</span>
@@ -1474,7 +1522,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_dynamic_net_analyse</span><span class="p">(</span><span class="n">op_summary</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_flops_analyse</span><span class="p">(</span><span class="n">op_summary</span><span class="p">,</span> <span class="n">launch_ops</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_memory_analyse</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_cluster_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_ms_analyze</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_hccl_analyse</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">steptrace</span><span class="p">,</span> <span class="n">flag</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_graph_msadvisor_analyse</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
             <span class="n">ProfilerInfo</span><span class="o">.</span><span class="n">set_graph_ids</span><span class="p">(</span><span class="n">graph_ids</span><span class="p">)</span>
@@ -1822,7 +1870,16 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">output_path</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;output_path&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span> <span class="o">=</span> <span class="n">validate_and_normalize_path</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+
+        <span class="n">time_stamp</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">%H%M%S&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span><span class="p">:</span>
+            <span class="n">ascend_ms_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rank-</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">time_stamp</span><span class="si">}</span><span class="s2">_ascend_ms&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">socket</span>
+            <span class="n">ascend_ms_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span><span class="si">}</span><span class="s2">--</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">time_stamp</span><span class="si">}</span><span class="s2">_ascend_ms&quot;</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="s2">&quot;profiler&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_ms_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">ascend_ms_path</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_path</span><span class="p">,</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IRUSR</span> <span class="o">|</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IWUSR</span> <span class="o">|</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IXUSR</span><span class="p">)</span>
@@ -1836,6 +1893,10 @@
         <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_framework_path</span><span class="p">,</span> <span class="s2">&quot;op_range_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span><span class="p">))):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_framework_path</span><span class="p">,</span> <span class="s2">&quot;op_range_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rank_id</span><span class="p">))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Clear old op range filer.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_ms_path</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_ms_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ascend_ms_path</span><span class="p">,</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IRUSR</span> <span class="o">|</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IWUSR</span> <span class="o">|</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IXUSR</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_parser_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse kwargs vale.&quot;&quot;&quot;</span>
