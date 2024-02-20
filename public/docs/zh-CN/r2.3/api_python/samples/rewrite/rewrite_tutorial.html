@@ -224,14 +224,13 @@ class MyNetOpt(nn.Cell):
 </pre></div>
 </div>
 <p>运行结果如下：</p>
-<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>================================================================================
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[MyNetOpt]
 node type          name     codes              arg providers          target users
 -----------------  -------  -----------------  ---------------------  ----------------------
 NodeType.Input     input_x  x                  []                     [[0, [(&#39;dense&#39;, 0)]]]
 NodeType.CallCell  dense    x = self.dense(x)  [[0, (&#39;input_x&#39;, 0)]]  [[0, [(&#39;relu&#39;, 0)]]]
 NodeType.CallCell  relu     x = self.relu(x)   [[0, (&#39;dense&#39;, 0)]]    [[0, [(&#39;return&#39;, 0)]]]
 NodeType.Output    return   return x           [[0, (&#39;relu&#39;, 0)]]     []
-==================================================================================
 </pre></div>
 </div>
 <p>可以看到，网络的前向计算过程的每一条语句均被转换为一个节点，其中每一个节点的名称是唯一的。
@@ -256,15 +255,14 @@ SymbolTree里记录了各个Node间的拓扑关系，即节点的某个输入来
 </pre></div>
 </div>
 <p>运行结果如下：</p>
-<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>================================================================================
-node type          name        codes                     arg providers             target users
------------------  ----------  ------------------------  ------------------------  --------------------------
-NodeType.Input     input_x     x                         []                        [[0, [(&#39;dense&#39;, 0)]]]
-NodeType.CallCell  dense       dense = self.dense(x)     [[0, (&#39;input_x&#39;, 0)]]     [[0, [(&#39;binop_mult&#39;, 1)]]]
-NodeType.MathOps   binop_mult  mult_var = (0.5 * dense)  [[1, (&#39;dense&#39;, 0)]]       [[0, [(&#39;relu&#39;, 0)]]]
-NodeType.CallCell  relu        x = self.relu(mult_var)   [[0, (&#39;binop_mult&#39;, 0)]]  [[0, [(&#39;return&#39;, 0)]]]
-NodeType.Output    return      return x                  [[0, (&#39;relu&#39;, 0)]]        []
-==================================================================================
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[MyNet_2Opt]
+node type          name        codes                         arg providers             target users
+-----------------  ----------  ----------------------------  ------------------------  --------------------------
+NodeType.Input     input_x     x                             []                        [[0, [(&#39;dense&#39;, 0)]]]
+NodeType.CallCell  dense       dense_var = self.dense(x)     [[0, (&#39;input_x&#39;, 0)]]     [[0, [(&#39;binop_mult&#39;, 1)]]]
+NodeType.MathOps   binop_mult  mult_var = (0.5 * dense_var)  [[1, (&#39;dense&#39;, 0)]]       [[0, [(&#39;relu&#39;, 0)]]]
+NodeType.CallCell  relu        x = self.relu(mult_var)       [[0, (&#39;binop_mult&#39;, 0)]]  [[0, [(&#39;return&#39;, 0)]]]
+NodeType.Output    return      return x                      [[0, (&#39;relu&#39;, 0)]]        []
 </pre></div>
 </div>
 <p>可以看到，前向计算过程中写在同一行的dense操作、乘法操作和relu操作，被展开为三行代码，然后被转换为三个对应节点。</p>
@@ -291,7 +289,7 @@ NodeType.Output    return      return x                  [[0, (&#39;relu&#39;, 0
 <li><p>最后通过 <a class="reference external" href="https://mindspore.cn/docs/zh-CN/r2.3/api_python/mindspore.rewrite.html#mindspore.rewrite.SymbolTree.insert">mindspore.rewrite.SymbolTree.insert</a> 方法将新创建的节点插入到dense节点后面。</p></li>
 </ol>
 <p>运行结果如下：</p>
-<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>================================================================================
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[MyNetOpt]
 node type          name      codes                 arg providers           target users
 -----------------  --------  --------------------  ----------------------  ------------------------
 NodeType.Input     input_x   x                     []                      [[0, [(&#39;dense&#39;, 0)]]]
@@ -299,7 +297,6 @@ NodeType.CallCell  dense     x = self.dense(x)     [[0, (&#39;input_x&#39;, 0)]]
 NodeType.CallCell  new_relu  x = self.new_relu(x)  [[0, (&#39;dense&#39;, 0)]]     [[0, [(&#39;relu&#39;, 0)]]]
 NodeType.CallCell  relu      x = self.relu(x)      [[0, (&#39;new_relu&#39;, 0)]]  [[0, [(&#39;return&#39;, 0)]]]
 NodeType.Output    return    return x              [[0, (&#39;relu&#39;, 0)]]      []
-==================================================================================
 </pre></div>
 </div>
 <p>可以看到，新的new_relu节点插入到dense节点和relu节点间，节点的拓扑结构随着节点插入自动更新。
@@ -328,7 +325,7 @@ NodeType.Output    return    return x              [[0, (&#39;relu&#39;, 0)]]   
 </div>
 <p>在该样例中，创建新节点时 <code class="docutils literal notranslate"><span class="pre">targets</span></code> 参数的值进行了不重名的处理，然后将旧的relu节点的输入改为新节点的输出。</p>
 <p>运行结果如下：</p>
-<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>================================================================================
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[MyNetOpt]
 node type          name      codes                   arg providers           target users
 -----------------  --------  ----------------------  ----------------------  ------------------------
 NodeType.Input     input_x   x                       []                      [[0, [(&#39;dense&#39;, 0)]]]
@@ -336,7 +333,6 @@ NodeType.CallCell  dense     x = self.dense(x)       [[0, (&#39;input_x&#39;, 0)
 NodeType.CallCell  new_relu  x_1 = self.new_relu(x)  [[0, (&#39;dense&#39;, 0)]]     [[0, [(&#39;relu&#39;, 0)]]]
 NodeType.CallCell  relu      x = self.relu(x_1)      [[0, (&#39;new_relu&#39;, 0)]]  [[0, [(&#39;return&#39;, 0)]]]
 NodeType.Output    return    return x                [[0, (&#39;relu&#39;, 0)]]      []
-==================================================================================
 </pre></div>
 </div>
 <p>可以看到，新节点的输出变量名是一个不重名的名称 <code class="docutils literal notranslate"><span class="pre">x_1</span></code> ，且旧的relu节点使用 <code class="docutils literal notranslate"><span class="pre">x_1</span></code> 作为输入。</p>
@@ -357,13 +353,12 @@ NodeType.Output    return    return x                [[0, (&#39;relu&#39;, 0)]] 
 </pre></div>
 </div>
 <p>运行结果如下：</p>
-<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>================================================================================
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[MyNetOpt]
 node type          name     codes              arg providers          target users
 -----------------  -------  -----------------  ---------------------  ----------------------
 NodeType.Input     input_x  x                  []                     [[0, [(&#39;dense&#39;, 0)]]]
 NodeType.CallCell  dense    x = self.dense(x)  [[0, (&#39;input_x&#39;, 0)]]  [[0, [(&#39;return&#39;, 0)]]]
 NodeType.Output    return   return x           [[0, (&#39;dense&#39;, 0)]]    []
-==================================================================================
 </pre></div>
 </div>
 <p>可以看到，因为dense结点的输出和relu结点的输出同名，删除relu节点后，返回值使用的是dense节点的输出。</p>
@@ -396,13 +391,12 @@ NodeType.Output    return   return x           [[0, (&#39;dense&#39;, 0)]]    []
 节点的输入都改为relu节点的输入，然后再删除relu节点。这样的话，后续使用了relu节点输出 <code class="docutils literal notranslate"><span class="pre">z</span></code> 的地方就都改为使用relu节点输入 <code class="docutils literal notranslate"><span class="pre">y</span></code> 了。</p>
 <p>具体的参数名修改策略取决于实际场景需求。</p>
 <p>运行结果如下：</p>
-<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>================================================================================
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[MyNet_3Opt]
 node type          name     codes              arg providers          target users
 -----------------  -------  -----------------  ---------------------  ----------------------
 NodeType.Input     input_x  x                  []                     [[0, [(&#39;dense&#39;, 0)]]]
 NodeType.CallCell  dense    y = self.dense(x)  [[0, (&#39;input_x&#39;, 0)]]  [[0, [(&#39;return&#39;, 0)]]]
 NodeType.Output    return   return y           [[0, (&#39;dense&#39;, 0)]]    []
-==================================================================================
 </pre></div>
 </div>
 <p>可以看到，删除relu节点后，最后一个return节点的值从 <code class="docutils literal notranslate"><span class="pre">z</span></code> 被更新为 <code class="docutils literal notranslate"><span class="pre">y</span></code> 。</p>
@@ -422,14 +416,13 @@ NodeType.Output    return   return y           [[0, (&#39;dense&#39;, 0)]]    []
 </pre></div>
 </div>
 <p>该样例将原始网络里的relu节点替换为new_relu节点，运行结果如下：</p>
-<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>================================================================================
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[MyNetOpt]
 node type          name      codes                 arg providers           target users
 -----------------  --------  --------------------  ----------------------  ------------------------
 NodeType.Input     input_x   x                     []                      [[0, [(&#39;dense&#39;, 0)]]]
 NodeType.CallCell  dense     x = self.dense(x)     [[0, (&#39;input_x&#39;, 0)]]   [[0, [(&#39;new_relu&#39;, 0)]]]
 NodeType.CallCell  new_relu  x = self.new_relu(x)  [[0, (&#39;dense&#39;, 0)]]     [[0, [(&#39;return&#39;, 0)]]]
 NodeType.Output    return    return x              [[0, (&#39;new_relu&#39;, 0)]]  []
-==================================================================================
 </pre></div>
 </div>
 <p>如果替换的新节点的输出和被替换节点的输出名不一致，需要注意维护好替换后的节点间的拓扑关系，即先修改后续使用了被替换节点的输出的节点，
@@ -454,15 +447,14 @@ NodeType.Output    return    return x              [[0, (&#39;new_relu&#39;, 0)]
 </pre></div>
 </div>
 <p>该用例将relu节点替换为两个新的节点，其中第一个节点的输出 <code class="docutils literal notranslate"><span class="pre">y1</span></code> 作为返回值更新return节点。运行结果如下：</p>
-<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>================================================================================
-node type          name        codes                    arg providers           target users
------------------  ----------  -----------------------  ----------------------  -------------------------------------------
-NodeType.Input     input_x     x                        []                      [[0, [(&#39;dense&#39;, 0)]]]
-NodeType.CallCell  dense       x = self.dense(x)        [[0, (&#39;input_x&#39;, 0)]]   [[0, [(&#39;new_relu&#39;, 0), (&#39;new_relu_1&#39;, 0)]]]
-NodeType.CallCell  new_relu    y1 = self.new_relu(x)    [[0, (&#39;dense&#39;, 0)]]     [[0, [(&#39;return&#39;, 0)]]]
-NodeType.CallCell  new_relu_1  y2 = self.new_relu_1(x)  [[0, (&#39;dense&#39;, 0)]]     []
-NodeType.Output    return      return y1                [[0, (&#39;new_relu&#39;, 0)]]  []
-==================================================================================
+<div class="highlight-log notranslate"><div class="highlight"><pre><span></span>[MyNetOpt]
+node type          name        codes                    arg providers             target users
+-----------------  ----------  -----------------------  ------------------------  ---------------------------------------------
+NodeType.Input     input_x     x                        []                        [[0, [(&#39;dense&#39;, 0)]]]
+NodeType.CallCell  dense       x = self.dense(x)        [[0, (&#39;input_x&#39;, 0)]]     [[0, [(&#39;new_relu_1&#39;, 0), (&#39;new_relu_2&#39;, 0)]]]
+NodeType.CallCell  new_relu_1  y1 = self.new_relu_1(x)  [[0, (&#39;dense&#39;, 0)]]       [[0, [(&#39;return&#39;, 0)]]]
+NodeType.CallCell  new_relu_2  y2 = self.new_relu_2(x)  [[0, (&#39;dense&#39;, 0)]]       []
+NodeType.Output    return      return y1                [[0, (&#39;new_relu_1&#39;, 0)]]  []
 </pre></div>
 </div>
 <p>可以看出，relu节点被成功替换为两个新节点，返回值也被更新为第一个新节点的输出。</p>
