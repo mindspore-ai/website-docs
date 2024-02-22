@@ -636,9 +636,84 @@
 <span class="sd">        scale_sense (float): the scale sense of the gradient. Default: 1.0.</span>
 
 <span class="sd">    Raise:</span>
-<span class="sd">        RuntimeError:</span>
-<span class="sd">            1. If the mode is not graph mode.</span>
-<span class="sd">            2. If the parallel mode is not semi auto parallel or auto parallel.</span>
+<span class="sd">        RuntimeError: If the mode is not graph mode.</span>
+<span class="sd">        RuntimeError: If the parallel mode is not semi auto parallel or auto parallel.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend`` ``GPU``</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        .. note::</span>
+<span class="sd">            Before running the following examples, you need to configure the communication environment variables.</span>
+
+<span class="sd">            For the Ascend devices, users need to prepare the rank table, set rank_id and device_id.</span>
+<span class="sd">            Please see the `rank table Startup</span>
+<span class="sd">            &lt;https://www.mindspore.cn/tutorials/experts/en/r2.3/parallel/rank_table.html&gt;`_</span>
+<span class="sd">            for more details.</span>
+
+<span class="sd">            For the GPU devices, users need to prepare the host file and mpi, please see the `mpirun Startup</span>
+<span class="sd">            &lt;https://www.mindspore.cn/tutorials/experts/en/r2.3/parallel/mpirun.html&gt;`_ .</span>
+
+<span class="sd">            This example should be run with multiple devices.</span>
+
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import nn, ops, Tensor</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.communication import init</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_context(mode=ms.GRAPH_MODE)</span>
+<span class="sd">        &gt;&gt;&gt; ms.reset_auto_parallel_context()</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL, pipeline_stages=2)</span>
+<span class="sd">        &gt;&gt;&gt; init()</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_seed(1)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; class Network(nn.Cell):</span>
+<span class="sd">        ...     def __init__(self, in_features, out_features, sens=1.0):</span>
+<span class="sd">        ...         super().__init__()</span>
+<span class="sd">        ...         self.layer1 = nn.Dense(in_features, 16)</span>
+<span class="sd">        ...         self.relu1 = nn.ReLU()</span>
+<span class="sd">        ...         self.layer2 = nn.Dense(16, 16)</span>
+<span class="sd">        ...         self.relu2 = nn.ReLU()</span>
+<span class="sd">        ...         self.layer3 = nn.Dense(16, out_features)</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     def construct(self, x):</span>
+<span class="sd">        ...         x = self.layer1(x)</span>
+<span class="sd">        ...         x = self.relu1(x)</span>
+<span class="sd">        ...         x = self.layer2(x)</span>
+<span class="sd">        ...         x = self.relu2(x)</span>
+<span class="sd">        ...         logits = self.layer3(x)</span>
+<span class="sd">        ...         return logits</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; size, in_features, out_features = 16, 32, 10</span>
+<span class="sd">        &gt;&gt;&gt; net = Network(in_features, out_features)</span>
+<span class="sd">        &gt;&gt;&gt; net.layer1.pipeline_stage = 0</span>
+<span class="sd">        &gt;&gt;&gt; net.relu1.pipeline_stage = 0</span>
+<span class="sd">        &gt;&gt;&gt; net.layer2.pipeline_stage = 0</span>
+<span class="sd">        &gt;&gt;&gt; net.relu2.pipeline_stage = 1</span>
+<span class="sd">        &gt;&gt;&gt; net.layer3.pipeline_stage = 1</span>
+<span class="sd">        &gt;&gt;&gt; loss_fn = nn.CrossEntropyLoss()</span>
+<span class="sd">        &gt;&gt;&gt; optimizer = nn.SGD(net.trainable_params(), 1e-2)</span>
+<span class="sd">        &gt;&gt;&gt; net_with_loss = nn.PipelineCell(nn.WithLossCell(net, loss_fn), 2)</span>
+<span class="sd">        &gt;&gt;&gt; net_with_loss.set_train()</span>
+<span class="sd">        &gt;&gt;&gt; def forward_fn(inputs, target):</span>
+<span class="sd">        ...     loss = net_with_loss(inputs, target)</span>
+<span class="sd">        ...     return loss</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; grad_fn = ops.value_and_grad(forward_fn, None, net_with_loss.trainable_params())</span>
+<span class="sd">        &gt;&gt;&gt; pp_grad_reducer = nn.PipelineGradReducer(optimizer.parameters)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; @ms.jit</span>
+<span class="sd">        &gt;&gt;&gt; def train_one_step(inputs, target):</span>
+<span class="sd">        ...     loss, grads = grad_fn(inputs, target)</span>
+<span class="sd">        ...     grads = pp_grad_reducer(grads)</span>
+<span class="sd">        ...     optimizer(grads)</span>
+<span class="sd">        ...     return loss, grads</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; inputs = Tensor(np.ones([size, in_features]).astype(np.float32))</span>
+<span class="sd">        &gt;&gt;&gt; label = Tensor(np.ones([size, out_features]).astype(np.float32))</span>
+<span class="sd">        &gt;&gt;&gt; loss, _ = train_one_step(inputs, label)</span>
+<span class="sd">        &gt;&gt;&gt; print(loss)</span>
+<span class="sd">        46.36721</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">scale_sense</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">PipelineGradReducer</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
