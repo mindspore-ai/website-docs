@@ -154,6 +154,7 @@
 <ol class="arabic simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL,</span> <span class="pre">pipeline_stages=NUM)</span></code>: Set semi-automatic parallel mode and set <code class="docutils literal notranslate"><span class="pre">pipeline_stages</span></code> to indicate that the total number of stages is NUM and call it before initializing the network.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">nn.PipelineCell(loss_cell,</span> <span class="pre">micro_size)</span></code>: pipeline parallelism requires wrapping a layer of <code class="docutils literal notranslate"><span class="pre">PipelineCell</span></code> around the LossCell and specifying the size of the MicroBatch. In order to improve machine utilization, MindSpore slices the MiniBatch into finer-grained MicroBatches, and the final loss is the sum of the loss values computed by all MicroBatches, where the size of the MicroBatch must be greater than or equal to the number of stages.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nn.PipelineGradReducer(parameters)</span></code>: pipeline parallelism requires using <code class="docutils literal notranslate"><span class="pre">PipelineGradReducer</span></code> for gradient reduction. Because the output of pipeline parallelism is derived by the addition of several micro-batch outputs, as the gradient do.</p></li>
 </ol>
 </section>
 <section id="basic-principle">
@@ -263,15 +264,36 @@
 <li><p>First define the LossCell. In this case the <code class="docutils literal notranslate"><span class="pre">nn.WithLossCell</span></code> interface is called to encapsulate the network and loss functions.</p></li>
 <li><p>Finally, wrap the LossCell with <code class="docutils literal notranslate"><span class="pre">nn.PipelineCell</span></code>, and specify the size of MicroBatch. For detailed information, refer to the related interfaces in the overview.</p></li>
 </ul>
+<p>Besides, the interface <code class="docutils literal notranslate"><span class="pre">nn.PipelineGradReducer</span></code> is needed to handle gradient of pipeline parallelism, the first parameter of this interface is the network parameter to be updated.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
-<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">train</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
 
 <span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">1e-2</span><span class="p">)</span>
 <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
-<span class="n">loss_cb</span> <span class="o">=</span> <span class="n">train</span><span class="o">.</span><span class="n">LossMonitor</span><span class="p">()</span>
-<span class="n">net_with_grads</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">PipelineCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">net_with_grads</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">)</span>
-<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">loss_cb</span><span class="p">],</span> <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">net_with_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">PipelineCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+<span class="n">net_with_loss</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">net_with_loss</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span>
+
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+<span class="n">pp_grad_reducer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">PipelineGradReducer</span><span class="p">(</span><span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span> <span class="nf">train_one_step</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+    <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="n">pp_grad_reducer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">data_set</span><span class="p">:</span>
+        <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">train_one_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;epoch: </span><span class="si">%s</span><span class="s2">, step: </span><span class="si">%s</span><span class="s2">, loss is </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">loss</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
 </pre></div>
 </div>
 <blockquote>
@@ -296,16 +318,13 @@
 </pre></div>
 </div>
 <p>The results are saved in <code class="docutils literal notranslate"><span class="pre">log_output/1/rank.*/stdout</span></code>, and the example is as below:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 1 step: 1875, loss is 1.9490933418273926
-epoch: 2 step: 1875, loss is 0.44548869132995605
-epoch: 3 step: 1875, loss is 0.034527599811553955
-epoch: 4 step: 1875, loss is 1.0163589715957642
-epoch: 5 step: 1875, loss is 0.02109396457672119
-epoch: 6 step: 1875, loss is 0.012739777565002441
-epoch: 7 step: 1875, loss is 0.004988193511962891
-epoch: 8 step: 1875, loss is 0.10372555255889893
-epoch: 9 step: 1875, loss is 0.019182920455932617
-epoch: 10 step: 1875, loss is 0.021012544631958008
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0 step: 0, loss is 9.087993
+epoch: 0 step: 10, loss is 8.575434
+epoch: 0 step: 20, loss is 8.185939
+epoch: 0 step: 30, loss is 6.7301626
+epoch: 0 step: 40, loss is 5.2246842
+epoch: 0 step: 50, loss is 3.8342278
+...
 </pre></div>
 </div>
 <p>Other startup methods such as dynamic cluster and <code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">table</span></code> startup can be found in <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/r2.3/parallel/startup_method.html">startup methods</a>.</p>
