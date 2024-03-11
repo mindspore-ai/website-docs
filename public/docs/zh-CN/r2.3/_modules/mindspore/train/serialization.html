@@ -231,6 +231,16 @@
 <span class="n">INT_64_MAX</span> <span class="o">=</span> <span class="mi">9223372036854775807</span>
 
 
+<span class="k">class</span> <span class="nc">ParamDictFuture</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">executor</span><span class="p">,</span> <span class="n">param_dict_future</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">executor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param_dict_future</span> <span class="o">=</span> <span class="n">param_dict_future</span>
+    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">param_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_dict_future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">param_dict</span>
+
+
 <span class="k">def</span> <span class="nf">_special_process_par</span><span class="p">(</span><span class="n">par</span><span class="p">,</span> <span class="n">new_par</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processes the special condition.</span>
@@ -1267,6 +1277,86 @@
     <span class="k">return</span> <span class="n">parameter_dict</span></div>
 
 
+<span class="k">def</span> <span class="nf">load_checkpoint_async</span><span class="p">(</span><span class="n">ckpt_file_name</span><span class="p">,</span> <span class="n">net</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">strict_load</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">filter_prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dec_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                          <span class="n">dec_mode</span><span class="o">=</span><span class="s2">&quot;AES-GCM&quot;</span><span class="p">,</span> <span class="n">specify_prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">choice_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load checkpoint info from a specified file asyncly.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This is an experimental API that is subject to change or deletion.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        - `specify_prefix` and `filter_prefix` do not affect each other.</span>
+<span class="sd">        - If none of the parameters are loaded from checkpoint file, it will throw ValueError.</span>
+<span class="sd">        - `specify_prefix` and `filter_prefix` are in the process of being deprecated,</span>
+<span class="sd">          `choice_func` is recommended instead.</span>
+<span class="sd">          And using either of those two args will override `choice_func` at the same time.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ckpt_file_name (str): Checkpoint file name.</span>
+<span class="sd">        net (Cell, optional): The network where the parameters will be loaded. Default: ``None`` .</span>
+<span class="sd">        strict_load (bool, optional): Whether to strict load the parameter into net. If ``False`` , it will load</span>
+<span class="sd">                                      parameter into net when parameter name&#39;s suffix in checkpoint file is the</span>
+<span class="sd">                                      same as the parameter in the network. When the types are inconsistent</span>
+<span class="sd">                                      perform type conversion on the parameters of the same type, such as float32</span>
+<span class="sd">                                      to float16. Default: ``False`` .</span>
+<span class="sd">        filter_prefix (Union[str, list[str], tuple[str]], optional): Deprecated(see `choice_func`). Parameters</span>
+<span class="sd">            starting with the `filter_prefix` will not be loaded. Default: ``None`` .</span>
+<span class="sd">        dec_key (Union[None, bytes], optional): Byte type key used for decryption. If the value is ``None`` ,</span>
+<span class="sd">                                                the decryption is not required. Default: ``None`` .</span>
+<span class="sd">        dec_mode (str, optional): This parameter is valid only when dec_key is not set to ``None`` . Specifies</span>
+<span class="sd">                                  the decryption mode, currently supports ``&quot;AES-GCM&quot;`` and ``&quot;AES-CBC&quot;``</span>
+<span class="sd">                                  and ``&quot;SM4-CBC&quot;`` . Default: ``&quot;AES-GCM&quot;`` .</span>
+<span class="sd">        specify_prefix (Union[str, list[str], tuple[str]], optional): Deprecated(see `choice_func`). Parameters</span>
+<span class="sd">            starting with the specify_prefix will be loaded. Default: ``None`` .</span>
+<span class="sd">        choice_func (Union[None, function], optional): Input value of the function is a Parameter name of type</span>
+<span class="sd">            string, and the return value is a bool. If returns ``True`` , the Parameter</span>
+<span class="sd">            that matches the custom condition will be loaded. If returns ``False`` , the Parameter that</span>
+<span class="sd">            matches the custom condition will be removed. Default: ``None`` .</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ParamDictFuture, A custom class, calling its result method yields the load_checkpoint result.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: Checkpoint file&#39;s format is incorrect.</span>
+<span class="sd">        ValueError: Parameter&#39;s dict is None after load checkpoint file.</span>
+<span class="sd">        TypeError: The type of `specify_prefix` or `filter_prefix` is incorrect.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import nn</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.train import Model</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.amp import FixedLossScaleManager</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import context</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.train.serialization import load_checkpoint_async</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.train.serialization import load_param_into_net</span>
+<span class="sd">        &gt;&gt;&gt; context.set_context(mode=context.GRAPH_MODE, device_target=&quot;Ascend&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; # Create the dataset taking MNIST as an example. Refer to</span>
+<span class="sd">        &gt;&gt;&gt; # https://gitee.com/mindspore/docs/blob/r2.3/docs/mindspore/code/mnist.py</span>
+<span class="sd">        &gt;&gt;&gt; dataset = create_dataset()</span>
+<span class="sd">        &gt;&gt;&gt; # Define the network structure of LeNet5. Refer to</span>
+<span class="sd">        &gt;&gt;&gt; # https://gitee.com/mindspore/docs/blob/r2.3/docs/mindspore/code/lenet.py</span>
+<span class="sd">        &gt;&gt;&gt; ckpt_file = &quot;./checkpoint/LeNet5-1_32.ckpt&quot;</span>
+<span class="sd">        &gt;&gt;&gt; net = LeNet5()</span>
+<span class="sd">        &gt;&gt;&gt; loss = nn.SoftmaxCrossEntropyWithLogits(sparse=True, reduction=&quot;mean&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; loss_scale_manager = FixedLossScaleManager()</span>
+<span class="sd">        &gt;&gt;&gt; optim = nn.Momentum(params=net.trainable_params(), learning_rate=0.1, momentum=0.9)</span>
+<span class="sd">        &gt;&gt;&gt; model = Model(net, loss_fn=loss, optimizer=optim, metrics=None,</span>
+<span class="sd">        ...               loss_scale_manager=loss_scale_manager)</span>
+<span class="sd">        &gt;&gt;&gt; pd_future = load_checkpoint_async(ckpt_file)</span>
+<span class="sd">        &gt;&gt;&gt; model.build(train_dataset=dataset, epoch=2)</span>
+<span class="sd">        &gt;&gt;&gt; param_dict = pd_future.result()</span>
+<span class="sd">        &gt;&gt;&gt; load_param_into_net(net, param_dict)</span>
+<span class="sd">        &gt;&gt;&gt; model.train(2, dataset)</span>
+<span class="sd">        &gt;&gt;&gt; print(&quot;param dict len: &quot;, len(param_dict), flush=True)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span>
+    <span class="n">executor</span> <span class="o">=</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">param_dict_future</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">ckpt_file_name</span><span class="p">,</span> <span class="n">net</span><span class="p">,</span> <span class="n">strict_load</span><span class="p">,</span> <span class="n">filter_prefix</span><span class="p">,</span>
+                                        <span class="n">dec_key</span><span class="p">,</span> <span class="n">dec_mode</span><span class="p">,</span> <span class="n">specify_prefix</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ParamDictFuture</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">param_dict_future</span><span class="p">)</span>
+
+
 <span class="k">def</span> <span class="nf">_load_map_parameter</span><span class="p">(</span><span class="n">checkpoint_list</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">element_id</span><span class="p">,</span> <span class="n">map_data_list</span><span class="p">,</span>
                         <span class="n">map_shape_list</span><span class="p">,</span> <span class="n">parameter_dict</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;load map parameter.&quot;&quot;&quot;</span>
@@ -1587,6 +1677,11 @@
             <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IRUSR</span> <span class="o">|</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IWUSR</span><span class="p">)</span>
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">graph_pb</span><span class="p">)</span>
 
+<span class="k">def</span> <span class="nf">_reshape_tensor</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">dst_shape</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;reshape tensor to dst shape&quot;&quot;&quot;</span>
+    <span class="n">np_tensor</span> <span class="o">=</span> <span class="n">tensor</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+    <span class="n">np_tensor</span> <span class="o">=</span> <span class="n">np_tensor</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">dst_shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np_tensor</span><span class="p">,</span> <span class="n">tensor</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">_get_merged_param_data</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">parameter_layout_dict</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param_data</span><span class="p">,</span> <span class="n">integrated_save</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1601,7 +1696,7 @@
 <span class="sd">        Tensor, the combined tensor which with the whole data value.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">layout</span> <span class="o">=</span> <span class="n">parameter_layout_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;The layout dict does not contain the key </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">param_name</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">param_data</span>
 
@@ -1609,6 +1704,13 @@
     <span class="n">tensor_map</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">uniform_split</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
     <span class="n">opt_shard_group</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+    <span class="n">before_reshape_slice_shape</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">before_reshape_full_shape</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span>
+    <span class="n">after_reshape_slice_shape</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span>
+    <span class="n">do_reshape</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">before_reshape_full_shape</span> <span class="ow">and</span> <span class="n">after_reshape_slice_shape</span>\
+            <span class="ow">and</span> <span class="n">after_reshape_slice_shape</span> <span class="o">!=</span> <span class="n">before_reshape_slice_shape</span><span class="p">:</span>
+        <span class="n">do_reshape</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="n">allgather_net</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">mp_weight</span> <span class="o">=</span> <span class="kc">False</span>
@@ -1630,17 +1732,22 @@
             <span class="c1"># while any dim is not equal to -1, means param is split and needs to be merged</span>
             <span class="c1"># pipeline parallel need to be supported here later</span>
             <span class="k">if</span> <span class="n">mp_weight</span><span class="p">:</span>
-                <span class="n">allgather_net</span> <span class="o">=</span> <span class="n">get_allgather_cell</span><span class="p">(</span><span class="n">opt_shard_group</span><span class="p">,</span> <span class="nb">bool</span><span class="p">(</span><span class="n">opt_shard_group</span><span class="p">))</span>
+                <span class="n">allgather_net</span> <span class="o">=</span> <span class="n">get_allgather_cell</span><span class="p">(</span><span class="n">opt_shard_group</span><span class="p">,</span> <span class="nb">bool</span><span class="p">(</span><span class="n">opt_shard_group</span><span class="p">),</span> <span class="n">do_reshape</span><span class="p">,</span>
+                                                   <span class="nb">tuple</span><span class="p">(</span><span class="n">after_reshape_slice_shape</span><span class="p">))</span>
                 <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">allgather_net</span><span class="p">,</span> <span class="s2">&quot;keep_input_unchanged&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">opt_shard_group</span><span class="p">:</span>
-                <span class="n">allgather_net</span> <span class="o">=</span> <span class="n">get_allgather_cell</span><span class="p">(</span><span class="n">opt_shard_group</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="n">allgather_net</span> <span class="o">=</span> <span class="n">get_allgather_cell</span><span class="p">(</span><span class="n">opt_shard_group</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">do_reshape</span><span class="p">,</span>
+                                                   <span class="nb">tuple</span><span class="p">(</span><span class="n">after_reshape_slice_shape</span><span class="p">))</span>
         <span class="k">elif</span> <span class="n">opt_shard_group</span> <span class="ow">and</span> <span class="n">context</span><span class="o">.</span><span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;optimizer_weight_shard_aggregated_save&quot;</span><span class="p">):</span>
-            <span class="n">allgather_net</span> <span class="o">=</span> <span class="n">get_allgather_cell</span><span class="p">(</span><span class="n">opt_shard_group</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">allgather_net</span> <span class="o">=</span> <span class="n">get_allgather_cell</span><span class="p">(</span><span class="n">opt_shard_group</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">do_reshape</span><span class="p">,</span>
+                                               <span class="nb">tuple</span><span class="p">(</span><span class="n">after_reshape_slice_shape</span><span class="p">))</span>
         <span class="n">net</span><span class="o">.</span><span class="n">parallel_parameter_merge_net_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">allgather_net</span>
     <span class="k">if</span> <span class="n">allgather_net</span><span class="p">:</span>
         <span class="n">param_data</span> <span class="o">=</span> <span class="n">allgather_net</span><span class="p">(</span><span class="n">param_data</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">mp_weight</span> <span class="ow">and</span> <span class="n">integrated_save</span><span class="p">:</span>
         <span class="n">param_data</span> <span class="o">=</span> <span class="n">_reshape_param_data</span><span class="p">(</span><span class="n">param_data</span><span class="p">,</span> <span class="n">dev_mat</span><span class="p">,</span> <span class="n">tensor_map</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">do_reshape</span><span class="p">:</span>
+            <span class="n">param_data</span> <span class="o">=</span> <span class="n">_reshape_tensor</span><span class="p">(</span><span class="n">param_data</span><span class="p">,</span> <span class="n">before_reshape_full_shape</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">param_data</span>
 
 

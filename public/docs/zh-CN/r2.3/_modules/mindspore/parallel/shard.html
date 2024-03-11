@@ -150,9 +150,84 @@
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;pynative shard&quot;&quot;&quot;</span>
 
+<span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Shard_</span>
+
+
+<div class="viewcode-block" id="Layout"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.Layout.html#mindspore.Layout">[文档]</a><span class="k">class</span> <span class="nc">Layout</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parallel layout describes the detailed sharding information.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        It is valid only in semi auto parallel or auto parallel mode.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        device_matrix (tuple): Describe the shape of devices arrangement, its element type is int.</span>
+<span class="sd">        alias_name (tuple): The alias name for each axis of device_matrix, its length shoits element type is string.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import Layout</span>
+<span class="sd">        &gt;&gt;&gt; layout = Layout((2, 2, 2), (&quot;dp&quot;, &quot;sp&quot;, &quot;mp&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; layout0 = layout(&quot;dp&quot;, &quot;mp&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(layout0.to_dict())</span>
+<span class="sd">        {&quot;device_matrix&quot;: (2, 2, 2), &quot;tensor_map&quot;: (2, 0)}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device_matrix</span><span class="p">,</span> <span class="n">alias_name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">device_matrix</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;device_shape must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">device_matrix</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">alias_name</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;alias_name must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">alias_name</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">device_matrix</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">alias_name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;device_matrix length should be equal to alias_name length&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">in_ele</span> <span class="ow">in</span> <span class="n">device_matrix</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The element of device_matrix must be int type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_ele</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">in_ele</span> <span class="ow">in</span> <span class="n">alias_name</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The element of alias_name must be str type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_ele</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">in_ele</span> <span class="o">==</span> <span class="s2">&quot;None&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The element of alias_name can not set &#39;None&#39;, because &#39;None&#39; means no sharding.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">alias_name</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">alias_name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Each element of alias_name </span><span class="si">{</span><span class="n">alias_name</span><span class="si">}</span><span class="s1"> should be different&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_device_shape</span> <span class="o">=</span> <span class="n">device_matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span> <span class="o">=</span> <span class="n">alias_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">tensor_map</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="n">tensor_map</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ele</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="nb">map</span> <span class="o">=</span> <span class="p">()</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">ele</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">item</span> <span class="o">==</span> <span class="s2">&quot;None&quot;</span><span class="p">:</span>
+                        <span class="nb">map</span> <span class="o">+=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">item</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The axis </span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s1"> is not found in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="nb">map</span> <span class="o">+=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">item</span><span class="p">),)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">+=</span> <span class="p">(</span><span class="nb">map</span><span class="p">,)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">ele</span> <span class="o">==</span> <span class="s2">&quot;None&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">+=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">ele</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The axis </span><span class="si">{</span><span class="n">ele</span><span class="si">}</span><span class="s1"> is not found in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">+=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">ele</span><span class="p">),)</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Layout.to_dict"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.Layout.html#mindspore.Layout.to_dict">[文档]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Transform layout to a dictionary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_shape</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The device_shape of layout is None&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The tensor_map of layout is None&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;device_matrix&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_shape</span><span class="p">,</span> <span class="s2">&quot;tensor_map&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span><span class="p">}</span></div></div>
+
 
 
 <span class="k">class</span> <span class="nc">Shard</span><span class="p">(</span><span class="n">Shard_</span><span class="p">):</span>
