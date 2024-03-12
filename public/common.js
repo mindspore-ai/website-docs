@@ -11,7 +11,7 @@ $(function () {
     const body = $('body');
     let isDark = localStorage.getItem('ms-theme') === 'dark';
     // 隐私版本号
-    const privacyVersion = '20240129';
+    const privacyVersion = '20240301';
 
     // 公共方法
     const utils = {
