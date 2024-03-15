@@ -150,7 +150,34 @@
 <blockquote>
 <div><p>完整代码可以参考：<a class="reference external" href="https://gitee.com/mindspore/models/tree/master/official/nlp/Pangu_alpha">pangu_alpha</a></p>
 </div></blockquote>
-<p>在训练入口脚本train.py中，通过<code class="docutils literal notranslate"><span class="pre">set_auto_parallel_context</span></code>接口使能半自动并行模式<code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code>，表明用户可以通过对算子配置切分策略的方式，借助框架自动完成切分。根据不同网络层运算量和计算方式的特点，选择合适的切分策略是本文关注的重点。此外，通过<code class="docutils literal notranslate"><span class="pre">enable_parallel_optimizer</span></code>和<code class="docutils literal notranslate"><span class="pre">pipeline_stages</span></code>参数可以配置优化器并行和流水线并行方式。</p>
+<p>目录结构如下，执行操作可详见README：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ Pangu_alpha
+    ├─ docs
+    ├─ scripts
+    ├─ serving_increment
+    ├─ src
+       ├── adam.py
+       ├── generate.py
+       ├── pangu_alpha.py
+       ├── pangu_alpha_config.py
+       └── pangu_alpha_wrapcell.py
+        ...
+    ├─ train.py
+    ├─ predict.py
+    ├─ README.md
+    └─ README_CN.md
+     ...
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">adam.py</span></code>：定义AdamWeightDecay优化器。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">generate.py</span></code>：定义模型推理及采样算法。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pangu_alpha.py</span></code>：PanguAlpha模型定义脚本。其中，Transformer模型中常用的基础构造块，如TransformerEncoder、TransformerEncoderLayer等均需要使用MindSpore Transformers套件导入，详见<a class="reference external" href="https://mindformers.readthedocs.io/zh-cn/latest/docs/api_python/README.html">API文档</a>。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pangu_alpha_config.py</span></code>：PanguAlpha模型参数定义脚本。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pangu_alpha_wrapcell.py</span></code>：PanguAlpha模型单步训练Cell定义脚本。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">train.py</span></code>：模型训练入口脚本。通过<code class="docutils literal notranslate"><span class="pre">set_auto_parallel_context</span></code>接口使能半自动并行模式<code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code>，表明用户可以通过对算子配置切分策略的方式，借助框架自动完成切分。根据不同网络层运算量和计算方式的特点，选择合适的切分策略是本文关注的重点。此外，通过<code class="docutils literal notranslate"><span class="pre">enable_parallel_optimizer</span></code>和<code class="docutils literal notranslate"><span class="pre">pipeline_stages</span></code>参数可以配置优化器并行和流水线并行方式。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">predict.py</span></code>：模型推理入口脚本。支持分布式推理，与训练脚本类似，通过<code class="docutils literal notranslate"><span class="pre">set_auto_parallel_context</span></code>接口使能半自动并行模式<code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code>，表明用户可以通过对算子配置切分策略的方式，借助框架自动完成切分。分布式推理场景下需要加载分布式权重。</p></li>
+</ul>
 </section>
 <section id="embedding层">
 <h2>Embedding层<a class="headerlink" href="#embedding层" title="永久链接至标题"></a></h2>
@@ -230,6 +257,7 @@
 <h2>Decoder层<a class="headerlink" href="#decoder层" title="永久链接至标题"></a></h2>
 <p>训练大规模Transformer网络的关键困难在于如何解决随着层数增加造成的计算和内存瓶颈，选择合理的切分方式尤为重要。鹏程·盘古模型的主体网络由多个结构相同但不共享权重的Decoder组成，Decoder又由Self-Attention和FeedForward两部分构成，切分的原则是尽量减少通信，它们的切分方式可以参照下图：</p>
 <p><img alt="image" src="../_images/pangu_strategy.png" /></p>
+<p><em>图6：PanguAlpha模型切分策略示意图（来源：<a class="reference external" href="https://openi.pcl.ac.cn/PCL-Platform.Intelligence/PanGu-Alpha/src/branch/master/PANGU-%ce%b1.pdf">PanguAlpha技术报告</a>）</em></p>
 <section id="self-attention">
 <h3>Self-Attention<a class="headerlink" href="#self-attention" title="永久链接至标题"></a></h3>
 <p>Self-Attention可以直接通过<code class="docutils literal notranslate"><span class="pre">mindformers.modules.MultiHeadAttention</span></code>实现。在计算Attention的过程中，需要将输入向量投影到Query、Key、Value三个向量，然后在Attention计算完成之后，需要将Attention的输出再经过Dense层。下面分别介绍这三个部分的策略配置。</p>

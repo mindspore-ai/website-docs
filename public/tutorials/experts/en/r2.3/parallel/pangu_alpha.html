@@ -150,7 +150,34 @@
 <blockquote>
 <div><p>For the complete code, refer to <a class="reference external" href="https://gitee.com/mindspore/models/tree/master/official/nlp/Pangu_alpha">pangu_alpha</a></p>
 </div></blockquote>
-<p>In the training entry script train.py, the semi-automatic parallel mode <code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code> is enabled by the <code class="docutils literal notranslate"><span class="pre">set_auto_parallel_context</span></code> interface, indicating that users can automatically complete the sharding with the help of the framework by configuring the sharding strategy for the operator. According to the features of operation volume and calculation methods in different network layers, choosing the appropriate sharding strategy is the focus of this paper. In addition, you can configure the optimizer parallelism and pipeline parallelism through the <code class="docutils literal notranslate"><span class="pre">enable_parallel_optimizer</span></code> and <code class="docutils literal notranslate"><span class="pre">pipeline_stages</span></code> parameters.</p>
+<p>The directory structure is as follows, detailed execute command please refer to README:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ Pangu_alpha
+    ├─ docs
+    ├─ scripts
+    ├─ serving_increment
+    ├─ src
+       ├── adam.py
+       ├── generate.py
+       ├── pangu_alpha.py
+       ├── pangu_alpha_config.py
+       └── pangu_alpha_wrapcell.py
+        ...
+    ├─ train.py
+    ├─ predict.py
+    ├─ README.md
+    └─ README_CN.md
+     ...
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">adam.py</span></code>: Define the AdamWeightDecay optimizer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">generate.py</span></code>: Define generation and sampling interface.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pangu_alpha.py</span></code>: Define the PanguAlpha model. In this script, those basic building blocks of a general Transformer model, such as TransformerEncoder and TransformerEncoderLayer, are imported from MindSpore Transformers suite. See the <a class="reference external" href="https://mindformers.readthedocs.io/zh-cn/latest/docs/api_python/README.html">API Documentation</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pangu_alpha_config.py</span></code>: Define configurations of PanguAlpha model.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pangu_alpha_wrapcell.py</span></code>: Define the one step training cell。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">train.py</span></code>: The training entry script. In this script, the semi-automatic parallel mode <code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code> is enabled by the <code class="docutils literal notranslate"><span class="pre">set_auto_parallel_context</span></code> interface, indicating that users can automatically complete the sharding with the help of the framework by configuring the sharding strategy for the operator. According to the features of operation volume and calculation methods in different network layers, choosing the appropriate sharding strategy is the focus of this paper. In addition, you can configure the optimizer parallelism and pipeline parallelism through the <code class="docutils literal notranslate"><span class="pre">enable_parallel_optimizer</span></code> and <code class="docutils literal notranslate"><span class="pre">pipeline_stages</span></code> parameters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">predict.py</span></code>: The predicting entry script. This script supports parallel prediction. Same as training script, the semi-automatic parallel mode <code class="docutils literal notranslate"><span class="pre">SEMI_AUTO_PARALLEL</span></code> is enabled by the <code class="docutils literal notranslate"><span class="pre">set_auto_parallel_context</span></code> interface, indicating that users can automatically complete the sharding with the help of the framework by configuring the sharding strategy for the operator. Distributed inference scenarios require loading distributed weights.</p></li>
+</ul>
 </section>
 <section id="embedding-layer">
 <h2>Embedding Layer<a class="headerlink" href="#embedding-layer" title="Permalink to this headline"></a></h2>
@@ -230,6 +257,7 @@
 <h2>Decoder Layer<a class="headerlink" href="#decoder-layer" title="Permalink to this headline"></a></h2>
 <p>The key difficulty in training large-scale Transformer networks is how to solve the computational and memory bottlenecks caused by the increasing number of layers, and it is especially important to choose a reasonable slicing. The main network of the PengCheng-PanGu model consists of multiple Decoders with the same structure but do not share weights, and the Decoder is composed of two parts, Self-Attention and FeedForward. The principle of slicing is to minimize the communication, and their slicing can be referred to the following figure:</p>
 <p><img alt="image" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3/tutorials/experts/source_zh_cn/parallel/images/pangu_strategy.png" /></p>
+<p><em>Figure 6：parallel strategy of PanguAlpha（Source：<a class="reference external" href="https://openi.pcl.ac.cn/PCL-Platform.Intelligence/PanGu-Alpha/src/branch/master/PANGU-%ce%b1.pdf">PanguAlpha Technical report</a>）</em></p>
 <section id="self-attention">
 <h3>Self-Attention<a class="headerlink" href="#self-attention" title="Permalink to this headline"></a></h3>
 <p>Self-Attention can be implemented directly via <code class="docutils literal notranslate"><span class="pre">mindformers.modules.MultiHeadAttention</span></code>. In the process of computing Attention, the input vector needs to be projected to the Query, Key, and Value vectors, and then the output of Attention needs to be passed through the Dense layer again after the calculation of Attention is completed. The following describes the strategy configuration of these three sections respectively.</p>
