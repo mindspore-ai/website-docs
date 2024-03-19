@@ -520,7 +520,7 @@
 
 <span class="k">def</span> <span class="nf">sync_pipeline_shared_parameters</span><span class="p">(</span><span class="n">net</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;synchronize pipeline parallel stage shared parameters.</span>
-<span class="sd">    Parameters may be shared between different stages in pipeline parallel inference. For example, `embedding table` is</span>
+<span class="sd">    Parameters may be shared between different stages. For example, `embedding table` is</span>
 <span class="sd">    shared by `WordEmbedding` layer and `LMHead` layer, which are usually split into different stages. It is necessary</span>
 <span class="sd">    to perform synchronization after `embedding table` changes.</span>
 
@@ -533,14 +533,17 @@
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; import numpy as np</span>
 <span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
-<span class="sd">        &gt;&gt;&gt; from mindspore import nn, Parameter, Tensor</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import nn, ops, Parameter, Tensor</span>
 <span class="sd">        &gt;&gt;&gt; class VocabEmbedding(nn.Cell):</span>
 <span class="sd">        ...     def __init__(self, vocab_size, embedding_size):</span>
 <span class="sd">        ...         super().__init__()</span>
-<span class="sd">        ...         self.embedding_table = Parameter(Tensor(np.ones([vocab_size, embedding_size])), name=&#39;embedding&#39;)</span>
+<span class="sd">        ...         self.embedding_table = Parameter(Tensor(np.ones([vocab_size, embedding_size]), ms.float32),</span>
+<span class="sd">        ...                                          name=&#39;embedding&#39;)</span>
+<span class="sd">        ...         self.gather = ops.Gather()</span>
 <span class="sd">        ...</span>
 <span class="sd">        ...     def construct(self, x):</span>
 <span class="sd">        ...         output = self.gather(self.embedding_table, x, 0)</span>
+<span class="sd">        ...         output = output.squeeze(1)</span>
 <span class="sd">        ...         return output, self.embedding_table.value()</span>
 <span class="sd">        ...</span>
 <span class="sd">        &gt;&gt;&gt; class LMHead(nn.Cell):</span>
@@ -549,7 +552,6 @@
 <span class="sd">        ...         self.matmul = ops.MatMul(transpose_b=True)</span>
 <span class="sd">        ...</span>
 <span class="sd">        ...     def construct(self, state, embed):</span>
-<span class="sd">        ...         state = state.reshape(-1, state.shape[-1])</span>
 <span class="sd">        ...         return self.matmul(state, embed)</span>
 <span class="sd">        ...</span>
 <span class="sd">        &gt;&gt;&gt; class Network(nn.Cell):</span>
