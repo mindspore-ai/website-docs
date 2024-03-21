@@ -100,7 +100,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../faq/implement_problem.html">执行问题</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/network_compilation.html">网络编译</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/operators_compile.html">算子编译</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../faq/usage_migrate_3rd.html">第三方框架迁移使用</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/performance_tuning.html">性能调优</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/precision_tuning.html">精度调优</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/distributed_parallel.html">分布式并行</a></li>
@@ -165,12 +164,43 @@
 <a class="reference external image-reference" href="https://gitee.com/mindspore/docs/blob/master/docs/mindspore/source_zh_cn/migration_guide/faq.rst"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source.svg" /></a>
 <div class="toctree-wrapper compound">
 </div>
-<p>MindSpore官网提供了一份在使用MindSpore过程中的 <a class="reference external" href="https://mindspore.cn/docs/zh-CN/master/faq/installation.html">FAQ</a> ，本章也整理了一下在迁移文档中提及的常见问题集解决方法。</p>
+<p>MindSpore官网提供了一份在使用MindSpore过程中的 <a class="reference external" href="https://mindspore.cn/docs/zh-CN/master/faq/installation.html">FAQ</a> ，本章也整理了一下在迁移文档中提及的常见问题及解决方法。</p>
 <ul>
+<li><p>环境准备</p>
+<p><strong>Q: 如何搭建MindSpore环境？</strong></p>
+<p>A: MindSpore目前支持在昇腾、GPU、CPU等多种设备上运行，但在安装过程中需要注意选择配套的硬件平台、操作系统、Python版本，否则会出现很多不可预测的报错。详细可参考 <a class="reference external" href="https://www.mindspore.cn/install/">安装指导</a> 。</p>
+<p>更多环境准备常见问题请参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/faq/installation.html">环境准备常见问题分析</a> 。</p>
+</li>
+<li><p>模型分析与准备</p>
+<p><strong>Q: 如何查看MindSpore对迁移代码中的API支持程度？</strong></p>
+<p>A: 可以使用API自动扫描工具MindSpore Dev Toolkit（推荐），或手动查询API映射表进行分析。详细可参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/analysis_and_preparation.html#%E5%88%86%E6%9E%90api%E6%BB%A1%E8%B6%B3%E5%BA%A6">分析API满足度</a> 。</p>
+</li>
 <li><p>数据处理</p>
-<p><strong>Q: 为什么在迭代数据的时候会报错：The actual amount of data read from generator xx is different from generator.len xx, you should adjust generator.len to make them match ？</strong></p>
-<p>A: 在定义可随机访问数据集时， __len__ 方法返回的结果一定要是真实的数据集大小，设置大了在getitem取值时会有越界问题。如数据集大小未确定，可以使用可迭代数据集，详见 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/beginner/dataset.html#%E8%87%AA%E5%AE%9A%E4%B9%89%E6%95%B0%E6%8D%AE%E9%9B%86">自定义数据集</a> 。</p>
-<p><strong>Q: 为什么在迭代数据的时候会报错：Invalid Python function, the ‘source’ of ‘GeneratorDataset’ should return same number of NumPy arrays as specified in column_names, the size of column_names is:xx and number of returned NumPy array is:xx ？</strong></p>
+<p><strong>Q: 怎么将PyTorch的`dataset`转换成MindSpore的`dataset`？</strong></p>
+<p>A: MindSpore和PyTorch的自定义数据集逻辑是比较类似的，首先需要用户先定义一个自己的 <cite>dataset</cite> 类，该类负责定义 <cite>__init__</cite> 、 <cite>__getitem__</cite> 、 <cite>__len__</cite> 来读取自己的数据集，然后将该类实例化为一个对象（如: <cite>dataset/dataset_generator</cite> ），最后将这个实例化对象传入 <cite>GeneratorDataset</cite> (mindspore用法)/ <cite>DataLoader</cite> (pytorch用法)，至此即可以完成自定义数据集加载了。</p>
+<p>而MindSpore在 <cite>GeneratorDataset</cite> 的基础上提供了进一步的 <cite>map</cite> -&gt; <cite>batch</cite> 操作，可以很方便地让用户在 <cite>map</cite> 内添加一些其他的自定义操作，并将其 <cite>batch</cite> 起来。</p>
+<p>对应的MindSpore的自定义数据集加载如下:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1 Data enhancement,shuffle,sampler.</span>
+<span class="k">class</span> <span class="nc">Mydata</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">58</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__data</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">__label</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__data</span><span class="p">)</span>
+<span class="n">dataset_generator</span> <span class="o">=</span> <span class="n">Mydata</span><span class="p">()</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GeneratorDataset</span><span class="p">(</span><span class="n">dataset_generator</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1"># 2 Customized data enhancement</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">operations</span><span class="o">=</span><span class="n">pyFunc</span><span class="p">,</span> <span class="p">{</span><span class="n">other_params</span><span class="p">})</span>
+<span class="c1"># 3 batch</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Q: 为什么在迭代数据的时候会报错：“The actual amount of data read from generator xx is different from generator.len xx, you should adjust generator.len to make them match” ？</strong></p>
+<p>A: 在定义可随机访问数据集时， <cite>__len__</cite> 方法返回的结果一定要是真实的数据集大小，设置大了在 <cite>__getitem__</cite> 取值时会有越界问题。如数据集大小未确定，可以使用可迭代数据集，详见 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/beginner/dataset.html#%E8%87%AA%E5%AE%9A%E4%B9%89%E6%95%B0%E6%8D%AE%E9%9B%86">自定义数据集</a> 。</p>
+<p><strong>Q: 为什么在迭代数据的时候会报错：“Invalid Python function, the ‘source’ of ‘GeneratorDataset’ should return same number of NumPy arrays as specified in column_names, the size of column_names is:xx and number of returned NumPy array is:xx” ？</strong></p>
 <p>A: 这是因为GeneratorDataset的 column_names 参数指定的列名数量与 source 参数输出的数据数量不匹配。</p>
 <p><strong>Q: 使用 GeneratorDataset 或 map 进行加载/处理数据时，可能会因为语法错误、计算溢出等问题导致数据报错，如何进行排查和调试？</strong></p>
 <p>A: 观察报错栈信息，由报错栈信息大概定位到出错代码块，在出错的代码块附近添加打印或调试点，进一步调试。详细可参考 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/advanced/error_analysis/minddata_debug.html#%E6%96%B9%E6%B3%951-%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E6%89%A7%E8%A1%8C%E5%87%BA%E9%94%99%E6%B7%BB%E5%8A%A0%E6%89%93%E5%8D%B0%E6%88%96%E8%B0%83%E8%AF%95%E7%82%B9%E5%88%B0%E4%BB%A3%E7%A0%81%E4%B8%AD%E8%B0%83%E8%AF%95">数据处理调试方法一</a> 。</p>
@@ -182,19 +212,77 @@
 <p>A: 关闭混洗，固定随机种子，确保可重现性，然后利用NumPy等工具快速校验结果。详细可参考 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/advanced/error_analysis/minddata_debug.html#%E6%96%B9%E6%B3%954-%E6%A3%80%E6%9F%A5%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E4%B8%AD%E7%9A%84%E5%BC%82%E5%B8%B8%E6%95%B0%E6%8D%AE">数据处理调试方法四</a> 。</p>
 <p>更多数据处理常见问题请参考 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/advanced/error_analysis/minddata_debug.html#%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90">数据处理常见问题分析</a> 以及迁移中的数据处理差异请参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/model_development/dataset.html#数据处理差异对比">MindSpore和PyTorch的数据处理差异</a> 。</p>
 </li>
-<li><p>网络脚本</p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/analysis_and_preparation.html#分析api满足度">API映射及缺失API处理策略</a></p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/dynamic_shape.html">动态shape分析</a> 及 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/model_development/model_and_cell.html#动态shape规避策略">规避方案</a></p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/sparsity.html">稀疏特性规避方案</a></p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/model_development/model_and_cell.html#动态图与静态图">静态图常见语法限制及处理策略</a></p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/model_development/model_development.html#mindspore网络编写注意事项">MindSpore网络编写注意事项</a></p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/use_third_party_op.html">基于自定义算子接口调用第三方算子库</a></p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/sample_code.html#模型验证">PyTorch模型转换MindSpore模型的方法</a></p>
+<li><p>梯度求导</p>
+<p><strong>Q: 如何自己实现算子的反向计算？</strong></p>
+<p>A: MindSpore提供了自动的梯度求导接口，该功能对用户屏蔽了大量的求导细节和过程。但如果有某些特殊场景，用户需要手动控制其反向的计算，用户也可以通过Cell.bprop接口对其反向进行定义。详细可参考 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/advanced/modules/layer.html#%E8%87%AA%E5%AE%9A%E4%B9%89cell%E5%8F%8D%E5%90%91">自定义Cell反向</a> 。</p>
+<p><strong>Q: 如何处理梯度溢出造成训练不稳定的问题？</strong></p>
+<p>A: 网络溢出一般表现为loss Nan/INF，loss突然变得很大等。MindSpore提供 <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/debug/dump.html">dump数据</a> 获取到溢出算子信息。当网络中出现梯度下溢时，可使用loss scale配套梯度求导使用，详细可参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/model_development/gradient.html#loss-scale">loss scale</a> ；当网络出现梯度爆炸时，可考虑添加梯度裁剪，详细可参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/model_development/gradient.html#%E6%A2%AF%E5%BA%A6%E8%A3%81%E5%89%AA">梯度裁剪</a> 。</p>
 </li>
-<li><p>网络调试</p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/debug_and_tune.html#功能调试">功能调试</a></p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/debug_and_tune.html#精度调试">精度调试</a></p>
-<p><a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/debug_and_tune.html#性能调优">性能调优</a></p>
+<li><p>调试调优</p>
+<p><strong>Q: 请问想加载PyTorch预训练好的模型用于MindSpore模型finetune有什么方法？</strong></p>
+<p>A: 需要把PyTorch和MindSpore的参数进行一一对应，因为网络定义的灵活性，所以没办法提供统一的转化脚本。</p>
+<p>一般情况下，CheckPoint文件中保存的就是参数名和参数值，调用相应框架的读取接口后，获取到参数名和数值后，按照MindSpore格式，构建出对象，就可以直接调用MindSpore接口保存成MindSpore格式的CheckPoint文件了。</p>
+<p>其中主要的工作量为对比不同框架间的parameter名称，做到两个框架的网络中所有parameter name一一对应(可以使用一个map进行映射)，下面代码的逻辑转化parameter格式，不包括对应parameter name。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+
+<span class="k">def</span> <span class="nf">pytorch2mindspore</span><span class="p">(</span><span class="n">default_file</span> <span class="o">=</span> <span class="s1">&#39;torch_resnet.pth&#39;</span><span class="p">):</span>
+    <span class="c1"># read pth file</span>
+    <span class="n">par_dict</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">default_file</span><span class="p">)[</span><span class="s1">&#39;state_dict&#39;</span><span class="p">]</span>
+    <span class="n">params_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">par_dict</span><span class="p">:</span>
+        <span class="n">param_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">parameter</span> <span class="o">=</span> <span class="n">par_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="n">param_dict</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="n">param_dict</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+        <span class="n">params_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param_dict</span><span class="p">)</span>
+    <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">params_list</span><span class="p">,</span>  <span class="s1">&#39;ms_resnet.ckpt&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Q: loss不收敛或精度不达标，该怎么定位？</strong></p>
+<p>A: 精度不达标一般体现在loss不收敛上。但是有很多复杂的原因可导致精度达不到预期，定位难度较大。这里提供几个指导链接供用户逐一排查问题。</p>
+<p><a class="reference external" href="https://www.hiascend.com/forum/thread-0215121673876901029-1-1.html">MindSpore模型精度调优实战（一）精度问题的常见现象、原因和简要调优思路</a> 。</p>
+<p><a class="reference external" href="https://www.hiascend.com/forum/thread-0235121941309178031-1-1.html">MindSpore模型精度调优实战（二）精度调试调优思路</a> 。</p>
+<p><a class="reference external" href="https://www.hiascend.com/forum/thread-0235121941523411032-1-1.html">MindSpore模型精度调优实战（三）常见精度问题简介</a> 。</p>
+<p>更多调试调优常见问题请参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/migration_guide/debug_and_tune.html#%E8%B0%83%E4%BC%98%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E5%8F%8A%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95">调优常见问题及解决办法</a> 。</p>
+<p><strong>Q: 模型训练过程中，第一个step耗时很长，该怎么优化？</strong></p>
+<p>A: 模型训练过程中，第一个step包含网络编译时长，如果想要优化第一个step的性能，可分析模型编译是否能进行优化。详细可参考 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/advanced/static_graph_expert_programming.html">静态图网络编译性能优化</a> 。</p>
+<p><strong>Q: 模型训练过程中，非首个step耗时很长，该怎么优化？</strong></p>
+<p>A: 模型训练过程中，非首个step的耗时包括迭代间隙、前反向计算和迭代拖尾，如果想要优化非首step的性能，需要先获取网络的迭代轨迹，再分析哪部分是性能瓶颈，最近进行性能优化。</p>
+<p>详细可参考 <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/zh-CN/r2.2/performance_tuning_guide.html">性能调优指南</a> ；和 <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/zh-CN/r2.2/performance_optimization.html">性能调试案例</a> 。</p>
+<p><strong>Q: 加载标杆权重进行模型推理验证正向流程时，有warning警告显示权重未加载成功，该如何解决？</strong></p>
+<p>A: load_checkpoint过程中，如果有权重未加载上，MindSpore会给出warning提示，一般加载失败有两种原因：1、权重名称对不上；2、权重在网络中缺失。</p>
+<p>如果权重名称对不上，需要打印MindSpore的权重名称和标杆的权重名称，看是否MindSpore的权重名称多了backbone或network等前缀，如果是，检查MindSpore在初始化 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html">Cell</a> 时是否加上auto_prefix=False。</p>
+<p>如果权重名称缺失，需要分析是否合理，如果合理，可忽略告警提示，如果不合理，需要分析网络定义是否错误，进行定位修改。</p>
+<p><strong>Q: 迁移过程使用PyNative进行调测，流程成功，切换成Graph模式，为什么会出现一堆的报错？</strong></p>
+<p>A: PyNative模式下模型进行推理的行为与一般Python代码无异。但是切换成Graph模式时，MindSpore通过源码转换的方式，将Python的源码转换成中间表达IR（Intermediate Representation），并在此基础上对IR图进行优化，最终在硬件设备上执行优化后的图。</p>
+<p>而这一步操作中MindSpore目前还未能支持完整的Python语法全集，所以construct函数的编写会存在部分限制。</p>
+<p>如：PyNative模式下可直接判断某个Tensor值是否为0，但切换成Graph模式则会报错不支持。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">response</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">loss</span>
+<span class="k">return</span> <span class="n">loss</span><span class="o">/</span><span class="n">response</span>
+</pre></div>
+</div>
+<p>遇到类似情况，可将代码修改为：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">response_gt</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span><span class="o">/</span><span class="n">response_gt</span>
+<span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+<p>详细可参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/note/static_graph_syntax_support.html">静态图语法支持</a> 。</p>
+<p><strong>Q: 训练过程中出现报错：“RuntimeError: Launch kernel failed, name:Default/…” 怎么办？</strong></p>
+<p>A: 这类报错一般是MindSpore不支持某个算子，可能需要用户自己实现该算子。详细可参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/note/api_mapping/pytorch_api_mapping.html">PyTorch与MindSpore API映射表</a> 。</p>
+<p><strong>Q: PyNative动态图迁移过程中出现报错，该怎么有效地定位到报错原因？</strong></p>
+<p>A: 如果遇到动态图问题，可以设置mindspore.set_context(pynative_synchronize=True)查看报错栈协助定位。详细可参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/api_python/mindspore/mindspore.set_context.html?highlight=pynative_synchronize">pynative_synchronize说明</a> 。</p>
+<p><strong>Q: Graph模式静态图训练过程中出现报错，该怎么有效地定位到报错原因？</strong></p>
+<p>A: 引发静态图报错的原因很多，一般失败会有日志打印，如果不能直观地从日志中获取报错信息，可通过export GLOG_v=1指定日志级别获取更详细的报错信息进行分析。</p>
+<p>同时计算图编译发生报错时，会自动保存analyze_failed.ir文件，可帮助分析报错代码的位置。详细可参考 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/advanced/error_analysis/error_scenario_analysis.html">静态图模式错误分析</a> 。</p>
+<p><strong>Q: Graph模式静态图训练过程中出现Out Of Memory报错，怎么办？</strong></p>
+<p>A: 出现该报错可能有两个原因：1、资源被占用；2、显存不够。</p>
+<p>当资源被占用时，可通过pkill -9 python释放资源，再重新训练。</p>
+<p>当显存不够时，可尝试降低batch_size；分析内存查看是否通信算子太多导致整体内存复用率较低。</p>
+<p>详细可参考 <a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/advanced/error_analysis/mindrt_debug.html#%E8%B5%84%E6%BA%90%E4%B8%8D%E8%B6%B3">资源不够问题分析</a> 。</p>
+<p>更多调优常见问题请参考 <a class="reference external" href="https://www.mindspore.cn/docs/zh-CN/master/faq/implement_problem.html">执行问题</a> 。</p>
 </li>
 </ul>
 </section>

@@ -97,7 +97,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../faq/implement_problem.html">Implement Problem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/network_compilation.html">Network Compilation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/operators_compile.html">Operators Compile</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../faq/usage_migrate_3rd.html">Migration from a Third-party Framework</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/performance_tuning.html">Performance Tuning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/precision_tuning.html">Precision Tuning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/distributed_parallel.html">Distributed Parallel</a></li>
@@ -163,13 +162,37 @@
 <section id="debugging-tools">
 <h2>Debugging Tools<a class="headerlink" href="#debugging-tools" title="Permalink to this headline"></a></h2>
 <ul class="simple">
-<li><p>In the process of precision debugging, compare network layer-by-layer:</p>
+<li><p>The following common problems may be encountered during the accuracy commissioning phase:</p>
 <ul>
-<li><p>At the API level, you can use <a class="reference external" href="https://gitee.com/mindspore/toolkits/tree/master/troubleshooter">TroubleShooter</a>. The Tensor save and compare function of the tool uses the binary method to save Tensors layer by layer and compare them with PyTorch;</p></li>
-<li><p>At the operator level, <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/debug/dump.html">Dump</a> can be used Save the graph and operator input and output data from model training to a disk file. Used for locating complex network migration problems (such as operator overflow, etc.).</p></li>
+<li><p>The first loss and the benchmark are not aligned:
+It means that the network positive and benchmark are not aligned, you can fix the network input, turn off randomness such as shuffle, save the output as npy at some key nodes of the network, and with the help of <a class="reference external" href="https://gitee.com/mindspore/toolkits/blob/master/troubleshooter/docs/migrator.md#%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF4%E6%AF%94%E8%BE%83%E4%B8%A4%E7%BB84tensor%E5%80%BCnpy%E6%96%87%E4%BB%B6%E6%98%AF%E5%90%A6%E7%9B%B8%E7%AD%89">TroubleShooter to see if the two sets of Tensor values (npy files) are equal or not</a>, locate the first inconsistent position, and then bisect the position to analyze the positive where the difference leads to the loss and the benchmark misaligned to cause the accuracy problem.</p></li>
+<li><p>The first loss is aligned with the benchmark, and subsequent losses are misaligned:
+The problem is mainly caused by the network reverse. This can be done with the help of <a class="reference external" href="https://gitee.com/mindspore/toolkits/blob/master/troubleshooter/docs/migrator.md#%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF2%E6%AF%94%E5%AF%B9mindspore%E4%B8%8Epytorch%E7%9A%84ckptpth">TroubleShooter comparing MindSpore to PyTorch ckpt/pth</a> to check the results of the network reverse update by comparing the values of the corresponding parameters of ckpt and pth.</p></li>
+<li><p>Loss appears NAN/INF:
+<a class="reference external" href="https://gitee.com/mindspore/toolkits/blob/master/troubleshooter/docs/tracker.md#%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF2%E8%8E%B7%E5%8F%96infnan%E5%80%BC%E6%8A%9B%E5%87%BA%E7%82%B9">TroubleShooter obtains INF/NAN value throw points</a> is used to identify the first location in the network where a NAN or INF appears.
+Overflow operator detection is also available via the <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/debug/dump.html">Dump</a> tool.</p></li>
 </ul>
 </li>
-<li><p>In the process of performance debugging, the <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/performance_profiling.html">Profiler</a> record the operator time consumption and other information during the training process in a file, which provides the host execution of the framework and the Profiler analysis function of the operator execution, and use a visual interface for users to view and analyze, helping users debug neural network performance more efficiently.</p></li>
+<li><p>The following common problems may be encountered during the performance debugging phase:</p>
+<ul>
+<li><p>The first step is time-consuming
+This phase mainly completes operations such as graph conversion, graph fusion, graph optimization, etc, which is the process of generating executable models. Refer to <a class="reference external" href="https://www.mindspore.cn/tutorials/en/master/advanced/static_graph_expert_programming.html#how-to-optimize-compilation-performance">How to Optimize Compilation Performance</a>.</p></li>
+<li><p>Iteration gap is time-consuming
+Most of the time consumption in this phase comes from data acquisition, see <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/dataset/optimize.html">Data Processing Performance Optimization</a>.</p></li>
+<li><p>Forward and reverse computation is time-consuming
+This phase mainly executes the forward and reverse operators in the network and carries the main computational work of an iteration. Information such as operator time consumption during training can be recorded to a file via <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/performance_profiling.html">Profiler</a>. The performance data provides the performance data of the framework host execution and operator execution, which can also be viewed and analyzed by users through the <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/index.html">MindInsight</a> visualization interface, helping users to debug neural network performance more efficiently.</p></li>
+<li><p>Iteration trailing is time-consuming
+This phase is time consuming, which may be caused by the collection communication, and you can set the fusion policy to optimize. Refer to <a class="reference external" href="https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.set_auto_parallel_context.html">all_reduce_fusion_config set allreduce fusion policy</a>.</p></li>
+</ul>
+</li>
+<li><p>The following common problems may be encountered during the graphics debugging phase:</p>
+<ul>
+<li><p>Malloc device memory failed:
+MindSpore failed to request memory on the device side, the original memory is that the device is occupied by other processes, you can check the running processes by ps -ef | grep “python”.</p></li>
+<li><p>Out of Memory:
+The possible reasons for failure to request dynamic memory are: batch size is too large, processing too much data leads to a large memory footprint; communication operators take up too much memory leading to a low overall memory reuse rate.</p></li>
+</ul>
+</li>
 </ul>
 </section>
 <section id="introduction-of-mindspore-debugging">
@@ -186,78 +209,9 @@ For details, see <a class="reference external" href="https://www.mindspore.cn/tu
 <h4>1. Checking Parameters<a class="headerlink" href="#1-checking-parameters" title="Permalink to this headline"></a></h4>
 <p>This part includes checking all parameters and the number of trainable parameters, and checking the shape of all parameters.</p>
 <ul>
-<li><p>Obtaining MindSpore Parameters</p>
-<p><code class="docutils literal notranslate"><span class="pre">Parameter</span></code> is used for MindSpore trainable and untrainable parameters.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
-
-<span class="k">class</span> <span class="nc">msNet</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">msNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">fc</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">output</span>
-
-<span class="n">msnet</span> <span class="o">=</span> <span class="n">msNet</span><span class="p">()</span>
-<span class="c1"># Obtain all parameters.</span>
-<span class="n">all_parameter</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">msnet</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">():</span>
-    <span class="n">all_parameter</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;all parameter numbers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_parameter</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="c1"># Obtain trainable parameters.</span>
-<span class="n">trainable_params</span> <span class="o">=</span> <span class="n">msnet</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">trainable_params</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;trainable parameter numbers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">trainable_params</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>fc.weight (1, 1)
-fc.bias (1,)
-all parameter numbers: 2
-fc.weight (1, 1)
-fc.bias (1,)
-trainable parameter numbers: 2
-</pre></div>
-</div>
-</li>
-<li><p>Obtaining PyTorch Parameters</p>
-<p><code class="docutils literal notranslate"><span class="pre">Parameter</span></code> is used for PyTorch trainable parameters, and <code class="docutils literal notranslate"><span class="pre">requires_grad=False</span></code> or <code class="docutils literal notranslate"><span class="pre">buffer</span></code> is used for PyTorch untrainable parameters.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
-
-<span class="k">class</span> <span class="nc">ptNet</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">ptNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">fc</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">output</span>
-
-<span class="n">ptnet</span> <span class="o">=</span> <span class="n">ptNet</span><span class="p">()</span>
-<span class="n">all_parameter</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="n">trainable_params</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="c1"># Obtain network parameters.</span>
-<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">ptnet</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">():</span>
-    <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">:</span>
-        <span class="n">trainable_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-    <span class="n">all_parameter</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-
-<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">buffer</span> <span class="ow">in</span> <span class="n">ptnet</span><span class="o">.</span><span class="n">named_buffers</span><span class="p">():</span>
-    <span class="n">all_parameter</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">buffer</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;all parameter numbers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_parameter</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;trainable parameter numbers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">trainable_params</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>fc.weight torch.Size([1, 1])
-fc.bias torch.Size([1])
-all parameter numbers: 2
-trainable parameter numbers: 2
-</pre></div>
-</div>
-<p>The parameters of MindSpore and PyTorch are similar except BatchNorm. Note that MindSpore does not have parameters corresponding to <code class="docutils literal notranslate"><span class="pre">num_batches_tracked</span></code>. You can replace this parameter with <code class="docutils literal notranslate"><span class="pre">global_step</span></code> in the optimizer.</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">Parameter</span></code> is used for PyTorch trainable parameters, and <code class="docutils literal notranslate"><span class="pre">requires_grad=False</span></code> or <code class="docutils literal notranslate"><span class="pre">buffer</span></code> is used for PyTorch untrainable parameters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Parameter</span></code> is used for MindSpore trainable and untrainable parameters.</p></li>
+<li><p>The parameters of MindSpore and PyTorch are similar except BatchNorm. Note that MindSpore does not have parameters corresponding to <code class="docutils literal notranslate"><span class="pre">num_batches_tracked</span></code>. You can replace this parameter with <code class="docutils literal notranslate"><span class="pre">global_step</span></code> in the optimizer.</p>
 <table class="colwidths-auto docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"><p>MindSpore</p></th>
@@ -284,6 +238,87 @@ trainable parameter numbers: 2
 </table>
 </li>
 </ul>
+<table class="colwidths-auto docutils align-default">
+<tr>
+<td style="text-align:center"> Obtaining PyTorch Parameters </td> <td style="text-align:center"> Obtaining MindSpore Parameters </td>
+</tr>
+<tr>
+<td style="vertical-align:top"><pre>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="k">class</span> <span class="nc">ptNet</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+          <span class="nb">super</span><span class="p">(</span><span class="n">ptNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">fc</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+<span class="n">ptnet</span> <span class="o">=</span> <span class="n">ptNet</span><span class="p">()</span>
+<span class="n">all_parameter</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">trainable_params</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="c1"># Obtain network parameters.</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">ptnet</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">:</span>
+        <span class="n">trainable_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+    <span class="n">all_parameter</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">buffer</span> <span class="ow">in</span> <span class="n">ptnet</span><span class="o">.</span><span class="n">named_buffers</span><span class="p">():</span>
+    <span class="n">all_parameter</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">buffer</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;all parameter numbers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_parameter</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;trainable parameter numbers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">trainable_params</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>fc.weight torch.Size([1, 1])
+fc.bias torch.Size([1])
+all parameter numbers: 2
+trainable parameter numbers: 2
+</pre></div>
+</div>
+</pre>
+</td>
+<td style="vertical-align:top"><pre>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="k">class</span> <span class="nc">msNet</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">msNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+<span class="n">msnet</span> <span class="o">=</span> <span class="n">msNet</span><span class="p">()</span>
+<span class="c1"># Obtain all parameters.</span>
+<span class="n">all_parameter</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">msnet</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">():</span>
+    <span class="n">all_parameter</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;all parameter numbers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_parameter</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Obtain trainable parameters.</span>
+<span class="n">trainable_params</span> <span class="o">=</span> <span class="n">msnet</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">trainable_params</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;trainable parameter numbers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">trainable_params</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>fc.weight (1, 1)
+fc.bias (1,)
+all parameter numbers: 2
+fc.weight (1, 1)
+fc.bias (1,)
+trainable parameter numbers: 2
+</pre></div>
+</div>
+</pre>
+</td>
+</tr>
+</table>
 </section>
 <section id="2-model-verification">
 <h4>2. Model Verification<a class="headerlink" href="#2-model-verification" title="Permalink to this headline"></a></h4>
