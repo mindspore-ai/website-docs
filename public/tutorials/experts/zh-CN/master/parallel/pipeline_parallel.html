@@ -152,8 +152,10 @@
 </div></blockquote>
 <p>相关接口：</p>
 <ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL,</span> <span class="pre">pipeline_stages=NUM)</span></code>：设置半自动并行模式，且设置<code class="docutils literal notranslate"><span class="pre">pipeline_stages</span></code>用来表明Stage的总数为NUM，必须在初始化网络之前调用。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL,</span> <span class="pre">pipeline_stages=NUM,</span> <span class="pre">pipeline_result_broadcast=True)</span></code>：设置半自动并行模式，且设置<code class="docutils literal notranslate"><span class="pre">pipeline_stages</span></code>用来表明Stage的总数为NUM，必须在初始化网络之前调用。<code class="docutils literal notranslate"><span class="pre">pipeline_result_broadcast</span></code>表示流水线并行推理时，最后一个stage的结果是否广播给其余stage。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">nn.PipelineCell(loss_cell,</span> <span class="pre">micro_size)</span></code>：流水线并行需要在LossCell外再包一层<code class="docutils literal notranslate"><span class="pre">PipelineCell</span></code>，并指定MicroBatch的size。为了提升机器的利用率，MindSpore将MiniBatch切分成了更细粒度的MicroBatch，最终的loss则是所有MicroBatch计算的loss值累加。其中，MicroBatch的size必须大于等于Stage的数量。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nn.PipelineGradReducer(parameters)</span></code>：流水行并行需要使用<code class="docutils literal notranslate"><span class="pre">PipelineGradReducer</span></code>来完成梯度聚合。这是因为流水线并行中，其输出是由多个<code class="docutils literal notranslate"><span class="pre">micro-batch</span></code>的结果相加得到，因此其梯度也需要进行累加。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.parallel.sync_pipeline_shared_parameters(net)</span></code>: 在推理场景下，用于同步不同stage之间共享权重。</p></li>
 </ol>
 </section>
 <section id="基本原理">
@@ -168,8 +170,8 @@
 <p><img alt="image" src="../_images/pipeline_parallel_image_2_zh.png" /></p>
 <p><em>图3：MindSpore流水线并行执行时间线示意图</em></p>
 </section>
-<section id="操作实践">
-<h2>操作实践<a class="headerlink" href="#操作实践" title="Permalink to this headline"></a></h2>
+<section id="训练操作实践">
+<h2>训练操作实践<a class="headerlink" href="#训练操作实践" title="Permalink to this headline"></a></h2>
 <p>下面以Ascend或者GPU单机8卡为例，进行流水线并行操作说明：</p>
 <section id="样例代码说明">
 <h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="Permalink to this headline"></a></h3>
@@ -263,15 +265,36 @@
 <li><p>首先需要定义LossCell，本例中调用了<code class="docutils literal notranslate"><span class="pre">nn.WithLossCell</span></code>接口封装网络和损失函数。</p></li>
 <li><p>然后需要在LossCell外包一层<code class="docutils literal notranslate"><span class="pre">nn.PipelineCell</span></code>，并指定MicroBatch的size。详细请参考本章概述中的相关接口。</p></li>
 </ul>
+<p>除此之外, 还需要增加 <code class="docutils literal notranslate"><span class="pre">nn.PipelineGradReducer</span></code> 接口，用于处理流水并行下的梯度，该接口的第一个参数为需要更新的网络参数。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
-<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">train</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
 
 <span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">1e-2</span><span class="p">)</span>
 <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
-<span class="n">loss_cb</span> <span class="o">=</span> <span class="n">train</span><span class="o">.</span><span class="n">LossMonitor</span><span class="p">()</span>
-<span class="n">net_with_grads</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">PipelineCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">net_with_grads</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">)</span>
-<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">loss_cb</span><span class="p">],</span> <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">net_with_loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">PipelineCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">WithLossCell</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+<span class="n">net_with_loss</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">net_with_loss</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span>
+
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+<span class="n">pp_grad_reducer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">PipelineGradReducer</span><span class="p">(</span><span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span> <span class="nf">train_one_step</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+    <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="n">pp_grad_reducer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">data_set</span><span class="p">:</span>
+        <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">train_one_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;epoch: </span><span class="si">%s</span><span class="s2">, step: </span><span class="si">%s</span><span class="s2">, loss is </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">loss</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
 </pre></div>
 </div>
 <blockquote>
@@ -296,19 +319,180 @@
 </pre></div>
 </div>
 <p>结果保存在<code class="docutils literal notranslate"><span class="pre">log_output/1/rank.*/stdout</span></code>中，示例如下：</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 1 step: 1875, loss is 1.9490933418273926
-epoch: 2 step: 1875, loss is 0.44548869132995605
-epoch: 3 step: 1875, loss is 0.034527599811553955
-epoch: 4 step: 1875, loss is 1.0163589715957642
-epoch: 5 step: 1875, loss is 0.02109396457672119
-epoch: 6 step: 1875, loss is 0.012739777565002441
-epoch: 7 step: 1875, loss is 0.004988193511962891
-epoch: 8 step: 1875, loss is 0.10372555255889893
-epoch: 9 step: 1875, loss is 0.019182920455932617
-epoch: 10 step: 1875, loss is 0.021012544631958008
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0 step: 0, loss is 9.087993
+epoch: 0 step: 10, loss is 8.575434
+epoch: 0 step: 20, loss is 8.185939
+epoch: 0 step: 30, loss is 6.7301626
+epoch: 0 step: 40, loss is 5.2246842
+epoch: 0 step: 50, loss is 3.8342278
+...
 </pre></div>
 </div>
 <p>其他启动方式如动态组网、<code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">table</span></code>的启动可参考<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/startup_method.html">启动方式</a>。</p>
+</section>
+</section>
+<section id="推理操作实践">
+<h2>推理操作实践<a class="headerlink" href="#推理操作实践" title="Permalink to this headline"></a></h2>
+<p>下面以Ascend或者GPU单机8卡为例，进行流水线并行操作说明：</p>
+<section id="样例代码说明-1">
+<h3>样例代码说明<a class="headerlink" href="#样例代码说明-1" title="Permalink to this headline"></a></h3>
+<blockquote>
+<div><p>下载完整的样例代码：<a class="reference external" href="https://gitee.com/mindspore/docs/tree/master/docs/sample_code/distributed_pipeline_parallel">distributed_pipeline_parallel</a>。</p>
+</div></blockquote>
+<p>目录结构如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ sample_code
+    ├─ distributed_pipeline_parallel
+       ├── distributed_pipeline_parallel_inference.py
+       └── run_inference.sh
+    ...
+</pre></div>
+</div>
+<p>其中，<code class="docutils literal notranslate"><span class="pre">distributed_pipeline_parallel_inference.py</span></code>是定义网络结构和推理过程的脚本。<code class="docutils literal notranslate"><span class="pre">run_inference.sh</span></code>是执行脚本。</p>
+</section>
+<section id="配置分布式环境-1">
+<h3>配置分布式环境<a class="headerlink" href="#配置分布式环境-1" title="Permalink to this headline"></a></h3>
+<p>通过context接口指定运行模式、运行设备、运行卡号等，与单卡脚本不同，并行脚本还需指定并行模式<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>为半自动并行模式，并通过init初始化HCCL或NCCL通信。此外，还需配置<code class="docutils literal notranslate"><span class="pre">pipeline_stages=2</span></code>指定Stage的总数。此处不设置<code class="docutils literal notranslate"><span class="pre">device_target</span></code>会自动指定为MindSpore包对应的后端硬件设备。<code class="docutils literal notranslate"><span class="pre">pipeline_result_broadcast=True</span></code>表示流水线并行推理时，将最后一个stage的结果广播给其余stage，可以用于自回归推理场景。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">SEMI_AUTO_PARALLEL</span><span class="p">,</span> <span class="n">full_batch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                             <span class="n">pipeline_stages</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">pipeline_result_broadcast</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">init</span><span class="p">()</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+</pre></div>
+</div>
+</section>
+<section id="定义网络-1">
+<h3>定义网络<a class="headerlink" href="#定义网络-1" title="Permalink to this headline"></a></h3>
+<p>流水线并行需要用户去定义并行的策略，通过调用<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>接口来指定每个layer要在哪个stage上去执行。<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>接口的粒度为<code class="docutils literal notranslate"><span class="pre">Cell</span></code>。所有包含训练参数的<code class="docutils literal notranslate"><span class="pre">Cell</span></code>都需要配置<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>，并且<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>要按照网络执行的先后顺序，从小到大进行配置。在单卡模型基础上，增加<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>配置后如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">lazy_inline</span><span class="p">,</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore.parallel.checkpoint_transform</span> <span class="kn">import</span> <span class="n">sync_pipeline_shared_parameters</span>
+
+<span class="k">class</span> <span class="nc">VocabEmbedding</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Vocab Embedding&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="n">embedding_size</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_table</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="n">vocab_size</span><span class="p">,</span> <span class="n">embedding_size</span><span class="p">]),</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+                                         <span class="n">name</span><span class="o">=</span><span class="s1">&#39;embedding_table&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gather</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Gather</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">embedding_table</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding_table</span><span class="o">.</span><span class="n">value</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">Head</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MatMul</span><span class="p">(</span><span class="n">transpose_b</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">embed</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">embed</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Network&quot;&quot;&quot;</span>
+    <span class="nd">@lazy_inline</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">word_embedding</span> <span class="o">=</span> <span class="n">VocabEmbedding</span><span class="p">(</span><span class="n">vocab_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">embedding_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">head</span> <span class="o">=</span> <span class="n">Head</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">word_embedding</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">embed</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="c1"># Define network and set pipeline stage</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Network</span><span class="p">()</span>
+<span class="n">net</span><span class="o">.</span><span class="n">word_embedding</span><span class="o">.</span><span class="n">pipeline_stage</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">net</span><span class="o">.</span><span class="n">layer1</span><span class="o">.</span><span class="n">pipeline_stage</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">net</span><span class="o">.</span><span class="n">layer2</span><span class="o">.</span><span class="n">pipeline_stage</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">net</span><span class="o">.</span><span class="n">head</span><span class="o">.</span><span class="n">pipeline_stage</span> <span class="o">=</span> <span class="mi">3</span>
+
+</pre></div>
+</div>
+</section>
+<section id="推理网络">
+<h3>推理网络<a class="headerlink" href="#推理网络" title="Permalink to this headline"></a></h3>
+<p>在network外包一层<code class="docutils literal notranslate"><span class="pre">PipelineCellInference</span></code>，并指定MicroBatch的size。<code class="docutils literal notranslate"><span class="pre">PipelineCellInference</span></code>中将输入切分为若干个micro batch，执行推理网络，最后将若干个micro batch推理结果通过<code class="docutils literal notranslate"><span class="pre">ops.Concat</span></code>算子沿batch轴拼接后返回。</p>
+<p>在上一步中，<code class="docutils literal notranslate"><span class="pre">embed</span></code>被<code class="docutils literal notranslate"><span class="pre">self.word_embedding</span></code>和<code class="docutils literal notranslate"><span class="pre">self.head</span></code>两层共享，并且这两层被切分到了不同的stage上。在执行推理前，先编译计算图<code class="docutils literal notranslate"><span class="pre">inference_network.compile()</span></code>，再调用<code class="docutils literal notranslate"><span class="pre">sync_pipeline_shared_parameters(inference_network)</span></code>接口，框架自动同步stage间的共享权重。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+
+<span class="k">class</span> <span class="nc">PipelineCellInference</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pipeline Cell Inference wrapper&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network</span><span class="p">,</span> <span class="n">micro_batch_num</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="n">network</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">micro_batch_num</span> <span class="o">=</span> <span class="n">micro_batch_num</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">concat</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Concat</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply the pipeline inference&quot;&quot;&quot;</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">micro_batch_num</span><span class="p">):</span>
+            <span class="n">micro_batch_size</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">micro_batch_num</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">micro_batch_size</span> <span class="o">*</span> <span class="n">i</span>
+            <span class="n">end</span> <span class="o">=</span> <span class="n">micro_batch_size</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">micro_input</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+            <span class="n">micro_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">network</span><span class="p">(</span><span class="n">micro_input</span><span class="p">)</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="n">ret</span> <span class="o">+</span> <span class="p">(</span><span class="n">micro_output</span><span class="p">,)</span>
+
+        <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ret</span>
+
+<span class="n">inference_network</span> <span class="o">=</span> <span class="n">PipelineCellInference</span><span class="p">(</span><span class="n">network</span><span class="o">=</span><span class="n">net</span><span class="p">,</span> <span class="n">micro_batch_num</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">inference_network</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Compile and synchronize shared parameter.</span>
+<span class="n">input_ids</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">low</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">inference_network</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span>
+<span class="n">sync_pipeline_shared_parameters</span><span class="p">(</span><span class="n">inference_network</span><span class="p">)</span>
+
+<span class="c1"># Execute the inference network</span>
+<span class="n">logits</span> <span class="o">=</span> <span class="n">inference_network</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">logits</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+
+</pre></div>
+</div>
+</section>
+<section id="运行单机8卡脚本-1">
+<h3>运行单机8卡脚本<a class="headerlink" href="#运行单机8卡脚本-1" title="Permalink to this headline"></a></h3>
+<p>接下来通过命令调用对应的脚本，以<code class="docutils literal notranslate"><span class="pre">msrun</span></code>启动方式，8卡的分布式推理脚本为例，进行分布式训练：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run_inference.sh
+</pre></div>
+</div>
+<p>训练完后，日志文件保存到<code class="docutils literal notranslate"><span class="pre">pipeline_inference_logs</span></code>目录下，其中部分文件目录结构如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ pipeline_inference_logs
+   ├── scheduler.log
+   ├── worker_0.log
+   ├── worker_1.log
+   ├── worker_2.log
+...
+</pre></div>
+</div>
+<p>结果保存在<code class="docutils literal notranslate"><span class="pre">pipeline_inference_logs/worker_0.log</span></code>中，示例如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[[0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556
+  0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556
+  0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556
+  0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556
+  0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556 0.01181556
+  0.01181556 0.01181556]
+  ...]
+</pre></div>
+</div>
 </section>
 </section>
 </section>

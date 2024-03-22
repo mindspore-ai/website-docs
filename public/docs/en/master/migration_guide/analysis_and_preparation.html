@@ -97,7 +97,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../faq/implement_problem.html">Implement Problem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/network_compilation.html">Network Compilation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/operators_compile.html">Operators Compile</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../faq/usage_migrate_3rd.html">Migration from a Third-party Framework</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/performance_tuning.html">Performance Tuning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/precision_tuning.html">Precision Tuning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/distributed_parallel.html">Distributed Parallel</a></li>
@@ -206,10 +205,120 @@ Alternatively, the <a class="reference external" href="https://www.mindspore.cn/
 </section>
 <section id="analyzing-function-compliance">
 <h2>Analyzing Function Compliance<a class="headerlink" href="#analyzing-function-compliance" title="Permalink to this headline"></a></h2>
-<p>During continuous delivery of MindSpore, some functions are restricted. If restricted functions are involved during network migration, some measures can be taken to avoid the impact of function restrictions, such as <a class="reference external" href="https://www.mindspore.cn/docs/en/master/migration_guide/dynamic_shape.html">dynamic shape</a> and <a class="reference external" href="https://www.mindspore.cn/docs/en/master/migration_guide/sparsity.html">sparsity</a>, etc.</p>
+<p>During continuous delivery of MindSpore, some functions are restricted. If restricted functions are involved during network migration, before migration, functional compliance needs to be analyzed.
+It can be analyzed from the following points:</p>
+<ol class="arabic simple">
+<li><p>Dynamic shape.</p></li>
+<li><p>Sparse.</p></li>
+</ol>
+<section id="dynamic-shape">
+<h3>Dynamic Shape<a class="headerlink" href="#dynamic-shape" title="Permalink to this headline"></a></h3>
+<p>Currently MindSpore dynamic shape feature is under iterative development, and the dynamic shape functionality is not well supported. The following will give several scenarios where dynamic shape is introduced. During network migration, the presence of one of the following scenarios indicates the presence of dynamic shape in the network.</p>
+<ul>
+<li><p>Several scenarios that introduces dynamic shapes:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.mindspore.cn/docs/en/master/migration_guide/dynamic_shape.html#input-shape-not-fixed">Input Shape is not Fixed</a></p></li>
+<li><p><a class="reference external" href="https://www.mindspore.cn/docs/en/master/migration_guide/dynamic_shape.html#apis-that-cause-shape-changes-during-network-execution">APIs that Cause Shape Changes During Network Execution</a></p></li>
+<li><p><a class="reference external" href="https://www.mindspore.cn/docs/en/master/migration_guide/dynamic_shape.html#shape-changes-introduced-by-different-branches-of-control-flows">Shape Changes Introduced by Different Branches of Control Flows</a></p></li>
+</ul>
+</li>
+<li><p>Several solutions for dynamic shapes:</p>
+<ul>
+<li><p>Input shape is not fixed:
+Dynamic shape can be converted to static shape through the mask mechanism. Mask mechanism example code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">_convert_ids_and_mask</span><span class="p">(</span><span class="n">input_tokens</span><span class="p">,</span> <span class="n">seq_max_bucket_length</span><span class="p">):</span>
+    <span class="n">input_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">input_tokens</span><span class="p">)</span>
+    <span class="n">input_mask</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">max_seq_length</span>
+
+    <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">seq_max_bucket_length</span><span class="p">:</span>
+        <span class="n">input_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">input_mask</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span> <span class="o">==</span> <span class="n">seq_max_bucket_length</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_mask</span><span class="p">)</span> <span class="o">==</span> <span class="n">seq_max_bucket_length</span>
+
+    <span class="k">return</span> <span class="n">input_ids</span><span class="p">,</span> <span class="n">input_mask</span>
+</pre></div>
+</div>
+</li>
+<li><p>There is an API that triggers a shape change during network execution:
+If this scenario is encountered to introduce a dynamic shape, the essence is that the dynamically changing values need to be modified to a fixed shape to solve the problem.
+As in the case of the TopK operator, if K is changing during execution, a dynamic shape is introduced.
+Solution: You can fix a maximum number of targets, first get the confidence level of all targets by static shape, then choose the K number of highest targets as the result output, and other targets are removed by mask mechanism. Sample code such as the multiclass_nms interface of <a class="reference external" href="https://gitee.com/mindspore/models/blob/master/official/cv/FasterRCNN/src/FasterRcnn/faster_rcnn.py">FasterRCNN</a>.</p></li>
+<li><p>Different branches of the control flow introduce changes on the shape:
+You can try to use equal, select operators to replace the if condition. Sample code is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Code example for introducing control flow:</span>
+<span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">reduce_sum</span><span class="p">(</span><span class="n">object_masks</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+   <span class="n">stage2_loss</span> <span class="o">=</span> <span class="n">stage2_loss</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+<span class="c1"># modified code example</span>
+<span class="n">stage2_loss</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">reduce_sum</span><span class="p">(</span><span class="n">object_masks</span><span class="p">),</span> <span class="mi">0</span><span class="p">),</span> <span class="n">stage2_loss</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">stage2_loss</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="sparse">
+<h3>Sparse<a class="headerlink" href="#sparse" title="Permalink to this headline"></a></h3>
+<p>MindSpore now supports the two most commonly used sparse data formats, CSR and COO, but due to the limited support for sparse operators at the moment, most of the sparse features are still limited.
+In this case, it is recommended to find whether the corresponding operator supports sparse computation first, and if not it needs to be converted to a normal operator. For details, see <a class="reference external" href="https://www.mindspore.cn/docs/en/master/migration_guide/sparsity.html">Sparse</a>.</p>
+</section>
 </section>
 <section id="recommended-functions-and-features-for-migration-scenarios">
 <h2>Recommended Functions and Features for Migration Scenarios<a class="headerlink" href="#recommended-functions-and-features-for-migration-scenarios" title="Permalink to this headline"></a></h2>
+<p>The main problems in the MindSpore network migration process are: accuracy problems and performance problems. The following section describes the relatively mature functions and features provided by MindSpore to localize these two problems.</p>
+<section id="accuracy-problem">
+<h3>Accuracy Problem<a class="headerlink" href="#accuracy-problem" title="Permalink to this headline"></a></h3>
+<p>Common localization methods for accuracy problems can be found in: <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/accuracy_problem_preliminary_location.html">Preliminary Localization Guide for Accuracy Problems</a> and <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/accuracy_optimization.html">Accuracy problem detailed localization and tuning guide</a>.
+Here are a few of the main tools used for positioning accuracy issues:</p>
+<ol class="arabic simple">
+<li><p>Visualize the dataset.</p></li>
+<li><p>TroubleShooter.</p></li>
+<li><p>Dump.</p></li>
+</ol>
+<section id="visualizing-the-dataset">
+<h4>Visualizing the Dataset<a class="headerlink" href="#visualizing-the-dataset" title="Permalink to this headline"></a></h4>
+<p>MindRecord is an efficient data format developed by MindSpore that allows you to first check that your data is processed correctly when accuracy issues arise.
+If the source data is TFRecord, it can be converted to MindRecord by <a class="reference external" href="https://gitee.com/mindspore/models/blob/master/official/nlp/Bert/src/tools/parallel_tfrecord_to_mindrecord.py">TFRecord to MindRecord</a> tool, and sent directly to the network for accuracy comparison.
+Use <a class="reference external" href="https://gitee.com/mindspore/models/blob/master/official/nlp/Bert/src/tools/vis_tfrecord_or_mindrecord.py">visualize TFRecord or MindRecord datasets</a> tool to visualize the data for data checking.</p>
+</section>
+<section id="troubleshooter">
+<h4>TroubleShooter<a class="headerlink" href="#troubleshooter" title="Permalink to this headline"></a></h4>
+<p><a class="reference external" href="https://gitee.com/mindspore/toolkits/tree/master/troubleshooter">TroubleShooter</a> is a MindSpore web development debugging toolkit for providing convenient, easy-to-use debugging capabilities.
+The current functions supported by TroubleShooter are: comparing whether two sets of Tensor values (npy files) are equal; comparing whether the network outputs of PyTorch and MindSpore are equal; comparing the ckpt/pth of MindSpore and PyTorch, etc.
+See <a class="reference external" href="https://gitee.com/mindspore/toolkits/tree/master/troubleshooter#%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF">TroubleShooter application scenarios</a> for details.</p>
+</section>
+<section id="dump">
+<h4>Dump<a class="headerlink" href="#dump" title="Permalink to this headline"></a></h4>
+<p>MindSpore provides Dump function, used to model training in the graph and operator input and output data saved to disk files, generally used for network migration complex problem location (eg: operator overflow, etc). It can be dumped out of the operator level data.</p>
+<p>For getting Dump data, refer to: <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/debug/dump.html#synchronous-dump-step">Synchronous Dump Step</a> and <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/debug/dump.html#asynchronous-dump-step">Asynchronous Dump Step</a>.</p>
+<p>For analyzig Dump data, refer to: <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/debug/dump.html#synchronous-dump-data-analysis-sample">Synchronous Dump Data Analysis Sample</a> and <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/debug/dump.html#asynchronous-dump-data-analysis-sample">Asynchronous Dump Data Analysis Sample</a></p>
+<p>See <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/master/debug/dump.html">Dump</a> for details.</p>
+</section>
+</section>
+<section id="performance-issues">
+<h3>Performance Issues<a class="headerlink" href="#performance-issues" title="Permalink to this headline"></a></h3>
+<p>Common methods for locating performance problems can be found in: <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/performance_tuning_guide.html">Performance Tuning Guide</a>.
+Here are a few of the main tools available for locating performance issues:</p>
+<ol class="arabic simple">
+<li><p>Profiler.</p></li>
+<li><p>MindSpore Insight.</p></li>
+</ol>
+<section id="profiler">
+<h4>Profiler<a class="headerlink" href="#profiler" title="Permalink to this headline"></a></h4>
+<p>Profiler can record information such as operator time consumption during the training and inference process into a file, and mainly provides the host execution of the framework, as well as the Profiler analysis function of operator execution to help users debug neural network performance more efficiently.
+Currently MindSpore offers two ways to enable Profiler: <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/performance_profiling_ascend.html#method-1-modify-the-training-script">Modify the script to get performance data</a> and <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/performance_profiling_ascend.html#method-2-enable-environment-variables">Environment variables get access to performance data</a>.</p>
+</section>
+<section id="mindspore-insight">
+<h4>MindSpore Insight<a class="headerlink" href="#mindspore-insight" title="Permalink to this headline"></a></h4>
+<p>MindSpore Insight is a visual debugging and tuning tool to help users get better model accuracy and performance. After obtaining performance data through Profiler, you can use MindSpore Insight to visualize the data and then view the training process, optimize model performance, and debug accuracy issues.
+An introduction to MindSpore Insight startup and other uses can be found at <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/mindinsight_commands.html#mindspore-insight-commands">MindSpore Insight related commands</a>.
+After visualizing the data, the data can be analyzed by <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/performance_profiling_ascend.html#training-performance">parsing performance data</a> for data analysis.
+More introduction can be found in <a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/en/master/index.html">MindSpore Insight documentation</a>.</p>
+</section>
+</section>
 <section id="dynamic-and-static-graphs">
 <h3><a class="reference external" href="https://www.mindspore.cn/tutorials/en/master/beginner/accelerate_with_static_graph.html">Dynamic and Static Graphs</a><a class="headerlink" href="#dynamic-and-static-graphs" title="Permalink to this headline"></a></h3>
 <p>Currently, there are two execution modes of a mainstream deep learning framework: a static graph mode (Graph) and a dynamic graph mode (PyNative).</p>
@@ -228,7 +337,7 @@ Alternatively, the <a class="reference external" href="https://www.mindspore.cn/
 <p>Automatic differentiation can calculate a derivative value of a derivative function at a certain point, which is a generalization of backward propagation algorithms. The main problem solved by automatic differential is to decompose a complex mathematical operation into a series of simple basic operations. This function shields a large number of derivative details and processes from users, greatly reducing the threshold for using the framework.</p>
 </section>
 <section id="mixed-precision">
-<h3><a class="reference external" href="https://www.mindspore.cn/tutorials/zh-CN/master/advanced/mixed_precision.html">Mixed Precision</a><a class="headerlink" href="#mixed-precision" title="Permalink to this headline"></a></h3>
+<h3><a class="reference external" href="https://www.mindspore.cn/tutorials/en/master/advanced/mixed_precision.html">Mixed Precision</a><a class="headerlink" href="#mixed-precision" title="Permalink to this headline"></a></h3>
 <p>Generally, when a neural network model is trained, the default data type is FP32. In recent years, to accelerate training time, reduce memory occupied during network training, and store a trained model with same precision, more and more mixed-precision training methods are proposed in the industry. The mixed-precision training herein means that both single precision (FP32) and half precision (FP16) are used in a training process.</p>
 </section>
 <section id="auto-augmentation">
