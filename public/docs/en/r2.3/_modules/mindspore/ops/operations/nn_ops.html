@@ -171,7 +171,8 @@
                              <span class="n">Elu</span><span class="p">,</span> <span class="n">Sigmoid</span><span class="p">,</span> <span class="n">Softmax</span><span class="p">,</span> <span class="n">HSwish</span><span class="p">,</span> <span class="n">HSigmoid</span><span class="p">,</span> <span class="n">AvgPool</span><span class="p">,</span> <span class="n">BiasAdd</span><span class="p">,</span>
                              <span class="n">NLLLoss</span><span class="p">,</span> <span class="n">OneHot</span><span class="p">,</span> <span class="n">GeLU</span><span class="p">,</span> <span class="n">FastGeLU</span><span class="p">,</span> <span class="n">PReLU</span><span class="p">,</span>
                              <span class="n">GridSampler3D</span><span class="p">,</span> <span class="n">GridSampler2D</span><span class="p">,</span> <span class="n">LayerNorm</span><span class="p">,</span> <span class="n">HShrink</span><span class="p">,</span> <span class="n">AdamWeightDecay</span><span class="p">,</span> <span class="n">Dropout</span><span class="p">,</span>
-                             <span class="n">ApplyRotaryPosEmb</span><span class="p">,</span> <span class="n">PagedAttention</span><span class="p">,</span> <span class="n">PagedAttentionMask</span><span class="p">,</span> <span class="n">ReshapeAndCache</span><span class="p">)</span>
+                             <span class="n">ApplyRotaryPosEmb</span><span class="p">,</span> <span class="n">PagedAttention</span><span class="p">,</span> <span class="n">PagedAttentionMask</span><span class="p">,</span> <span class="n">ReshapeAndCache</span><span class="p">,</span>
+                             <span class="n">FlashAttentionScore</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">.manually_defined</span> <span class="kn">import</span> <span class="n">BatchNorm</span>
 
 
@@ -10137,7 +10138,7 @@
 <span class="sd">        - **attn_mask** (Tensor) - The attention mask tensor with data type of float16 or bool.</span>
 <span class="sd">          Input tensor of shape :math:`(B, S)` / :math:`(B, 1, S)` / :math:`(B, 1, 1, S)`.</span>
 <span class="sd">        - **actual_seq_lengths** (Tensor) - Describe actual sequence length of each input with data type of int.</span>
-<span class="sd">        - **padding_mask** (Tensor) - The padding mask tensor with data type of float16.</span>
+<span class="sd">        - **pse_shift** (Tensor) - The position encoding tensor with data type of float16 or float32.</span>
 <span class="sd">        - **dequant_scale1** (Tensor) - Quantitative parametor, the tensor with data type of uint64.</span>
 <span class="sd">        - **quant_scale1** (Tensor) - Quantitative parametor, the tensor with data type of float.</span>
 <span class="sd">        - **dequant_scale2** (Tensor) - Quantitative parametor, the tensor with data type of uint64.</span>
@@ -10172,124 +10173,10 @@
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;num_key_value_heads&#39;</span><span class="p">,</span> <span class="n">num_key_value_heads</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;block_size&#39;</span><span class="p">,</span> <span class="n">block_size</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;inner_precise&#39;</span><span class="p">,</span> <span class="n">inner_precise</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">,</span> <span class="s2">&quot;key&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;attn_mask&quot;</span><span class="p">,</span> <span class="s2">&quot;actual_seq_lengths&quot;</span><span class="p">,</span> <span class="s2">&quot;padding_mask&quot;</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">,</span> <span class="s2">&quot;key&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;attn_mask&quot;</span><span class="p">,</span> <span class="s2">&quot;actual_seq_lengths&quot;</span><span class="p">,</span> <span class="s2">&quot;pse_shift&quot;</span><span class="p">,</span>
                                         <span class="s2">&quot;dequant_scale1&quot;</span><span class="p">,</span> <span class="s2">&quot;quant_scale1&quot;</span><span class="p">,</span> <span class="s2">&quot;dequant_scale2&quot;</span><span class="p">,</span> <span class="s2">&quot;quant_scale2&quot;</span><span class="p">,</span>
                                         <span class="s2">&quot;quant_offset2&quot;</span><span class="p">,</span> <span class="s2">&quot;antiquant_scale&quot;</span><span class="p">,</span> <span class="s2">&quot;antiquant_offset&quot;</span><span class="p">,</span> <span class="s2">&quot;block_table&quot;</span><span class="p">],</span>
                                 <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;attention_out&quot;</span><span class="p">])</span>
-
-
-<span class="k">class</span> <span class="nc">FlashAttentionScore</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    FlashAttentionScore.</span>
-<span class="sd">    .. math::</span>
-<span class="sd">        \begin{array}{ll} \\</span>
-<span class="sd">            y = Dropout(Softmax(Mask(scale_value \mul (real_shift + query * key), attn_mask), -1), keep_prob) \\</span>
-<span class="sd">            \mul value \\</span>
-<span class="sd">        \end{array}</span>
-
-<span class="sd">    .. warning::</span>
-<span class="sd">        This is an experimental API that is subject to change or deletion.</span>
-<span class="sd">    B -- Batch size</span>
-<span class="sd">    S1 -- Sequence length of query. The value ranges from 1 to 32768 and is a multiple of 16.</span>
-<span class="sd">    S2 -- Sequence length of key and value. The value ranges from 1 to 32768 and is a multiple of 16.</span>
-<span class="sd">    N1 -- Num heads of query</span>
-<span class="sd">    N2 -- Num heads of key and value, and N2 must be a factor of N1</span>
-<span class="sd">    D -- Head size. Support value: 64, 80, 96, 120, 128 and 256.</span>
-<span class="sd">    H1 -- Hidden size of query, which equals to N1 * D</span>
-<span class="sd">    H2 -- Hidden size of key and value, which equals to N2 * D</span>
-<span class="sd">    Args:</span>
-<span class="sd">        head_num (int): The head num of query. Default: 1.</span>
-<span class="sd">        keep_prob (float): The keep probability of dropout. Default: 1.0.</span>
-<span class="sd">        scale_value (float): The scale factor of score. Default: 1.0.</span>
-<span class="sd">        pre_tokens (int): Parameter for sparse computation, represents how many tokens are counted forward.</span>
-<span class="sd">        When sparse_mode is set to 1, 2, 3, or 5, this parameter does not take effect. Default: 2147483647.</span>
-<span class="sd">        next_tokens (int): Parameter for sparse computation, represents how many tokens are counted backward.</span>
-<span class="sd">        When sparse_mode is set to 1, 2, 3, or 5, this parameter does not take effect. Default: 2147483647.</span>
-<span class="sd">        inner_precise (int): The parameter is reserved and not implemented yet. Default: 0.</span>
-<span class="sd">        input_layout (str): Specifies the layout of input `query`, key and value. The value can be &quot;BSH&quot; or &quot;BNSD&quot;.</span>
-<span class="sd">        Default: &quot;BSH&quot;.</span>
-<span class="sd">        sparse_mode (int): Indicates sparse mode. Default 0.</span>
-
-<span class="sd">            - 0: Indicates the defaultMask mode. If attn_mask is not passed, the mask operation is not performed,</span>
-<span class="sd">              and preTokens and nextTokens(internally assigned as INT_MAX) are ignored. If passed in, the full attn_mask</span>
-<span class="sd">              matrix (S1 * S2) needs to be passed in, indicating that the part between preTokens and nextTokens needs to</span>
-<span class="sd">              be calculated.</span>
-<span class="sd">            - 1: Represents allMask, that is, passing in the complete attn_mask matrix.</span>
-<span class="sd">            - 2: Representing the leftUpCausal mode corresponds to the lower triangle scenario divided by the left</span>
-<span class="sd">              vertex, and the optimized attn_mask matrix (2048*2048) is required.</span>
-<span class="sd">            - 3: Representing the rightDownCausal model corresponds to the lower triangle scene divided by the lower</span>
-<span class="sd">              right vertex, and the optimized attn_mask matrix (2048*2048) is required.</span>
-<span class="sd">            - 4: Represents the band scenario, that is, the part between counting preTokens and nextTokens, and the</span>
-<span class="sd">              optimized attn_mask matrix (2048*2048) is required..</span>
-<span class="sd">            - 5: Represents the prefix scenario, that is, on the basis of rightDownCasual, a matrix with length S1 and</span>
-<span class="sd">              width N is added to the left side. The value of N is obtained by the new input prefix, and the N value of</span>
-<span class="sd">              each Batch axis is different. Not implemented yet.</span>
-<span class="sd">            - 6: Represents the global scenario, not implemented yet.</span>
-<span class="sd">            - 7: Represents the dilated scenario, not implemented yet.</span>
-<span class="sd">            - 8: Represents the block_local scenario, not implemented yet.</span>
-
-<span class="sd">        enable_load_balance (bool): Enable load balance of calculation on each rank. Only take effect</span>
-<span class="sd">        when sequence parallel is used. Default False.</span>
-
-<span class="sd">    Inputs:</span>
-<span class="sd">        - **query** (Tensor[float16, bfloat16]) - The query tensor.</span>
-<span class="sd">          Input tensor of shape :math:`(B, S1, H1)` or `(B, N1, S1, D)`.</span>
-<span class="sd">        - **key** (Tensor[float16, bfloat16]) - The key tensor.</span>
-<span class="sd">          Input tensor of shape :math:`(B, S2, H2)` or `(B, N2, S2, D)`.</span>
-<span class="sd">        - **value** (Tensor[float16, bfloat16]) - The value tensor.</span>
-<span class="sd">          Input tensor of shape :math:`(B, S2, H2)` or `(B, N2, S2, D)`.</span>
-<span class="sd">        - **real_shift** (Union[Tensor[float16, bfloat16], None]) - The position embedding code. If S is greater than</span>
-<span class="sd">          1024 and the mask of the lower triangle is used, enter only the inverse 1024 lines of the lower triangle for</span>
-<span class="sd">          memory optimization.</span>
-<span class="sd">          Input tensor of shape :math: `(B, N1, S1, S2)`, `(1, N1, S1, S2)`, `(B, N1, 1024, S2)`, `(1, N1, 1024, S2)`</span>
-<span class="sd">          or (1024, 1024).</span>
-<span class="sd">        - **drop_mask** (Union[Tensor[uint8], None]) - The dropout mask tensor.</span>
-<span class="sd">          Input tensor of shape :math:`(B, N1, S1, S2 // 8) or None`.</span>
-<span class="sd">        - **padding_mask** (None) - Reserved parameter. Not implemented yet.</span>
-<span class="sd">        - **attn_mask** (Union[Tensor[uint8], None]) - The attention mask tensor. For each element, 0 indicates</span>
-<span class="sd">          retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)`, `(S1, S2)`</span>
-<span class="sd">          or (2048, 2048).</span>
-<span class="sd">        - **prefix** (Union[Tensor[int64], None]) - N value of each Batch in the prefix sparse calculation scenario.</span>
-<span class="sd">          Input tensor of shape :math:`(B,)`.</span>
-
-<span class="sd">    Outputs:</span>
-<span class="sd">        - **softmax_max** (Tensor[float32]) - (B, N1, S1, 8)</span>
-<span class="sd">        - **softmax_sum** (Tensor[float32]) - (B, N1, S1, 8)</span>
-<span class="sd">        - **softmax_out** (Tensor[float16, bfloat16]) - Useless output, ignore it. Output tensor of shape : `()`</span>
-<span class="sd">        - **attention_out** (Tensor[float16, bfloat16]) - The output of attention, its shape, and data type</span>
-<span class="sd">          are the same as the query.</span>
-
-<span class="sd">    Supported Platforms:</span>
-<span class="sd">        ``Ascend910B``</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="nd">@prim_attr_register</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">head_num</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keep_prob</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">scale_value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">pre_tokens</span><span class="o">=</span><span class="mi">2147483647</span><span class="p">,</span> <span class="n">next_tokens</span><span class="o">=</span><span class="mi">2147483647</span><span class="p">,</span>
-                 <span class="n">inner_precise</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">input_layout</span><span class="o">=</span><span class="s2">&quot;BSH&quot;</span><span class="p">,</span> <span class="n">sparse_mode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">enable_load_balance</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize FlashAttentionScore&quot;&quot;&quot;</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;head_num&#39;</span><span class="p">,</span> <span class="n">head_num</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;keep_prob&#39;</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_float</span><span class="p">(</span><span class="n">keep_prob</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">GE</span><span class="p">,</span> <span class="s2">&quot;keep_prob&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_float</span><span class="p">(</span><span class="n">keep_prob</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">validator</span><span class="o">.</span><span class="n">LE</span><span class="p">,</span> <span class="s2">&quot;keep_prob&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;scale_value&#39;</span><span class="p">,</span> <span class="n">scale_value</span><span class="p">,</span> <span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;pre_tokens&#39;</span><span class="p">,</span> <span class="n">pre_tokens</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;next_tokens&#39;</span><span class="p">,</span> <span class="n">next_tokens</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;inner_precise&#39;</span><span class="p">,</span> <span class="n">inner_precise</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;sparse_mode&#39;</span><span class="p">,</span> <span class="n">sparse_mode</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;enable_load_balance&#39;</span><span class="p">,</span> <span class="n">enable_load_balance</span><span class="p">,</span> <span class="p">[</span><span class="nb">bool</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">valid_sparse_mode</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">sparse_mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_sparse_mode</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attribute &#39;sparse_mode&#39; must be one of </span><span class="si">{</span><span class="n">valid_sparse_mode</span><span class="si">}</span><span class="s2">, but got </span><span class="si">{</span><span class="n">sparse_mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">inner_precise</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attribute &#39;inner_precise&#39; must be 0, but got </span><span class="si">{</span><span class="n">inner_precise</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">validator</span><span class="o">.</span><span class="n">check_value_type</span><span class="p">(</span><span class="s1">&#39;input_layout&#39;</span><span class="p">,</span> <span class="n">input_layout</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">support_layout</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;BSH&quot;</span><span class="p">,</span> <span class="s2">&quot;BNSD&quot;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">input_layout</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">support_layout</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attribute &#39;input_layout&#39; must be one of </span><span class="si">{</span><span class="n">support_layout</span><span class="si">}</span><span class="s2">, but got </span><span class="si">{</span><span class="n">input_layout</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">init_prim_io_names</span><span class="p">(</span>
-            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;query&#39;</span><span class="p">,</span> <span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;real_shift&#39;</span><span class="p">,</span> <span class="s1">&#39;drop_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;padding_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;attn_mask&#39;</span><span class="p">,</span> <span class="s1">&#39;prefix&#39;</span><span class="p">],</span>
-            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;softmax_max&#39;</span><span class="p">,</span> <span class="s1">&#39;softmax_sum&#39;</span><span class="p">,</span> <span class="s1">&#39;softmax_out&#39;</span><span class="p">,</span> <span class="s1">&#39;attention_out&#39;</span><span class="p">])</span>
-
 
 <span class="k">class</span> <span class="nc">RmsNorm</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>

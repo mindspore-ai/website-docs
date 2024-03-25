@@ -172,6 +172,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops_generate.gen_ops_inner_prim</span> <span class="kn">import</span> <span class="n">DtypeToEnum</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">Zero</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.auto_generate.gen_ops_prim</span> <span class="kn">import</span> <span class="n">FlashAttentionScore</span>
 
 
 <span class="k">class</span> <span class="nc">ScalarDiv</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
@@ -1659,6 +1660,110 @@
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">_convert_stub</span><span class="p">(</span><span class="n">pyboost_zeros</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">[</span><span class="n">size</span><span class="p">,</span> <span class="nb">type</span> <span class="k">if</span> <span class="nb">type</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> \
             <span class="n">handler</span><span class="o">.</span><span class="n">dtype_to_type_id</span><span class="p">(</span><span class="s1">&#39;Zeros&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="p">)]))</span></div>
+
+
+<span class="k">def</span> <span class="nf">flash_attention_score</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">head_num</span><span class="p">,</span> <span class="n">real_shift</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">padding_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                          <span class="n">attn_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">actual_seq_qlen</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">actual_seq_kvlen</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keep_prob</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+                          <span class="n">scalar_value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">pre_tokens</span><span class="o">=</span><span class="mi">2147483647</span><span class="p">,</span> <span class="n">next_tokens</span><span class="o">=</span><span class="mi">2147483647</span><span class="p">,</span> <span class="n">inner_precise</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                          <span class="n">input_layout</span><span class="o">=</span><span class="s1">&#39;BSH&#39;</span><span class="p">,</span> <span class="n">sparse_mode</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The interface is not open to the public, just for internal use,</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        \begin{array}{ll} \\</span>
+<span class="sd">            y = Dropout(Softmax(Mask(scale_value \mul (real_shift + query * key), attn_mask), -1), keep_prob) \\</span>
+<span class="sd">            \mul value \\</span>
+<span class="sd">        \end{array}</span>
+
+<span class="sd">    B -- Batch size</span>
+<span class="sd">    S1 -- Sequence length of query.</span>
+<span class="sd">    S2 -- Sequence length of key and value.</span>
+<span class="sd">    N1 -- Num heads of query.</span>
+<span class="sd">    N2 -- Num heads of key and value, and N2 must be a factor of N1.</span>
+<span class="sd">    D -- Head size. The value ranges is a multiple of 16.</span>
+<span class="sd">    H1 -- Hidden size of query, which equals to N1 * D.</span>
+<span class="sd">    H2 -- Hidden size of key and value, which equals to N2 * D.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This is an experimental API that is subject to change or deletion.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        query (Tensor[float16, bfloat16]): The query tensor. Input tensor of shape :math:`(B, S1, H1)`,</span>
+<span class="sd">            `(B, N1, S1, D)`, `(S1, B, H1)`, `(B, S1, N1, D)` or `(T1, N1, D)`.</span>
+<span class="sd">        key (Tensor[float16, bfloat16]): The key tensor. Input tensor of shape :math:`(B, S2, H2)`,</span>
+<span class="sd">            `(B, N2, S2, D)`, `(S2, B, H2)`, `(B, S2, N2, D)` or `(T2, N2, D)`.</span>
+<span class="sd">        value (Tensor[float16, bfloat16]): The value tensor. Input tensor of shape :math:`(B, S2, H2)`,</span>
+<span class="sd">            `(B, N2, S2, D)`, `(S2, B, H2)`, `(B, S2, N2, D)` or `(T2, N2, D)`.</span>
+<span class="sd">        head_num (int): The head num of query.</span>
+<span class="sd">        real_shift (Union[Tensor[float16, bfloat16], None]): The position embedding code. If S is greater than 1024</span>
+<span class="sd">            and the mask of the lower triangle is used, enter only the inverse 1024 lines of the lower triangle for</span>
+<span class="sd">            memory optimization. Input tensor of shape :math: `(B, N1, S1, S2)`, `(1, N1, S1, S2)`,</span>
+<span class="sd">            `(B, N1, 1024, S2)`, `(1, N1, 1024, S2)` or (1024, 1024).</span>
+<span class="sd">        drop_mask (Union[Tensor[uint8], None]): The dropout mask tensor. Input tensor of shape :math:</span>
+<span class="sd">            `(B, N1, S1, S2 // 8) or None`.</span>
+<span class="sd">        padding_mask (None): Reserved parameter. Not implemented yet.</span>
+<span class="sd">        attn_mask (Union[Tensor[uint8], None]): The attention mask tensor. For each element, 0 indicates retention</span>
+<span class="sd">            and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)`, `(S1, S2)` or</span>
+<span class="sd">            (2048, 2048).</span>
+<span class="sd">        prefix (Union[List[int64], Tuple[int64] None]): N value of each Batch in the prefix sparse calculation</span>
+<span class="sd">            scenario. Input tensor of shape :math:`(B,)`.</span>
+<span class="sd">        actual_seq_qlen (Union[List[int64], Tuple[int64], None]): Size of query corresponding to each batch, array</span>
+<span class="sd">            with increasing values and the last value equal to T1.</span>
+<span class="sd">        actual_seq_kvlen (Union[List[int64], Tuple[int64], None]): Size of key and value corresponding to each batch,</span>
+<span class="sd">            array with increasing values and the last value equal to T2.</span>
+<span class="sd">        keep_prob (float): The keep probability of dropout. Default: 1.0.</span>
+<span class="sd">        scale_value (float): The scale factor of score. Default: 1.0.</span>
+<span class="sd">        pre_tokens (int): Parameter for sparse computation, represents how many tokens are counted forward.</span>
+<span class="sd">            When sparse_mode is set to 1, 2, 3, or 5, this parameter does not take effect. Default: 2147483647.</span>
+<span class="sd">        next_tokens (int): Parameter for sparse computation, represents how many tokens are counted backward.</span>
+<span class="sd">            When sparse_mode is set to 1, 2, 3, or 5, this parameter does not take effect. Default: 2147483647.</span>
+<span class="sd">        inner_precise (int): The parameter is reserved and not implemented yet. Default: 0.</span>
+<span class="sd">        input_layout (str): Specifies the layout of input `query`, key and value. The value can be &quot;BSH&quot;, &quot;BNSD&quot;,</span>
+<span class="sd">            &quot;SBH&quot;, &quot;BSND&quot; or &quot;TND&quot;. Default: &quot;BSH&quot;.</span>
+<span class="sd">        sparse_mode (int): Indicates sparse mode. Default 0.</span>
+
+<span class="sd">            - 0: Indicates the defaultMask mode. If attn_mask is not passed, the mask operation is not performed,</span>
+<span class="sd">              and preTokens and nextTokens(internally assigned as INT_MAX) are ignored. If passed in, the full</span>
+<span class="sd">              attn_mask matrix (S1 * S2) needs to be passed in, indicating that the part between preTokens and</span>
+<span class="sd">              nextTokens needs to be calculated.</span>
+<span class="sd">            - 1: Represents allMask, that is, passing in the complete attn_mask matrix.</span>
+<span class="sd">            - 2: Representing the leftUpCausal mode corresponds to the lower triangle scenario divided by the left</span>
+<span class="sd">              vertex, and the optimized attn_mask matrix (2048*2048) is required.</span>
+<span class="sd">            - 3: Representing the rightDownCausal model corresponds to the lower triangle scene divided by the lower</span>
+<span class="sd">              right vertex, and the optimized attn_mask matrix (2048*2048) is required.</span>
+<span class="sd">            - 4: Represents the band scenario, that is, the part between counting preTokens and nextTokens, and the</span>
+<span class="sd">              optimized attn_mask matrix (2048*2048) is required..</span>
+<span class="sd">            - 5: Represents the prefix scenario, that is, on the basis of rightDownCasual, a matrix with length S1 and</span>
+<span class="sd">              width N is added to the left side. The value of N is obtained by the new input prefix, and the N value</span>
+<span class="sd">              of each Batch axis is different. Not implemented yet.</span>
+<span class="sd">            - 6: Represents the global scenario, not implemented yet.</span>
+<span class="sd">            - 7: Represents the dilated scenario, not implemented yet.</span>
+<span class="sd">            - 8: Represents the block_local scenario, not implemented yet.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        attention_out (Tensor[float16, bfloat16]), The output of attention, its shape, and data type are the same</span>
+<span class="sd">        as the query.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend``</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore.common.dtype as mstype</span>
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import ops, Tensor</span>
+<span class="sd">        &gt;&gt;&gt; query = Tensor(np.ones([2, 4, 64]), dtype=mstype.float16)</span>
+<span class="sd">        &gt;&gt;&gt; key = Tensor(np.ones([2, 4, 64]), dtype=mstype.float16)</span>
+<span class="sd">        &gt;&gt;&gt; value = Tensor(np.ones([2, 4, 64]), dtype=mstype.float16)</span>
+<span class="sd">        &gt;&gt;&gt; head_num = 4</span>
+<span class="sd">        &gt;&gt;&gt; output = ops.flash_attention_score(query, key, value, head_num)</span>
+<span class="sd">        &gt;&gt;&gt; print(output.shape)</span>
+<span class="sd">        (2, 4, 64)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rank_op</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">FlashAttentionScore</span><span class="p">)(</span><span class="n">head_num</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">,</span> <span class="n">scalar_value</span><span class="p">,</span> <span class="n">pre_tokens</span><span class="p">,</span> <span class="n">next_tokens</span><span class="p">,</span>
+                                                   <span class="n">inner_precise</span><span class="p">,</span> <span class="n">input_layout</span><span class="p">,</span> <span class="n">sparse_mode</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rank_op</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">real_shift</span><span class="p">,</span> <span class="n">drop_mask</span><span class="p">,</span> <span class="n">padding_mask</span><span class="p">,</span> <span class="n">attn_mask</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">actual_seq_qlen</span><span class="p">,</span>
+                   <span class="n">actual_seq_kvlen</span><span class="p">)[</span><span class="mi">3</span><span class="p">]</span>
 </pre></div>
 
            </div>
