@@ -79,6 +79,13 @@
 <li class="toctree-l3"><a class="reference internal" href="#operator-call">Operator Call</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#introduction-to-multi-output-custom-operators-of-the-aot-type">Introduction to Multi-Output Custom Operators of the AOT Type</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#operator-inference-function">Operator Inference Function</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#operator-registering-function">Operator Registering Function</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#operator-computation-function">Operator Computation Function</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#operator-in-scripts">Operator in Scripts</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -540,6 +547,141 @@ We determine the values of these two parameters from the network input, and thes
 </div>
 <p>Execution result is as follows:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[10. 10. 10. 10.]
+</pre></div>
+</div>
+</section>
+</section>
+<section id="introduction-to-multi-output-custom-operators-of-the-aot-type">
+<h2>Introduction to Multi-Output Custom Operators of the AOT Type<a class="headerlink" href="#introduction-to-multi-output-custom-operators-of-the-aot-type" title="Permalink to this headline"></a></h2>
+<p>Custom operators of the AOT type support multiple outputs (outputs as tuples). The definition of the operator file for a custom operator with multiple outputs is similar to that of a single-output operator, but corresponding modifications need to be made based on the multi-output scenario, including:</p>
+<ul class="simple">
+<li><p>Operator inference function: The output of the <code class="docutils literal notranslate"><span class="pre">infer</span></code> function needs to be written in the form of a tuple;</p></li>
+<li><p>Operator registration file: The names and data type information of multiple outputs need to be listed;</p></li>
+<li><p>Operator computation function: It needs to identify the pointers corresponding to multiple outputs.</p></li>
+</ul>
+<p>Below, we demonstrate the method of defining a custom operator of the AOT type with multiple outputs using an example. For specific file usage, please refer to <a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r2.3/tests/st/ops/graph_kernel/custom/test_custom_aot.py#L405">here</a>.</p>
+<section id="operator-inference-function">
+<h3>Operator Inference Function<a class="headerlink" href="#operator-inference-function" title="Permalink to this headline"></a></h3>
+<p>In the case of multiple outputs, the operator inference function should be written in the form of a tuple.
+Taking the case where the output shapes are constants as an example, the <code class="docutils literal notranslate"><span class="pre">out_shapes</span></code> in the custom operator below is <code class="docutils literal notranslate"><span class="pre">([3],</span> <span class="pre">[3],</span> <span class="pre">[3])</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">out_dtypes</span></code> is <code class="docutils literal notranslate"><span class="pre">(mstype.float32,</span> <span class="pre">mstype.float32,</span> <span class="pre">mstype.float32)</span></code>, which correspond to the shapes and data types of the three outputs, respectively.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">program</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Custom</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="p">([</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="s2">&quot;aot&quot;</span><span class="p">,</span> <span class="n">bprop</span><span class="p">,</span> <span class="n">reg</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="operator-registering-function">
+<h3>Operator Registering Function<a class="headerlink" href="#operator-registering-function" title="Permalink to this headline"></a></h3>
+<p>When defining multiple outputs, we need to clearly specify the names of the inputs and outputs in sequence, and indicate the corresponding data formats for both inputs and outputs in the <code class="docutils literal notranslate"><span class="pre">dtype_format</span></code> section. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">multioutput_gpu_info</span> <span class="o">=</span> <span class="n">CustomRegOp</span><span class="p">()</span> \
+    <span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;x1&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;x2&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;y1&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;y2&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;y3&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">dtype_format</span><span class="p">(</span><span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">,</span> <span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">,</span>
+                  <span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">,</span> <span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">,</span> <span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">target</span><span class="p">(</span><span class="s2">&quot;GPU&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">get_op_info</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Here, we define a registration file for an operator with two inputs and three outputs. Therefore, we add two <code class="docutils literal notranslate"><span class="pre">input</span></code> items and three <code class="docutils literal notranslate"><span class="pre">output</span></code> items in the registration file. Additionally, the five data formats defined in <code class="docutils literal notranslate"><span class="pre">dtype_format</span></code> correspond to the data format requirements for the two inputs and three outputs in sequence.</p>
+</section>
+<section id="operator-computation-function">
+<h3>Operator Computation Function<a class="headerlink" href="#operator-computation-function" title="Permalink to this headline"></a></h3>
+<p>The following <code class="docutils literal notranslate"><span class="pre">CustomAddMulDiv</span></code> function is the computation function of the custom op.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">constexpr</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">THREADS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span>
+
+<span class="n">__global__</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">CustomAddMulDivKernel</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">input1</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">input2</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">output1</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">output2</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">output3</span><span class="p">,</span>
+<span class="w">                                      </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">blockIdx</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">THREADS</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">threadIdx</span><span class="p">.</span><span class="n">x</span><span class="p">;</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">idx</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">output1</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input1</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">input2</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+<span class="w">    </span><span class="n">output2</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input1</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">input2</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+<span class="w">    </span><span class="n">output3</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input1</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">input2</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">CustomAddMulDiv</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">nparam</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">**</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">ndims</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="o">**</span><span class="n">shapes</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">dtypes</span><span class="p">,</span>
+<span class="w">                               </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">stream</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">extra</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">cudaStream_t</span><span class="w"> </span><span class="n">custream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">cudaStream_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">stream</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">OUTPUT_INDEX</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">  </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">TOTAL_PARAM_NUM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+
+<span class="w">  </span><span class="c1">// There are two inputs and three outputs, so the nparam should be 5.</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">nparam</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TOTAL_PARAM_NUM</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="c1">// This is to check if the type of parameters the same as what the user wants.</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">nparam</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">strcmp</span><span class="p">(</span><span class="n">dtypes</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;float32&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="c1">// input1&#39;s index is 0, input2&#39;s index is 1, output1&#39;s index is 2, output2&#39;s index is 3 and output3&#39;s index is 4</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">input1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">input2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">  </span><span class="c1">// Cumprod of output&#39;s shape to compute elements&#39; num</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">ndims</span><span class="p">[</span><span class="n">OUTPUT_INDEX</span><span class="p">];</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">size</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="n">OUTPUT_INDEX</span><span class="p">][</span><span class="n">i</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">THREADS</span><span class="p">;</span>
+
+<span class="w">  </span><span class="c1">// Do the computation</span>
+<span class="w">  </span><span class="n">CustomAddMulDivKernel</span><span class="o">&lt;&lt;&lt;</span><span class="n">n</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">THREADS</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">custream</span><span class="o">&gt;&gt;&gt;</span><span class="p">(</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">input1</span><span class="p">),</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">input2</span><span class="p">),</span>
+<span class="w">                                                         </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">output1</span><span class="p">),</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">output2</span><span class="p">),</span>
+<span class="w">                                                         </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">output3</span><span class="p">),</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="w">  </span><span class="c1">// When return 0, MindSpore will continue to run if this kernel could launch successfully.</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Please note that since the operator has two inputs and three outputs, <code class="docutils literal notranslate"><span class="pre">nparam</span></code> should be 5, and the five pointers in the <code class="docutils literal notranslate"><span class="pre">params</span></code> array should correspond to the two inputs and three outputs in sequence.
+Therefore, in the above code, we obtain the inputs and outputs as follows:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">input1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">input2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>For the complete operator computation file, please refer to <a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/r2.3/tests/st/ops/graph_kernel/custom/aot_test_files/add_mul_div.cu">here</a>.</p>
+</section>
+<section id="operator-in-scripts">
+<h3>Operator in Scripts<a class="headerlink" href="#operator-in-scripts" title="Permalink to this headline"></a></h3>
+<p>When a custom operator with multiple outputs is involved in a net, the results can be used as a normal tuple, for example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">AOTMultiOutputNet</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">out_shapes</span><span class="p">,</span> <span class="n">out_types</span><span class="p">,</span> <span class="n">bprop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reg</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AOTMultiOutputNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">program</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Custom</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">out_shapes</span><span class="p">,</span> <span class="n">out_types</span><span class="p">,</span> <span class="s2">&quot;aot&quot;</span><span class="p">,</span> <span class="n">bprop</span><span class="p">,</span> <span class="n">reg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Add</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Mul</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">aot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">program</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">add_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">aot</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">aot</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">mul_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">add_res</span><span class="p">,</span> <span class="n">aot</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">mul_res</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+  <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+  <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+  <span class="n">net</span> <span class="o">=</span> <span class="n">AOTMultiOutputNet</span><span class="p">(</span><span class="s2">&quot;./add_mul_div.cu:CustomAddMulDiv&quot;</span><span class="p">,</span> <span class="p">([</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">]),</span>
+                          <span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">reg</span><span class="o">=</span><span class="n">multioutput_gpu_info</span><span class="p">)</span>
+  <span class="n">output</span> <span class="o">=</span> <span class="n">test</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">input_x</span><span class="p">),</span><span class="n">Tensor</span><span class="p">(</span><span class="n">input_y</span><span class="p">))</span>
+  <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here <code class="docutils literal notranslate"><span class="pre">aot</span></code> as the output of the multi-output custom operator can be used as a tuple. Execution result is as follows:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[3. 3. 3.]
 </pre></div>
 </div>
 </section>

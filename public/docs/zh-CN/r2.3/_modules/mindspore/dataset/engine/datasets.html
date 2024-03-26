@@ -3553,17 +3553,19 @@
 
     <span class="c1"># When main process exit, subprocesses will be terminate</span>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_clean_process</span><span class="p">(</span><span class="n">ppid</span><span class="p">,</span> <span class="n">workers</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_clean_process</span><span class="p">(</span><span class="n">ppid</span><span class="p">,</span> <span class="n">workers</span><span class="p">,</span> <span class="n">quit_signal</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            This is the execute function of clean process, if we found main process exited, we will clean subprocesses.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ppid: The process id of main process.</span>
 <span class="sd">            workers: The list of subprocesses.</span>
-
+<span class="sd">            quit_signal: The flag of quit.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">signal</span><span class="o">.</span><span class="n">signal</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIG_IGN</span><span class="p">)</span>
         <span class="k">while</span> <span class="n">_PythonMultiprocessing</span><span class="o">.</span><span class="n">is_process_alive</span><span class="p">(</span><span class="n">ppid</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">quit_signal</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+                <span class="k">return</span>
             <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
 
         <span class="n">_PythonMultiprocessing</span><span class="o">.</span><span class="n">_terminate_processes</span><span class="p">(</span><span class="n">workers</span><span class="p">)</span>
@@ -3695,8 +3697,9 @@
 <span class="sd">        The cleaning subprocess will cleanup subprocesses when main process was killed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;windows&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eof</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">cleaning_process</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_clean_process</span><span class="p">,</span>
-                                                            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ppid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">workers</span><span class="p">),</span>
+                                                            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ppid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">workers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">eof</span><span class="p">),</span>
                                                             <span class="n">name</span><span class="o">=</span><span class="s2">&quot;OrphanCleaner&quot;</span><span class="p">,</span>
                                                             <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">cleaning_process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
@@ -3717,6 +3720,8 @@
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;watch_dog&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">watch_dog</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;eot&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">eot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_abort_watchdog</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;cleaning_process&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cleaning_process</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;eof&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">eof</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">eof</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">eof</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
             <span class="n">_PythonMultiprocessing</span><span class="o">.</span><span class="n">_terminate_processes</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">cleaning_process</span><span class="p">])</span>
             <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">cleaning_process</span>
 
