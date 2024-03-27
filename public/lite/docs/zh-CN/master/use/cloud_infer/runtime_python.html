@@ -83,6 +83,13 @@
 <li class="toctree-l4"><a class="reference internal" href="#获得输出">获得输出</a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#动态权重更新">动态权重更新</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#创建配置文件">创建配置文件</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#模型加载">模型加载</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#构建新权重tensor">构建新权重tensor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#更新权重">更新权重</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -279,6 +286,48 @@ output data is: 5.3937547e-05 0.00037763786 0.00034193686 0.00037316754 0.000224
   <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">50</span><span class="p">):</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
   <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="动态权重更新">
+<h2>动态权重更新<a class="headerlink" href="#动态权重更新" title="永久链接至标题"></a></h2>
+<p>MindSpore Lite推理，在Ascend后端上支持动态权重更新，使用步骤如下所示:</p>
+<section id="创建配置文件">
+<h3>创建配置文件<a class="headerlink" href="#创建配置文件" title="永久链接至标题"></a></h3>
+<p>将需要更新的Matmul算子所对应的Tensor名称全部写入一个文本文件中，每个Tensor名字占一行。构建模型加载配置文件，配置文件设置，配置文件<code class="docutils literal notranslate"><span class="pre">config.ini</span></code>内容如下所示:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[ascend_context]
+variable_weights_file=&quot;update_weight_name_list.txt&quot;
+</pre></div>
+</div>
+</section>
+<section id="模型加载">
+<h3>模型加载<a class="headerlink" href="#模型加载" title="永久链接至标题"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mindspore_lite</span> <span class="k">as</span> <span class="nn">mslite</span>
+
+<span class="c1"># init context, and set target is gpu.</span>
+<span class="n">context</span> <span class="o">=</span> <span class="n">mslite</span><span class="o">.</span><span class="n">Context</span><span class="p">()</span>
+<span class="n">context</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ascend&quot;</span><span class="p">]</span>
+<span class="n">context</span><span class="o">.</span><span class="n">gpu</span><span class="o">.</span><span class="n">device_id</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="c1"># build model from file</span>
+<span class="n">MODEL_PATH</span> <span class="o">=</span> <span class="s2">&quot;./SD1.5/unet.mindir&quot;</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">mslite</span><span class="o">.</span><span class="n">Model</span><span class="p">()</span>
+<span class="n">model</span><span class="o">.</span><span class="n">build_from_file</span><span class="p">(</span><span class="n">MODEL_PATH</span><span class="p">,</span> <span class="n">mslite</span><span class="o">.</span><span class="n">ModelType</span><span class="o">.</span><span class="n">MINDIR</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span>  <span class="s2">&quot;config.ini&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="构建新权重tensor">
+<h3>构建新权重tensor<a class="headerlink" href="#构建新权重tensor" title="永久链接至标题"></a></h3>
+<p>将第三方框架训练导出的SaveTensor数据结构转换成MindSpore Lite能支持的Tensor格式。</p>
+</section>
+<section id="更新权重">
+<h3>更新权重<a class="headerlink" href="#更新权重" title="永久链接至标题"></a></h3>
+<p>调用MindSpore Lite提供的<code class="docutils literal notranslate"><span class="pre">update_weights</span></code>接口更新权重，如下所示:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">new_weight</span> <span class="o">=</span> <span class="n">mslite</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="n">new_weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">new_weight</span><span class="p">]</span>
+<span class="n">model</span><span class="o">.</span><span class="n">update_weights</span><span class="p">([</span><span class="n">new_weights</span><span class="p">])</span>
 </pre></div>
 </div>
 </section>
