@@ -79,6 +79,13 @@
 <li class="toctree-l3"><a class="reference internal" href="#算子调用">算子调用</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#多输出aot类型自定义算子用法特性简介">多输出aot类型自定义算子用法特性简介</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#算子推导文件">算子推导文件</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#算子注册文件">算子注册文件</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#算子计算文件">算子计算文件</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#算子使用文件">算子使用文件</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -518,6 +525,143 @@
 </div>
 <p>执行结果：</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[10. 10. 10. 10.]
+</pre></div>
+</div>
+</section>
+</section>
+<section id="多输出aot类型自定义算子用法特性简介">
+<h2>多输出aot类型自定义算子用法特性简介<a class="headerlink" href="#多输出aot类型自定义算子用法特性简介" title="Permalink to this headline"></a></h2>
+<p>aot类型的自定义算子支持多输出（输出为tuple)的情况。多输出的aot类型的自定义算子需要定义的算子文件和单输出一样，但是需要根据多输出情况做对应修改，包括：</p>
+<ul class="simple">
+<li><p>算子推导函数：需要把 <code class="docutils literal notranslate"><span class="pre">infer</span></code> 函数的输出写成tuple的形式；</p></li>
+<li><p>算子注册文件：需要列出多个输出的名字和数据类型信息；</p></li>
+<li><p>算子计算函数：需要识别多个输出对应的指针。</p></li>
+</ul>
+<p>下面我们用一个例子来展现多输出aot类型自定义算子的定义方法，具体的文件用例参见<a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/master/tests/st/ops/graph_kernel/custom/test_custom_aot.py#L405">这里</a>。</p>
+<section id="算子推导文件">
+<h3>算子推导文件<a class="headerlink" href="#算子推导文件" title="Permalink to this headline"></a></h3>
+<p>多输出的情况下，算子推导函数应该写成tuple的形式。
+以输出的形状为常数的情况为例，下面自定义算子中的<code class="docutils literal notranslate"><span class="pre">out_shapes</span></code>为<code class="docutils literal notranslate"><span class="pre">([3],</span> <span class="pre">[3],</span> <span class="pre">[3])</span></code>，
+并且<code class="docutils literal notranslate"><span class="pre">out_dtypes</span></code>为<code class="docutils literal notranslate"><span class="pre">(mstype.float32,</span> <span class="pre">mstype.float32,</span> <span class="pre">mstype.float32)</span></code>，
+分别对应三个输出的形状和数据类型。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">program</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Custom</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="p">([</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="s2">&quot;aot&quot;</span><span class="p">,</span> <span class="n">bprop</span><span class="p">,</span> <span class="n">reg</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="算子注册文件">
+<h3>算子注册文件<a class="headerlink" href="#算子注册文件" title="Permalink to this headline"></a></h3>
+<p>在定义多输出自定义算子的注册文件时，我们需要依次写清楚输入和输出的名字，并且在<code class="docutils literal notranslate"><span class="pre">dtype_format</span></code>处写清楚输入和输出对应的数据格式，例如：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">multioutput_gpu_info</span> <span class="o">=</span> <span class="n">CustomRegOp</span><span class="p">()</span> \
+    <span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;x1&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;x2&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;y1&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;y2&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;y3&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">dtype_format</span><span class="p">(</span><span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">,</span> <span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">,</span>
+                  <span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">,</span> <span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">,</span> <span class="n">DataType</span><span class="o">.</span><span class="n">F32_Default</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">target</span><span class="p">(</span><span class="s2">&quot;GPU&quot;</span><span class="p">)</span> \
+    <span class="o">.</span><span class="n">get_op_info</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>这里我们定义了一个两个输入三个输出的算子的注册文件，因此我们在注册文件中添加了两个<code class="docutils literal notranslate"><span class="pre">input</span></code>项和三个<code class="docutils literal notranslate"><span class="pre">output</span></code>项。
+此外，在<code class="docutils literal notranslate"><span class="pre">dtype_format</span></code>中定义的五个数据格式依次为两个输入和三个输出的数据格式要求。</p>
+</section>
+<section id="算子计算文件">
+<h3>算子计算文件<a class="headerlink" href="#算子计算文件" title="Permalink to this headline"></a></h3>
+<p>下面的<code class="docutils literal notranslate"><span class="pre">CustomAddMulDiv</span></code>定义了算子计算函数。</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">constexpr</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">THREADS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span>
+
+<span class="n">__global__</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">CustomAddMulDivKernel</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">input1</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">input2</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">output1</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">output2</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="o">*</span><span class="n">output3</span><span class="p">,</span>
+<span class="w">                                      </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">blockIdx</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">THREADS</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">threadIdx</span><span class="p">.</span><span class="n">x</span><span class="p">;</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">idx</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">output1</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input1</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">input2</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+<span class="w">    </span><span class="n">output2</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input1</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">input2</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+<span class="w">    </span><span class="n">output3</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input1</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">input2</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">CustomAddMulDiv</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">nparam</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">**</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">ndims</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="w"> </span><span class="o">**</span><span class="n">shapes</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">dtypes</span><span class="p">,</span>
+<span class="w">                               </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">stream</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">extra</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">cudaStream_t</span><span class="w"> </span><span class="n">custream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">cudaStream_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">stream</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">OUTPUT_INDEX</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">  </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">TOTAL_PARAM_NUM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+
+<span class="w">  </span><span class="c1">// There are two inputs and three outputs, so the nparam should be 5.</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">nparam</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TOTAL_PARAM_NUM</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="c1">// This is to check if the type of parameters the same as what the user wants.</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">nparam</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">strcmp</span><span class="p">(</span><span class="n">dtypes</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;float32&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="c1">// input1&#39;s index is 0, input2&#39;s index is 1, output1&#39;s index is 2, output2&#39;s index is 3 and output3&#39;s index is 4</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">input1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">input2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+<span class="w">  </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">  </span><span class="c1">// Cumprod of output&#39;s shape to compute elements&#39; num</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">ndims</span><span class="p">[</span><span class="n">OUTPUT_INDEX</span><span class="p">];</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">size</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="n">shapes</span><span class="p">[</span><span class="n">OUTPUT_INDEX</span><span class="p">][</span><span class="n">i</span><span class="p">];</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">THREADS</span><span class="p">;</span>
+
+<span class="w">  </span><span class="c1">// Do the computation</span>
+<span class="w">  </span><span class="n">CustomAddMulDivKernel</span><span class="o">&lt;&lt;&lt;</span><span class="n">n</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">THREADS</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">custream</span><span class="o">&gt;&gt;&gt;</span><span class="p">(</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">input1</span><span class="p">),</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">input2</span><span class="p">),</span>
+<span class="w">                                                         </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">output1</span><span class="p">),</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">output2</span><span class="p">),</span>
+<span class="w">                                                         </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">output3</span><span class="p">),</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="w">  </span><span class="c1">// When return 0, MindSpore will continue to run if this kernel could launch successfully.</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>注意到，因为算子是两个输入和三个输出，因此<code class="docutils literal notranslate"><span class="pre">nparam</span></code>应该是5，而<code class="docutils literal notranslate"><span class="pre">params</span></code>数组中的五个指针应该依次为两个输入和三个输出。
+所以上面的代码中我们获得输入和输出的方法为</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">input1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">input2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">output3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>完整的算子计算文件参见<a class="reference external" href="https://gitee.com/mindspore/mindspore/blob/master/tests/st/ops/graph_kernel/custom/aot_test_files/add_mul_div.cu">这里</a>.</p>
+</section>
+<section id="算子使用文件">
+<h3>算子使用文件<a class="headerlink" href="#算子使用文件" title="Permalink to this headline"></a></h3>
+<p>多输出的自定义算子在参与计算时，结果可以当做正常tuple使用，例如</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">AOTMultiOutputNet</span><span class="p">(</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">out_shapes</span><span class="p">,</span> <span class="n">out_types</span><span class="p">,</span> <span class="n">bprop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reg</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AOTMultiOutputNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">program</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Custom</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">out_shapes</span><span class="p">,</span> <span class="n">out_types</span><span class="p">,</span> <span class="s2">&quot;aot&quot;</span><span class="p">,</span> <span class="n">bprop</span><span class="p">,</span> <span class="n">reg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Add</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Mul</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">aot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">program</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">add_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">aot</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">aot</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">mul_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">add_res</span><span class="p">,</span> <span class="n">aot</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">mul_res</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+  <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+  <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+  <span class="n">net</span> <span class="o">=</span> <span class="n">AOTMultiOutputNet</span><span class="p">(</span><span class="s2">&quot;./add_mul_div.cu:CustomAddMulDiv&quot;</span><span class="p">,</span> <span class="p">([</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">]),</span>
+                          <span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">reg</span><span class="o">=</span><span class="n">multioutput_gpu_info</span><span class="p">)</span>
+  <span class="n">output</span> <span class="o">=</span> <span class="n">test</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="n">input_x</span><span class="p">),</span><span class="n">Tensor</span><span class="p">(</span><span class="n">input_y</span><span class="p">))</span>
+  <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>此处<code class="docutils literal notranslate"><span class="pre">aot</span></code>作为自定义算子的输出，可以直接当做tuple使用进行计算。运行上面脚本，可以得到结果：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[3. 3. 3.]
 </pre></div>
 </div>
 </section>
