@@ -3442,7 +3442,7 @@
 <span class="sd">    S2 -- Sequence length of key and value.</span>
 <span class="sd">    N1 -- Num heads of query.</span>
 <span class="sd">    N2 -- Num heads of key and value, and N2 must be a factor of N1.</span>
-<span class="sd">    D -- Head size.  The value ranges is a multiple of 16.</span>
+<span class="sd">    D -- Head size.  The value ranges is a multiple of 16, with the max value of 512.</span>
 <span class="sd">    H1 -- Hidden size of query, which equals to N1 * D.</span>
 <span class="sd">    H2 -- Hidden size of key and value, which equals to N2 * D.</span>
 
@@ -3459,7 +3459,7 @@
 <span class="sd">            When sparse_mode is set to 1, 2, 3, or 5, this parameter does not take effect. Default: 2147483647.</span>
 <span class="sd">        inner_precise (int): The parameter is reserved and not implemented yet. Default: 0.</span>
 <span class="sd">        input_layout (str): Specifies the layout of input `query`, key and value. The value can be &quot;BSH&quot;, &quot;BNSD&quot;, &quot;SBH&quot;,</span>
-<span class="sd">            &quot;BSND&quot; or &quot;TND&quot;. Default: &quot;BSH&quot;.</span>
+<span class="sd">            &quot;BSND&quot; or &quot;TND&quot;. &quot;TND&quot; is an experimental format. Default: &quot;BSH&quot;.</span>
 <span class="sd">        sparse_mode (int): Indicates sparse mode. Default 0.</span>
 
 <span class="sd">            - 0: Indicates the defaultMask mode. If attn_mask is not passed, the mask operation is not performed,</span>
@@ -3487,19 +3487,27 @@
 <span class="sd">          Input tensor of shape :math:`(B, S2, H2)`, `(B, N2, S2, D)`, `(S2, B, H2)`, `(B, S2, N2, D)` or `(T2, N2, D)`.</span>
 <span class="sd">        - **value** (Tensor[float16, bfloat16]) - The value tensor.</span>
 <span class="sd">          Input tensor of shape :math:`(B, S2, H2)`, `(B, N2, S2, D)`, `(S2, B, H2)`, `(B, S2, N2, D)` or `(T2, N2, D)`.</span>
-<span class="sd">        - **real_shift** (Union[Tensor[float16, bfloat16], None]) - The position embedding code. If S is greater than</span>
-<span class="sd">          1024 and the mask of the lower triangle is used, enter only the inverse 1024 lines of the lower triangle for</span>
-<span class="sd">          memory optimization.</span>
-<span class="sd">          Input tensor of shape :math: `(B, N1, S1, S2)`, `(1, N1, S1, S2)`, `(B, N1, 1024, S2)`, `(1, N1, 1024, S2)`</span>
-<span class="sd">          or (1024, 1024).</span>
+<span class="sd">        - **real_shift** (Union[Tensor[float16, bfloat16], None]) - Also known as pse. The position embedding code. If S</span>
+<span class="sd">          is greater than 1024 and the mask of the lower triangle is used, enter only the inverse 1024 lines of</span>
+<span class="sd">          the lower triangle for memory optimization. Input tensor of shape :math: `(B, N1, S1, S2)`,</span>
+<span class="sd">          `(1, N1, S1, S2)`, `(B, N1, 1024, S2)`, `(1, N1, 1024, S2)`.</span>
+<span class="sd">          The real_shift and shape formats are related when input_layout is `TND`.</span>
+<span class="sd">          In the `(B, N1, 1024, S2)` and `(1, N1, 1024, S2) formats, sparse_mode must be 2. actual_seq_qlen and</span>
+<span class="sd">          actual_seq_kvlen must be same. Max value of both actual_seq_qlen and actual_seq_klen must be larger than 1024.</span>
+
+<span class="sd">          - (B, N1, S1, S2): If actual_seq_qlen is [x1, x2, x3] and actual_seq_kvlen is [y1, y2, y3], the sum of</span>
+<span class="sd">              real_shift elements must be equal to ((x1 * y1 + (x2 - x1) * (y2 - y1) + (x3 - x2) * (y3 - y2))) * N1.</span>
+<span class="sd">          - (1, N1, S1, S2): Similar to the previous format. The sum of real_shift elements must be equal to</span>
+<span class="sd">              (y1 + (y2 - y1) + (y3 - y2)) * N1.</span>
+
 <span class="sd">        - **drop_mask** (Union[Tensor[uint8], None]) - The dropout mask tensor.</span>
 <span class="sd">          Input tensor of shape :math:`(B, N1, S1, S2 // 8) or None`.</span>
 <span class="sd">        - **padding_mask** (None) - Reserved parameter. Not implemented yet.</span>
-<span class="sd">        - **attn_mask** (Union[Tensor[uint8], None]) - The attention mask tensor. For each element, 0 indicates</span>
-<span class="sd">          retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)`, `(S1, S2)`</span>
-<span class="sd">          or (2048, 2048).</span>
+<span class="sd">        - **attn_mask** (Union[Tensor[uint8], Tensor[bool], None]) - The attention mask tensor. For each element, 0</span>
+<span class="sd">          indicates retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)`,</span>
+<span class="sd">          `(S1, S2)` or (2048, 2048).</span>
 <span class="sd">        - **prefix** (Union[List[int64], Tuple[int64], None]) - N value of each Batch in the prefix sparse calculation</span>
-<span class="sd">          scenario. Input tensor of shape :math:`(B,)`.</span>
+<span class="sd">          scenario. Input tensor of shape :math:`(B,)`. Not none only when sparse_mode is 5.</span>
 <span class="sd">        - **actual_seq_qlen** (Union[List[int64], Tuple[int64], None]) - Size of query corresponding to each batch, array</span>
 <span class="sd">          with increasing values and the last value equal to T1.</span>
 <span class="sd">        - **actual_seq_kvlen** (Union[List[int64], Tuple[int64], None]) - Size of key and value corresponding to each</span>
@@ -6536,8 +6544,11 @@
 <div class="viewcode-block" id="ReduceAll"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.ReduceAll.html#mindspore.ops.ReduceAll">[docs]</a><span class="k">class</span> <span class="nc">ReduceAll</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reduces a dimension of a tensor by the &quot;logicalAND&quot; of all elements in the dimension, by default. And also can</span>
-<span class="sd">    reduce a dimension of `x` along the axis. Determine whether the dimensions of the output and input are the same by</span>
-<span class="sd">    controlling `keep_dims`.</span>
+<span class="sd">    reduce a dimension of `x` along the `axis`. Determine whether the dimensions of the output and input are the</span>
+<span class="sd">    same by controlling `keep_dims`.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The `axis` with tensor type is only used for compatibility with older versions and is not recommended.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        keep_dims (bool): If ``True`` , keep these reduced dimensions and the length is 1.</span>
@@ -6545,23 +6556,25 @@
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **x** (Tensor[bool]) - The input tensor. The dtype of the tensor to be reduced is bool.</span>
-<span class="sd">        - **axis** (Union[int, tuple(int), list(int)]) - The dimensions to reduce. Default: ``()`` , reduce all</span>
-<span class="sd">          dimensions. Only constant value is allowed. Must be in the range [-rank(x), rank(x)).</span>
+<span class="sd">        - **axis** (Union[int, tuple(int), list(int), Tensor]) - The dimensions to reduce. Default: ``()`` ,</span>
+<span class="sd">          reduce all dimensions. Only constant value is allowed. Must be in the range [-rank(x), rank(x)).</span>
 
 <span class="sd">    Outputs:</span>
 <span class="sd">        Tensor, the dtype is bool.</span>
 
-<span class="sd">        - If axis is (), and keep_dims is ``False`` ,</span>
+<span class="sd">        - If `axis` is ``()`` , and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the output is a 0-D tensor representing the &quot;logical and&quot; of all elements in the input tensor.</span>
-<span class="sd">        - If axis is int, set as 2, and keep_dims is ``False`` ,</span>
+<span class="sd">        - If `axis` is int, set as 2, and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_1, x_3, ..., x_R)`.</span>
-<span class="sd">        - If axis is tuple(int), set as (2, 3), and keep_dims is ``False`` ,</span>
+<span class="sd">        - If `axis` is tuple(int), set as (2, 3), and `keep_dims` is ``False`` ,</span>
+<span class="sd">          the shape of output is :math:`(x_1, x_4, ..., x_R)`.</span>
+<span class="sd">        - If `axis` is 1-D Tensor, set as [2, 3], and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_1, x_4, ..., x_R)`.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If `keep_dims` is not a bool.</span>
 <span class="sd">        TypeError: If `x` is not a Tensor.</span>
-<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple or list.</span>
+<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple, list or Tensor.</span>
 
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
@@ -6609,32 +6622,37 @@
 <div class="viewcode-block" id="ReduceAny"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.ReduceAny.html#mindspore.ops.ReduceAny">[docs]</a><span class="k">class</span> <span class="nc">ReduceAny</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reduces a dimension of a tensor by the &quot;logical OR&quot; of all elements in the dimension, by default. And also can</span>
-<span class="sd">    reduce a dimension of `x` along the axis. Determine whether the dimensions of the output and input are the same by</span>
-<span class="sd">    controlling `keep_dims`.</span>
+<span class="sd">    reduce a dimension of `x` along the `axis`. Determine whether the dimensions of the output and input are the</span>
+<span class="sd">    same by controlling `keep_dims`.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The `axis` with tensor type is only used for compatibility with older versions and is not recommended.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">       keep_dims (bool): If ``True`` , keep these reduced dimensions and the length is 1.</span>
-<span class="sd">                         If ``False`` , don&#39;t keep these dimensions. Default: ``False`` .</span>
+<span class="sd">        keep_dims (bool): If ``True`` , keep these reduced dimensions and the length is 1.</span>
+<span class="sd">            If ``False`` , don&#39;t keep these dimensions. Default: ``False`` .</span>
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **x** (Tensor[bool]) - The input tensor. The dtype of the tensor to be reduced is bool.</span>
-<span class="sd">        - **axis** (Union[int, tuple(int), list(int)]) - The dimensions to reduce. Default: ``()`` , reduce all</span>
-<span class="sd">          dimensions. Only constant value is allowed. Must be in the range [-rank(x), rank(x)).</span>
+<span class="sd">        - **axis** (Union[int, tuple(int), list(int), Tensor]) - The dimensions to reduce. Default: ``()`` ,</span>
+<span class="sd">          reduce all dimensions. Only constant value is allowed. Must be in the range [-rank(x), rank(x)).</span>
 
 <span class="sd">    Outputs:</span>
 <span class="sd">        Tensor, the dtype is bool.</span>
 
-<span class="sd">        - If axis is (), and keep_dims is False,</span>
+<span class="sd">        - If `axis` is ``()`` , and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the output is a 0-D tensor representing the &quot;logical or&quot; of all elements in the input tensor.</span>
-<span class="sd">        - If axis is int, set as 2, and keep_dims is False,</span>
+<span class="sd">        - If `axis` is int, set as 2, and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_1, x_3, ..., x_R)`.</span>
-<span class="sd">        - If axis is tuple(int), set as (2, 3), and keep_dims is False,</span>
+<span class="sd">        - If `axis` is tuple(int), set as (2, 3), and `keep_dims` is ``False`` ,</span>
+<span class="sd">          the shape of output is :math:`(x_1, x_4, ..., x_R)`.</span>
+<span class="sd">        - If `axis` is 1-D Tensor, set as [2, 3], and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_1, x_4, ..., x_R)`.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If `keep_dims` is not a bool.</span>
 <span class="sd">        TypeError: If `x` is not a Tensor.</span>
-<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple or list.</span>
+<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple, list or Tensor.</span>
 
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
@@ -6681,8 +6699,11 @@
 <div class="viewcode-block" id="ReduceMax"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.ReduceMax.html#mindspore.ops.ReduceMax">[docs]</a><span class="k">class</span> <span class="nc">ReduceMax</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reduces a dimension of a tensor by the maximum value in this dimension, by default. And also can</span>
-<span class="sd">    reduce a dimension of `x` along the axis. Determine whether the dimensions of the output and input are the same by</span>
-<span class="sd">    controlling `keep_dims`.</span>
+<span class="sd">    reduce a dimension of `x` along the `axis`. Determine whether the dimensions of the output and input are the</span>
+<span class="sd">    same by controlling `keep_dims`.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The `axis` with tensor type is only used for compatibility with older versions and is not recommended.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        keep_dims (bool): If ``True`` , keep these reduced dimensions and the length is 1.</span>
@@ -6690,23 +6711,25 @@
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **x** (Tensor[Number]) - The input tensor.</span>
-<span class="sd">        - **axis** (Union[int, tuple(int), list(int), tensor]) - The dimensions to reduce. Default: ``()`` , reduce all</span>
-<span class="sd">          dimensions. Must be in the range [-r, r).</span>
+<span class="sd">        - **axis** (Union[int, tuple(int), list(int), tensor]) - The dimensions to reduce. Default: ``()`` ,</span>
+<span class="sd">          reduce all dimensions. Must be in the range [-r, r).</span>
 
 <span class="sd">    Outputs:</span>
 <span class="sd">        output(Tensor): has the same dtype as the `x`.</span>
 
-<span class="sd">        - If `axis` is (), and `keep_dims` is False,</span>
+<span class="sd">        - If `axis` is ``()`` , and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the output is a 0-D tensor representing the maximum of all elements in the input tensor.</span>
-<span class="sd">        - If `axis` is int, set as 1, and `keep_dims` is False,</span>
+<span class="sd">        - If `axis` is int, set as 1, and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_0, x_2, ..., x_R)`.</span>
-<span class="sd">        - If `axis` is tuple(int) or list(int), set as (1, 2), and `keep_dims` is False,</span>
+<span class="sd">        - If `axis` is tuple(int) or list(int), set as (1, 2), and `keep_dims` is ``False`` ,</span>
+<span class="sd">          the shape of output is :math:`(x_0, x_3, ..., x_R)`.</span>
+<span class="sd">        - If `axis` is 1-D Tensor, set as [1, 2], and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_0, x_3, ..., x_R)`.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If `keep_dims` is not a bool.</span>
 <span class="sd">        TypeError: If `x` is not a Tensor.</span>
-<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple or list.</span>
+<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple, list or Tensor.</span>
 <span class="sd">        ValueError: If `axis` is out of range.</span>
 
 <span class="sd">    Supported Platforms:</span>
@@ -6734,26 +6757,26 @@
 <span class="sd">        &gt;&gt;&gt; output = ops.ReduceMax(keep_dims=True)(x, 0)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[7. 7. 7. 7. 7. 7.]</span>
-<span class="sd">          [8. 8. 8. 8. 8. 8.]</span>
-<span class="sd">          [9. 9. 9. 9. 9. 9.]]]</span>
+<span class="sd">        [8. 8. 8. 8. 8. 8.]</span>
+<span class="sd">        [9. 9. 9. 9. 9. 9.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 3: Reduces a dimension along axis 1.</span>
 <span class="sd">        &gt;&gt;&gt; output = ops.ReduceMax(keep_dims=True)(x, 1)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[3. 3. 3. 3. 3. 3.]]</span>
-<span class="sd">         [[6. 6. 6. 6. 6. 6.]]</span>
-<span class="sd">         [[9. 9. 9. 9. 9. 9.]]]</span>
+<span class="sd">        [[6. 6. 6. 6. 6. 6.]]</span>
+<span class="sd">        [[9. 9. 9. 9. 9. 9.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 4: Reduces a dimension along axis 2.</span>
 <span class="sd">        &gt;&gt;&gt; output = ops.ReduceMax(keep_dims=True)(x, 2)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[1.]</span>
-<span class="sd">          [2.]</span>
-<span class="sd">          [3.]]</span>
-<span class="sd">         [[4.]</span>
-<span class="sd">          [5.]</span>
-<span class="sd">          [6.]]</span>
-<span class="sd">         [[7.]</span>
-<span class="sd">          [8.]</span>
-<span class="sd">          [9.]]]</span>
+<span class="sd">        [2.]</span>
+<span class="sd">        [3.]]</span>
+<span class="sd">        [[4.]</span>
+<span class="sd">        [5.]</span>
+<span class="sd">        [6.]]</span>
+<span class="sd">        [[7.]</span>
+<span class="sd">        [8.]</span>
+<span class="sd">        [9.]]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__mindspore_signature__</span> <span class="o">=</span>  <span class="p">(</span>
         <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">),</span>
@@ -6771,8 +6794,11 @@
 <div class="viewcode-block" id="ReduceMean"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.ReduceMean.html#mindspore.ops.ReduceMean">[docs]</a><span class="k">class</span> <span class="nc">ReduceMean</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reduces a dimension of a tensor by averaging all elements in the dimension, by default. And also can reduce</span>
-<span class="sd">    a dimension of `x` along the axis. Determine whether the dimensions of the output and input are the same by</span>
+<span class="sd">    a dimension of `x` along the `axis`. Determine whether the dimensions of the output and input are the same by</span>
 <span class="sd">    controlling `keep_dims`.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The `axis` with tensor type is only used for compatibility with older versions and is not recommended.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        keep_dims (bool): If ``True`` , keep these reduced dimensions and the length is 1.</span>
@@ -6780,23 +6806,25 @@
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **x** (Tensor[Number]) - The input tensor.</span>
-<span class="sd">        - **axis** (Union[int, tuple(int), list(int)]) - The dimensions to reduce. Default: ``()`` , reduce all</span>
-<span class="sd">          dimensions. Only constant value is allowed. Must be in the range [-r, r).</span>
+<span class="sd">        - **axis** (Union[int, tuple(int), list(int), Tensor]) - The dimensions to reduce. Default: ``()`` ,</span>
+<span class="sd">          reduce all dimensions. Only constant value is allowed. Must be in the range [-r, r).</span>
 
 <span class="sd">    Outputs:</span>
 <span class="sd">        Tensor, has the same dtype as the `x`.</span>
 
-<span class="sd">        - If `axis` is (), and `keep_dims` is ``False`` ,</span>
+<span class="sd">        - If `axis` is ``()`` , and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the output is a 0-D tensor representing the mean of all elements in the input tensor.</span>
 <span class="sd">        - If `axis` is int, set as 1, and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_0, x_2, ..., x_R)`.</span>
 <span class="sd">        - If `axis` is tuple(int) or list(int), set as (1, 2), and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_0, x_3, ..., x_R)`.</span>
+<span class="sd">        - If `axis` is 1-D Tensor, set as [1, 2], and `keep_dims` is ``False`` ,</span>
+<span class="sd">          the shape of output is :math:`(x_0, x_3, ..., x_R)`.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If `keep_dims` is not a bool.</span>
 <span class="sd">        TypeError: If `x` is not a Tensor.</span>
-<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple or list.</span>
+<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple, list or Tensor.</span>
 <span class="sd">        ValueError: If `axis` is out of range.</span>
 
 <span class="sd">    Supported Platforms:</span>
@@ -6826,26 +6854,26 @@
 <span class="sd">        &gt;&gt;&gt; output = op(x, 0)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[4. 4. 4. 4. 4. 4.]</span>
-<span class="sd">          [5. 5. 5. 5. 5. 5.]</span>
-<span class="sd">          [6. 6. 6. 6. 6. 6.]]]</span>
+<span class="sd">        [5. 5. 5. 5. 5. 5.]</span>
+<span class="sd">        [6. 6. 6. 6. 6. 6.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 3: Reduces a dimension along the axis 1</span>
 <span class="sd">        &gt;&gt;&gt; output = op(x, 1)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[2. 2. 2. 2. 2. 2.]]</span>
-<span class="sd">         [[5. 5. 5. 5. 5. 5.]]</span>
-<span class="sd">         [[8. 8. 8. 8. 8. 8.]]]</span>
+<span class="sd">        [[5. 5. 5. 5. 5. 5.]]</span>
+<span class="sd">        [[8. 8. 8. 8. 8. 8.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 4: Reduces a dimension along the axis 2</span>
 <span class="sd">        &gt;&gt;&gt; output = op(x, 2)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[ 2.]</span>
-<span class="sd">          [ 2.]</span>
-<span class="sd">          [ 2.]]</span>
-<span class="sd">         [[ 4.]</span>
-<span class="sd">          [ 5.]</span>
-<span class="sd">          [ 6.]]</span>
-<span class="sd">         [[ 6.]</span>
-<span class="sd">          [ 8.]</span>
-<span class="sd">          [10.]]]</span>
+<span class="sd">        [ 2.]</span>
+<span class="sd">        [ 2.]]</span>
+<span class="sd">        [[ 4.]</span>
+<span class="sd">        [ 5.]</span>
+<span class="sd">        [ 6.]]</span>
+<span class="sd">        [[ 6.]</span>
+<span class="sd">        [ 8.]</span>
+<span class="sd">        [10.]]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__mindspore_signature__</span> <span class="o">=</span>  <span class="p">(</span>
         <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">),</span>
@@ -6863,8 +6891,11 @@
 <div class="viewcode-block" id="ReduceMin"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.ReduceMin.html#mindspore.ops.ReduceMin">[docs]</a><span class="k">class</span> <span class="nc">ReduceMin</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reduces a dimension of a tensor by the minimum value in the dimension, by default. And also can</span>
-<span class="sd">    reduce a dimension of `x` along the axis. Determine whether the dimensions of the output and input are the same by</span>
-<span class="sd">    controlling `keep_dims`.</span>
+<span class="sd">    reduce a dimension of `x` along the `axis`. Determine whether the dimensions of the output and input are the</span>
+<span class="sd">    same by controlling `keep_dims`.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The `axis` with tensor type is only used for compatibility with older versions and is not recommended.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        keep_dims (bool): If ``True`` , keep these reduced dimensions and the length is 1.</span>
@@ -6872,23 +6903,25 @@
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **x** (Tensor[Number]) - The input tensor.</span>
-<span class="sd">        - **axis** (Union[int, tuple(int), list(int)]) - The dimensions to reduce. Default: ``()`` , reduce all</span>
-<span class="sd">          dimensions. Only constant value is allowed. Must be in the range [-r, r).</span>
+<span class="sd">        - **axis** (Union[int, tuple(int), list(int), Tensor]) - The dimensions to reduce. Default: ``()`` ,</span>
+<span class="sd">        reduce all dimensions. Only constant value is allowed. Must be in the range [-r, r).</span>
 
 <span class="sd">    Outputs:</span>
 <span class="sd">        Tensor, has the same dtype as the `x`.</span>
 
-<span class="sd">        - If `axis` is (), and `keep_dims` is ``False`` ,</span>
+<span class="sd">        - If `axis` is ``()`` , and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the output is a 0-D tensor representing the minimum of all elements in the input tensor.</span>
 <span class="sd">        - If `axis` is int, set as 1, and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_0, x_2, ..., x_R)`.</span>
 <span class="sd">        - If `axis` is tuple(int), set as (1, 2), and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_0, x_3, ..., x_R)`.</span>
+<span class="sd">        - If `axis` is 1-D Tensor, set as [1, 2], and `keep_dims` is ``False`` ,</span>
+<span class="sd">          the shape of output is :math:`(x_0, x_3, ..., x_R)`.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If `keep_dims` is not a bool.</span>
 <span class="sd">        TypeError: If `x` is not a Tensor.</span>
-<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple or list.</span>
+<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple, list or Tensor.</span>
 <span class="sd">        ValueError: If `axis` is out of range.</span>
 
 <span class="sd">    Supported Platforms:</span>
@@ -6917,26 +6950,26 @@
 <span class="sd">        &gt;&gt;&gt; output = op(x, 0)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[1. 1. 1. 1. 1. 1.]</span>
-<span class="sd">          [2. 2. 2. 2. 2. 2.]</span>
-<span class="sd">          [3. 3. 3. 3. 3. 3.]]]</span>
+<span class="sd">        [2. 2. 2. 2. 2. 2.]</span>
+<span class="sd">        [3. 3. 3. 3. 3. 3.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 3: Reduces a dimension along axis 1.</span>
 <span class="sd">        &gt;&gt;&gt; output = op(x, 1)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[1. 1. 1. 1. 1. 1.]]</span>
-<span class="sd">         [[4. 4. 4. 4. 4. 4.]]</span>
-<span class="sd">         [[7. 7. 7. 7. 7. 7.]]]</span>
+<span class="sd">        [[4. 4. 4. 4. 4. 4.]]</span>
+<span class="sd">        [[7. 7. 7. 7. 7. 7.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 4: Reduces a dimension along axis 2.</span>
 <span class="sd">        &gt;&gt;&gt; output = op(x, 2)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[1.]</span>
-<span class="sd">          [2.]</span>
-<span class="sd">          [3.]]</span>
-<span class="sd">         [[4.]</span>
-<span class="sd">          [5.]</span>
-<span class="sd">          [6.]]</span>
-<span class="sd">         [[7.]</span>
-<span class="sd">          [8.]</span>
-<span class="sd">          [9.]]]</span>
+<span class="sd">        [2.]</span>
+<span class="sd">        [3.]]</span>
+<span class="sd">        [[4.]</span>
+<span class="sd">        [5.]</span>
+<span class="sd">        [6.]]</span>
+<span class="sd">        [[7.]</span>
+<span class="sd">        [8.]</span>
+<span class="sd">        [9.]]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__mindspore_signature__</span> <span class="o">=</span>  <span class="p">(</span>
         <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">),</span>
@@ -6954,8 +6987,11 @@
 <div class="viewcode-block" id="ReduceProd"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.ReduceProd.html#mindspore.ops.ReduceProd">[docs]</a><span class="k">class</span> <span class="nc">ReduceProd</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reduces a dimension of a tensor by multiplying all elements in the dimension, by default. And also can</span>
-<span class="sd">    reduce a dimension of `x` along the axis. Determine whether the dimensions of the output and input are the same by</span>
-<span class="sd">    controlling `keep_dims`.</span>
+<span class="sd">    reduce a dimension of `x` along the `axis`. Determine whether the dimensions of the output and input are the</span>
+<span class="sd">    same by controlling `keep_dims`.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The `axis` with tensor type is only used for compatibility with older versions and is not recommended.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        keep_dims (bool): If ``True`` , keep these reduced dimensions and the length is 1.</span>
@@ -6963,23 +6999,25 @@
 
 <span class="sd">    Inputs:</span>
 <span class="sd">        - **x** (Tensor[Number]) - The input tensor.</span>
-<span class="sd">        - **axis** (Union[int, tuple(int), list(int)]) - The dimensions to reduce. Default: ``()`` , reduce all</span>
-<span class="sd">          dimensions. Only constant value is allowed. Must be in the range [-r, r).</span>
+<span class="sd">        - **axis** (Union[int, tuple(int), list(int), Tensor]) - The dimensions to reduce. Default: ``()`` ,</span>
+<span class="sd">        reduce all dimensions. Only constant value is allowed. Must be in the range [-r, r).</span>
 
 <span class="sd">    Outputs:</span>
 <span class="sd">        Tensor, has the same dtype as the `x`.</span>
 
-<span class="sd">        - If `axis` is (), and `keep_dims` is ``False`` ,</span>
+<span class="sd">        - If `axis` is ``()`` , and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the output is a 0-D tensor representing the product of all elements in the input tensor.</span>
 <span class="sd">        - If `axis` is int, set as 1, and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_0, x_2, ..., x_R)`.</span>
 <span class="sd">        - If `axis` is tuple(int), set as (1, 2), and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_0, x_3, ..., x_R)`.</span>
+<span class="sd">        - If `axis` is 1-D Tensor, set as [1, 2], and `keep_dims` is ``False`` ,</span>
+<span class="sd">          the shape of output is :math:`(x_0, x_3, ..., x_R)`.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If `keep_dims` is not a bool.</span>
 <span class="sd">        TypeError: If `x` is not a Tensor.</span>
-<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple or list.</span>
+<span class="sd">        TypeError: If `axis` is not one of the following: int, tuple, list or Tensor.</span>
 <span class="sd">        ValueError: If `axis` is out of range.</span>
 
 <span class="sd">    Supported Platforms:</span>
@@ -7008,26 +7046,26 @@
 <span class="sd">        &gt;&gt;&gt; output = op(x, 0)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[ 28.  28.  28.  28.  28.  28.]</span>
-<span class="sd">          [ 80.  80.  80.  80.  80.  80.]</span>
-<span class="sd">          [162. 162. 162. 162. 162. 162.]]]</span>
+<span class="sd">        [ 80.  80.  80.  80.  80.  80.]</span>
+<span class="sd">        [162. 162. 162. 162. 162. 162.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 3: Reduces a dimension along axis 1.</span>
 <span class="sd">        &gt;&gt;&gt; output = op(x, 1)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[  6.   6.   6.   6.   6.   6.]]</span>
-<span class="sd">         [[120. 120. 120. 120. 120. 120.]]</span>
-<span class="sd">         [[504. 504. 504. 504. 504. 504.]]]</span>
+<span class="sd">        [[120. 120. 120. 120. 120. 120.]]</span>
+<span class="sd">        [[504. 504. 504. 504. 504. 504.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 4: Reduces a dimension along axis 2.</span>
 <span class="sd">        &gt;&gt;&gt; output = op(x, 2)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[1.00000e+00]</span>
-<span class="sd">          [6.40000e+01]</span>
-<span class="sd">          [7.29000e+02]]</span>
-<span class="sd">         [[4.09600e+03]</span>
-<span class="sd">          [1.56250e+04]</span>
-<span class="sd">          [4.66560e+04]]</span>
-<span class="sd">         [[1.17649e+05]</span>
-<span class="sd">          [2.62144e+05]</span>
-<span class="sd">          [5.31441e+05]]]</span>
+<span class="sd">        [6.40000e+01]</span>
+<span class="sd">        [7.29000e+02]]</span>
+<span class="sd">        [[4.09600e+03]</span>
+<span class="sd">        [1.56250e+04]</span>
+<span class="sd">        [4.66560e+04]]</span>
+<span class="sd">        [[1.17649e+05]</span>
+<span class="sd">        [2.62144e+05]</span>
+<span class="sd">        [5.31441e+05]]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__mindspore_signature__</span> <span class="o">=</span>  <span class="p">(</span>
         <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">),</span>
@@ -7047,8 +7085,11 @@
 <span class="sd">    Returns the standard-deviation and mean of the input Tensor along</span>
 <span class="sd">    dimension(s) specified by `axis`.</span>
 
+<span class="sd">    Note:</span>
+<span class="sd">        The `axis` with tensor type is only used for compatibility with older versions and is not recommended.</span>
+
 <span class="sd">    Args:</span>
-<span class="sd">        axis (Union[int, tuple(int), list(int)], optional): The dimensions to reduce.</span>
+<span class="sd">        axis (Union[int, tuple(int), list(int), Tensor], optional): The dimensions to reduce.</span>
 <span class="sd">            Default: ``()`` , reduce all dimensions. Only constant value is allowed.</span>
 <span class="sd">            Let `r` be rank of `input_x`, it should be in the range :math:`[-r,r)`.</span>
 <span class="sd">        unbiased (bool, optional):  Whether to use Bessel&#39;s correction.</span>
@@ -7071,7 +7112,7 @@
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If `keep_dims` is not a bool.</span>
 <span class="sd">        TypeError: If `input_x` is not a Tensor.</span>
-<span class="sd">        ValueError: If `axis` is not one of the following: int, tuple or list.</span>
+<span class="sd">        ValueError: If `axis` is not one of the following: int, tuple, list or Tensor.</span>
 
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend`` ``CPU``</span>
@@ -7101,33 +7142,38 @@
 <div class="viewcode-block" id="ReduceSum"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.ReduceSum.html#mindspore.ops.ReduceSum">[docs]</a><span class="k">class</span> <span class="nc">ReduceSum</span><span class="p">(</span><span class="n">Primitive</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reduces a dimension of a tensor by summing all elements in the dimension, by default. And also can reduce a</span>
-<span class="sd">    dimension of `x` along the axis. Determine whether the dimensions of the output and input are the same by</span>
+<span class="sd">    dimension of `x` along the `axis`. Determine whether the dimensions of the output and input are the same by</span>
 <span class="sd">    controlling `keep_dims`.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The `axis` with tensor type is only used for compatibility with older versions and is not recommended.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        keep_dims (bool): If ``True`` , keep these reduced dimensions and the length is 1.</span>
-<span class="sd">                          If ``False`` , don&#39;t keep these dimensions. Default: ``False`` .</span>
-<span class="sd">        skip_mode (bool): If ``True`` and axis is empty tuple or empty list, the ReduceSum operation isn&#39;t performed,</span>
-<span class="sd">                          skip it.</span>
-<span class="sd">                          If ``True`` and axis is other values, the ReduceSum calculation is performed normally.</span>
-<span class="sd">                          If ``False`` , do reduce. Default: ``False`` .</span>
+<span class="sd">            If ``False`` , don&#39;t keep these dimensions. Default: ``False`` .</span>
+<span class="sd">        skip_mode (bool): If ``True`` and `axis` is empty tuple or empty list,</span>
+<span class="sd">            the ReduceSum operation isn&#39;t performed, skip it.</span>
+<span class="sd">            If ``True`` and `axis` is other values, the ReduceSum calculation is performed normally.</span>
+<span class="sd">            If ``False`` , do reduce. Default: ``False`` .</span>
 
 <span class="sd">    Inputs:</span>
-<span class="sd">         - **x** (Tensor[Number]) - The input tensor.</span>
-<span class="sd">         - **axis** (Union[int, tuple(int), list(int)]) - The dimensions to reduce. Default: ``()`` , reduce all</span>
-<span class="sd">           dimensions when skip_mode is ``False`` . Only constant value is allowed. Must be in the range [-rank(`x`),</span>
-<span class="sd">           rank(`x`)).</span>
+<span class="sd">        - **x** (Tensor[Number]) - The input tensor.</span>
+<span class="sd">        - **axis** (Union[int, tuple(int), list(int), Tensor]) - The dimensions to reduce. Default: ``()`` ,</span>
+<span class="sd">          reduce all dimensions when `skip_mode` is ``False`` . Only constant value is allowed. Must be in the range</span>
+<span class="sd">          [-rank(`x`), rank(`x`)).</span>
 
 <span class="sd">    Outputs:</span>
 <span class="sd">        Tensor, has the same dtype as the `x`.</span>
 
-<span class="sd">        - If axis is (), keep_dims is ``False`` , and skip_mode is ``False`` ,</span>
+<span class="sd">        - If `axis is ``()`` , `keep_dims` is ``False`` , and `skip_mode` is ``False`` ,</span>
 <span class="sd">          the output is a 0-D tensor representing the sum of all elements in the input tensor.</span>
-<span class="sd">        - If axis is (), and skip_mode is ``True`` ,</span>
+<span class="sd">        - If `axis is ``()`` , and `skip_mode` is ``True`` ,</span>
 <span class="sd">          the ReduceSum operation is not performed, output tensor is equal to the input tensor.</span>
-<span class="sd">        - If axis is int, set as 2, and keep_dims is ``False`` ,</span>
+<span class="sd">        - If `axis is int, set as 2, and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_1, x_3, ..., x_R)`.</span>
-<span class="sd">        - If axis is tuple(int) or list(int), set as (2, 3), and keep_dims is ``False`` ,</span>
+<span class="sd">        - If `axis is tuple(int) or list(int), set as (2, 3), and `keep_dims` is ``False`` ,</span>
+<span class="sd">          the shape of output is :math:`(x_1, x_4, ..., x_R)`.</span>
+<span class="sd">        - If `axis` is 1-D Tensor, set as [2, 3], and `keep_dims` is ``False`` ,</span>
 <span class="sd">          the shape of output is :math:`(x_1, x_4, ..., x_R)`.</span>
 
 <span class="sd">    Raises:</span>
@@ -7161,26 +7207,26 @@
 <span class="sd">        &gt;&gt;&gt; output = op(x, 0)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[12. 12. 12. 12. 12. 12.]</span>
-<span class="sd">          [15. 15. 15. 15. 15. 15.]</span>
-<span class="sd">          [18. 18. 18. 18. 18. 18.]]]</span>
+<span class="sd">        [15. 15. 15. 15. 15. 15.]</span>
+<span class="sd">        [18. 18. 18. 18. 18. 18.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 3: Reduces a dimension along axis 1.</span>
 <span class="sd">        &gt;&gt;&gt; output = op(x, 1)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[ 6.  6.  6.  6.  6.  6.]]</span>
-<span class="sd">         [[15. 15. 15. 15. 15. 15.]]</span>
-<span class="sd">         [[24. 24. 24. 24. 24. 24.]]]</span>
+<span class="sd">        [[15. 15. 15. 15. 15. 15.]]</span>
+<span class="sd">        [[24. 24. 24. 24. 24. 24.]]]</span>
 <span class="sd">        &gt;&gt;&gt; # case 4: Reduces a dimension along axis 2.</span>
 <span class="sd">        &gt;&gt;&gt; output = op(x, 2)</span>
 <span class="sd">        &gt;&gt;&gt; print(output)</span>
 <span class="sd">        [[[ 6.]</span>
-<span class="sd">          [12.]</span>
-<span class="sd">          [18.]]</span>
-<span class="sd">         [[24.]</span>
-<span class="sd">          [30.]</span>
-<span class="sd">          [36.]]</span>
-<span class="sd">         [[42.]</span>
-<span class="sd">          [48.]</span>
-<span class="sd">          [54.]]]</span>
+<span class="sd">        [12.]</span>
+<span class="sd">        [18.]]</span>
+<span class="sd">        [[24.]</span>
+<span class="sd">        [30.]</span>
+<span class="sd">        [36.]]</span>
+<span class="sd">        [[42.]</span>
+<span class="sd">        [48.]</span>
+<span class="sd">        [54.]]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__mindspore_signature__</span> <span class="o">=</span>  <span class="p">(</span>
         <span class="n">sig</span><span class="o">.</span><span class="n">make_sig</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">),</span>
