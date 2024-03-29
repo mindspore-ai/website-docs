@@ -6,7 +6,7 @@
 
 ### Background
 
-When using MindSpore for distributed training, it is often necessary to transform the distributed Checkpoint obtained from training to carry out the next steps, such as inference, fine-tuning, and multi-stage training. In this tutorial, we will introduce how to transform the Checkpoint obtained from distributed training to carry out resilient training and inference with distributed strategies and cluster card changes.
+When using MindSpore for distributed training, it is often necessary to transform the distributed Checkpoint (i.e. model transformation) obtained from training to carry out the next steps, such as inference, fine-tuning, and multi-stage training. In this tutorial, we will introduce how to transform the Checkpoint obtained from distributed training to carry out resilient training and inference with distributed strategies and cluster card changes.
 
 > This function only supports SEMI_AUTO_PARALLEL and AUTO_PARALLEL modes.
 
@@ -73,11 +73,12 @@ The functions of each file are as follows:
 - `model_transformation_retrain.py`: Scripts for second-stage training after model transformation.
 - `pipeline_transformation_retrain.py`: Scripts for second-stage training after pipeline parallel model transformation.
 - `pipeline_train.py`: Scripts for pipeline parallel training of networks.
-- `run_infer_convert.sh`: Scripts that perform model transformation.
-- `run_retrain_convert.sh`: Scripts that perform model transformation.
+- `run_infer_convert.sh`: Scripts that perform model transformation used in inference.
+- `run_retrain_convert.sh`: Scripts that perform model transformation used in second-stage training.
 - `run_retrain_pipeline_convert.sh`: Scripts that perform pipeline parallel model transformation.
 - `run_infer.sh`: Scripts that perform model inference.
 - `run_retrain.sh`: Scripts that perform second-stage training.
+- `run_pipeline_train.sh`: Scripts that perform pipeline training.
 - `run_retrain_pipeline.sh`: Scripts for executing second-stage training pipeline parallel model.
 
 ### Saving the Distributed Model
@@ -268,6 +269,46 @@ After execution, a directory of transformed target Checkpoint files will be gene
 ```text
 dst_checkpoints/
 ```
+
+### CheckPoint Conversion in MultiProcessing
+
+During the process of writing code for converting the CheckPoint files, users often use the following serial logic, resulting in a conversion time of several hours. For example, the following writing method results in a parallelism of 1, which is not recommended.
+
+```python
+import mindspore as ms
+dst_device_num = 8
+for tgt_rank in range(dst_device_num):
+    rank_list = ms.rank_list_for_transform(tgt_rank, "./src_strategy.ckpt", "./dst_strategy.ckpt")
+    checkpoint_files_map = {}
+    for rank_id in rank_list:
+        checkpoint_file_map[rank_id] = os.path.join(args_opt.src_checkpoints_dir, "rank_{}".format(rank_id), "checkpoint_{}.ckpt".format(rank_id))
+    save_checkpoint_path = os.path.join(args_opt.dst_checkpoints_dir, "rank_{}".format(get_rank()), "checkpoint_{}.ckpt".format(get_rank()))
+    ms.transform_checkpoint_by_rank(tgt_rank, checkpoint_file_map, save_checkpoint_path, args_opt.src_strategy_file, args_opt.dst_strategy_file)
+```
+
+We can accelerate the procession of ckpt conversion by introducing multi-process method. The specific modification is as follows: each process determines which target rank weight file to convert based on its current rank_id. That is, each process converts only one weight file.
+
+> Please set the number of processes according to the memory consumed by converting a single weight and the total memory in the current host, otherwise it will cause a memory shortage error in the host.
+
+```diff
+import sys
+import mindspore as ms
+
+rank_list = ms.rank_list_for_transform(get_rank(), "./src_strategy.ckpt", "./dst_strategy.ckpt")
+checkpoint_files_map = {}
+for rank_id in rank_list:
+    checkpoint_file_map[rank_id] = os.path.join(args_opt.src_checkpoints_dir, "rank_{}".format(rank_id), "checkpoint_{}.ckpt".format(rank_id))
+save_checkpoint_path = os.path.join(args_opt.dst_checkpoints_dir, "rank_{}".format(get_rank()), "checkpoint_{}.ckpt".format(get_rank()))
+ms.transform_checkpoint_by_rank(get_rank(), checkpoint_file_map, save_checkpoint_path, args_opt.src_strategy_file, args_opt.dst_strategy_file)
+```
+
+In addition, you need to configure the startup method. Change the single-process startup to multi-process startup. The following shows an example of a 4-process conversion.
+
+```shell
+mpirun -n 4 --output-filename log_output --merge-stderr-to-stdout python model_transformation_infer.py --only_compile=1
+```
+
+> The code used in this tutorial already adopt the multi-process style. The purpose of this section is to emphasize how to solve the problem of slow conversion in daily use scenarios for users.
 
 ### Loading the Transformed Checkpoint Files
 

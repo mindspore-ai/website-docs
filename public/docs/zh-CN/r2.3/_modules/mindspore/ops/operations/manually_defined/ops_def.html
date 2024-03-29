@@ -1686,7 +1686,7 @@
 <span class="sd">    S2 -- Sequence length of key and value.</span>
 <span class="sd">    N1 -- Num heads of query.</span>
 <span class="sd">    N2 -- Num heads of key and value, and N2 must be a factor of N1.</span>
-<span class="sd">    D -- Head size. The value ranges is a multiple of 16.</span>
+<span class="sd">    D -- Head size. The value ranges is a multiple of 16, with the max value of 512.</span>
 <span class="sd">    H1 -- Hidden size of query, which equals to N1 * D.</span>
 <span class="sd">    H2 -- Hidden size of key and value, which equals to N2 * D.</span>
 
@@ -1701,18 +1701,28 @@
 <span class="sd">        value (Tensor[float16, bfloat16]): The value tensor. Input tensor of shape :math:`(B, S2, H2)`,</span>
 <span class="sd">            `(B, N2, S2, D)`, `(S2, B, H2)`, `(B, S2, N2, D)` or `(T2, N2, D)`.</span>
 <span class="sd">        head_num (int): The head num of query.</span>
-<span class="sd">        real_shift (Union[Tensor[float16, bfloat16], None]): The position embedding code. If S is greater than 1024</span>
-<span class="sd">            and the mask of the lower triangle is used, enter only the inverse 1024 lines of the lower triangle for</span>
-<span class="sd">            memory optimization. Input tensor of shape :math: `(B, N1, S1, S2)`, `(1, N1, S1, S2)`,</span>
-<span class="sd">            `(B, N1, 1024, S2)`, `(1, N1, 1024, S2)` or (1024, 1024).</span>
+<span class="sd">        real_shift (Union[Tensor[float16, bfloat16], None]): Also known as pse. The position embedding code. If S</span>
+<span class="sd">            is greater than 1024 and the mask of the lower triangle is used, enter only the inverse 1024 lines of</span>
+<span class="sd">            the lower triangle for memory optimization. Input tensor of shape :math: `(B, N1, S1, S2)`,</span>
+<span class="sd">            `(1, N1, S1, S2)`, `(B, N1, 1024, S2)`, `(1, N1, 1024, S2)`.</span>
+<span class="sd">            The real_shift and shape formats are related when input_layout is `TND`.</span>
+<span class="sd">            In the `(B, N1, 1024, S2)` and `(1, N1, 1024, S2) formats, sparse_mode must be 2. actual_seq_qlen and</span>
+<span class="sd">            actual_seq_kvlen must be same. Max value of both actual_seq_qlen and actual_seq_klen must be larger</span>
+<span class="sd">            than 1024.</span>
+
+<span class="sd">            - (B, N1, S1, S2): If actual_seq_qlen is [x1, x2, x3] and actual_seq_kvlen is [y1, y2, y3], the sum of</span>
+<span class="sd">              real_shift elements must be equal to ((x1 * y1 + (x2 - x1) * (y2 - y1) + (x3 - x2) * (y3 - y2))) * N1.</span>
+<span class="sd">            - (1, N1, S1, S2): Similar to the previous format. The sum of real_shift elements must be equal to</span>
+<span class="sd">              (y1 + (y2 - y1) + (y3 - y2)) * N1.</span>
+
 <span class="sd">        drop_mask (Union[Tensor[uint8], None]): The dropout mask tensor. Input tensor of shape :math:</span>
 <span class="sd">            `(B, N1, S1, S2 // 8) or None`.</span>
 <span class="sd">        padding_mask (None): Reserved parameter. Not implemented yet.</span>
-<span class="sd">        attn_mask (Union[Tensor[uint8], None]): The attention mask tensor. For each element, 0 indicates retention</span>
-<span class="sd">            and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)`, `(S1, S2)` or</span>
-<span class="sd">            (2048, 2048).</span>
+<span class="sd">        attn_mask (Union[Tensor[uint8], Tensor[bool], None]): The attention mask tensor. For each element, 0</span>
+<span class="sd">            indicates retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`,</span>
+<span class="sd">            `(B, 1, S1, S2)`, `(S1, S2)` or (2048, 2048).</span>
 <span class="sd">        prefix (Union[List[int64], Tuple[int64] None]): N value of each Batch in the prefix sparse calculation</span>
-<span class="sd">            scenario. Input tensor of shape :math:`(B,)`.</span>
+<span class="sd">            scenario. Input tensor of shape :math:`(B,)`. Not none only when sparse_mode is 5.</span>
 <span class="sd">        actual_seq_qlen (Union[List[int64], Tuple[int64], None]): Size of query corresponding to each batch, array</span>
 <span class="sd">            with increasing values and the last value equal to T1.</span>
 <span class="sd">        actual_seq_kvlen (Union[List[int64], Tuple[int64], None]): Size of key and value corresponding to each batch,</span>
@@ -1725,7 +1735,7 @@
 <span class="sd">            When sparse_mode is set to 1, 2, 3, or 5, this parameter does not take effect. Default: 2147483647.</span>
 <span class="sd">        inner_precise (int): The parameter is reserved and not implemented yet. Default: 0.</span>
 <span class="sd">        input_layout (str): Specifies the layout of input `query`, key and value. The value can be &quot;BSH&quot;, &quot;BNSD&quot;,</span>
-<span class="sd">            &quot;SBH&quot;, &quot;BSND&quot; or &quot;TND&quot;. Default: &quot;BSH&quot;.</span>
+<span class="sd">            &quot;SBH&quot;, &quot;BSND&quot; or &quot;TND&quot;. &quot;TND&quot; is an experimental format. Default: &quot;BSH&quot;.</span>
 <span class="sd">        sparse_mode (int): Indicates sparse mode. Default 0.</span>
 
 <span class="sd">            - 0: Indicates the defaultMask mode. If attn_mask is not passed, the mask operation is not performed,</span>
