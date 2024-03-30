@@ -230,6 +230,9 @@
 <section id="定义网络">
 <h3>定义网络<a class="headerlink" href="#定义网络" title="永久链接至标题"></a></h3>
 <p>流水线并行网络结构与单卡网络结构基本一致，区别在于增加了流水线并行策略配置。流水线并行需要用户去定义并行的策略，通过调用<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>接口来指定每个layer要在哪个stage上去执行。<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>接口的粒度为<code class="docutils literal notranslate"><span class="pre">Cell</span></code>。所有包含训练参数的<code class="docutils literal notranslate"><span class="pre">Cell</span></code>都需要配置<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>，并且<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>要按照网络执行的先后顺序，从小到大进行配置。在单卡模型基础上，增加<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>配置后如下：</p>
+<blockquote>
+<div><p>在pipeline并行下，使能Print/Summary/TensorDump相关算子时，需要把该算子放到有pipeline_state属性的Cell中使用，否则有概率由pipeline并行切分导致算子不生效。</p>
+</div></blockquote>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
 
 <span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
@@ -353,13 +356,13 @@ epoch: 0 step: 50, loss is 3.8342278
 </section>
 <section id="配置分布式环境-1">
 <h3>配置分布式环境<a class="headerlink" href="#配置分布式环境-1" title="永久链接至标题"></a></h3>
-<p>通过context接口指定运行模式、运行设备、运行卡号等，与单卡脚本不同，并行脚本还需指定并行模式<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>为半自动并行模式，并通过init初始化HCCL或NCCL通信。此外，还需配置<code class="docutils literal notranslate"><span class="pre">pipeline_stages=2</span></code>指定Stage的总数。此处不设置<code class="docutils literal notranslate"><span class="pre">device_target</span></code>会自动指定为MindSpore包对应的后端硬件设备。<code class="docutils literal notranslate"><span class="pre">pipeline_result_broadcast=True</span></code>表示流水线并行推理时，将最后一个stage的结果广播给其余stage，可以用于自回归推理场景。</p>
+<p>通过context接口指定运行模式、运行设备、运行卡号等，与单卡脚本不同，并行脚本还需指定并行模式<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>为半自动并行模式，并通过init初始化HCCL或NCCL通信。此外，还需配置<code class="docutils literal notranslate"><span class="pre">pipeline_stages=4</span></code>指定Stage的总数。此处不设置<code class="docutils literal notranslate"><span class="pre">device_target</span></code>会自动指定为MindSpore包对应的后端硬件设备。<code class="docutils literal notranslate"><span class="pre">pipeline_result_broadcast=True</span></code>表示流水线并行推理时，将最后一个stage的结果广播给其余stage，可以用于自回归推理场景。</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
 
 <span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">)</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">SEMI_AUTO_PARALLEL</span><span class="p">,</span> <span class="n">full_batch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">SEMI_AUTO_PARALLEL</span><span class="p">,</span> <span class="n">dataset_strategy</span><span class="o">=</span><span class="s2">&quot;full_batch&quot;</span><span class="p">,</span>
                              <span class="n">pipeline_stages</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">pipeline_result_broadcast</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">init</span><span class="p">()</span>
 <span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
