@@ -187,6 +187,10 @@
 <span class="n">COMPATIBLE</span> <span class="o">=</span> <span class="mi">1</span>
 <span class="n">LAX</span> <span class="o">=</span> <span class="mi">2</span>
 
+<span class="c1"># Enumerate for the property &#39;debug_level&#39;.</span>
+<span class="n">RELEASE</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">DEBUG</span> <span class="o">=</span> <span class="mi">1</span>
+
 
 <span class="k">def</span> <span class="nf">_make_directory</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Make directory.&quot;&quot;&quot;</span>
@@ -350,6 +354,14 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;context.set_jit_syntax_level&#39;, the argument &#39;level&#39; should be context.STRICT &quot;</span>
                              <span class="sa">f</span><span class="s2">&quot;or context.LAX, but got </span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_param</span><span class="p">(</span><span class="n">ms_ctx_param</span><span class="o">.</span><span class="n">jit_syntax_level</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_debug_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;Set the debug level for graph compiling&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">!=</span> <span class="n">RELEASE</span> <span class="ow">and</span> <span class="n">level</span> <span class="o">!=</span> <span class="n">DEBUG</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;context.set_debug_level&#39;, the argument &#39;level&#39; should be context.RELEASE &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;or context.DEBUG, but got </span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_param</span><span class="p">(</span><span class="n">ms_ctx_param</span><span class="o">.</span><span class="n">debug_level</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+
 
     <span class="k">def</span> <span class="nf">set_memory_optimize_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">memory_optimize_level</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -709,6 +721,7 @@
         <span class="s1">&#39;deterministic&#39;</span><span class="p">:</span> <span class="n">set_deterministic</span><span class="p">,</span>
         <span class="s1">&#39;ascend_config&#39;</span><span class="p">:</span> <span class="n">set_ascend_config</span><span class="p">,</span>
         <span class="s1">&#39;jit_syntax_level&#39;</span><span class="p">:</span> <span class="n">set_jit_syntax_level</span><span class="p">,</span>
+        <span class="s1">&#39;debug_level&#39;</span><span class="p">:</span> <span class="n">set_debug_level</span><span class="p">,</span>
         <span class="s1">&#39;gpu_config&#39;</span><span class="p">:</span> <span class="n">set_gpu_config</span><span class="p">,</span>
         <span class="s1">&#39;aoe_config&#39;</span><span class="p">:</span> <span class="n">set_aoe_config</span><span class="p">,</span>
     <span class="p">}</span>
@@ -906,12 +919,14 @@
 <span class="sd">    parallel_mode                parameter_broadcast</span>
 <span class="sd">    all_reduce_fusion_config     strategy_ckpt_load_file</span>
 <span class="sd">    enable_parallel_optimizer    strategy_ckpt_save_file</span>
-<span class="sd">    parallel_optimizer_config    dataset_strategy</span>
-<span class="sd">    enable_alltoall              pipeline_stages</span>
+<span class="sd">    parallel_optimizer_config    full_batch</span>
+<span class="sd">    enable_alltoall              dataset_strategy</span>
+<span class="sd">               \                 pipeline_stages</span>
 <span class="sd">               \                 pipeline_result_broadcast</span>
 <span class="sd">               \                 auto_parallel_search_mode</span>
 <span class="sd">               \                 comm_fusion</span>
 <span class="sd">               \                 strategy_ckpt_config</span>
+<span class="sd">               \                 group_ckpt_save_file</span>
 <span class="sd">    ===========================  ===========================</span>
 
 <span class="sd">    Args:</span>
@@ -921,6 +936,8 @@
 <span class="sd">                     &quot;stand_alone&quot; do not support gradients_mean. Default: ``False`` .</span>
 <span class="sd">        gradient_fp32_sync (bool): Run allreduce of gradients in fp32. &quot;stand_alone&quot;, &quot;data_parallel&quot;</span>
 <span class="sd">                     and &quot;hybrid_parallel&quot; do not support gradient_fp32_sync. Default: ``True`` .</span>
+<span class="sd">        loss_repeated_mean (bool) - Indicates whether the mean operator is executed backwards when the</span>
+<span class="sd">                     calculation is repeated。Default: ``True`` .</span>
 <span class="sd">        parallel_mode (str): There are five kinds of parallel modes, ``&quot;stand_alone&quot;`` , ``&quot;data_parallel&quot;`` ,</span>
 <span class="sd">                     ``&quot;hybrid_parallel&quot;`` , ``&quot;semi_auto_parallel&quot;`` and ``&quot;auto_parallel&quot;`` . Note the pynative mode</span>
 <span class="sd">                     only supports the ``&quot;stand_alone&quot;`` and ``&quot;data_parallel&quot;`` mode. Default: ``&quot;stand_alone&quot;`` .</span>
@@ -935,15 +952,16 @@
 
 <span class="sd">                     - auto_parallel: Achieving parallelism automatically.</span>
 <span class="sd">        search_mode (str): There are three kinds of shard strategy search modes: ``&quot;recursive_programming&quot;`` ,</span>
-<span class="sd">                     ``&quot;dynamic_programming&quot;`` and ``&quot;sharding_propagation&quot;`` . Default: ``&quot;recursive_programming&quot;`` .</span>
+<span class="sd">                     ``&quot;sharding_propagation&quot;`` and ``&quot;dynamic_programming&quot;``(Not recommended).</span>
+<span class="sd">                     Default: ``&quot;recursive_programming&quot;`` .</span>
 
 <span class="sd">                     - recursive_programming: Recursive programming search mode. In order to obtain optimal performance,</span>
 <span class="sd">                       it is recommended that users set the batch size to be greater than or equal to the product of</span>
 <span class="sd">                       the number of devices and the number of multi-copy parallelism.</span>
 
-<span class="sd">                     - dynamic_programming: Dynamic programming search mode.</span>
-
 <span class="sd">                     - sharding_propagation: Propagate shardings from configured ops to non-configured ops.</span>
+
+<span class="sd">                     - dynamic_programming: Dynamic programming search mode.</span>
 <span class="sd">        auto_parallel_search_mode (str): This is the old version of &#39;search_mode&#39;. Here, remaining this attribute is</span>
 <span class="sd">                     for forward compatibility, and this attribute will be deleted in a future MindSpore version.</span>
 <span class="sd">        parameter_broadcast (bool): Whether to broadcast parameters before training. Before training, in order to have</span>
@@ -1047,6 +1065,7 @@
 
 <span class="sd">                        - only_trainable_params (bool): Only save/load the strategy information for trainable parameter.</span>
 <span class="sd">                          Default: ``True`` .</span>
+<span class="sd">        group_ckpt_save_file (str): The path to save parallel group checkpoint.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If input key is not attribute in auto parallel context.</span>
@@ -1058,8 +1077,8 @@
 <span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(gradients_mean=True)</span>
 <span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(gradient_fp32_sync=False)</span>
 <span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(parallel_mode=&quot;auto_parallel&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(search_mode=&quot;dynamic_programming&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(auto_parallel_search_mode=&quot;dynamic_programming&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(search_mode=&quot;recursive_programming&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(auto_parallel_search_mode=&quot;recursive_programming&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(parameter_broadcast=False)</span>
 <span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(strategy_ckpt_load_file=&quot;./strategy_stage1.ckpt&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; ms.set_auto_parallel_context(strategy_ckpt_save_file=&quot;./strategy_stage1.ckpt&quot;)</span>
@@ -1218,7 +1237,7 @@
                  <span class="n">max_device_memory</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">print_file_path</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">max_call_depth</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">env_config_path</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
                  <span class="n">graph_kernel_flags</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">save_compile_cache</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span> <span class="n">runtime_num_threads</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">load_compile_cache</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span>
                  <span class="n">grad_for_scalar</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span> <span class="n">pynative_synchronize</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span> <span class="n">mempool_block_size</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">disable_format_transform</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span>
-                 <span class="n">op_timeout</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">deterministic</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">ascend_config</span><span class="o">=</span><span class="nb">dict</span><span class="p">,</span> <span class="n">jit_syntax_level</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                 <span class="n">op_timeout</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">deterministic</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">ascend_config</span><span class="o">=</span><span class="nb">dict</span><span class="p">,</span> <span class="n">jit_syntax_level</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">debug_level</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
                  <span class="n">jit_enable_inplace_ops</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span> <span class="n">gpu_config</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">set_context</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1268,6 +1287,8 @@
 <span class="sd">    |                         |  reserve_class_name_in_scope |  CPU/GPU/Ascend            |</span>
 <span class="sd">    |                         +------------------------------+----------------------------+</span>
 <span class="sd">    |                         |  pynative_synchronize        |  CPU/GPU/Ascend            |</span>
+<span class="sd">    |                         +------------------------------+----------------------------+</span>
+<span class="sd">    |                         |  debug_level                 |  CPU/GPU/Ascend            |</span>
 <span class="sd">    +-------------------------+------------------------------+----------------------------+</span>
 <span class="sd">    | Executive Control       |   mode                       |   CPU/GPU/Ascend           |</span>
 <span class="sd">    |                         +------------------------------+----------------------------+</span>
@@ -1589,6 +1610,12 @@
 <span class="sd">              affected and not optimal. Cannot be used for MindIR load and export due to some syntax that may not be</span>
 <span class="sd">              able to be exported.</span>
 
+<span class="sd">        debug_level (int): Set config for debugging. Default value: `RELEASE``.</span>
+
+<span class="sd">            - ``RELEASE``: Used for normally running, and some debug information will be discard to get a better</span>
+<span class="sd">              compiling performance.</span>
+<span class="sd">            - ``DEBUG``: Used for debugging when errors occur, more information will be record in compiling process.</span>
+
 <span class="sd">        gpu_config (dict): Set the parameters specific to gpu hardware platform. It is not set by default.</span>
 <span class="sd">            Currently, only setting `conv_fprop_algo` and `conv_dgrad_algo` and `conv_wgrad_algo` and `conv_allow_tf32`</span>
 <span class="sd">            and `matmul_allow_tf32` are supported on GPU hardware platform.</span>
@@ -1697,6 +1724,7 @@
 <span class="sd">        ...                &quot;ge_options&quot;: {&quot;global&quot;: {&quot;ge.opSelectImplmode&quot;: &quot;high_precision&quot;},</span>
 <span class="sd">        ...                               &quot;session&quot;: {&quot;ge.exec.atomicCleanPolicy&quot;: &quot;0&quot;}}})</span>
 <span class="sd">        &gt;&gt;&gt; ms.set_context(jit_syntax_level=ms.STRICT)</span>
+<span class="sd">        &gt;&gt;&gt; ms.set_context(debug_level=ms.DEBUG)</span>
 <span class="sd">        &gt;&gt;&gt; ms.set_context(gpu_config={&quot;conv_fprop_algo&quot;: &quot;performance&quot;, &quot;conv_allow_tf32&quot;: True,</span>
 <span class="sd">        ...                &quot;matmul_allow_tf32&quot;: True})</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1727,6 +1755,9 @@
         <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;jit_syntax_level&#39;</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">STRICT</span><span class="p">,</span> <span class="n">COMPATIBLE</span><span class="p">,</span> <span class="n">LAX</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;jit_syntax_level&#39;, the value should be context.STRICT&quot;</span>
                              <span class="sa">f</span><span class="s2">&quot; or context.LAX, but got </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;debug_level&#39;</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">RELEASE</span><span class="p">,</span> <span class="n">DEBUG</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;debug_level&#39;, the value should be context.DEBUG&quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot; or context.RELEASE, but got </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_target_specific_cfgs</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
             <span class="k">continue</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
