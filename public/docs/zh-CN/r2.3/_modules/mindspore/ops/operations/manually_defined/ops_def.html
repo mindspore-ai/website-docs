@@ -1136,8 +1136,8 @@
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">dims</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">_convert_stub</span><span class="p">(</span><span class="n">pyboost_tile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">[</span><span class="nb">input</span><span class="p">,</span> <span class="n">dims</span><span class="p">]))</span>
 
+    <span class="c1"># pylint: disable=missing-docstring</span>
     <span class="k">def</span> <span class="nf">check_elim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;check for elimination.&quot;&quot;&quot;</span>
         <span class="n">base_tensor</span><span class="p">,</span> <span class="n">dims</span> <span class="o">=</span> <span class="n">args</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">base_tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;, the type of &#39;input&#39; must be Tensor, &quot;</span>
@@ -1415,6 +1415,24 @@
     <span class="k">return</span> <span class="n">value</span>
 
 
+<span class="k">def</span> <span class="nf">_infer_value_for_MaxMin</span><span class="p">(</span><span class="n">input_x</span><span class="p">,</span> <span class="n">prim_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer value for Max/Min op.&quot;&quot;&quot;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">input_x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">prim_map</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;Max&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">,</span>
+            <span class="s1">&#39;Min&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">np_reduce_func</span> <span class="o">=</span> <span class="n">prim_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prim_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">np_reduce_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">input_x</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">np_reduce_func</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">value</span>
+
+
 <span class="k">def</span> <span class="nf">infer_value_for_Cast</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dst_type_enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer value for Cast op.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1445,10 +1463,19 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer value for ReduceMax op.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">_infer_value_for_Reduce</span><span class="p">(</span><span class="n">input_x</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">keep_dims</span><span class="p">,</span> <span class="s1">&#39;ReduceMax&#39;</span><span class="p">)</span>
 
+<span class="k">def</span> <span class="nf">infer_value_for_Max</span><span class="p">(</span><span class="n">input_x</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer value for Max op.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_infer_value_for_MaxMin</span><span class="p">(</span><span class="n">input_x</span><span class="p">,</span> <span class="s1">&#39;Max&#39;</span><span class="p">)</span>
+
 
 <span class="k">def</span> <span class="nf">infer_value_for_ReduceMin</span><span class="p">(</span><span class="n">input_x</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">keep_dims</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer value for ReduceMin op.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">_infer_value_for_Reduce</span><span class="p">(</span><span class="n">input_x</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">keep_dims</span><span class="p">,</span> <span class="s1">&#39;ReduceMin&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">infer_value_for_Min</span><span class="p">(</span><span class="n">input_x</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer value for Max op.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_infer_value_for_MaxMin</span><span class="p">(</span><span class="n">input_x</span><span class="p">,</span> <span class="s1">&#39;Min&#39;</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">infer_value_for_ReduceProd</span><span class="p">(</span><span class="n">input_x</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">keep_dims</span><span class="p">):</span>
