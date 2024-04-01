@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raynold-averaged Navier-Stokes &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
+        <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script crossorigin="anonymous" integrity="sha256-1fEPhSsRKlFKGfK3eO710tEweHh1fwokU5wFGDHO+vg=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script><script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script><script async="async" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/mathjax/MathJax-3.2.2/es5/tex-mml-chtml.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="PINNs for Point Source Poisson" href="poisson_point_source.html" />
+    <link rel="prev" title="PINNs for Kovasznay Flow" href="kovasznay.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Installation Deployment</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow_install.html">MindSpore Flow Installation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Features</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../features/solve_pinns_by_mindflow.html">Solving PINNs Based on MindSpore Flow</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Physics-driven</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="burgers1D.html">1D Burgers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="darcy2D.html">2D stabilized Darcy Problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="navier_stokes2D.html">2D Cylinder Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="poisson_geometry.html">2D &amp; 3D Poisson</a></li>
+<li class="toctree-l1"><a class="reference internal" href="taylor_green2D.html">Two-dimensional Taylor Green Vortex</a></li>
+<li class="toctree-l1"><a class="reference internal" href="navier_stokes_inverse.html">Inverse Navier-Stokes Problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="boltzmannD1V3.html">Neural Representation Method for Boltzmann Equation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="kovasznay.html">PINNs for Kovasznay Flow</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Raynold-averaged Navier-Stokes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#reynolds-averaged-model">Reynolds-Averaged Model</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#reynolds-averaged-momentum-equation">Reynolds-Averaged Momentum Equation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#continuity-equation">Continuity Equation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#model-solution-introduction">Model Solution Introduction</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#preparation">Preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#load-parameters">Load Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dataset-construction">Dataset Construction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-initialization">Model Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-training">Model Training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#visualization-of-prediction-results">Visualization of Prediction Results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="poisson_point_source.html">PINNs for Point Source Poisson</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Data-driven</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/2D_steady.html">AI Industrial Flow Simulation Model (DongFang YuFeng)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/burgers_FNO1D.html">FNO for 1D Burgers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/navier_stokes_FNO2D.html">FNO for 2D Navier-Stokes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/burgers_KNO1D.html">KNO for 1D Burgers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/navier_stokes_KNO2D.html">KNO for 2D Navier-Stokes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/2D_unsteady.html">Multi-timestep Complicated Flow Field Prediction with Transonic Airfoil under Data Driven Mode(with Two Kinds of Backbones: FNO2D and UNET2D)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/flow_around_sphere.html">Reduced order model for three-dimensional unsteady flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_driven/navier_stokes_FNO3D.html">FNO for 3D Navier-Stokes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Data Mechanism Fusion</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../data_mechanism_fusion/pde_net.html">PDE-Net for Convection-Diffusion Equation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_mechanism_fusion/percnn2d.html">PeRCNN for 2D burgers Equation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_mechanism_fusion/percnn3d.html">PeRCNN for 3D Reaction-Diffusion Equation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">CFD-solver</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cfd_solver/lax_tube.html">1D Lax Tube</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd_solver/sod_tube.html">1D Sod Tube</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd_solver/couette.html">2D Couette Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cfd_solver/riemann2d.html">2D Riemann</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.cell.html">mindflow.cell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.cfd.html">mindflow.cfd</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.common.html">mindflow.common</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.data.html">mindflow.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.geometry.html">mindflow.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.loss.html">mindflow.loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.operators.html">mindflow.operators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindflow.pde.html">mindflow.pde</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../RELEASE.html">Release Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Raynold-averaged Navier-Stokes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/physics_driven/periodic_hill.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars and line breaks on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+    white-space: pre;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt .copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+.jp-RenderedHTMLCommon table,
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.jp-RenderedHTMLCommon thead,
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+.jp-RenderedHTMLCommon tr,
+.jp-RenderedHTMLCommon th,
+.jp-RenderedHTMLCommon td,
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+.jp-RenderedHTMLCommon th,
+div.rendered_html th {
+  font-weight: bold;
+}
+.jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+.jp-RenderedHTMLCommon tbody tr:hover,
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="raynold-averaged-navier-stokes">
+<h1>Raynold-averaged Navier-Stokes<a class="headerlink" href="#raynold-averaged-navier-stokes" title="Permalink to this headline"></a></h1>
+<p><a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/master/mindflow/en/physics_driven/mindspore_periodic_hill.ipynb"><img alt="DownloadNotebook" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_notebook_en.svg" /></a> <a class="reference external" href="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/master/mindflow/en/physics_driven/mindspore_periodic_hill.py"><img alt="DownloadCode" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_download_code_en.svg" /></a> <a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/mindflow/docs/source_en/physics_driven/periodic_hill.ipynb"><img alt="ViewSource" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source_en.svg" /></a></p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline"></a></h2>
+<p>The Raynold-averaged Navier-Stokes equation is a classic numerical simulation case in the fields of fluid mechanics and meteorology. It is used to study the flow behavior of air or fluid over a periodic hilly terrain. This problem aims to explore the influence of hilly terrain on atmospheric or fluid motion, leading to a deeper understanding of meteorological phenomena, terrain effects, and fluid characteristics over complex terrain. This project utilizes the Reynolds-averaged model to simulate
+turbulent flow over a two-dimensional periodic hilly terrain.</p>
+<section id="reynolds-averaged-model">
+<h3>Reynolds-Averaged Model<a class="headerlink" href="#reynolds-averaged-model" title="Permalink to this headline"></a></h3>
+<p>The Reynolds-Averaged Navier-Stokes equations (RANS) are a commonly used numerical simulation approach in fluid mechanics to study the averaged behavior of fluids under different Reynolds numbers. Named after the British scientist Osborne Reynolds, this model involves time-averaging of flow field variables and provides an engineering-oriented approach to deal with turbulent flows. The Reynolds-averaged model is based on Reynolds decomposition, which separates flow field variables into mean and
+fluctuating components. By time-averaging the Reynolds equations, the unsteady fluctuating terms are eliminated, resulting in time-averaged equations describing the macroscopic flow. Taking the two-dimensional Reynolds-averaged momentum and continuity equations as examples:</p>
+<section id="reynolds-averaged-momentum-equation">
+<h4>Reynolds-Averaged Momentum Equation<a class="headerlink" href="#reynolds-averaged-momentum-equation" title="Permalink to this headline"></a></h4>
+<div class="math notranslate nohighlight">
+\[\rho \bar{u}_j \frac{\partial \bar{u}_i}{\partial x_j}=\rho \bar{f}_i+\frac{\partial}{\partial x_j}\left[-\bar{p} \delta_{i j}+\mu\left(\frac{\partial \bar{u}_i}{\partial x_j}+\frac{\partial \bar{u}_j}{\partial x_i}\right)-\rho \overline{u_i^{\prime} u_j^{\prime}}\right] .\]</div>
+</section>
+<section id="continuity-equation">
+<h4>Continuity Equation<a class="headerlink" href="#continuity-equation" title="Permalink to this headline"></a></h4>
+<div class="math notranslate nohighlight">
+\[\frac{\partial \overline{u}}{\partial x} + \frac{\partial \overline{v}}{\partial y} = 0\]</div>
+<p>Here, <span class="math notranslate nohighlight">\(\overline{u}\)</span> and <span class="math notranslate nohighlight">\(\overline{v}\)</span> represent the time-averaged velocity components in the x and y directions, <span class="math notranslate nohighlight">\(\overline{p}\)</span> is the time-averaged pressure, <span class="math notranslate nohighlight">\(\rho\)</span> is fluid density, <span class="math notranslate nohighlight">\(\nu\)</span> is the kinematic viscosity, and <span class="math notranslate nohighlight">\(u\)</span> and <span class="math notranslate nohighlight">\(v\)</span> are the velocity components in the x and y directions.</p>
+</section>
+</section>
+<section id="model-solution-introduction">
+<h3>Model Solution Introduction<a class="headerlink" href="#model-solution-introduction" title="Permalink to this headline"></a></h3>
+<p>The core idea of the RANS-PINNs (Reynolds-Averaged Navier-Stokes - Physics-Informed Neural Networks) method is to combine physical equations with neural networks to achieve simulation results that possess both the accuracy of traditional RANS models and the flexibility of neural networks. In this approach, the Reynolds-averaged equations for mean flow, along with an isotropic eddy viscosity model for turbulence, are combined to form an accurate baseline solution. Then, the remaining turbulent
+fluctuation part is modeled using Physics-Informed Neural Networks (PINNs), further enhancing the simulation accuracy.</p>
+<p>The structure of the RANS-PINNs model is depicted below:</p>
+<figure class="half"><p><img alt="8c899f4469994f0aa260ab240960d764" class="no-scaled-link" src="../_images/rans_pinns_structure.png" style="width: 500px;" /></p>
+</figure></section>
+</section>
+<section id="preparation">
+<h2>Preparation<a class="headerlink" href="#preparation" title="Permalink to this headline"></a></h2>
+<p>Import the required libraries for training. The <code class="docutils literal notranslate"><span class="pre">`src</span></code> &lt;<a class="reference external" href="https://gitee.com/mindspore/mindscience/tree/r0.6/MindFlow/applications/physics_driven/navier_stokes/periodic_hill/src">https://gitee.com/mindspore/mindscience/tree/r0.6/MindFlow/applications/physics_driven/navier_stokes/periodic_hill/src</a>&gt;`__ folder includes functions for dataset processing, network models, and loss calculation.</p>
+<p>Training is conducted using the graph mode (GRAPH) of the MindSpore framework, and it takes place on the GPU (by default) or Ascend (single card).</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">mindspore</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span><span class="p">,</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span><span class="p">,</span> <span class="n">jit</span><span class="p">,</span> <span class="n">set_seed</span><span class="p">,</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">load_param_into_net</span><span class="p">,</span> <span class="n">data_sink</span>
+<span class="kn">from</span> <span class="nn">mindspore.amp</span> <span class="kn">import</span> <span class="n">all_finite</span>
+<span class="kn">from</span> <span class="nn">mindflow.cell</span> <span class="kn">import</span> <span class="n">FCSequential</span>
+<span class="kn">from</span> <span class="nn">mindflow.utils</span> <span class="kn">import</span> <span class="n">load_yaml_config</span>
+
+<span class="kn">from</span> <span class="nn">src</span> <span class="kn">import</span> <span class="n">create_train_dataset</span><span class="p">,</span> <span class="n">create_test_dataset</span><span class="p">,</span> <span class="n">calculate_l2_error</span><span class="p">,</span> <span class="n">NavierStokesRANS</span>
+<span class="kn">from</span> <span class="nn">eval</span> <span class="kn">import</span> <span class="n">predict</span>
+
+<span class="n">set_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="n">context</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">,</span>
+                    <span class="n">device_target</span><span class="o">=</span><span class="s2">&quot;GPU&quot;</span><span class="p">)</span>
+<span class="n">use_ascend</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="n">attr_key</span><span class="o">=</span><span class="s1">&#39;device_target&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Ascend&quot;</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="load-parameters">
+<h2>Load Parameters<a class="headerlink" href="#load-parameters" title="Permalink to this headline"></a></h2>
+<p>Import the configuration parameters for the dataset, model, and optimizer from the <code class="docutils literal notranslate"><span class="pre">`rans.yaml</span></code> &lt;<a class="reference external" href="https://gitee.com/mindspore/mindscience/blob/r0.6/MindFlow/applications/physics_driven/navier_stokes/periodic_hill/configs/rans.yaml">https://gitee.com/mindspore/mindscience/blob/r0.6/MindFlow/applications/physics_driven/navier_stokes/periodic_hill/configs/rans.yaml</a>&gt;`__ file.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># load configurations</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">load_yaml_config</span><span class="p">(</span><span class="s1">&#39;./configs/rans.yaml&#39;</span><span class="p">)</span>
+<span class="n">data_params</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span>
+<span class="n">model_params</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">]</span>
+<span class="n">optim_params</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;optimizer&quot;</span><span class="p">]</span>
+<span class="n">summary_params</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;summary&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="dataset-construction">
+<h2>Dataset Construction<a class="headerlink" href="#dataset-construction" title="Permalink to this headline"></a></h2>
+<p>Source: Numerical simulation flow field data around a two-dimensional cylinder, provided by Associate Professor Yu Jian’s team at the School of Aeronautic Science and Engineering, Beihang University.</p>
+<p>Data Description: The data is in numpy’s npy format with dimensions [300, 700, 10]. The first two dimensions represent the length and width of the flow field, and the last dimension includes variables (x, y, u, v, p, uu, uv, vv, rho, nu), totaling 10 variables. Among these, x, y, u, v, p represent the x-coordinate, y-coordinate, x-direction velocity, y-direction velocity, and pressure of the flow field, respectively. uu, uv, vv are Reynolds-averaged statistical quantities, while rho is fluid
+density and nu is kinematic viscosity.</p>
+<p>Dataset Download Link: <a class="reference external" href="https://download.mindspore.cn/mindscience/mindflow/dataset/periodic_hill_2d/">periodic_hill.npy</a></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># create training dataset</span>
+<span class="c1"># create training dataset</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">create_train_dataset</span><span class="p">(</span><span class="n">data_params</span><span class="p">[</span><span class="s2">&quot;data_path&quot;</span><span class="p">],</span> <span class="n">data_params</span><span class="p">[</span><span class="s2">&quot;batch_size&quot;</span><span class="p">])</span>
+<span class="c1"># create test dataset</span>
+<span class="n">inputs</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">create_test_dataset</span><span class="p">(</span><span class="n">data_params</span><span class="p">[</span><span class="s2">&quot;data_path&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="model-initialization">
+<h2>Model Initialization<a class="headerlink" href="#model-initialization" title="Permalink to this headline"></a></h2>
+<p>Initialize the RANS-PINNs model based on the configuration in <code class="docutils literal notranslate"><span class="pre">`rans.yaml</span></code> &lt;<a class="reference external" href="https://gitee.com/mindspore/mindscience/blob/r0.6/MindFlow/applications/physics_driven/navier_stokes/periodic_hill/configs/rans.yaml">https://gitee.com/mindspore/mindscience/blob/r0.6/MindFlow/applications/physics_driven/navier_stokes/periodic_hill/configs/rans.yaml</a>&gt;`__. Use the Mean Squared Error (MSE) loss function and the Adam optimizer.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">FCSequential</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="n">model_params</span><span class="p">[</span><span class="s2">&quot;in_channels&quot;</span><span class="p">],</span>
+                     <span class="n">out_channels</span><span class="o">=</span><span class="n">model_params</span><span class="p">[</span><span class="s2">&quot;out_channels&quot;</span><span class="p">],</span>
+                     <span class="n">layers</span><span class="o">=</span><span class="n">model_params</span><span class="p">[</span><span class="s2">&quot;layers&quot;</span><span class="p">],</span>
+                     <span class="n">neurons</span><span class="o">=</span><span class="n">model_params</span><span class="p">[</span><span class="s2">&quot;neurons&quot;</span><span class="p">],</span>
+                     <span class="n">residual</span><span class="o">=</span><span class="n">model_params</span><span class="p">[</span><span class="s2">&quot;residual&quot;</span><span class="p">],</span>
+                     <span class="n">act</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">summary_params</span><span class="p">[</span><span class="s2">&quot;load_ckpt&quot;</span><span class="p">]:</span>
+    <span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">summary_params</span><span class="p">[</span><span class="s2">&quot;load_ckpt_path&quot;</span><span class="p">])</span>
+    <span class="n">load_param_into_net</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">summary_params</span><span class="p">[</span><span class="s1">&#39;ckpt_path&#39;</span><span class="p">])):</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">summary_params</span><span class="p">[</span><span class="s1">&#39;ckpt_path&#39;</span><span class="p">]))</span>
+
+<span class="n">params</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">()</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">optim_params</span><span class="p">[</span><span class="s2">&quot;initial_lr&quot;</span><span class="p">],</span> <span class="n">weight_decay</span><span class="o">=</span><span class="n">optim_params</span><span class="p">[</span><span class="s2">&quot;weight_decay&quot;</span><span class="p">])</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">NavierStokesRANS</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">use_ascend</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">mindspore.amp</span> <span class="kn">import</span> <span class="n">DynamicLossScaler</span><span class="p">,</span> <span class="n">auto_mixed_precision</span>
+    <span class="n">loss_scaler</span> <span class="o">=</span> <span class="n">DynamicLossScaler</span><span class="p">(</span><span class="mi">1024</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+    <span class="n">auto_mixed_precision</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;O3&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+momentum_x: u(x, y)*Derivative(u(x, y), x) + v(x, y)*Derivative(u(x, y), y) + 1.0*Derivative(p(x, y), x) - 0.000178571426658891*Derivative(u(x, y), (x, 2)) - 0.000178571426658891*Derivative(u(x, y), (y, 2)) + Derivative(uu(x, y), x) + Derivative(uv(x, y), y)
+    Item numbers of current derivative formula nodes: 7
+momentum_y: u(x, y)*Derivative(v(x, y), x) + v(x, y)*Derivative(v(x, y), y) + 1.0*Derivative(p(x, y), y) + Derivative(uv(x, y), x) - 0.000178571426658891*Derivative(v(x, y), (x, 2)) - 0.000178571426658891*Derivative(v(x, y), (y, 2)) + Derivative(vv(x, y), y)
+    Item numbers of current derivative formula nodes: 7
+continuty: Derivative(u(x, y), x) + Derivative(v(x, y), y)
+    Item numbers of current derivative formula nodes: 2
+bc_u: u(x, y)
+    Item numbers of current derivative formula nodes: 1
+bc_v: v(x, y)
+    Item numbers of current derivative formula nodes: 1
+bc_p: p(x, y)
+    Item numbers of current derivative formula nodes: 1
+bc_uu: uu(x, y)
+    Item numbers of current derivative formula nodes: 1
+bc_uv: uv(x, y)
+    Item numbers of current derivative formula nodes: 1
+bc_vv: vv(x, y)
+    Item numbers of current derivative formula nodes: 1
+</pre></div></div>
+</div>
+</section>
+<section id="model-training">
+<h2>Model Training<a class="headerlink" href="#model-training" title="Permalink to this headline"></a></h2>
+<p>For versions of MindSpore &gt;= 2.0.0, you can use the functional programming paradigm to train neural networks.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">pde_data</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">get_loss</span><span class="p">(</span><span class="n">pde_data</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_ascend</span><span class="p">:</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_scaler</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span>
+
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="nd">@jit</span>
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">pde_data</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">pde_data</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_ascend</span><span class="p">:</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_scaler</span><span class="o">.</span><span class="n">unscale</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+        <span class="n">is_finite</span> <span class="o">=</span> <span class="n">all_finite</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_finite</span><span class="p">:</span>
+            <span class="n">grads</span> <span class="o">=</span> <span class="n">loss_scaler</span><span class="o">.</span><span class="n">unscale</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">))</span>
+        <span class="n">loss_scaler</span><span class="o">.</span><span class="n">adjust</span><span class="p">(</span><span class="n">is_finite</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">loss</span>
+
+<span class="n">epochs</span> <span class="o">=</span> <span class="n">optim_params</span><span class="p">[</span><span class="s2">&quot;train_epochs&quot;</span><span class="p">]</span>
+<span class="n">sink_process</span> <span class="o">=</span> <span class="n">data_sink</span><span class="p">(</span><span class="n">train_step</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">sink_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">train_data_size</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">epochs</span><span class="p">):</span>
+    <span class="c1"># train</span>
+    <span class="n">time_beg</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">train_data_size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">step_train_loss</span> <span class="o">=</span> <span class="n">sink_process</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;epoch: </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s2"> train loss: </span><span class="si">{</span><span class="n">step_train_loss</span><span class="si">}</span><span class="s2"> epoch time: </span><span class="si">{</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">time_beg</span><span class="p">)</span><span class="o">*</span><span class="mi">1000</span><span class="w"> </span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="n">summary_params</span><span class="p">[</span><span class="s2">&quot;eval_interval_epochs&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># eval</span>
+        <span class="n">calculate_l2_error</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+        <span class="n">predict</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="n">epoch</span><span class="p">,</span> <span class="n">input_data</span><span class="o">=</span><span class="n">inputs</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">summary_params</span><span class="p">[</span><span class="s2">&quot;visual_dir&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="n">summary_params</span><span class="p">[</span><span class="s2">&quot;save_checkpoint_epochs&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">ckpt_name</span> <span class="o">=</span> <span class="s2">&quot;rans_</span><span class="si">{}</span><span class="s2">.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">epoch</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">mindspore</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">summary_params</span><span class="p">[</span><span class="s1">&#39;ckpt_path&#39;</span><span class="p">],</span> <span class="n">ckpt_name</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch: 1 train loss: 0.033210676 epoch time: 21279.999ms
+epoch: 2 train loss: 0.019967956 epoch time: 11001.454ms
+epoch: 3 train loss: 0.015202466 epoch time: 11049.534ms
+epoch: 4 train loss: 0.009431531 epoch time: 10979.578ms
+epoch: 5 train loss: 0.009564591 epoch time: 11857.952ms
+    predict total time: 361.42492294311523 ms
+    l2_error, U:  0.3499122378307982 , V:  1.089610520680924 , P:  1.0590148771220198
+    l2_error, uu:  0.6619816139038208 , uv:  0.9806737880811025 , vv:  1.223253942721496 , Total:  0.3788639206858165
+==================================================================================================
+epoch: 6 train loss: 0.0080219805 epoch time: 10980.343ms
+epoch: 7 train loss: 0.007290244 epoch time: 11141.353ms
+epoch: 8 train loss: 0.0072537386 epoch time: 11535.102ms
+epoch: 9 train loss: 0.007020033 epoch time: 11041.171ms
+epoch: 10 train loss: 0.0072951056 epoch time: 11033.113ms
+    predict total time: 45.89080810546875 ms
+    l2_error, U:  0.2574625213886651 , V:  1.0159654927310178 , P:  1.08665077365793
+    l2_error, uu:  0.6712817201442959 , uv:  1.6285996210166078 , vv:  1.6174848943769466 , Total:  0.2994041993242163
+==================================================================================================
+epoch: 11 train loss: 0.006911595 epoch time: 11269.898ms
+epoch: 12 train loss: 0.0064922348 epoch time: 11014.546ms
+epoch: 13 train loss: 0.012375369 epoch time: 10856.192ms
+epoch: 14 train loss: 0.0063738413 epoch time: 11219.892ms
+epoch: 15 train loss: 0.006205684 epoch time: 11509.733ms
+    predict total time: 1419.1265106201172 ms
+    l2_error, U:  0.26029930447820726 , V:  1.0100483948680088 , P:  1.1317783698512909
+    l2_error, uu:  0.6231199513484501 , uv:  1.097468251696328 , vv:  1.2687142671208649 , Total:  0.301384468926242
+==================================================================================================
+epoch: 16 train loss: 0.00825448 epoch time: 11118.031ms
+epoch: 17 train loss: 0.0061626835 epoch time: 11953.393ms
+epoch: 18 train loss: 0.0073482464 epoch time: 11729.854ms
+epoch: 19 train loss: 0.0059430953 epoch time: 11183.294ms
+epoch: 20 train loss: 0.006461049 epoch time: 11480.535ms
+    predict total time: 328.2887935638428 ms
+    l2_error, U:  0.2893996640103185 , V:  1.0164172238860398 , P:  1.118747335999008
+    l2_error, uu:  0.6171527683696496 , uv:  1.1570214426333394 , vv:  1.5968321768424096 , Total:  0.3270872725014816
+==================================================================================================
+...
+epoch: 496 train loss: 0.001080659 epoch time: 11671.701ms
+epoch: 497 train loss: 0.0007907547 epoch time: 11653.532ms
+epoch: 498 train loss: 0.0015688213 epoch time: 11612.691ms
+epoch: 499 train loss: 0.00085494306 epoch time: 11429.596ms
+epoch: 500 train loss: 0.0026226037 epoch time: 11708.611ms
+    predict total time: 43.506622314453125 ms
+    l2_error, U:  0.16019161506598686 , V:  0.561610130067435 , P:  0.4730013943213571
+    l2_error, uu:  1.0206032668202991 , uv:  0.812573326422638 , vv:  1.5239299913682682 , Total:  0.18547458639343734
+</pre></div></div>
+</div>
+</section>
+<section id="visualization-of-prediction-results">
+<h2>Visualization of Prediction Results<a class="headerlink" href="#visualization-of-prediction-results" title="Permalink to this headline"></a></h2>
+<p>Below is a comparison between the predicted results of the RANS-PINNs model and the ground truth:</p>
+<figure class="half"><p><img alt="63543709244d4394b30a4b61c3016190" class="no-scaled-link" src="../_images/prediction_result.png" style="width: 500px;" /></p>
+</figure><p>The images display the distribution of lateral velocity and vertical velocity at different positions within the flow field. The lower image shows the ground truth, while the upper image displays the predicted values.</p>
+<p>The following is a cross-velocity profile of the RANS-PINNs model:</p>
+<figure class="harf"><p><img alt="2d85a53740ea43fb9d3827a926c5879a" class="no-scaled-link" src="../_images/speed_contour.png" style="width: 500px;" /></p>
+</figure><p>where the blue line is the true value and the orange dashed line is the predicted value.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="kovasznay.html" class="btn btn-neutral float-left" title="PINNs for Kovasznay Flow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="poisson_point_source.html" class="btn btn-neutral float-right" title="PINNs for Point Source Poisson" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright MindSpore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+</body>
+</html>

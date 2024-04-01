@@ -393,6 +393,43 @@ src_strategy.ckpt
 </pre></div>
 </div>
 </section>
+<section id="checkpoint-conversion-in-multiprocessing">
+<h3>CheckPoint Conversion in MultiProcessing<a class="headerlink" href="#checkpoint-conversion-in-multiprocessing" title="Permalink to this headline"></a></h3>
+<p>During the process of writing code for converting the CheckPoint files, users often use the following serial logic, resulting in a conversion time of several hours. For example, the following writing method results in a parallelism of 1, which is not recommended.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="n">dst_device_num</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="k">for</span> <span class="n">tgt_rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dst_device_num</span><span class="p">):</span>
+    <span class="n">rank_list</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">rank_list_for_transform</span><span class="p">(</span><span class="n">tgt_rank</span><span class="p">,</span> <span class="s2">&quot;./src_strategy.ckpt&quot;</span><span class="p">,</span> <span class="s2">&quot;./dst_strategy.ckpt&quot;</span><span class="p">)</span>
+    <span class="n">checkpoint_files_map</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">rank_id</span> <span class="ow">in</span> <span class="n">rank_list</span><span class="p">:</span>
+        <span class="n">checkpoint_file_map</span><span class="p">[</span><span class="n">rank_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args_opt</span><span class="o">.</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rank_id</span><span class="p">),</span> <span class="s2">&quot;checkpoint_</span><span class="si">{}</span><span class="s2">.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rank_id</span><span class="p">))</span>
+    <span class="n">save_checkpoint_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args_opt</span><span class="o">.</span><span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">get_rank</span><span class="p">()),</span> <span class="s2">&quot;checkpoint_</span><span class="si">{}</span><span class="s2">.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">get_rank</span><span class="p">()))</span>
+    <span class="n">ms</span><span class="o">.</span><span class="n">transform_checkpoint_by_rank</span><span class="p">(</span><span class="n">tgt_rank</span><span class="p">,</span> <span class="n">checkpoint_file_map</span><span class="p">,</span> <span class="n">save_checkpoint_path</span><span class="p">,</span> <span class="n">args_opt</span><span class="o">.</span><span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">args_opt</span><span class="o">.</span><span class="n">dst_strategy_file</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can accelerate the procession of ckpt conversion by introducing multi-process method. The specific modification is as follows: each process determines which target rank weight file to convert based on its current rank_id. That is, each process converts only one weight file.</p>
+<blockquote>
+<div><p>Please set the number of processes according to the memory consumed by converting a single weight and the total memory in the current host, otherwise it will cause a memory shortage error in the host.</p>
+</div></blockquote>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span>import sys
+import mindspore as ms
+
+rank_list = ms.rank_list_for_transform(get_rank(), &quot;./src_strategy.ckpt&quot;, &quot;./dst_strategy.ckpt&quot;)
+checkpoint_files_map = {}
+for rank_id in rank_list:
+<span class="w"> </span>   checkpoint_file_map[rank_id] = os.path.join(args_opt.src_checkpoints_dir, &quot;rank_{}&quot;.format(rank_id), &quot;checkpoint_{}.ckpt&quot;.format(rank_id))
+save_checkpoint_path = os.path.join(args_opt.dst_checkpoints_dir, &quot;rank_{}&quot;.format(get_rank()), &quot;checkpoint_{}.ckpt&quot;.format(get_rank()))
+ms.transform_checkpoint_by_rank(get_rank(), checkpoint_file_map, save_checkpoint_path, args_opt.src_strategy_file, args_opt.dst_strategy_file)
+</pre></div>
+</div>
+<p>In addition, you need to configure the startup method. Change the single-process startup to multi-process startup. The following shows an example of a 4-process conversion.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-n<span class="w"> </span><span class="m">4</span><span class="w"> </span>--output-filename<span class="w"> </span>log_output<span class="w"> </span>--merge-stderr-to-stdout<span class="w"> </span>python<span class="w"> </span>model_transformation_infer.py<span class="w"> </span>--only_compile<span class="o">=</span><span class="m">1</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>The code used in this tutorial already adopt the multi-process style. The purpose of this section is to emphasize how to solve the problem of slow conversion in daily use scenarios for users.</p>
+</div></blockquote>
+</section>
 <section id="loading-the-transformed-checkpoint-files">
 <h3>Loading the Transformed Checkpoint Files<a class="headerlink" href="#loading-the-transformed-checkpoint-files" title="Permalink to this headline"></a></h3>
 <p>The network for the target strategy is compiled and the <code class="docutils literal notranslate"><span class="pre">load_checkpoint</span></code> interface is called to load the model parameter data from the transformed Checkpoint file.</p>
