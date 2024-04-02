@@ -393,6 +393,44 @@ src_strategy.ckpt
 </pre></div>
 </div>
 </section>
+<section id="多进程加速转换checkpoint">
+<h3>多进程加速转换CheckPoint<a class="headerlink" href="#多进程加速转换checkpoint" title="Permalink to this headline"></a></h3>
+<p>在编写转换CheckPoint文件的过程中，用户通常会采用下述串行的逻辑，导致转换耗时长达几个小时。例如下述的写法会导致并行度为1，是<strong>不推荐的写法</strong>。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="n">dst_device_num</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="k">for</span> <span class="n">tgt_rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dst_device_num</span><span class="p">):</span>
+    <span class="n">rank_list</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">rank_list_for_transform</span><span class="p">(</span><span class="n">tgt_rank</span><span class="p">,</span> <span class="s2">&quot;./src_strategy.ckpt&quot;</span><span class="p">,</span> <span class="s2">&quot;./dst_strategy.ckpt&quot;</span><span class="p">)</span>
+    <span class="n">checkpoint_files_map</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">rank_id</span> <span class="ow">in</span> <span class="n">rank_list</span><span class="p">:</span>
+        <span class="n">checkpoint_file_map</span><span class="p">[</span><span class="n">rank_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args_opt</span><span class="o">.</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rank_id</span><span class="p">),</span> <span class="s2">&quot;checkpoint_</span><span class="si">{}</span><span class="s2">.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rank_id</span><span class="p">))</span>
+    <span class="n">save_checkpoint_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args_opt</span><span class="o">.</span><span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">get_rank</span><span class="p">()),</span> <span class="s2">&quot;checkpoint_</span><span class="si">{}</span><span class="s2">.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">get_rank</span><span class="p">()))</span>
+    <span class="n">ms</span><span class="o">.</span><span class="n">transform_checkpoint_by_rank</span><span class="p">(</span><span class="n">tgt_rank</span><span class="p">,</span> <span class="n">checkpoint_file_map</span><span class="p">,</span> <span class="n">save_checkpoint_path</span><span class="p">,</span> <span class="n">args_opt</span><span class="o">.</span><span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">args_opt</span><span class="o">.</span><span class="n">dst_strategy_file</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>我们可以采用<strong>多进程</strong>的方法进行ckpt转换加速。
+具体修改如下，每个进程根据当前的rank_id来决定自己要转换哪个目标rank权重文件。即每个进程转换一个权重文件</p>
+<blockquote>
+<div><p>请根据转换单个权重所消耗的内存和当前host内的总内存，来设置总进程数，否则就引起Host内存不足报错。</p>
+</div></blockquote>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span>import sys
+import mindspore as ms
+
+rank_list = ms.rank_list_for_transform(get_rank(), &quot;./src_strategy.ckpt&quot;, &quot;./dst_strategy.ckpt&quot;)
+checkpoint_files_map = {}
+for rank_id in rank_list:
+<span class="w"> </span>   checkpoint_file_map[rank_id] = os.path.join(args_opt.src_checkpoints_dir, &quot;rank_{}&quot;.format(rank_id), &quot;checkpoint_{}.ckpt&quot;.format(rank_id))
+save_checkpoint_path = os.path.join(args_opt.dst_checkpoints_dir, &quot;rank_{}&quot;.format(get_rank()), &quot;checkpoint_{}.ckpt&quot;.format(get_rank()))
+ms.transform_checkpoint_by_rank(get_rank(), checkpoint_file_map, save_checkpoint_path, args_opt.src_strategy_file, args_opt.dst_strategy_file)
+</pre></div>
+</div>
+<p>此外，需要配置下启动方式。将单进程启动改为多进程启动的方式。如下展示了一个4进程转换的方式样例。</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-n<span class="w"> </span><span class="m">4</span><span class="w"> </span>--output-filename<span class="w"> </span>log_output<span class="w"> </span>--merge-stderr-to-stdout<span class="w"> </span>python<span class="w"> </span>model_transformation_infer.py<span class="w"> </span>--only_compile<span class="o">=</span><span class="m">1</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>本教程中使用到的代码，已经按多进程启动的方式设置。本节的目的是为了强调如何解决用户日常使用场景中转换慢的场景。</p>
+</div></blockquote>
+</section>
 <section id="加载转换得到的checkpoint文件">
 <h3>加载转换得到的Checkpoint文件<a class="headerlink" href="#加载转换得到的checkpoint文件" title="Permalink to this headline"></a></h3>
 <p>对目标策略的网络进行编译，调用<code class="docutils literal notranslate"><span class="pre">load_checkpoint</span></code>接口，从转换后的Checkpoint文件中加载模型参数数据。</p>
