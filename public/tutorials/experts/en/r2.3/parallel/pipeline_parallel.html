@@ -232,16 +232,40 @@
 <blockquote>
 <div><p>Under pipeline parallelism, when enabling Print/Summary/TensorDump related operators, the operator needs to be used in a Cell with the pipeline_stage attribute. Otherwise, there is a possibility that the operator will not take effect due to pipeline parallel split.</p>
 </div></blockquote>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span><span class="p">,</span> <span class="n">HeUniform</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="k">class</span> <span class="nc">MatMulCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    MatMulCell definition.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">shape</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="p">[</span><span class="mi">28</span> <span class="o">*</span> <span class="mi">28</span><span class="p">,</span> <span class="mi">512</span><span class="p">]</span>
+        <span class="n">weight_init</span> <span class="o">=</span> <span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="n">weight_init</span><span class="p">,</span> <span class="n">shape</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;param&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">param</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">param</span> <span class="o">=</span> <span class="n">param</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">print</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Print</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MatMul</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">param</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">&quot;out is:&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
 
 <span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">relu1</span><span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span> <span class="o">=</span> <span class="n">MatMulCell</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">relu2</span><span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
@@ -323,13 +347,21 @@
 </pre></div>
 </div>
 <p>The results are saved in <code class="docutils literal notranslate"><span class="pre">log_output/1/rank.*/stdout</span></code>, and the example is as below:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0 step: 0, loss is 9.087993
-epoch: 0 step: 10, loss is 8.575434
-epoch: 0 step: 20, loss is 8.185939
-epoch: 0 step: 30, loss is 6.7301626
-epoch: 0 step: 40, loss is 5.2246842
-epoch: 0 step: 50, loss is 3.8342278
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0 step: 0, loss is 9.137518
+epoch: 0 step: 10, loss is 8.826559
+epoch: 0 step: 20, loss is 8.675843
+epoch: 0 step: 30, loss is 8.307994
+epoch: 0 step: 40, loss is 7.856993
+epoch: 0 step: 50, loss is 7.0662785
 ...
+</pre></div>
+</div>
+<p>The results of operator <code class="docutils literal notranslate"><span class="pre">Print</span></code> is:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>out is:
+Tensor(shape=[8, 512], dtype=Float32, value=
+[[ 4.61914062e-01 5.78613281e-01 1.34995094e-01 ... 8.54492188e-02 7.91992188e-01 2.13378906e-01]
+...
+[  4.89746094e-01 3.56689453e-01 -4.90966797e-01 ... -3.30078125e-e01 -2.38525391e-01 7.33398438e-01]])
 </pre></div>
 </div>
 <p>Other startup methods such as dynamic cluster and <code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">table</span></code> startup can be found in <a class="reference external" href="https://www.mindspore.cn/tutorials/experts/en/r2.3/parallel/startup_method.html">startup methods</a>.</p>

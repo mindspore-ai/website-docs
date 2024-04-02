@@ -231,18 +231,42 @@
 <h3>定义网络<a class="headerlink" href="#定义网络" title="永久链接至标题"></a></h3>
 <p>流水线并行网络结构与单卡网络结构基本一致，区别在于增加了流水线并行策略配置。流水线并行需要用户去定义并行的策略，通过调用<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>接口来指定每个layer要在哪个stage上去执行。<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>接口的粒度为<code class="docutils literal notranslate"><span class="pre">Cell</span></code>。所有包含训练参数的<code class="docutils literal notranslate"><span class="pre">Cell</span></code>都需要配置<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>，并且<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>要按照网络执行的先后顺序，从小到大进行配置。在单卡模型基础上，增加<code class="docutils literal notranslate"><span class="pre">pipeline_stage</span></code>配置后如下：</p>
 <blockquote>
-<div><p>在pipeline并行下，使能Print/Summary/TensorDump相关算子时，需要把该算子放到有pipeline_state属性的Cell中使用，否则有概率由pipeline并行切分导致算子不生效。</p>
+<div><p>在pipeline并行下，使能Print/Summary/TensorDump相关算子时，需要把该算子放到有pipeline_stage属性的Cell中使用，否则有概率由pipeline并行切分导致算子不生效。</p>
 </div></blockquote>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span><span class="p">,</span> <span class="n">HeUniform</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="k">class</span> <span class="nc">MatMulCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    MatMulCell definition.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">shape</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="p">[</span><span class="mi">28</span> <span class="o">*</span> <span class="mi">28</span><span class="p">,</span> <span class="mi">512</span><span class="p">]</span>
+        <span class="n">weight_init</span> <span class="o">=</span> <span class="n">HeUniform</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="n">weight_init</span><span class="p">,</span> <span class="n">shape</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;param&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">param</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">param</span> <span class="o">=</span> <span class="n">param</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">print</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Print</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MatMul</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">param</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">&quot;out is:&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
 
 <span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">relu1</span><span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer1</span> <span class="o">=</span> <span class="n">MatMulCell</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layer2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">relu2</span><span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
@@ -253,6 +277,7 @@
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer3</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">logits</span>
+
 
 <span class="n">net</span> <span class="o">=</span> <span class="n">Network</span><span class="p">()</span>
 <span class="n">net</span><span class="o">.</span><span class="n">layer1</span><span class="o">.</span><span class="n">pipeline_stage</span> <span class="o">=</span> <span class="mi">0</span>
@@ -324,13 +349,21 @@
 </pre></div>
 </div>
 <p>结果保存在<code class="docutils literal notranslate"><span class="pre">log_output/1/rank.*/stdout</span></code>中，示例如下：</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0 step: 0, loss is 9.087993
-epoch: 0 step: 10, loss is 8.575434
-epoch: 0 step: 20, loss is 8.185939
-epoch: 0 step: 30, loss is 6.7301626
-epoch: 0 step: 40, loss is 5.2246842
-epoch: 0 step: 50, loss is 3.8342278
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0 step: 0, loss is 9.137518
+epoch: 0 step: 10, loss is 8.826559
+epoch: 0 step: 20, loss is 8.675843
+epoch: 0 step: 30, loss is 8.307994
+epoch: 0 step: 40, loss is 7.856993
+epoch: 0 step: 50, loss is 7.0662785
 ...
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Print</span></code> 算子的结果为:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>out is:
+Tensor(shape=[8, 512], dtype=Float32, value=
+[[ 4.61914062e-01 5.78613281e-01 1.34995094e-01 ... 8.54492188e-02 7.91992188e-01 2.13378906e-01]
+...
+[  4.89746094e-01 3.56689453e-01 -4.90966797e-01 ... -3.30078125e-e01 -2.38525391e-01 7.33398438e-01]])
 </pre></div>
 </div>
 <p>其他启动方式如动态组网、<code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">table</span></code>的启动可参考<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/r2.3/parallel/startup_method.html">启动方式</a>。</p>
