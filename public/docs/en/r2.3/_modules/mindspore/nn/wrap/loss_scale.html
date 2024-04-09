@@ -165,6 +165,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">composite</span> <span class="k">as</span> <span class="n">C</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
+<span class="kn">from</span> <span class="nn">mindspore.ops.operations.nn_ops</span> <span class="kn">import</span> <span class="n">AllFinite</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">jit</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">MSContext</span>
@@ -507,6 +508,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ascend_910bc_target</span> <span class="o">=</span> <span class="p">(</span><span class="n">MSContext</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">get_ascend_soc_version</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ascend910b&#39;</span><span class="p">,</span> <span class="s1">&#39;ascend910c&#39;</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">loss_scaling_manager</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ascend_check_overflow_mode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;MS_ASCEND_CHECK_OVERFLOW_MODE&#39;</span><span class="p">)</span>
+        <span class="n">jit_kernel</span> <span class="o">=</span> <span class="s2">&quot;jit_level&quot;</span> <span class="ow">in</span> <span class="n">network</span><span class="o">.</span><span class="n">jit_config_dict</span> <span class="ow">and</span> <span class="n">network</span><span class="o">.</span><span class="n">jit_config_dict</span><span class="p">[</span><span class="s2">&quot;jit_level&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;O0&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel_mode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;GRAPH_OP_RUN&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;1&quot;</span> <span class="ow">or</span> <span class="n">jit_kernel</span>
 
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scale_sense</span><span class="p">,</span> <span class="n">Cell</span><span class="p">):</span>
@@ -614,6 +617,15 @@
             <span class="n">overflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">less_equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="p">,</span> <span class="n">flag_sum</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">overflow</span>
 
+    <span class="k">def</span> <span class="nf">_get_distributed_overflow_status_on_infnan_kernel_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;check overflow status on infnan kernel mode.&quot;&quot;&quot;</span>
+        <span class="n">overflow</span> <span class="o">=</span> <span class="n">AllFinite</span><span class="p">()(</span><span class="n">compute_output</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_distributed</span><span class="p">:</span>
+            <span class="n">overflow</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Cast</span><span class="p">()(</span><span class="n">overflow</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+            <span class="n">overflow</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">Cast</span><span class="p">()(</span><span class="bp">self</span><span class="o">.</span><span class="n">allreduce</span><span class="p">(</span><span class="n">overflow</span><span class="p">),</span> <span class="n">mstype</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">overflow</span>
+
     <span class="k">def</span> <span class="nf">_get_gpu_overflow_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;get overflow status of gpu.&quot;&quot;&quot;</span>
         <span class="n">overflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_distributed_overflow_status_on_infnan_mode</span><span class="p">(</span><span class="n">_grad_overflow</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">)</span>
@@ -621,7 +633,11 @@
 
     <span class="k">def</span> <span class="nf">_get_ascend_overflow_status_on_infnan_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;get overflow status of ascend on infnan mode.&quot;&quot;&quot;</span>
-        <span class="n">overflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_distributed_overflow_status_on_infnan_mode</span><span class="p">(</span><span class="n">_ascend_grad_overflow</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">)</span>
+        <span class="n">overflow</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_mode</span><span class="p">:</span>
+            <span class="n">overflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_distributed_overflow_status_on_infnan_kernel_mode</span><span class="p">(</span><span class="n">compute_output</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">overflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_distributed_overflow_status_on_infnan_mode</span><span class="p">(</span><span class="n">_ascend_grad_overflow</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">overflow</span>
 
     <span class="k">def</span> <span class="nf">_get_ascend_overflow_status_on_saturation_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">compute_output</span><span class="p">):</span>

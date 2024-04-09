@@ -544,19 +544,18 @@
                          <span class="nb">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)))</span>
     <span class="n">src_layout_map</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
     <span class="n">dst_layout_map</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
-    <span class="n">pipeline_stage_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">layout</span> <span class="ow">in</span> <span class="n">src_layout_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="n">pipeline_stage_set</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">layout</span><span class="p">[</span><span class="mi">6</span><span class="p">])</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pipeline_stage_set</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">set</span><span class="p">(</span><span class="n">dst_layout_map</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">src_layout_map</span><span class="p">):</span>
-        <span class="n">_transform_checkpoints</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="n">ckpt_prefix</span><span class="p">,</span>
-                               <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
+    <span class="n">pipeline_stage_num</span> <span class="o">=</span> <span class="n">_extract_pipeline_stage_num</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">src_layout_map</span> <span class="ow">and</span> <span class="n">dst_layout_map</span> <span class="ow">and</span> <span class="n">pipeline_stage_num</span> <span class="o">==</span> <span class="mi">1</span> \
+        <span class="ow">and</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">dst_layout_map</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">src_layout_map</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
         <span class="n">dst_stage_num</span> <span class="o">=</span> <span class="n">_extract_pipeline_stage_num</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">dst_stage_num</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;When using unmerged src strategy, dst strategy doesn&#39;t </span><span class="se">\</span>
 <span class="s2">                                       support strategy with pipeline parallel.&quot;</span><span class="p">)</span>
         <span class="n">_transform_checkpoint_by_stage</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="n">ckpt_prefix</span><span class="p">,</span>
-                                       <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span></div>
+                                       <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_transform_checkpoints</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="n">ckpt_prefix</span><span class="p">,</span>
+                               <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span></div>
 
 
 <span class="k">def</span> <span class="nf">_sync_params</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span> <span class="n">layout</span><span class="p">):</span>
@@ -698,7 +697,7 @@
 <span class="sd">          And using either of those two args will override `choice_func` at the same time.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        ckpt_file_name (str): Checkpoint file name.</span>
+<span class="sd">        ckpt_file_dir (str): Checkpoint file directory.</span>
 <span class="sd">        net (Cell): The network where the parameters will be loaded. Default: ``None`` .</span>
 <span class="sd">        strict_load (bool): Whether to strict load the parameter into net. If ``False`` , it will load parameter</span>
 <span class="sd">                            into net when parameter name&#39;s suffix in checkpoint file is the same as the</span>
@@ -729,33 +728,6 @@
 <span class="sd">        ValueError: Checkpoint file&#39;s format is incorrect.</span>
 <span class="sd">        ValueError: Parameter&#39;s dict is None after load checkpoint file.</span>
 <span class="sd">        TypeError: The type of `specify_prefix` or `filter_prefix` is incorrect.</span>
-
-<span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; ckpt_file_dir = &quot;./checkpoint/&quot;</span>
-<span class="sd">        &gt;&gt;&gt; param_dict = ms.load_segmented_checkpoints(ckpt_file_dir,</span>
-<span class="sd">        ...                                 choice_func=lambda x: x.startswith(&quot;conv&quot;) and not x.startswith(&quot;conv1&quot;))</span>
-<span class="sd">        &gt;&gt;&gt; print(param_dict[&quot;conv2.weight&quot;])</span>
-<span class="sd">        Parameter (name=conv2.weight, shape=(16, 6, 5, 5), dtype=Float32, requires_grad=True)</span>
-<span class="sd">        &gt;&gt;&gt; def func(param_name):</span>
-<span class="sd">        ...     whether_load = False</span>
-<span class="sd">        ...     if param_name.startswith(&quot;conv&quot;):</span>
-<span class="sd">        ...         whether_load = True</span>
-<span class="sd">        ...     if param_name.startswith(&quot;conv1&quot;):</span>
-<span class="sd">        ...         whether_load = False</span>
-<span class="sd">        ...     return whether_load</span>
-<span class="sd">        &gt;&gt;&gt; param_dict1 = ms.load_segmented_checkpoints(ckpt_file_dir, choice_func=func)</span>
-<span class="sd">        &gt;&gt;&gt; print(param_dict1[&quot;conv2.weight&quot;])</span>
-<span class="sd">        Parameter (name=conv2.weight, shape=(16, 6, 5, 5), dtype=Float32, requires_grad=True)</span>
-<span class="sd">        &gt;&gt;&gt; def func(param_name):</span>
-<span class="sd">        ...     whether_load = False</span>
-<span class="sd">        ...     if param_name.startswith(&quot;conv1&quot;):</span>
-<span class="sd">        ...         whether_load = True</span>
-<span class="sd">        ...     return whether_load</span>
-<span class="sd">        &gt;&gt;&gt; param_dict2 = ms.load_segmented_checkpoints(ckpt_file_dir, choice_func=func)</span>
-<span class="sd">        &gt;&gt;&gt; print(param_dict2)</span>
-<span class="sd">        {&#39;conv1.weight&#39;: Parameter (name=conv1.weight, shape=(6, 1, 5, 5), dtype=Float32, requires_grad=True)}</span>
 
 <span class="sd">    Tutorial Examples:</span>
 <span class="sd">        - `Saving and Loading the Model - Saving and Loading the Model Weight</span>
