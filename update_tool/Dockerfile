@@ -68,7 +68,7 @@ ARG GIT_PASSWORD=GIT_PASSWORD
 RUN mkdir -p /root/clone \
     && cd /root/clone \
     && git clone https://gitee.com/mindspore/docs.git -b "${VERSION}" \
-    && git clone https://fu-xinji:LY5201314@gitee.com/fu-xinji/website-docs.git -b "dev" \
+    && git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/mindspore/website-docs.git -b "${TARGET_BRANCH:-master}" \
     && git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@gitee.com/gemini524/website-log.git 
 
 COPY . /root/build-docs
