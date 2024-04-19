@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diffusion Model &mdash; MindSpore master documentation</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
+        <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script crossorigin="anonymous" integrity="sha256-1fEPhSsRKlFKGfK3eO710tEweHh1fwokU5wFGDHO+vg=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script><script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script><script async="async" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/mathjax/MathJax-3.2.2/es5/tex-mml-chtml.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="CycleGAN for Image Style Migration" href="cyclegan.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">CV</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cv/resnet50.html">ResNet-50 for Image Classification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/transfer_learning.html">ResNet50 Transfer Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/vit.html">Vision Transformer Image Classification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/cnnctc.html">CNN and CTC for Recognizing Text from Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/fcn8s.html">FCN for Image Semantic Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/shufflenet.html">ShuffleNet for Image Classification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cv/ssd.html">SSD for Object Detection</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NLP</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../nlp/sentiment_analysis.html">Sentiment Classification Implemented by RNN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../nlp/sequence_labeling.html">LSTM+CRF Sequence Labeling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Generative</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="gan.html">GAN for Image Generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dcgan.html">Generating Cartoon Head Portrait via DCGAN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pix2pix.html">Pix2Pix for Image Translation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cyclegan.html">CycleGAN for Image Style Migration</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Diffusion Model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#model-introduction">Model Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#diffusion-model-1">Diffusion Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#implementation-principle-of-the-diffusion-model">Implementation Principle of the Diffusion Model</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#forward-diffusion-process">Forward Diffusion Process</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#reverse-diffusion-process">Reverse Diffusion Process</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#noise-prediction-using-the-u-net-neural-network">Noise Prediction Using the U-Net Neural Network</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#building-a-diffusion-model">Building a Diffusion Model</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#position-embeddings">Position Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#resnet/convnext-block">ResNet/ConvNeXT Block</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#attention-module">Attention Module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#group-normalization">Group Normalization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#conditional-u-net">Conditional U-Net</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#forward-diffusion">Forward Diffusion</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#data-preparation-and-processing">Data Preparation and Processing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sampling">Sampling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#training-process">Training Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#inference-process-sampling-from-a-model">Inference Process (Sampling from a Model)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#conclusion">Conclusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Diffusion Model</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/generative/diffusion.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section class="tex2jax_ignore mathjax_ignore" id="diffusion-model">
+<h1>Diffusion Model<a class="headerlink" href="#diffusion-model" title="Permalink to this headline"></a></h1>
+<p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.3.q1/tutorials/application/source_en/generative/diffusion.md"><img alt="View Source On Gitee" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3.q1/resource/_static/logo_source_en.svg" /></a></p>
+<p>This document is based on <a class="reference external" href="https://huggingface.co/blog/annotated-diffusion">Hugging Face: The Annotated Diffusion Model</a> and <a class="reference external" href="https://zhuanlan.zhihu.com/p/525106459">Understanding Diffusion Model</a>.</p>
+<blockquote>
+<div><p>This tutorial is successfully executed on Jupyter Notebook. If you download this document as a Python file, ensure that the GUI is installed before executing the Python file.</p>
+</div></blockquote>
+<p>There are many explanations of diffusion models. This document will introduce it based on denoising diffusion probabilistic model (DDPM). Many remarkable results about DDPM have been achieved for (un)conditional image/audio/video generation. Popular examples include <a class="reference external" href="https://arxiv.org/abs/2112.10741">GLIDE</a> and <a class="reference external" href="https://openai.com/dall-e-2/">DALL-E 2</a> by OpenAI, <a class="reference external" href="https://github.com/CompVis/latent-diffusion">Latent Diffusion</a> by the University of Heidelberg and <a class="reference external" href="https://imagen.research.google/">Image Generation</a> by Google Brain.</p>
+<p>Actually, the idea of diffusion-based generative models was already introduced by <a class="reference external" href="https://arxiv.org/abs/1503.03585">Sohl-Dickstein et al., 2015</a>. <a class="reference external" href="https://arxiv.org/abs/1907.05600">Song et al., 2019</a> (at Stanford University) and <a class="reference external" href="https://arxiv.org/abs/2006.11239">Ho et al., 2020</a> (at Google Brain) independently improve the method.</p>
+<p>The method stated in this document is achieved on MindSpore AI framework and refers to Phil Wang’s <a class="reference external" href="https://github.com/lucidrains/denoising-diffusion-pytorch">Denoising Diffusion Probabilistic Model, in PyTorch</a> (which is achieved based on <a class="reference external" href="https://github.com/hojonathanho/diffusion">TensorFlow</a>).</p>
+<p><img alt="Image-1" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3.q1/tutorials/application/source_zh_cn/generative/images/diffusion_1.png" /></p>
+<p>We adopt the discrete time (potential variable model) in the experiment. In addition, you can see <a class="reference external" href="https://twitter.com/sedielem/status/1530894256168222722?s=20&amp;t=mfv4afx1GcNQU5fZklpACw">other opinions</a> on diffusion models.</p>
+<p>Before the experiment, install and import the required libraries (assuming you have installed <a class="reference external" href="https://mindspore.cn/install">MindSpore</a>, download, dataset, matplotlib, and tqdm).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="o">%</span><span class="n">matplotlib</span> <span class="n">inline</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">tqdm.auto</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="kn">import</span> <span class="n">cpu_count</span>
+<span class="kn">from</span> <span class="nn">download</span> <span class="kn">import</span> <span class="n">download</span>
+
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">mindspore.ops</span> <span class="k">as</span> <span class="nn">ops</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
+<span class="kn">from</span> <span class="nn">mindspore.dataset.vision</span> <span class="kn">import</span> <span class="n">Resize</span><span class="p">,</span> <span class="n">Inter</span><span class="p">,</span> <span class="n">CenterCrop</span><span class="p">,</span> <span class="n">ToTensor</span><span class="p">,</span> <span class="n">RandomHorizontalFlip</span><span class="p">,</span> <span class="n">ToPIL</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span>
+<span class="kn">from</span> <span class="nn">mindspore.amp</span> <span class="kn">import</span> <span class="n">DynamicLossScaler</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="model-introduction">
+<h2>Model Introduction<a class="headerlink" href="#model-introduction" title="Permalink to this headline"></a></h2>
+<section id="diffusion-model-1">
+<h3>Diffusion Model<a class="headerlink" href="#diffusion-model-1" title="Permalink to this headline"></a></h3>
+<p>A diffusion model is not complex if you compare it to other generative models such as Normalizing Flows, GANs, or VAEs which convert noise from some simple distribution to a data sample. A diffusion model learns to gradually denoise pure noise through a neural network to generate an actual image.
+Processing images using a diffusion model consists of 2 processes.</p>
+<ul class="simple">
+<li><p>A fixed (or predefined) forward diffusion process <span class="math notranslate nohighlight">\(q\)</span> that gradually adds Gaussian noise to an image to obtain pure noise.</p></li>
+<li><p>A reverse denoising diffusion process <span class="math notranslate nohighlight">\(p_\theta\)</span> that learns to gradually denoise pure noise through a neural network to generate an actual image.</p></li>
+</ul>
+<p><img alt="Image-2" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3.q1/tutorials/application/source_zh_cn/generative/images/diffusion_2.png" /></p>
+<p>Both the forward and reverse processes indexed by <span class="math notranslate nohighlight">\(t\)</span> occur within the number of limited time steps <span class="math notranslate nohighlight">\(T\)</span> (the DDPM authors use <span class="math notranslate nohighlight">\(T = 1000\)</span>). We start with <span class="math notranslate nohighlight">\(t=0\)</span>, sample the real image <span class="math notranslate nohighlight">\(\mathbf{x}_0\)</span> from the data distribution. A cat image from ImageNet is used to show the forward diffusion process, which samples some noise from a Gaussian distribution at each time step <span class="math notranslate nohighlight">\(t\)</span> and adds the noise to the image of the previous time step. Assume that a sufficiently large <span class="math notranslate nohighlight">\(T\)</span> and a well behaved schedule for adding noise at each time step, you will end up with what is called an <a class="reference external" href="https://math.stackexchange.com/questions/1991961/gaussian-distribution-is-isotropic">Isotropic Gaussian Distribution</a> at <span class="math notranslate nohighlight">\(t = T\)</span> via a gradual process.</p>
+</section>
+<section id="implementation-principle-of-the-diffusion-model">
+<h3>Implementation Principle of the Diffusion Model<a class="headerlink" href="#implementation-principle-of-the-diffusion-model" title="Permalink to this headline"></a></h3>
+<section id="forward-diffusion-process">
+<h4>Forward Diffusion Process<a class="headerlink" href="#forward-diffusion-process" title="Permalink to this headline"></a></h4>
+<p>The forward diffusion process is to add Gaussian noise to an image. Although images cannot be generated at this step, it is critical to understand diffusion models and build training samples.
+First, we need a controllable loss function and optimize the function by a neural network.</p>
+<p>Assume that <span class="math notranslate nohighlight">\(q(x_0)\)</span> is a real data distribution. Because of <span class="math notranslate nohighlight">\(x_0 \sim q(x_0)\)</span>, we can sample from this distribution to obtain the image <span class="math notranslate nohighlight">\(x_0\)</span>. Next, we define the forward diffusion process <span class="math notranslate nohighlight">\(q(x_t | x_{t-1})\)</span>. In the forward process, we add Gaussian noise at each time step t based on the known variance <span class="math notranslate nohighlight">\({0}&lt;\beta{1}&lt;\beta{2}&lt;... &lt;\beta_{T}&lt;{1}\)</span>. Each step t is related only to the step t-1. Therefore the process may also be considered as a Markov process.</p>
+<div class="math notranslate nohighlight">
+\[
+q(\mathbf{x}_t | \mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1 - \beta_t} \mathbf{x}_{t-1}, \beta_t \mathbf{I})
+\]</div>
+<p>The normal distribution (also known as Gaussian distribution) is defined by two parameters: a mean <span class="math notranslate nohighlight">\(\mu\)</span> and a variance <span class="math notranslate nohighlight">\(\sigma^2 \geq 0\)</span>. Basically, each new (slightly noised) image at time step <span class="math notranslate nohighlight">\(t\)</span> is drawn from a conditional Gaussian distribution, where:</p>
+<div class="math notranslate nohighlight">
+\[
+q(\mathbf{\mu}_t) = \sqrt{1 - \beta_t} \mathbf{x}_{t-1}
+\]</div>
+<p>We can sample <span class="math notranslate nohighlight">\(\mathbf{\epsilon} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})\)</span> and then set:</p>
+<div class="math notranslate nohighlight">
+\[
+q(\mathbf{x}_t) = \sqrt{1 - \beta_t} \mathbf{x}_{t-1} +  \sqrt{\beta_t} \mathbf{\epsilon}
+\]</div>
+<p>Note that <span class="math notranslate nohighlight">\(\beta_t\)</span> is not constant at each time step <span class="math notranslate nohighlight">\(t\)</span> (hence the subscript). In fact, we define a so-called “dynamic variance” method, so that <span class="math notranslate nohighlight">\(\beta_t\)</span> of each time step can be linear, quadratic, cosine, etc. (a bit like dynamic learning rate method).</p>
+<p>Therefore, if we set the schedule properly, starting from <span class="math notranslate nohighlight">\(\mathbf{x}_0\)</span>, we will end up with <span class="math notranslate nohighlight">\(\mathbf{x}_1, ..., \mathbf{x} _t, ..., \mathbf{x}_T\)</span>. That is, as <span class="math notranslate nohighlight">\(t\)</span> increases, <span class="math notranslate nohighlight">\(\mathbf{x}_t\)</span> becomes more similar to pure noise. <span class="math notranslate nohighlight">\(\mathbf{x}_T\)</span> is the pure Gaussian noise.</p>
+<p>If we know the conditional probability distribution <span class="math notranslate nohighlight">\(p(\mathbf{x} _{t-1} | \mathbf{x}_t)\)</span>, we can run the process reversely: sample some random Gaussian noise <span class="math notranslate nohighlight">\(\mathbf{x}_T\)</span>, and then gradually denoise it so that we end up with a sample in the real distribution <span class="math notranslate nohighlight">\(\mathbf{x}_0\)</span>. However, we do not know the conditional probability distribution <span class="math notranslate nohighlight">\(p(\mathbf{x}_{t-1} | \mathbf{x}_t)\)</span>. This is intractable since it requires the distribution of all possible images in order to calculate this conditional probability.</p>
+</section>
+<section id="reverse-diffusion-process">
+<h4>Reverse Diffusion Process<a class="headerlink" href="#reverse-diffusion-process" title="Permalink to this headline"></a></h4>
+<p>To solve the preceding problem, a neural network is used to approximate (or learn) the conditional probability distribution <span class="math notranslate nohighlight">\(p_\theta (\mathbf{x}_{t-1} | \mathbf{x}_t)\)</span>, where <span class="math notranslate nohighlight">\(\theta\)</span> is a parameter of the neural network. If we say the forward diffusion process is a noise adding process, the reverse diffusion process is a denoising process that uses a neural network to represent the reverse process <span class="math notranslate nohighlight">\(p_\theta (\mathbf{x}_{t-1} | \mathbf{x}_t)\)</span>.</p>
+<p>Now we need a neural network to represent a (conditional) probability distribution of the reverse process. If we assume this reverse process is Gaussian as well, then any Gaussian distribution is defined by 2 parameters:</p>
+<ul class="simple">
+<li><p>A mean parametrized by <span class="math notranslate nohighlight">\(\mu_\theta\)</span>.</p></li>
+<li><p>A variance parametrized by <span class="math notranslate nohighlight">\(\mu_\theta\)</span>.</p></li>
+</ul>
+<p>We can formulate the process as follows:</p>
+<div class="math notranslate nohighlight">
+\[
+p_\theta (\mathbf{x}_{t-1} | \mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1};\mu_\theta(\mathbf{x}_{t},t), \Sigma_\theta (\mathbf{x}_{t},t))
+\]</div>
+<p>The mean and variance are determined by the noise level <span class="math notranslate nohighlight">\(t\)</span>. Therefore, the neural network needs to learn and represent the mean and variance.</p>
+<ul class="simple">
+<li><p>However, the DDPM authors decided to keep the variance fixed, and let the neural network only learn (represent) the mean <span class="math notranslate nohighlight">\(\mu_\theta\)</span>​ of this conditional probability distribution.</p></li>
+<li><p>In this document, we also assume that the neural network only needs to learn (represent) the mean <span class="math notranslate nohighlight">\(\mu_\theta\)</span> of this conditional probability distribution.</p></li>
+</ul>
+<p>To derive an objective function to learn the mean of the reverse process, the authors observe that the combination of <span class="math notranslate nohighlight">\(q\)</span> and <span class="math notranslate nohighlight">\(p_\theta\)</span> can be seen as a variational auto-encoder (VAE). Thus, the variational lower bound (also called evidence lower bound, ELBO) can be used to minimize the negative log-likelihood with respect to ground truth data sample <span class="math notranslate nohighlight">\(\mathbf{x}_0\)</span> (For more information about ELBO, see the VAE paper <a class="reference external" href="https://arxiv.org/abs/1312.6114">(Kingma et al., 2013)</a>). It turns out that the ELBO for this process is a sum of losses at each time step <span class="math notranslate nohighlight">\(L=L_0+L_1+...+L_T\)</span>. Each term (except for <span class="math notranslate nohighlight">\(L_0\)</span>​) of the loss is actually the KL divergence between 2 Gaussian distributions which can be written explicitly as an L2-loss relative to the means.</p>
+<p>As Sohl-Dickstein et al. show, a direct consequence of the constructed forward process is that we can sample <span class="math notranslate nohighlight">\(\mathbf{x}_t\)</span> at any arbitrary noise level conditioned on <span class="math notranslate nohighlight">\(\mathbf{x}_0\)</span> (because sums of Gaussians are also Gaussian). It is very convenient to sample <span class="math notranslate nohighlight">\(\mathbf{x}_t\)</span> without applying <span class="math notranslate nohighlight">\(q\)</span> repeatedly. If we use:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+\\\alpha_t := 1 - \beta_t\\\\\bar{\alpha}t := \Pi_{s=1}^{t} \alpha_s\\
+\end{split}\]</div>
+<p>We will obtain the following result:</p>
+<div class="math notranslate nohighlight">
+\[  
+q(\mathbf{x}_t | \mathbf{x}_0) = \cal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_t} \mathbf{x}_0, (1- \bar{\alpha}_t) \mathbf{I})
+\]</div>
+<p>This means that we can sample the Gaussian noise and scale it properly, and then add it to <span class="math notranslate nohighlight">\(\mathbf{x}_0\)</span> to obtain <span class="math notranslate nohighlight">\(\mathbf{x}_t\)</span> directly.</p>
+<p>Note that <span class="math notranslate nohighlight">\(\bar{\alpha}_t\)</span> is a function of the known <span class="math notranslate nohighlight">\(\beta_t\)</span> variance schedule and therefore is also known and can be calculated in advance. This allows us to optimize random terms of the loss function <span class="math notranslate nohighlight">\(L\)</span> during training. Or in other words, to randomly sample <span class="math notranslate nohighlight">\(t\)</span> during training and optimize <span class="math notranslate nohighlight">\(L_t\)</span>.</p>
+<p>As Ho et al. show, another advantage of this property is that the mean can be re-parametrized so that the neural network can learn (predict) the added noise in the KL terms which constitute the losses. This means that our neural network becomes a noise predictor, rather than a (direct) mean predictor. The mean can be calculated as follows:</p>
+<div class="math notranslate nohighlight">
+\[ \mathbf{\mu}_\theta(\mathbf{x}_t, t) = \frac{1}{\sqrt{\alpha_t}} \left(  \mathbf{x}_t - \frac{\beta_t}{\sqrt{1- \bar{\alpha}_t}} \mathbf{\epsilon}_\theta(\mathbf{x}_t, t) \right) \]</div>
+<p>The final objective function <span class="math notranslate nohighlight">\({L}_{t}\)</span> is as follows (for a random time step t given by <span class="math notranslate nohighlight">\(({\epsilon} \sim N(\mathbf{0}, \mathbf{I}))\)</span>).</p>
+<div class="math notranslate nohighlight">
+\[ \| \mathbf{\epsilon} - \mathbf{\epsilon}_\theta(\mathbf{x}_t, t) \|^2 = \| \mathbf{\epsilon} - \mathbf{\epsilon}_\theta( \sqrt{\bar{\alpha}_t} \mathbf{x}_0 + \sqrt{(1- \bar{\alpha}_t)  } \mathbf{\epsilon}, t) \|^2\]</div>
+<p><span class="math notranslate nohighlight">\(\mathbf{x}_0\)</span> is the initial (real and undamaged) image here, <span class="math notranslate nohighlight">\(\mathbf{\epsilon}\)</span> is the pure noise sampled at the time step <span class="math notranslate nohighlight">\(t\)</span>, and <span class="math notranslate nohighlight">\(\mathbf{\epsilon}_\theta (\mathbf{x}_t, t)\)</span> is our neural network. The neural network is optimized using a simple mean squared error (MSE) between the true and the predicted Gaussian noise.</p>
+<p>The training algorithm is shown as follows:</p>
+<p><img alt="Image-3" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3.q1/tutorials/application/source_zh_cn/generative/images/diffusion_3.png" /></p>
+<p>In other words:</p>
+<ul class="simple">
+<li><p>We randomly select a sample <span class="math notranslate nohighlight">\(q(\mathbf{x}_0)\)</span> from the real unknown and possibly complex data distribution.</p></li>
+<li><p>We sample a noise level <span class="math notranslate nohighlight">\(t\)</span> (that is., random time step) uniformly between <span class="math notranslate nohighlight">\(1\)</span> and <span class="math notranslate nohighlight">\(T\)</span>.</p></li>
+<li><p>We sample some noise from a Gaussian distribution and destroy the input at the time step <span class="math notranslate nohighlight">\(t\)</span> by using the nice property defined above.</p></li>
+<li><p>The neural network is trained to predict this noise based on the damaged image <span class="math notranslate nohighlight">\(\mathbf{x}_t\)</span>, that is, the applied noise is based on the known schedule <span class="math notranslate nohighlight">\(\mathbf{x}_t\)</span>.</p></li>
+</ul>
+<p>In fact, all of these operations are done by using stochastic gradient descent on batches of data to optimize neural networks.</p>
+</section>
+<section id="noise-prediction-using-the-u-net-neural-network">
+<h4>Noise Prediction Using the U-Net Neural Network<a class="headerlink" href="#noise-prediction-using-the-u-net-neural-network" title="Permalink to this headline"></a></h4>
+<p>The neural network needs to receive a noised image at a specific time step and return the predicted noise. Note that the predicted noise is a tensor with the same size/resolution as the input image. So technically, the network receives and outputs tensors of the same shape. What type of neural network can we use to achieve it?</p>
+<p>What we always use here is very similar to the <a class="reference external" href="https://en.wikipedia.org/wiki/Autoencoder">autoencoder</a>. Between the encoder and decoder, the autoencoder has a bottleneck layer. The encoder first encodes an image into a smaller hidden representation called the “bottleneck”, and the decoder then decodes that hidden representation back into an actual image. This forces the network to retain only the most important information in the bottleneck layer.</p>
+<p>As for model architecture, the DDPM authors chose U-Net, which is introduced by <a class="reference external" href="https://arxiv.org/abs/1505.04597">Ronneberger et al., 2015</a> and got the highest level achievement in medical image segmentation at that time. Like any autoencoder, this network consists of a bottleneck in the middle, ensuring that the network learns only the most important information. Importantly, it introduces residual connections between the encoder and decoder, greatly improving gradient flows (which is inspired by <a class="reference external" href="https://arxiv.org/abs/1512.03385">He et al., 2015</a>).</p>
+<p><img alt="Image-4" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3.q1/tutorials/application/source_zh_cn/generative/images/diffusion_4.jpg" /></p>
+<p>We can see that the U-Net model downsamples the input (that is, makes the input smaller in terms of spatial resolution), and then performs upsampling.</p>
+</section>
+</section>
+</section>
+<section id="building-a-diffusion-model">
+<h2>Building a Diffusion Model<a class="headerlink" href="#building-a-diffusion-model" title="Permalink to this headline"></a></h2>
+<p>Here we will explain each step of building a diffusion model.</p>
+<p>First, define some helper functions and classes that will be used when implementing the neural network.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">rearrange</span><span class="p">(</span><span class="n">head</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+    <span class="n">b</span><span class="p">,</span> <span class="n">hc</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">hc</span> <span class="o">//</span> <span class="n">head</span>
+    <span class="k">return</span> <span class="n">inputs</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">b</span><span class="p">,</span> <span class="n">head</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span><span class="p">))</span>
+
+<span class="k">def</span> <span class="nf">rsqrt</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ops</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">randn_like</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">res</span>
+
+<span class="k">def</span> <span class="nf">randn</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">res</span>
+
+<span class="k">def</span> <span class="nf">randint</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">):</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">dtype</span><span class="p">),</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">high</span><span class="p">,</span> <span class="n">dtype</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">res</span>
+
+<span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+<span class="k">def</span> <span class="nf">default</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">val</span>
+    <span class="k">return</span> <span class="n">d</span><span class="p">()</span> <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">else</span> <span class="n">d</span>
+
+<span class="k">def</span> <span class="nf">_check_dtype</span><span class="p">(</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span> <span class="ow">in</span> <span class="p">(</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span>
+    <span class="k">if</span> <span class="n">d1</span> <span class="o">==</span> <span class="n">d2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">d1</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;dtype is not supported.&#39;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Residual</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">fn</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">+</span> <span class="n">x</span>
+</pre></div>
+</div>
+<p>Next, define aliases for upsampling and downsampling operations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">Upsample</span><span class="p">(</span><span class="n">dim</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2dTranspose</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">Downsample</span><span class="p">(</span><span class="n">dim</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="position-embeddings">
+<h3>Position Embeddings<a class="headerlink" href="#position-embeddings" title="Permalink to this headline"></a></h3>
+<p>Because the parameters of the neural network are shared across time (noise level), authors apply sinusoidal position embeddings to encode <span class="math notranslate nohighlight">\(t\)</span>, which inspired by Transformer <a class="reference external" href="https://arxiv.org/abs/1706.03762">Vaswani et al., 2017</a>. This makes the neural network “know” at which specific time step (noise level) it is operating, for each image in a batch.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">SinusoidalPositionEmbeddings</span></code> module takes a tensor of the <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">1)</span></code> shape as input (that is, the noise levels of several noisy images in a batch) and converts it into a tensor with the <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">dim)</span></code> shape, where <code class="docutils literal notranslate"><span class="pre">dim</span></code> is the size of the position embeddings. This is added to each residual block then.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">SinusoidalPositionEmbeddings</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">dim</span>
+        <span class="n">half_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">//</span> <span class="mi">2</span>
+        <span class="n">emb</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">10000</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">half_dim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">emb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">half_dim</span><span class="p">)</span> <span class="o">*</span> <span class="o">-</span> <span class="n">emb</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emb</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">emb</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">emb</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">emb</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">emb</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">ops</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">emb</span><span class="p">),</span> <span class="n">ops</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">emb</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">emb</span>
+</pre></div>
+</div>
+</section>
+<section id="resnet/convnext-block">
+<h3>ResNet/ConvNeXT Block<a class="headerlink" href="#resnet/convnext-block" title="Permalink to this headline"></a></h3>
+<p>Then, define the core building block of the U-Net model. DDPM authors apply a Wide ResNet block (<a class="reference external" href="https://arxiv.org/abs/1605.07146">Zagoruyko et al., 2016</a>), but Phil Wang decides to replace ResNet with ConvNeXT (<a class="reference external" href="https://arxiv.org/abs/2201.03545">Liu et al., 2022</a>) because the latter has achieved great success in the image field.</p>
+<p>You can choose ResNet or ConvNeXT for the U-Net model. In this document, the ConvNeXT block is selected to build the U-Net model.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Block</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;pad&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">GroupNorm</span><span class="p">(</span><span class="n">groups</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">act</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">scale_shift</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">proj</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">scale_shift</span><span class="p">):</span>
+            <span class="n">scale</span><span class="p">,</span> <span class="n">shift</span> <span class="o">=</span> <span class="n">scale_shift</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="p">(</span><span class="n">scale</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">shift</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">act</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="k">class</span> <span class="nc">ConvNextBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">time_emb_dim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mult</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlp</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">GELU</span><span class="p">(),</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">time_emb_dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">time_emb_dim</span><span class="p">)</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ds_conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">GroupNorm</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span> <span class="k">if</span> <span class="n">norm</span> <span class="k">else</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim_out</span> <span class="o">*</span> <span class="n">mult</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">GELU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">GroupNorm</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dim_out</span> <span class="o">*</span> <span class="n">mult</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim_out</span> <span class="o">*</span> <span class="n">mult</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">res_conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">dim</span> <span class="o">!=</span> <span class="n">dim_out</span> <span class="k">else</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">time_emb</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ds_conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp</span><span class="p">)</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">time_emb</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">exists</span><span class="p">(</span><span class="n">time_emb</span><span class="p">),</span> <span class="s2">&quot;time embedding must be passed in&quot;</span>
+            <span class="n">condition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlp</span><span class="p">(</span><span class="n">time_emb</span><span class="p">)</span>
+            <span class="n">condition</span> <span class="o">=</span> <span class="n">condition</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">h</span> <span class="o">+</span> <span class="n">condition</span>
+
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">net</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">h</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">res_conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="attention-module">
+<h3>Attention Module<a class="headerlink" href="#attention-module" title="Permalink to this headline"></a></h3>
+<p>Next, define the SiLU module, which is added by DDPM authors between convolutional blocks. SiLU is a well-known Transformer architecture (<a class="reference external" href="https://arxiv.org/abs/1706.03762">Vaswani et al., 2017</a>) and has achieved great success in various fields of AI, from NLP to <a class="reference external" href="https://www.deepmind.com/blog/alphafold-a-solution-to-a-50-year-old-grand-challenge-in-biology">protein folding</a>. Phil Wang applies two attention variants: one is the conventional multi-head self-attention variant (as used in Transformer), and the other is the <a class="reference external" href="https://github.com/lucidrains/linear-attention-transformer">linear attention variant</a> (<a class="reference external" href="https://arxiv.org/abs/1812.01243">Shen et al., 2018</a>), whose time and memory require linear scaling in the sequence length rather than scaling in conventional attention.
+For more details about the attention mechanism, please refer to Jay Allamar’s <a class="reference external" href="https://jalammar.github.io/illustrated-transformer/">blog</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Attention</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">heads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">dim_head</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">dim_head</span> <span class="o">**</span> <span class="o">-</span><span class="mf">0.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span> <span class="o">=</span> <span class="n">heads</span>
+        <span class="n">hidden_dim</span> <span class="o">=</span> <span class="n">dim_head</span> <span class="o">*</span> <span class="n">heads</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_qkv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">hidden_dim</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">map</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Map</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">partial</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Partial</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">b</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">qkv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_qkv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">q</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">rearrange</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">),</span> <span class="n">qkv</span><span class="p">)</span>
+
+        <span class="n">q</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+
+        <span class="c1"># &#39;b h d i, b h d j -&gt; b h i j&#39;</span>
+        <span class="n">sim</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">k</span><span class="p">)</span>
+        <span class="n">attn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># &#39;b h i j, b h d j -&gt; b h i d&#39;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">attn</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">b</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_out</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">LayerNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="s1">&#39;ones&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;g&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="mf">1e-5</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">*</span> <span class="n">rsqrt</span><span class="p">((</span><span class="n">var</span> <span class="o">+</span> <span class="n">eps</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">g</span>
+
+
+<span class="k">class</span> <span class="nc">LinearAttention</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">heads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">dim_head</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">dim_head</span> <span class="o">**</span> <span class="o">-</span><span class="mf">0.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span> <span class="o">=</span> <span class="n">heads</span>
+        <span class="n">hidden_dim</span> <span class="o">=</span> <span class="n">dim_head</span> <span class="o">*</span> <span class="n">heads</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_qkv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">hidden_dim</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">LayerNorm</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">map</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Map</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">partial</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Partial</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">b</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">qkv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_qkv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">q</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">rearrange</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">),</span> <span class="n">qkv</span><span class="p">)</span>
+
+        <span class="n">q</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">q</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">v</span> <span class="o">/</span> <span class="p">(</span><span class="n">h</span> <span class="o">*</span> <span class="n">w</span><span class="p">)</span>
+
+        <span class="c1"># &#39;b h d n, b h e n -&gt; b h d e&#39;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="c1"># &#39;b h d e, b h d n -&gt; b h e n&#39;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">q</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">b</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_out</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="group-normalization">
+<h3>Group Normalization<a class="headerlink" href="#group-normalization" title="Permalink to this headline"></a></h3>
+<p>DDPM authors normalize convolution/attention layers and groups of U-Net (<a class="reference external" href="https://arxiv.org/abs/1803.08494">Wu et al., 2018</a>). Define a <code class="docutils literal notranslate"><span class="pre">PreNorm</span></code> class that will be used to apply groupnorm before the attention layer.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">PreNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">fn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">GroupNorm</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="conditional-u-net">
+<h3>Conditional U-Net<a class="headerlink" href="#conditional-u-net" title="Permalink to this headline"></a></h3>
+<p>All building blocks (position embeddings, ResNet/ConvNeXT blocks, attention, and group normalization) are defined, it is time to define the entire neural network. The job of the network <span class="math notranslate nohighlight">\(\mathbf{\epsilon}_\theta(\mathbf{x}_t, t)\)</span> is to receive a batch of noised images and their noise levels, and output the noise added to the input.</p>
+<p>More specifically:
+The network obtains a batch of noised images of the <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">num_channels,</span> <span class="pre">height,</span> <span class="pre">width)</span></code> shape and a batch of noise levels of the <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">1)</span></code> shape as input, and returns a tensor of the <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">num_channels,</span> <span class="pre">height,</span> <span class="pre">width)</span></code> shape.</p>
+<p>The network building process is as follows:</p>
+<ul class="simple">
+<li><p>First, apply a convolutional layer on the batch of noised images and calculate position embeddings for noise levels.</p></li>
+<li><p>Then, apply a sequence of downsampling stages. Each downsampling stage consists of two ResNet/ConvNeXT blocks, groupnorm, attention, residual connection, and a downsampling operation.</p></li>
+<li><p>Apply the ResNet or ConvNeXT block at the middle of the network again and interleave it with attention.</p></li>
+<li><p>Next, apply a sequence of upsampling stages. Each upsampling stage consists of two ResNet/ConvNeXT blocks, groupnorm, attention, residual connections, and an upsampling operation.</p></li>
+<li><p>Finally, apply the ResNet/ConvNeXT blocks and then the convolutional layer.</p></li>
+</ul>
+<p>Eventually, neural networks stack up layers as if they were LEGO blocks (but it is important to <a class="reference external" href="http://karpathy.github.io/2019/04/25/recipe/">understand how they work</a>).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Unet</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">dim</span><span class="p">,</span>
+            <span class="n">init_dim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">out_dim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">dim_mults</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
+            <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+            <span class="n">with_time_emb</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">convnext_mult</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="n">channels</span>
+
+        <span class="n">init_dim</span> <span class="o">=</span> <span class="n">default</span><span class="p">(</span><span class="n">init_dim</span><span class="p">,</span> <span class="n">dim</span> <span class="o">//</span> <span class="mi">3</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">channels</span><span class="p">,</span> <span class="n">init_dim</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">init_dim</span><span class="p">,</span> <span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="n">dim</span> <span class="o">*</span> <span class="n">m</span><span class="p">,</span> <span class="n">dim_mults</span><span class="p">)]</span>
+        <span class="n">in_out</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">dims</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">dims</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+
+        <span class="n">block_klass</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">ConvNextBlock</span><span class="p">,</span> <span class="n">mult</span><span class="o">=</span><span class="n">convnext_mult</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">with_time_emb</span><span class="p">:</span>
+            <span class="n">time_dim</span> <span class="o">=</span> <span class="n">dim</span> <span class="o">*</span> <span class="mi">4</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">time_mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+                <span class="n">SinusoidalPositionEmbeddings</span><span class="p">(</span><span class="n">dim</span><span class="p">),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">time_dim</span><span class="p">),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">GELU</span><span class="p">(),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">time_dim</span><span class="p">,</span> <span class="n">time_dim</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">time_dim</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">time_mlp</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">downs</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ups</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">([])</span>
+        <span class="n">num_resolutions</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">in_out</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="p">(</span><span class="n">dim_in</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">in_out</span><span class="p">):</span>
+            <span class="n">is_last</span> <span class="o">=</span> <span class="n">ind</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">num_resolutions</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">downs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="n">block_klass</span><span class="p">(</span><span class="n">dim_in</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">,</span> <span class="n">time_emb_dim</span><span class="o">=</span><span class="n">time_dim</span><span class="p">),</span>
+                        <span class="n">block_klass</span><span class="p">(</span><span class="n">dim_out</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">,</span> <span class="n">time_emb_dim</span><span class="o">=</span><span class="n">time_dim</span><span class="p">),</span>
+                        <span class="n">Residual</span><span class="p">(</span><span class="n">PreNorm</span><span class="p">(</span><span class="n">dim_out</span><span class="p">,</span> <span class="n">LinearAttention</span><span class="p">(</span><span class="n">dim_out</span><span class="p">))),</span>
+                        <span class="n">Downsample</span><span class="p">(</span><span class="n">dim_out</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">is_last</span> <span class="k">else</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">(),</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">mid_dim</span> <span class="o">=</span> <span class="n">dims</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mid_block1</span> <span class="o">=</span> <span class="n">block_klass</span><span class="p">(</span><span class="n">mid_dim</span><span class="p">,</span> <span class="n">mid_dim</span><span class="p">,</span> <span class="n">time_emb_dim</span><span class="o">=</span><span class="n">time_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mid_attn</span> <span class="o">=</span> <span class="n">Residual</span><span class="p">(</span><span class="n">PreNorm</span><span class="p">(</span><span class="n">mid_dim</span><span class="p">,</span> <span class="n">Attention</span><span class="p">(</span><span class="n">mid_dim</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mid_block2</span> <span class="o">=</span> <span class="n">block_klass</span><span class="p">(</span><span class="n">mid_dim</span><span class="p">,</span> <span class="n">mid_dim</span><span class="p">,</span> <span class="n">time_emb_dim</span><span class="o">=</span><span class="n">time_dim</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="p">(</span><span class="n">dim_in</span><span class="p">,</span> <span class="n">dim_out</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">in_out</span><span class="p">[</span><span class="mi">1</span><span class="p">:])):</span>
+            <span class="n">is_last</span> <span class="o">=</span> <span class="n">ind</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">num_resolutions</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">ups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="n">block_klass</span><span class="p">(</span><span class="n">dim_out</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dim_in</span><span class="p">,</span> <span class="n">time_emb_dim</span><span class="o">=</span><span class="n">time_dim</span><span class="p">),</span>
+                        <span class="n">block_klass</span><span class="p">(</span><span class="n">dim_in</span><span class="p">,</span> <span class="n">dim_in</span><span class="p">,</span> <span class="n">time_emb_dim</span><span class="o">=</span><span class="n">time_dim</span><span class="p">),</span>
+                        <span class="n">Residual</span><span class="p">(</span><span class="n">PreNorm</span><span class="p">(</span><span class="n">dim_in</span><span class="p">,</span> <span class="n">LinearAttention</span><span class="p">(</span><span class="n">dim_in</span><span class="p">))),</span>
+                        <span class="n">Upsample</span><span class="p">(</span><span class="n">dim_in</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">is_last</span> <span class="k">else</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">(),</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">out_dim</span> <span class="o">=</span> <span class="n">default</span><span class="p">(</span><span class="n">out_dim</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">final_conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SequentialCell</span><span class="p">(</span>
+            <span class="n">block_klass</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">),</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">time</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_mlp</span><span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_mlp</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="n">h</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">block1</span><span class="p">,</span> <span class="n">block2</span><span class="p">,</span> <span class="n">attn</span><span class="p">,</span> <span class="n">downsample</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">downs</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">block1</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">block2</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">attn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">h</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+            <span class="n">x</span> <span class="o">=</span> <span class="n">downsample</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mid_block1</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mid_attn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mid_block2</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+
+        <span class="n">len_h</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">block1</span><span class="p">,</span> <span class="n">block2</span><span class="p">,</span> <span class="n">attn</span><span class="p">,</span> <span class="n">upsample</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ups</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">h</span><span class="p">[</span><span class="n">len_h</span><span class="p">]),</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">len_h</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">block1</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">block2</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">attn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+            <span class="n">x</span> <span class="o">=</span> <span class="n">upsample</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="forward-diffusion">
+<h3>Forward Diffusion<a class="headerlink" href="#forward-diffusion" title="Permalink to this headline"></a></h3>
+<p>We already know that the forward diffusion process gradually adds noise to an image from the real distribution in several time steps <span class="math notranslate nohighlight">\(T\)</span> and is performed according to a variance schedule. The original DDPM authors adopt a linear schedule as follows:</p>
+<ul class="simple">
+<li><p>Set the forward process variances to constants, linearly increasing from <span class="math notranslate nohighlight">\(\beta_1 = 10^{-4}\)</span> to <span class="math notranslate nohighlight">\(\beta_T = 0.02\)</span>.</p></li>
+<li><p>However, it is shown in (<a class="reference external" href="https://arxiv.org/abs/2102.09672">Nichol et al., 2021</a>) that better results can be obtained when a cosine schedule is used.</p></li>
+</ul>
+<p>Below, we define various schedules of <span class="math notranslate nohighlight">\(T\)</span> time steps.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">linear_beta_schedule</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
+    <span class="n">beta_start</span> <span class="o">=</span> <span class="mf">0.0001</span>
+    <span class="n">beta_end</span> <span class="o">=</span> <span class="mf">0.02</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">beta_start</span><span class="p">,</span> <span class="n">beta_end</span><span class="p">,</span> <span class="n">timesteps</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>First, use a linear schedule with <span class="math notranslate nohighlight">\(T=200\)</span> time steps and define variables from <span class="math notranslate nohighlight">\(\\β_t\)</span> that we will need, such as the cumulative product of variances <span class="math notranslate nohighlight">\(\bar{\alpha}_t\)</span>. Each of the following variables is just a one-dimensional tensor that stores values from <span class="math notranslate nohighlight">\(t\)</span> to <span class="math notranslate nohighlight">\(T\)</span>. Importantly, we also define the <code class="docutils literal notranslate"><span class="pre">extract</span></code> function, which will allow us to extract an appropriate batch of <span class="math notranslate nohighlight">\(t\)</span> indexes.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set the time steps to 200.</span>
+<span class="n">timesteps</span> <span class="o">=</span> <span class="mi">200</span>
+
+<span class="c1"># Define a beta schedule.</span>
+<span class="n">betas</span> <span class="o">=</span> <span class="n">linear_beta_schedule</span><span class="p">(</span><span class="n">timesteps</span><span class="o">=</span><span class="n">timesteps</span><span class="p">)</span>
+
+<span class="c1"># Define alphas.</span>
+<span class="n">alphas</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">-</span> <span class="n">betas</span>
+<span class="n">alphas_cumprod</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumprod</span><span class="p">(</span><span class="n">alphas</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">alphas_cumprod_prev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">alphas_cumprod</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">constant_values</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="n">sqrt_recip_alphas</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.</span> <span class="o">/</span> <span class="n">alphas</span><span class="p">))</span>
+<span class="n">sqrt_alphas_cumprod</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">alphas_cumprod</span><span class="p">))</span>
+<span class="n">sqrt_one_minus_alphas_cumprod</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">alphas_cumprod</span><span class="p">))</span>
+
+<span class="c1"># Calculate q(x_{t-1} | x_t, x_0).</span>
+<span class="n">posterior_variance</span> <span class="o">=</span> <span class="n">betas</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">alphas_cumprod_prev</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">alphas_cumprod</span><span class="p">)</span>
+
+<span class="n">p2_loss_weight</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">alphas_cumprod</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">alphas_cumprod</span><span class="p">))</span> <span class="o">**</span> <span class="o">-</span><span class="mf">0.</span>
+<span class="n">p2_loss_weight</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">p2_loss_weight</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">extract</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">x_shape</span><span class="p">):</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="o">*</span><span class="p">((</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)))</span>
+</pre></div>
+</div>
+<p>We’ll use a cat image to illustrate how noise is added at each time step of the diffusion process.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Download the cat image.</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/image_cat.zip&#39;</span>
+<span class="n">path</span> <span class="o">=</span> <span class="n">download</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="s1">&#39;./&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;zip&quot;</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Downloading data from https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/image_cat.zip (170 kB)
+
+file_sizes: 100%|████████████████████████████| 174k/174k [00:00&lt;00:00, 1.45MB/s]
+Extracting zip file...
+Successfully downloaded / unzipped to ./
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+
+<span class="n">image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;./image_cat/jpg/000000039769.jpg&#39;</span><span class="p">)</span>
+<span class="n">base_width</span> <span class="o">=</span> <span class="mi">160</span>
+<span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="n">base_width</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">base_width</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">])))))</span>
+<span class="n">image</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Noise is added to the MindSpore tensors, not the pillow image. First, define the image transformations that allow us to transform from a PIL image to a MindSpore tensor (on which we can add noise), and vice versa.</p>
+<p>These transformations are fairly simple: normalize images by dividing them by <span class="math notranslate nohighlight">\(255\)</span> (to make them within the range of <span class="math notranslate nohighlight">\([0,1]\)</span>), and then make sure they are in the range of <span class="math notranslate nohighlight">\([-1, 1]\)</span>. For that, DPPM paper has introduced as follows:</p>
+<blockquote>
+<div><p>Assume that image data consists of integers in <span class="math notranslate nohighlight">\(\{0, 1, ... , 255\}\)</span> scaled linearly to <span class="math notranslate nohighlight">\([−1, 1]\)</span>. This ensures that the neural network reverse process operates on consistently scaled inputs starting from the standard normal prior <span class="math notranslate nohighlight">\(p(\mathbf{x}_T )\)</span>.</p>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore.dataset</span> <span class="kn">import</span> <span class="n">ImageFolderDataset</span>
+
+<span class="n">image_size</span> <span class="o">=</span> <span class="mi">128</span>
+<span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Resize</span><span class="p">(</span><span class="n">image_size</span><span class="p">,</span> <span class="n">Inter</span><span class="o">.</span><span class="n">BILINEAR</span><span class="p">),</span>
+    <span class="n">CenterCrop</span><span class="p">(</span><span class="n">image_size</span><span class="p">),</span>
+    <span class="n">ToTensor</span><span class="p">(),</span>
+    <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="p">(</span><span class="n">t</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+<span class="p">]</span>
+
+
+<span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;./image_cat&#39;</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">ImageFolderDataset</span><span class="p">(</span><span class="n">dataset_dir</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="n">cpu_count</span><span class="p">(),</span>
+                             <span class="n">extensions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;.jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">,</span> <span class="s1">&#39;.tiff&#39;</span><span class="p">],</span>
+                             <span class="n">num_shards</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">shard_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">decode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">project</span><span class="p">(</span><span class="s1">&#39;image&#39;</span><span class="p">)</span>
+<span class="n">transforms</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">RandomHorizontalFlip</span><span class="p">())</span>
+<span class="n">dataset_1</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">transforms</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">)</span>
+<span class="n">dataset_2</span> <span class="o">=</span> <span class="n">dataset_1</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">x_start</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">dataset_2</span><span class="o">.</span><span class="n">create_tuple_iterator</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">x_start</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>(1, 3, 128, 128)
+</pre></div>
+</div>
+<p>Define the reverse transform, which takes in a tensor containing <span class="math notranslate nohighlight">\([-1, 1]\)</span> and transforms them back to the PIL image.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">reverse_transform</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="p">(</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">ops</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span> <span class="c1"># CHW to HWC</span>
+    <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">t</span> <span class="o">*</span> <span class="mf">255.</span><span class="p">,</span>
+    <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span>
+    <span class="n">ToPIL</span><span class="p">()</span>
+<span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">compose</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">transform</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">d</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">x</span>
+</pre></div>
+</div>
+<p>Let’s verify this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">reverse_image</span> <span class="o">=</span> <span class="n">compose</span><span class="p">(</span><span class="n">reverse_transform</span><span class="p">,</span> <span class="n">x_start</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">reverse_image</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>We can now define the forward diffusion process, as shown in this document:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">q_sample</span><span class="p">(</span><span class="n">x_start</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">noise</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">noise</span> <span class="o">=</span> <span class="n">randn_like</span><span class="p">(</span><span class="n">x_start</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">extract</span><span class="p">(</span><span class="n">sqrt_alphas_cumprod</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">x_start</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="n">x_start</span> <span class="o">+</span>
+            <span class="n">extract</span><span class="p">(</span><span class="n">sqrt_one_minus_alphas_cumprod</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">x_start</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="n">noise</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Test it at a specific time step.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_noisy_image</span><span class="p">(</span><span class="n">x_start</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+    <span class="c1"># Add noise.</span>
+    <span class="n">x_noisy</span> <span class="o">=</span> <span class="n">q_sample</span><span class="p">(</span><span class="n">x_start</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">t</span><span class="p">)</span>
+
+    <span class="c1"># Transform to a PIL image.</span>
+    <span class="n">noisy_image</span> <span class="o">=</span> <span class="n">compose</span><span class="p">(</span><span class="n">reverse_transform</span><span class="p">,</span> <span class="n">x_noisy</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">noisy_image</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sets the time step.</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">([</span><span class="mi">40</span><span class="p">])</span>
+<span class="n">noisy_image</span> <span class="o">=</span> <span class="n">get_noisy_image</span><span class="p">(</span><span class="n">x_start</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">noisy_image</span><span class="p">)</span>
+<span class="n">noisy_image</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>&lt;PIL.Image.Image image mode=RGB size=128x128 at 0x7F54569F3950&gt;
+</pre></div>
+</div>
+<p>Visualize this for different time steps.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="n">imgs</span><span class="p">,</span> <span class="n">with_orig</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">row_title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">imshow_kwargs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imgs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">imgs</span> <span class="o">=</span> <span class="p">[</span><span class="n">imgs</span><span class="p">]</span>
+
+    <span class="n">num_rows</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
+    <span class="n">num_cols</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">imgs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="n">with_orig</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">),</span> <span class="n">nrows</span><span class="o">=</span><span class="n">num_rows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">num_cols</span><span class="p">,</span> <span class="n">squeeze</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">row_idx</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">imgs</span><span class="p">):</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="n">image</span><span class="p">]</span> <span class="o">+</span> <span class="n">row</span> <span class="k">if</span> <span class="n">with_orig</span> <span class="k">else</span> <span class="n">row</span>
+        <span class="k">for</span> <span class="n">col_idx</span><span class="p">,</span> <span class="n">img</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">]</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">img</span><span class="p">),</span> <span class="o">**</span><span class="n">imshow_kwargs</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">xticklabels</span><span class="o">=</span><span class="p">[],</span> <span class="n">yticklabels</span><span class="o">=</span><span class="p">[],</span> <span class="n">xticks</span><span class="o">=</span><span class="p">[],</span> <span class="n">yticks</span><span class="o">=</span><span class="p">[])</span>
+
+    <span class="k">if</span> <span class="n">with_orig</span><span class="p">:</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original image&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">set_size</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">row_title</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">row_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_rows</span><span class="p">):</span>
+            <span class="n">axs</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">ylabel</span><span class="o">=</span><span class="n">row_title</span><span class="p">[</span><span class="n">row_idx</span><span class="p">])</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">plot</span><span class="p">([</span><span class="n">get_noisy_image</span><span class="p">(</span><span class="n">x_start</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">([</span><span class="n">t</span><span class="p">]))</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">150</span><span class="p">,</span> <span class="mi">199</span><span class="p">]])</span>
+</pre></div>
+</div>
+<p>This means that we can now define the loss function for a given model as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">p_losses</span><span class="p">(</span><span class="n">unet_model</span><span class="p">,</span> <span class="n">x_start</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">noise</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">noise</span> <span class="o">=</span> <span class="n">randn_like</span><span class="p">(</span><span class="n">x_start</span><span class="p">)</span>
+    <span class="n">x_noisy</span> <span class="o">=</span> <span class="n">q_sample</span><span class="p">(</span><span class="n">x_start</span><span class="o">=</span><span class="n">x_start</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">t</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="n">noise</span><span class="p">)</span>
+    <span class="n">predicted_noise</span> <span class="o">=</span> <span class="n">unet_model</span><span class="p">(</span><span class="n">x_noisy</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SmoothL1Loss</span><span class="p">()(</span><span class="n">noise</span><span class="p">,</span> <span class="n">predicted_noise</span><span class="p">)</span><span class="c1"># todo</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">loss</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span> <span class="o">*</span> <span class="n">extract</span><span class="p">(</span><span class="n">p2_loss_weight</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">loss</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">denoise_model</span></code> will be the U-Net defined above. Huber loss will be applied between the real noise and predicted noise.</p>
+</section>
+</section>
+<section id="data-preparation-and-processing">
+<h2>Data Preparation and Processing<a class="headerlink" href="#data-preparation-and-processing" title="Permalink to this headline"></a></h2>
+<p>Here we define a regular dataset. The dataset is composed of images from a simple real dataset, such as Fashion-MNIST, CIFAR-10, or ImageNet, scaled linearly to <span class="math notranslate nohighlight">\([-1, 1]\)</span>.</p>
+<p>Each image is resized to the same size. Interestingly, the image is also randomly flipped horizontally. According to the paper, we use random horizontal flips during CIFAR10 training and try training both with and without flipping, and find flipping can improve sample quality slightly.</p>
+<p>Here the Fashion_MNIST dataset is downloaded and decompressed to a specified path. This dataset consists of images that already have the same resolution, that is, 28 x 28.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Download the MNIST dataset.</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/dataset.zip&#39;</span>
+<span class="n">path</span> <span class="o">=</span> <span class="n">download</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="s1">&#39;./&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;zip&quot;</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Downloading data from https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/dataset.zip (29.4 MB)
+
+file_sizes: 100%|██████████████████████████| 30.9M/30.9M [00:00&lt;00:00, 43.4MB/s]
+Extracting zip file...
+Successfully downloaded / unzipped to ./
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore.dataset</span> <span class="kn">import</span> <span class="n">FashionMnistDataset</span>
+
+<span class="n">image_size</span> <span class="o">=</span> <span class="mi">28</span>
+<span class="n">channels</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">batch_size</span> <span class="o">=</span> <span class="mi">16</span>
+
+<span class="n">fashion_mnist_dataset_dir</span> <span class="o">=</span> <span class="s2">&quot;./dataset&quot;</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">FashionMnistDataset</span><span class="p">(</span><span class="n">dataset_dir</span><span class="o">=</span><span class="n">fashion_mnist_dataset_dir</span><span class="p">,</span> <span class="n">usage</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">num_parallel_workers</span><span class="o">=</span><span class="n">cpu_count</span><span class="p">(),</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">num_shards</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">shard_id</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Next, define a transform operation that will be dynamically applied to the entire dataset. This operation applies some basic image preprocessing: random horizontal flipping, rescaling, and finally making their values in the <span class="math notranslate nohighlight">\([-1,1]\)</span> range.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">RandomHorizontalFlip</span><span class="p">(),</span>
+    <span class="n">ToTensor</span><span class="p">(),</span>
+    <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="p">(</span><span class="n">t</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+<span class="p">]</span>
+
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">project</span><span class="p">(</span><span class="s1">&#39;image&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">transforms</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">x</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">create_dict_iterator</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>dict_keys([&#39;image&#39;])
+</pre></div>
+</div>
+<section id="sampling">
+<h3>Sampling<a class="headerlink" href="#sampling" title="Permalink to this headline"></a></h3>
+<p>Since we will sample from the model during training (to track progress), we define the following code: Sampling is summarized in this document as algorithm 2.</p>
+<p><img alt="Image-5" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3.q1/tutorials/application/source_zh_cn/generative/images/diffusion_5.png" /></p>
+<p>Generating a new image from a diffusion model is achieved by reversing the diffusion process: starting with <span class="math notranslate nohighlight">\(T\)</span>, we sample pure noise from the Gaussian distribution, and then use our neural network to gradually denoise (using the conditional probability it learns), until we finally end up at the time step <span class="math notranslate nohighlight">\(t = 0\)</span>. As shown above, we can derive a slightly less denoised image <span class="math notranslate nohighlight">\(\mathbf{x}_{t-1 }\)</span> by plugging in the reparametrization of the mean,
+using our noise predictor. Note that the variance is known in advance.</p>
+<p>Ideally, we will end up with an image that looks like it comes from a real data distribution.</p>
+<p>The following code implements this.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">p_sample</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">t_index</span><span class="p">):</span>
+    <span class="n">betas_t</span> <span class="o">=</span> <span class="n">extract</span><span class="p">(</span><span class="n">betas</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">sqrt_one_minus_alphas_cumprod_t</span> <span class="o">=</span> <span class="n">extract</span><span class="p">(</span>
+        <span class="n">sqrt_one_minus_alphas_cumprod</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
+    <span class="p">)</span>
+    <span class="n">sqrt_recip_alphas_t</span> <span class="o">=</span> <span class="n">extract</span><span class="p">(</span><span class="n">sqrt_recip_alphas</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">model_mean</span> <span class="o">=</span> <span class="n">sqrt_recip_alphas_t</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">betas_t</span> <span class="o">*</span> <span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span> <span class="o">/</span> <span class="n">sqrt_one_minus_alphas_cumprod_t</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">t_index</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">model_mean</span>
+    <span class="n">posterior_variance_t</span> <span class="o">=</span> <span class="n">extract</span><span class="p">(</span><span class="n">posterior_variance</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">noise</span> <span class="o">=</span> <span class="n">randn_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model_mean</span> <span class="o">+</span> <span class="n">ops</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">posterior_variance_t</span><span class="p">)</span> <span class="o">*</span> <span class="n">noise</span>
+
+<span class="k">def</span> <span class="nf">p_sample_loop</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">shape</span><span class="p">):</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Start with the pure noise.</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">randn</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">imgs</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">timesteps</span><span class="p">)),</span> <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;sampling loop time step&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">timesteps</span><span class="p">):</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">p_sample</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">numpy</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">b</span><span class="p">,),</span> <span class="n">i</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">imgs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">imgs</span>
+
+<span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">p_sample_loop</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">image_size</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Note that the above code is a simplified version of the original implementation.</p>
+</section>
+</section>
+<section id="training-process">
+<h2>Training Process<a class="headerlink" href="#training-process" title="Permalink to this headline"></a></h2>
+<p>Now, let’s start training.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Defining a dynamic learning rate.</span>
+<span class="n">lr</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">cosine_decay_lr</span><span class="p">(</span><span class="n">min_lr</span><span class="o">=</span><span class="mf">1e-7</span><span class="p">,</span> <span class="n">max_lr</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="n">total_step</span><span class="o">=</span><span class="mi">10</span><span class="o">*</span><span class="mi">3750</span><span class="p">,</span> <span class="n">step_per_epoch</span><span class="o">=</span><span class="mi">3750</span><span class="p">,</span> <span class="n">decay_epoch</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># Defining a U-Net model.</span>
+<span class="n">unet_model</span> <span class="o">=</span> <span class="n">Unet</span><span class="p">(</span>
+    <span class="n">dim</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span>
+    <span class="n">channels</span><span class="o">=</span><span class="n">channels</span><span class="p">,</span>
+    <span class="n">dim_mults</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,)</span>
+<span class="p">)</span>
+
+<span class="n">name_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">par</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">unet_model</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">()):</span>
+    <span class="n">name_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+<span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">unet_model</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">()):</span>
+    <span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+<span class="c1"># Define an optimizer.</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">unet_model</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">learning_rate</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+<span class="n">loss_scaler</span> <span class="o">=</span> <span class="n">DynamicLossScaler</span><span class="p">(</span><span class="mi">65536</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+
+<span class="c1"># Define the forward process.</span>
+<span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">p_losses</span><span class="p">(</span><span class="n">unet_model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span>
+
+<span class="c1"># Calculate the gradient.</span>
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Update the gradient.</span>
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise</span><span class="p">):</span>
+    <span class="n">loss</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+    <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+
+<span class="n">epochs</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
+    <span class="n">begin_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">step</span><span class="p">,</span> <span class="n">batch</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">create_tuple_iterator</span><span class="p">()):</span>
+        <span class="n">unet_model</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">timesteps</span><span class="p">,</span> <span class="p">(</span><span class="n">batch_size</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="n">noise</span> <span class="o">=</span> <span class="n">randn_like</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">train_step</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">step</span> <span class="o">%</span> <span class="mi">500</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; epoch: &quot;</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="s2">&quot; step: &quot;</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="s2">&quot; Loss: &quot;</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+    <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">times</span> <span class="o">=</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">begin_time</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;training time:&quot;</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span><span class="p">)</span>
+    <span class="c1"># Display the random sampling effect.</span>
+    <span class="n">unet_model</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">sample</span><span class="p">(</span><span class="n">unet_model</span><span class="p">,</span> <span class="n">image_size</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="n">channels</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">image_size</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Training Success!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span> epoch:  0  step:  0  Loss:  0.43375123
+ epoch:  0  step:  500  Loss:  0.113769315
+ epoch:  0  step:  1000  Loss:  0.08649178
+ epoch:  0  step:  1500  Loss:  0.067664884
+ epoch:  0  step:  2000  Loss:  0.07234038
+ epoch:  0  step:  2500  Loss:  0.043936778
+ epoch:  0  step:  3000  Loss:  0.058127824
+ epoch:  0  step:  3500  Loss:  0.049789283
+training time: 922.3438229560852 s
+ epoch:  1  step:  0  Loss:  0.05088563
+ epoch:  1  step:  500  Loss:  0.051174678
+ epoch:  1  step:  1000  Loss:  0.04455947
+ epoch:  1  step:  1500  Loss:  0.055165425
+ epoch:  1  step:  2000  Loss:  0.043942295
+ epoch:  1  step:  2500  Loss:  0.03274461
+ epoch:  1  step:  3000  Loss:  0.048117325
+ epoch:  1  step:  3500  Loss:  0.063063145
+training time: 937.5596783161163 s
+ epoch:  2  step:  0  Loss:  0.052893892
+ epoch:  2  step:  500  Loss:  0.05721748
+ epoch:  2  step:  1000  Loss:  0.057248186
+ epoch:  2  step:  1500  Loss:  0.048806388
+ epoch:  2  step:  2000  Loss:  0.05007638
+ epoch:  2  step:  2500  Loss:  0.04337231
+ epoch:  2  step:  3000  Loss:  0.043207955
+ epoch:  2  step:  3500  Loss:  0.034530163
+training time: 947.6374666690826 s
+ epoch:  3  step:  0  Loss:  0.04867614
+ epoch:  3  step:  500  Loss:  0.051636297
+ epoch:  3  step:  1000  Loss:  0.03338969
+ epoch:  3  step:  1500  Loss:  0.0420174
+ epoch:  3  step:  2000  Loss:  0.052145053
+ epoch:  3  step:  2500  Loss:  0.03905913
+ epoch:  3  step:  3000  Loss:  0.07621498
+ epoch:  3  step:  3500  Loss:  0.06484105
+training time: 957.7780408859253 s
+ epoch:  4  step:  0  Loss:  0.046281893
+ epoch:  4  step:  500  Loss:  0.03783619
+ epoch:  4  step:  1000  Loss:  0.0587488
+ epoch:  4  step:  1500  Loss:  0.06974746
+ epoch:  4  step:  2000  Loss:  0.04299112
+ epoch:  4  step:  2500  Loss:  0.027945498
+ epoch:  4  step:  3000  Loss:  0.045338146
+ epoch:  4  step:  3500  Loss:  0.06362417
+training time: 955.6116819381714 s
+ epoch:  5  step:  0  Loss:  0.04781142
+ epoch:  5  step:  500  Loss:  0.032488734
+ epoch:  5  step:  1000  Loss:  0.061507083
+ epoch:  5  step:  1500  Loss:  0.039130375
+ epoch:  5  step:  2000  Loss:  0.034972396
+ epoch:  5  step:  2500  Loss:  0.039485026
+ epoch:  5  step:  3000  Loss:  0.06690869
+ epoch:  5  step:  3500  Loss:  0.05355365
+training time: 951.7758958339691 s
+ epoch:  6  step:  0  Loss:  0.04807706
+ epoch:  6  step:  500  Loss:  0.021469856
+ epoch:  6  step:  1000  Loss:  0.035354104
+ epoch:  6  step:  1500  Loss:  0.044303045
+ epoch:  6  step:  2000  Loss:  0.040063944
+ epoch:  6  step:  2500  Loss:  0.02970439
+ epoch:  6  step:  3000  Loss:  0.041152682
+ epoch:  6  step:  3500  Loss:  0.02062454
+training time: 955.2220208644867 s
+ epoch:  7  step:  0  Loss:  0.029668871
+ epoch:  7  step:  500  Loss:  0.028485576
+ epoch:  7  step:  1000  Loss:  0.029675964
+ epoch:  7  step:  1500  Loss:  0.052743085
+ epoch:  7  step:  2000  Loss:  0.03664278
+ epoch:  7  step:  2500  Loss:  0.04454907
+ epoch:  7  step:  3000  Loss:  0.043067697
+ epoch:  7  step:  3500  Loss:  0.0619511
+training time: 952.6654670238495 s
+ epoch:  8  step:  0  Loss:  0.055328347
+ epoch:  8  step:  500  Loss:  0.035807922
+ epoch:  8  step:  1000  Loss:  0.026412832
+ epoch:  8  step:  1500  Loss:  0.051044375
+ epoch:  8  step:  2000  Loss:  0.05474911
+ epoch:  8  step:  2500  Loss:  0.044595096
+ epoch:  8  step:  3000  Loss:  0.034082986
+ epoch:  8  step:  3500  Loss:  0.02653109
+training time: 961.9374921321869 s
+ epoch:  9  step:  0  Loss:  0.039675284
+ epoch:  9  step:  500  Loss:  0.046295933
+ epoch:  9  step:  1000  Loss:  0.031403508
+ epoch:  9  step:  1500  Loss:  0.028816734
+ epoch:  9  step:  2000  Loss:  0.06530296
+ epoch:  9  step:  2500  Loss:  0.051451046
+ epoch:  9  step:  3000  Loss:  0.037913296
+ epoch:  9  step:  3500  Loss:  0.030541396
+training time: 974.643147945404 s
+Training Success!
+</pre></div>
+</div>
+</section>
+<section id="inference-process-sampling-from-a-model">
+<h2>Inference Process (Sampling from a Model)<a class="headerlink" href="#inference-process-sampling-from-a-model" title="Permalink to this headline"></a></h2>
+<p>To sample from a model, we can use only the sampling function defined above.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sample 64 images.</span>
+<span class="n">unet_model</span><span class="o">.</span><span class="n">set_train</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">samples</span> <span class="o">=</span> <span class="n">sample</span><span class="p">(</span><span class="n">unet_model</span><span class="p">,</span> <span class="n">image_size</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="n">channels</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Display a random one.</span>
+<span class="n">random_index</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">random_index</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">image_size</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>&lt;matplotlib.image.AxesImage at 0x7f5175ea1690&gt;
+</pre></div>
+</div>
+<p>You can see that this model can generate a piece of clothing!</p>
+<p>Note that the resolution of the dataset we train is quite low (28 x 28).</p>
+<p>You can also create a GIF file for the denoising process.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.animation</span> <span class="k">as</span> <span class="nn">animation</span>
+
+<span class="n">random_index</span> <span class="o">=</span> <span class="mi">53</span>
+
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">ims</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
+    <span class="n">im</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">random_index</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">image_size</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">animated</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">ims</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">im</span><span class="p">])</span>
+
+<span class="n">animate</span> <span class="o">=</span> <span class="n">animation</span><span class="o">.</span><span class="n">ArtistAnimation</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">ims</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">blit</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">repeat_delay</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">animate</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;diffusion.gif&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline"></a></h2>
+<p>Note that DDPM papers show that diffusion models are a promising direction for (un)conditional image generation. Since then, diffusion has been (greatly) improved, most notably for text-conditional image generation. The following are some important follow-up works:</p>
+<ul class="simple">
+<li><p>Improved Denoising Diffusion Probabilistic Models (<a class="reference external" href="https://arxiv.org/abs/2102.09672">Nichol et al., 2021</a>): finds that learning the variance of the conditional distribution (except the mean) facilitates the performance.</p></li>
+<li><p>Cascaded Diffusion Models for High Fidelity Image Generation (<a class="reference external" href="https://arxiv.org/abs/2106.15282">Ho et al., 2021</a>): introduces cascaded diffusion, which includes a pipeline of multiple diffusion models. These models generate images with improved resolution for high-fidelity image synthesis.</p></li>
+<li><p>Diffusion Models Beat GANs on Image Synthesis (<a class="reference external" href="https://arxiv.org/abs/2105.05233">Dhariwal et al., 2021</a>): shows that the diffusion model can obtain better image sample quality than that generated by the most advanced model by improving the U-Net architecture and introducing classifier guidance.</p></li>
+<li><p>Classifier-Free Diffusion Guidance (<a class="reference external" href="https://openreview.net/pdf?id=qw8AKxfYbI">Ho et al., 2021</a>): shows that no classifier is required to guide a diffusion model by jointly training a conditional and an unconditional diffusion model with a single neural network.</p></li>
+<li><p>Hierarchical Text-Conditional Image Generation with CLIP Latents (DALL-E 2) (<a class="reference external" href="https://cdn.openai.com/papers/dall-e-2.pdf">Ramesh et al., 2022</a>): uses a prior to turn a text caption into a CLIP image embedding, after which a diffusion model decodes it into an image.</p></li>
+<li><p>Photorealistic Text-to-Image Diffusion Models with Deep Language Understanding (ImageGen) (<a class="reference external" href="https://arxiv.org/abs/2205.11487">Saharia et al., 2022</a>): shows that combining large pre-trained language models (such as T5) with cascade diffusion are effective for text-to-image synthesis.</p></li>
+</ul>
+<p>Note that this list includes only important works prior to the writing of this document, which is. June 7, 2022.</p>
+<p>Currently, the main (perhaps the only) drawback of diffusion models is that they require multiple forward passes to generate images (which is not the case for generative models, such as GAN). However, <a class="reference external" href="https://arxiv.org/abs/2204.13902">ongoing research</a> shows that only 10 denoising steps are required to achieve high-fidelity generation.</p>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Permalink to this headline"></a></h2>
+<ol class="arabic simple">
+<li><p><a class="reference external" href="https://huggingface.co/blog/annotated-diffusion">The Annotated Diffusion Model</a></p></li>
+<li><p><a class="reference external" href="https://zhuanlan.zhihu.com/p/525106459">Understanding Diffusion Model</a></p></li>
+</ol>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cyclegan.html" class="btn btn-neutral float-left" title="CycleGAN for Image Style Migration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright MindSpore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+</body>
+</html>

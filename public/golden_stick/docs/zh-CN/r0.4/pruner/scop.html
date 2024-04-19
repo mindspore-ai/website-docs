@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>应用SCOP算法 &mdash; MindSpore master 文档</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
+        <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script src="../_static/translations.js"></script><script crossorigin="anonymous" integrity="sha256-1fEPhSsRKlFKGfK3eO710tEweHh1fwokU5wFGDHO+vg=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="模型部署概述" href="../deployment/overview.html" />
+    <link rel="prev" title="剪枝算法概述" href="overview.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">安装部署</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">安装MindSpore Golden Stick</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">量化感知训练算法</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quantization/overview.html">量化算法概述</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quantization/simqat.html">应用SimQAT算法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quantization/slb.html">应用SLB算法</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">训练后量化算法</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../ptq/round_to_nearest.html">应用RoundToNearest后量化算法</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">剪枝算法</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">剪枝算法概述</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">应用SCOP算法</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#背景">背景</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#剪枝方法">剪枝方法</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#scop剪枝训练">SCOP剪枝训练</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#scop剪枝训练示例">SCOP剪枝训练示例</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#knockoff-data阶段">Knockoff Data阶段</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#finetune阶段">Finetune阶段</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#加载保存的模型进行评估">加载保存的模型，进行评估</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#导出剪枝模型">导出剪枝模型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#算法效果汇总">算法效果汇总</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#训练效果">训练效果</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">模型部署</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../deployment/overview.html">模型部署概述</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../deployment/convert.html">使用MindSpore Golden Stick进行模型转换</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../mindspore_gs.html">mindspore_gs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindspore_gs.common.html">mindspore_gs.common</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindspore_gs.quantization.html">mindspore_gs.quantization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindspore_gs.ptq.html">mindspore_gs.ptq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mindspore_gs.pruner.html">mindspore_gs.pruner</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">RELEASE NOTES</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../RELEASE.html">Release Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>应用SCOP算法</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/pruner/scop.md.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section class="tex2jax_ignore mathjax_ignore" id="应用scop算法">
+<h1>应用SCOP算法<a class="headerlink" href="#应用scop算法" title="永久链接至标题"></a></h1>
+<p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/master/docs/golden_stick/docs/source_zh_cn/pruner/scop.md"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/master/resource/_static/logo_source.svg" /></a></p>
+<section id="背景">
+<h2>背景<a class="headerlink" href="#背景" title="永久链接至标题"></a></h2>
+<p>卷积神经网络（CNN）等深度学习模型已在计算机视觉、自然语言处理等多个领域广泛应用并取得了巨大的成功，但由于神经网络对计算能力和内存要求很高，很难将性能强大的神经网络直接部署在手机、可穿戴设备等边缘设备上。因此，神经网络剪枝等模型压缩方法对模型在边缘设备上的部署十分重要。</p>
+<section id="剪枝方法">
+<h3>剪枝方法<a class="headerlink" href="#剪枝方法" title="永久链接至标题"></a></h3>
+<p>神经网络剪枝技术是一种通用的模型压缩方法，它通过去除神经网络中的部分参数来减少参数量和计算量，主要分为非结构化剪枝和结构化剪枝两类。以卷积神经网络（CNN）为例，非结构化剪枝是去除卷积核中的部分权值，尽管它可以实现很高的压缩比，但实际的加速依赖于特殊的硬件设计，难以在通用的Ascend、GPU、CPU平台上获得收益。而结构化剪枝直接去除CNN中完整的卷积核，不破坏网络的拓扑结构，无需特定的软件和硬件设计即可直接实现模型的推理加速。</p>
+<p>发现冗余的卷积核是结构化剪枝的关键一步，常用的方法可分为两种：第一种方法不需要训练数据，通过定义一些卷积核重要性的假设，来判定不同卷积核的重要性。一个典型的假设是范数小的卷积核不重要，砍掉一些范数小的卷积核不会太多地影响网络的表现。 还有一类方法是数据驱动的方法，引入训练数据来学习不同卷积核的重要性。比如通过给每个卷积核引入额外的控制系数，学习这些控制系数，来度量不同卷积核的重要性，小的控制系数对应的卷积核被认为不重要。</p>
+<p><img alt="" src="../_images/scop.png" /></p>
+<p>一个典型的神经网络剪枝方法：基于科学控制法的神经网络剪枝（SCOP: Scientific Control for Reliable Neural Network Pruning）是在数据驱动下，通过引入高仿特征作为参照，通过设置对照实验来减少各种无关因素对剪枝过程的干扰，提高剪枝结果的可靠性。整体流程如上图所示，真实数据（Real data）和高仿数据（Knockoff data）同时输入到网络中，分别生成真实特征和高仿特征。如果一个卷积核对应的高仿特征抑制住了真实特征，则认为这个卷积核是冗余的，应当被删除。</p>
+</section>
+</section>
+<section id="scop剪枝训练">
+<h2>SCOP剪枝训练<a class="headerlink" href="#scop剪枝训练" title="永久链接至标题"></a></h2>
+<p>SCOP采用数据驱动的方式，通过引入训练数据学习不同卷积核的重要性，从而提高剪枝的可靠性。</p>
+<p>表1：SCOP剪枝训练规格</p>
+<table class="colwidths-auto docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>规格</p></th>
+<th class="head"><p>规格说明</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>硬件支持</p></td>
+<td><p>GPU、Atlas训练系列产品的硬件平台</p></td>
+</tr>
+<tr class="row-odd"><td><p>网络支持</p></td>
+<td><p>ResNet系列网络，具体请参见<a class="reference external" href="https://gitee.com/mindspore/models/tree/master">https://gitee.com/mindspore/models/tree/master</a>。</p></td>
+</tr>
+<tr class="row-even"><td><p>算法支持</p></td>
+<td><p>结构化的剪枝算法。</p></td>
+</tr>
+<tr class="row-odd"><td><p>数据类型支持</p></td>
+<td><p>Ascend和GPU平台支持精度为FP32的网络进行剪枝训练。</p></td>
+</tr>
+<tr class="row-even"><td><p>运行模式支持</p></td>
+<td><p>Graph模式和PyNative模式</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="scop剪枝训练示例">
+<h2>SCOP剪枝训练示例<a class="headerlink" href="#scop剪枝训练示例" title="永久链接至标题"></a></h2>
+<p>SCOP训练分为Knockoff阶段和Finetune阶段，Knockoff阶段对应于前文介绍的通过高仿特征来去除冗余卷积核，Finetune阶段即在去掉冗余卷积核后完整训练网络，完整流程如下：</p>
+<ol class="arabic simple">
+<li><p>加载数据集，处理数据。</p></li>
+<li><p>初始化ResNet50网络。</p></li>
+<li><p>通过PrunerKfCompressAlgo进行节点替换，定义优化器和损失函数，进行Knockoff阶段的训练。</p></li>
+<li><p>通过PrunerFtCompressAlgo进行节点替换，定义优化器和损失函数，进行Finetune阶段的训练，并保存模型。</p></li>
+<li><p>加载保存的模型，进行评估。</p></li>
+</ol>
+<p>接下来，以ResNet50网络为例，展开叙述SCOP剪枝训练的相关步骤。</p>
+<blockquote>
+<div><p>你可以在这里找到完整可运行的样例代码：<a class="reference external" href="https://gitee.com/mindspore/models/tree/master/official/cv/ResNet/golden_stick/pruner/scop">https://gitee.com/mindspore/models/tree/master/official/cv/ResNet/golden_stick/pruner/scop</a>。</p>
+</div></blockquote>
+<section id="knockoff-data阶段">
+<h3>Knockoff Data阶段<a class="headerlink" href="#knockoff-data阶段" title="永久链接至标题"></a></h3>
+<p>初始化ResNet50网络，加载预训练模型，通过PrunerKfCompressAlgo进行节点替换(详情用户可参考<a class="reference external" href="https://gitee.com/mindspore/golden-stick/blob/r0.4/mindspore_gs/pruner/scop/scop_pruner.py">API</a>)，得到Knockoff阶段的网络，并进行训练。(注：Knockoff Data阶段的dataset_sink_mode必须设置为False，因为在Knockoff Data阶段SCOP算法会修改数据。)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">ModelCheckpoint</span><span class="p">,</span> <span class="n">CheckpointConfig</span><span class="p">,</span> <span class="n">LossMonitor</span><span class="p">,</span> <span class="n">TimeMonitor</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">FixedLossScaleManager</span>
+<span class="kn">from</span> <span class="nn">mindspore_gs</span> <span class="kn">import</span> <span class="n">PrunerKfCompressAlgo</span>
+<span class="kn">from</span> <span class="nn">mindspore.models.resnet</span> <span class="kn">import</span> <span class="n">resnet50</span>
+<span class="kn">import</span> <span class="nn">mindspore.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">resnet50</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">load_checkpoint</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">pre_trained</span><span class="p">,</span> <span class="n">net</span><span class="o">=</span><span class="n">net</span><span class="p">)</span>
+<span class="n">algo_kf</span> <span class="o">=</span> <span class="n">PrunerKfCompressAlgo</span><span class="p">({})</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">algo_kf</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">net</span><span class="p">)</span> <span class="c1"># Get konckoff stage network</span>
+
+<span class="n">lr</span> <span class="o">=</span> <span class="n">get_lr</span><span class="p">(</span><span class="n">lr_init</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">lr_init</span><span class="p">,</span>
+            <span class="n">lr_end</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">lr_max</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">lr_max_kf</span><span class="p">,</span>
+            <span class="n">warmup_epochs</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">warmup_epochs</span><span class="p">,</span>
+            <span class="n">total_epochs</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">epoch_kf</span><span class="p">,</span>
+            <span class="n">steps_per_epoch</span><span class="o">=</span><span class="n">step_size</span><span class="p">,</span>
+            <span class="n">lr_decay_mode</span><span class="o">=</span><span class="s1">&#39;cosine&#39;</span><span class="p">)</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="n">net</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()),</span>
+                        <span class="n">learning_rate</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span>
+                        <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
+                        <span class="n">loss_scale</span><span class="o">=</span><span class="mi">1024</span>
+                        <span class="p">)</span>
+<span class="n">loss_fn</span> <span class="o">=</span> <span class="n">SoftmaxCrossEntropyWithLogits</span><span class="p">(</span><span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">)</span>
+<span class="n">time_cb</span> <span class="o">=</span> <span class="n">TimeMonitor</span><span class="p">(</span><span class="n">data_size</span><span class="o">=</span><span class="n">step_size</span><span class="p">)</span>
+<span class="n">loss_cb</span> <span class="o">=</span> <span class="n">LossMonitor</span><span class="p">()</span>
+<span class="n">algo_cb_list</span> <span class="o">=</span> <span class="n">algo_kf</span><span class="o">.</span><span class="n">callbacks</span><span class="p">()</span>
+<span class="n">cb</span> <span class="o">=</span> <span class="p">[</span><span class="n">loss_cb</span><span class="p">,</span> <span class="n">time_cb</span><span class="p">]</span>
+<span class="n">cb</span> <span class="o">+=</span> <span class="n">algo_cb_list</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">epoch_kf</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="n">cb</span><span class="p">,</span> <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>运行结果如下:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>step_0: loss=3.5922117
+step_1: loss=5.259112
+step_2: loss=5.152421
+step_3: loss=3.2383142
+step_4: loss=5.3319235
+step_5: loss=4.715785
+</pre></div>
+</div>
+</section>
+<section id="finetune阶段">
+<h3>Finetune阶段<a class="headerlink" href="#finetune阶段" title="永久链接至标题"></a></h3>
+<p>通过Knockoff阶段确认冗余的卷积核，通过PrunerFtCompressAlgo进行节点替换(详情用户可参考<a class="reference external" href="https://gitee.com/mindspore/golden-stick/blob/r0.4/mindspore_gs/pruner/scop/scop_pruner.py">API</a>)删除冗余卷积核，进行完整的训练并保存模型。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore_gs</span> <span class="kn">import</span> <span class="n">PrunerFtCompressAlgo</span>
+<span class="o">...</span>
+
+<span class="n">algo_ft</span> <span class="o">=</span> <span class="n">PrunerFtCompressAlgo</span><span class="p">(</span><span class="n">prune_rate</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">prune_rate</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">algo_ft</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">net</span><span class="p">)</span> <span class="c1"># Get Finetune stage network</span>
+<span class="n">lr_ft_new</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">get_lr</span><span class="p">(</span><span class="n">lr_init</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">lr_init</span><span class="p">,</span>
+                             <span class="n">lr_end</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">lr_ft_end</span><span class="p">,</span>
+                             <span class="n">lr_max</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">lr_ft_max</span><span class="p">,</span>
+                             <span class="n">warmup_epochs</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">warmup_epochs</span><span class="p">,</span>
+                             <span class="n">total_epochs</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">epochs_ft</span><span class="p">,</span>
+                             <span class="n">steps_per_epoch</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">(),</span>
+                             <span class="n">lr_decay_mode</span><span class="o">=</span><span class="s1">&#39;poly&#39;</span><span class="p">))</span>
+
+<span class="n">optimizer_ft</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="n">net</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()),</span>
+                           <span class="n">learning_rate</span><span class="o">=</span><span class="n">lr_ft_new</span><span class="p">,</span>
+                           <span class="n">momentum</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">momentum</span><span class="p">,</span>
+                           <span class="n">loss_scale</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">loss_scale</span>
+                          <span class="p">)</span>
+<span class="n">net</span><span class="o">.</span><span class="n">set_train</span><span class="p">()</span>
+<span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;acc&quot;</span><span class="p">}</span>
+<span class="n">loss_scale</span> <span class="o">=</span> <span class="n">FixedLossScaleManager</span><span class="p">(</span><span class="mi">1024</span><span class="p">,</span> <span class="n">drop_overflow_update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">model_ft</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer_ft</span><span class="p">,</span> <span class="n">loss_scale_manager</span><span class="o">=</span><span class="n">loss_scale</span><span class="p">,</span>
+                    <span class="n">metrics</span><span class="o">=</span><span class="n">metrics</span><span class="p">,</span>
+                    <span class="n">amp_level</span><span class="o">=</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="n">boost_level</span><span class="o">=</span><span class="s2">&quot;O0&quot;</span><span class="p">,</span> <span class="n">keep_batchnorm_fp32</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="c1"># Get Finetune stage model</span>
+
+<span class="n">step_size</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span>
+
+<span class="n">time_cb</span> <span class="o">=</span> <span class="n">TimeMonitor</span><span class="p">(</span><span class="n">data_size</span><span class="o">=</span><span class="n">step_size</span><span class="p">)</span>
+<span class="n">loss_cb</span> <span class="o">=</span> <span class="n">LossMonitor</span><span class="p">()</span>
+<span class="n">config_ck</span> <span class="o">=</span> <span class="n">CheckpointConfig</span><span class="p">(</span><span class="n">save_checkpoint_steps</span><span class="o">=</span><span class="mi">5</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">,</span>
+                             <span class="n">keep_checkpoint_max</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ckpt_cb</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;resnet&quot;</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">output_path</span><span class="p">,</span>
+                          <span class="n">config</span><span class="o">=</span><span class="n">config_ck</span><span class="p">)</span>
+<span class="n">ft_cb</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_cb</span><span class="p">,</span> <span class="n">loss_cb</span><span class="p">,</span> <span class="n">ckpt_cb</span><span class="p">]</span>
+<span class="n">model_ft</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">epochs_ft</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="n">ft_cb</span><span class="p">,</span>
+                <span class="n">sink_size</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">(),</span> <span class="n">dataset_sink_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>运行结果如下:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 1 step: 1, loss is 1.776729941368103
+epoch: 1 step: 2, loss is 2.481227159500122
+epoch: 1 step: 3, loss is 2.010404586791992
+epoch: 1 step: 4, loss is 1.852586030960083
+epoch: 1 step: 5, loss is 1.4738214015960693
+epoch: 1 step: 6, loss is 1.6637545824050903
+epoch: 1 step: 7, loss is 1.7006491422653198
+epoch: 1 step: 8, loss is 1.6532130241394043
+epoch: 1 step: 9, loss is 1.5730770826339722
+epoch: 1 step: 10, loss is 1.4364683628082275
+epoch: 1 step: 11, loss is 1.572392225265503
+</pre></div>
+</div>
+</section>
+<section id="加载保存的模型进行评估">
+<h3>加载保存的模型，进行评估<a class="headerlink" href="#加载保存的模型进行评估" title="永久链接至标题"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">set_context</span><span class="p">,</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">load_param_into_net</span><span class="p">,</span> <span class="n">export</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">resnet</span><span class="p">(</span><span class="n">class_num</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">class_num</span><span class="p">)</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">PrunerKfCompressAlgo</span><span class="p">({})</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">PrunerFtCompressAlgo</span><span class="p">({})</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+
+    <span class="c1"># load checkpoint</span>
+    <span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">ckpt_path</span><span class="p">)</span>
+    <span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+    <span class="n">total_params</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">():</span>
+        <span class="n">total_params</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;top_1_accuracy&#39;</span><span class="p">})</span>
+
+    <span class="c1"># eval model</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;result:&quot;</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="s2">&quot;prune_rate=&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">prune_rate</span><span class="p">,</span> <span class="s2">&quot;ckpt=&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">checkpoint_file_path</span><span class="p">,</span> <span class="s2">&quot;params=&quot;</span><span class="p">,</span> <span class="n">total_params</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>模型评估的精度(top_1_accuracy)、剪枝率(prune_rate)、模型存储位置(ckpt)及参数量(params)如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>result:{&#39;top_1_accuracy&#39;: 0.9273838141025641} prune_rate=0.45 ckpt=~/resnet50_cifar10/train_parallel0/resnet-400_390.ckpt params=10587835
+</pre></div>
+</div>
+</section>
+</section>
+<section id="导出剪枝模型">
+<h2>导出剪枝模型<a class="headerlink" href="#导出剪枝模型" title="永久链接至标题"></a></h2>
+<p>在端侧硬件平台上部署的量化模型为通用模型格式（AIR、MindIR等）。导出步骤为：</p>
+<ol class="arabic simple">
+<li><p>定义剪枝网络。</p></li>
+<li><p>加载剪枝训练时保存的CheckPoint格式文件。</p></li>
+<li><p>导出剪枝模型。</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">set_context</span><span class="p">,</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">load_param_into_net</span><span class="p">,</span> <span class="n">export</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="c1"># define fusion network</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">resnet</span><span class="p">(</span><span class="n">class_num</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">class_num</span><span class="p">)</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">PrunerKfCompressAlgo</span><span class="p">({})</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">PrunerFtCompressAlgo</span><span class="p">({})</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+
+    <span class="c1"># load quantization aware network checkpoint</span>
+    <span class="n">param_dict</span> <span class="o">=</span> <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">ckpt_path</span><span class="p">)</span>
+    <span class="n">load_param_into_net</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
+
+    <span class="c1"># export network</span>
+    <span class="n">inputs</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">image_height</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">image_width</span><span class="p">]),</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">export</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;ResNet_SCOP&quot;</span><span class="p">,</span> <span class="n">file_format</span><span class="o">=</span><span class="s1">&#39;MINDIR&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>导出剪枝模型后，请<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/master/infer/inference.html">使用MindSpore进行推理</a>。</p>
+</section>
+<section id="算法效果汇总">
+<h2>算法效果汇总<a class="headerlink" href="#算法效果汇总" title="永久链接至标题"></a></h2>
+<blockquote>
+<div><p>-表示尚未测试，NS表示尚未支持。</p>
+</div></blockquote>
+<section id="训练效果">
+<h3>训练效果<a class="headerlink" href="#训练效果" title="永久链接至标题"></a></h3>
+<p>使用图模式进行训练，使用的代码为：<a class="reference external" href="https://gitee.com/mindspore/mindspore/tree/v1.9.0">MindSpore</a>，<a class="reference external" href="https://gitee.com/mindspore/golden-stick/tree/v0.2.0/">MindSpore Golden Stick</a>，<a class="reference external" href="https://gitee.com/mindspore/models/tree/r1.9/">MindSpore Models</a>。</p>
+<table class="colwidths-auto docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>算法</p></th>
+<th class="head"><p>网络</p></th>
+<th class="head"><p>数据集</p></th>
+<th class="head"><p>CUDA11 Top1Acc</p></th>
+<th class="head"><p>CUDA11 Top5Acc</p></th>
+<th class="head"><p>Ascend910 Top1Acc</p></th>
+<th class="head"><p>Ascend910 Top5Acc</p></th>
+<th class="head"><p>剪枝率</p></th>
+<th class="head"><p>参数量(MB)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>baseline</p></td>
+<td><p>resnet50</p></td>
+<td><p>CIFAR10</p></td>
+<td><p>94.20%</p></td>
+<td><p>99.88%</p></td>
+<td><p>-</p></td>
+<td><p>-</p></td>
+<td><p>NA</p></td>
+<td><p>24</p></td>
+</tr>
+<tr class="row-odd"><td><p>SCOP</p></td>
+<td><p>resnet50</p></td>
+<td><p>CIFAR10</p></td>
+<td><p>92.74%</p></td>
+<td><p>-</p></td>
+<td><p>92.84%</p></td>
+<td><p>-</p></td>
+<td><p>45%</p></td>
+<td><p>11</p></td>
+</tr>
+<tr class="row-even"><td><p>baseline</p></td>
+<td><p>resnet50</p></td>
+<td><p>Imagenet2012</p></td>
+<td><p>77.16%</p></td>
+<td><p>93.47%</p></td>
+<td><p>-</p></td>
+<td><p>-</p></td>
+<td><p>NA</p></td>
+<td><p>-</p></td>
+</tr>
+<tr class="row-odd"><td><p>SCOP</p></td>
+<td><p>resnet50</p></td>
+<td><p>Imagenet2012</p></td>
+<td><p>NS</p></td>
+<td><p>NS</p></td>
+<td><p>NS</p></td>
+<td><p>NS</p></td>
+<td><p>NS</p></td>
+<td><p>NS</p></td>
+</tr>
+</tbody>
+</table>
+<p>可以发现，在当前任务中，与原始模型相比，在剪枝率45%的情况下，SCOP剪枝后的模型大幅降低了模型的参数量，精度损失在0.5%以内。</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="overview.html" class="btn btn-neutral float-left" title="剪枝算法概述" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="../deployment/overview.html" class="btn btn-neutral float-right" title="模型部署概述" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 MindSpore.</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+</body>
+</html>

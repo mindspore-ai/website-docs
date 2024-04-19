@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>切分策略传播算法 &mdash; MindSpore master 文档</title><script>;(()=>{const e=localStorage.getItem("ms-theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;(e?"dark"===e:t)&&document.documentElement.setAttribute("data-o-theme","dark")})();</script><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script><script src="../_static/jquery.js"></script>
+        <script src="../_static/js/theme.js"></script><script src="../_static/underscore.js"></script><script src="../_static/doctools.js"></script><script src="../_static/translations.js"></script><script crossorigin="anonymous" integrity="sha256-1fEPhSsRKlFKGfK3eO710tEweHh1fwokU5wFGDHO+vg=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="双递归策略搜索算法" href="sapp.html" />
+    <link rel="prev" title="自动并行" href="auto_parallel.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MindSpore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">分布式并行</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">分布式并行总览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="startup_method.html">分布式并行启动方式</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_parallel.html">数据并行</a></li>
+<li class="toctree-l1"><a class="reference internal" href="semi_auto_parallel.html">半自动并行</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="auto_parallel.html">自动并行</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">切分策略传播算法</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sapp.html">双递归策略搜索算法</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="manual_parallel.html">手动并行</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parameter_server_training.html">参数服务器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_save_load.html">模型保存与加载</a></li>
+<li class="toctree-l1"><a class="reference internal" href="recover.html">故障恢复</a></li>
+<li class="toctree-l1"><a class="reference internal" href="optimize_technique.html">优化方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="others.html">实验特性</a></li>
+<li class="toctree-l1"><a class="reference internal" href="distributed_case.html">分布式高阶配置案例</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">自定义算子</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../operation/op_custom.html">自定义算子（基于Custom表达）</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../operation/ms_kernel.html">MindSpore Hybrid 语法规范</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../operation/op_custom_adv.html">自定义算子注册</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../operation/op_custom_aot.html">aot类型自定义算子进阶用法</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">性能优化</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://www.mindspore.cn/mindinsight/docs/zh-CN/r2.3/performance_profiling.html">Profiling↗</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/execution_opt.html">下沉模式</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/graph_fusion_engine.html">使能图算融合</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/mem_reuse.html">内存复用</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">算法优化</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/gradient_accumulation.html">梯度累加</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimize/thor.html">二阶优化</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">高阶函数式编程</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../vmap/vmap.html">自动向量化Vmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../func_programming/Jacobians_Hessians.html">使用函数变换计算雅可比矩阵和黑塞矩阵</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../func_programming/per_sample_gradients.html">Per-sample-gradients</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">数据处理</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/augment.html">自动数据增强</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/cache.html">单节点数据缓存</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset/optimize.html">数据处理性能优化</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">模型推理</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../infer/inference.html">模型推理总览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infer/model_compression.html">模型压缩</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">复杂问题调试</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../debug/dump.html">Dump功能调试</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/aoe.html">AOE调优工具</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/rdr.html">Running Data Recorder</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/fault_recover.html">故障恢复</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../debug/sdc.html">精度敏感检测</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MindSpore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="auto_parallel.html">自动并行</a> &raquo;</li>
+      <li>切分策略传播算法</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/parallel/sharding_propagation.md.txt" rel="nofollow"> 查看页面源码</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section class="tex2jax_ignore mathjax_ignore" id="切分策略传播算法">
+<h1>切分策略传播算法<a class="headerlink" href="#切分策略传播算法" title="永久链接至标题"></a></h1>
+<p><a class="reference external" href="https://gitee.com/mindspore/docs/blob/r2.3.q1/tutorials/experts/source_zh_cn/parallel/sharding_propagation.md"><img alt="查看源文件" src="https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/website-images/r2.3.q1/resource/_static/logo_source.svg" /></a></p>
+<section id="概述">
+<h2>概述<a class="headerlink" href="#概述" title="永久链接至标题"></a></h2>
+<p>切分策略传播算法是指，用户仅需要手工定义几个关键算子的策略，计算图中其余算子的策略由算法自动生成。因为关键算子的策略已被定义，该算法的代价模型主要描述的算子之间的重排布代价(Redistribution Cost)，优化目标为全图重排代价最小。因为已经定义了主要算子策略，相当于认为压缩了搜索空间，这种方案的搜索时间较短，其策略性能依赖于关键算子策略的定义，因此仍然要求用户具备一定的分析定义策略的能力。</p>
+<blockquote>
+<div><p>切分策略传播算法支持的硬件平台包括Ascend、GPU，此外还同时支持PyNative模式和Graph模式。</p>
+</div></blockquote>
+<p>相关接口：</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.set_auto_parallel_context(parallel_mode=ParallelMode.AUTO_PARALLEL,</span> <span class="pre">search_mode=&quot;sharding_propagation&quot;)</span></code>：设置并行模式为自动并行，且搜索模式为切分策略传播算法。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mindspore.nn.Cell.shard()</span></code>以及<code class="docutils literal notranslate"><span class="pre">mindspore.ops.Primitive.shard()</span></code>：指定算子切分策略，其余算子的策略通过传播算法推导得到。目前<code class="docutils literal notranslate"><span class="pre">mindspore.nn.Cell.shard()</span></code>接口仅可在PyNative模式下使用；<code class="docutils literal notranslate"><span class="pre">mindspore.ops.Primitive.shard()</span></code>接口仅可在图模式下使用。</p></li>
+</ol>
+<p>总而言之，切分策略传播算法需要用户手动配置关键算子的切分策略。</p>
+</section>
+<section id="基本原理">
+<h2>基本原理<a class="headerlink" href="#基本原理" title="永久链接至标题"></a></h2>
+<p>给定计算图，<strong>切分策略传播</strong>（Sharding Propagation）使得策略由配置的算子传播到整张计算图的所有算子。在传播过程中，策略选择的目标是最小化张量重排布产生的通信代价。</p>
+<p>切分策略传播的输入是带有一些算子切分策略的计算图，其中的点表示算子，有向边表示数据依赖关系。切分策略传播的执行流程如下：</p>
+<ol class="arabic simple">
+<li><p>为未配置切分策略的算子生成可行的切分策略；</p></li>
+<li><p>为每条边生成重排布策略及相应的代价；</p></li>
+<li><p>从已配置切分策略的算子出发，利用广度优先搜索将切分策略传播到其它未配置切分策略的算子。传播过程的目标是最小化每条边上的重排布通信代价。若在当前传播路径上遇到已配置策略的算子，则停止传播。</p></li>
+</ol>
+<p>下图所示的是切分策略传播的一个流程实例。在给定带有切分策略的计算图后，首先为没有配置切分策略的算子枚举其可行的策略，如下图(b)所示。然后，为每条边枚举重排布策略和相应的代价。如下图(c)所示，这里的重排布策略定义为二元组[<em>s_strategy</em>, <em>t_strategy</em>]，其中<em>s_strategy</em>表示的是源算子（下图(c)中的ReLU）的切分策略，<em>t_strategy</em>表示的是目的算子（下图(c)中的MatMul）的切分策略。当沿着一条边传播到下一个算子时（如图中ReLU切分策略已确定，为[2, 4]，下一步要决定MatMul算子的切分策略），总是在表中选择引起通信代价最小的目的算子的策略（即为MatMul选择[[2, 4], [4, 1]]）。最后，所有算子的切分策略都被确定，如下图(d)所示。</p>
+<p><img alt="sharding_propagation" src="../_images/sharding_propagation_zh.png" /></p>
+</section>
+<section id="操作实践">
+<h2>操作实践<a class="headerlink" href="#操作实践" title="永久链接至标题"></a></h2>
+<p>下面以Ascend或者GPU单机8卡为例，进行切分策略传播操作说明：</p>
+<section id="样例代码说明">
+<h3>样例代码说明<a class="headerlink" href="#样例代码说明" title="永久链接至标题"></a></h3>
+<blockquote>
+<div><p>下载完整的样例代码：<a class="reference external" href="https://gitee.com/mindspore/docs/tree/r2.3.q1/docs/sample_code/sharding_propagation">sharding_propagation</a>。</p>
+</div></blockquote>
+<p>目录结构如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>└─ sample_code
+    ├─ sharding_propagation
+       ├── train.py
+       └── run.sh
+    ...
+</pre></div>
+</div>
+<p>其中，<code class="docutils literal notranslate"><span class="pre">train.py</span></code>是定义网络结构和训练过程的脚本。<code class="docutils literal notranslate"><span class="pre">run.sh</span></code>是执行脚本。</p>
+</section>
+<section id="配置分布式环境">
+<h3>配置分布式环境<a class="headerlink" href="#配置分布式环境" title="永久链接至标题"></a></h3>
+<p>通过context接口指定运行模式、运行设备、运行卡号等，与单卡脚本不同，并行脚本还需指定并行模式<code class="docutils literal notranslate"><span class="pre">parallel_mode</span></code>为自动并行模式，搜索模式<code class="docutils literal notranslate"><span class="pre">search_mode</span></code>为切分策略传播，并通过init初始化HCCL或NCCL通信。<code class="docutils literal notranslate"><span class="pre">device_target</span></code>会自动指定为MindSpore包对应的后端硬件设备。</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.communication</span> <span class="kn">import</span> <span class="n">init</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">GRAPH_MODE</span><span class="p">,</span> <span class="n">save_graphs</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">ParallelMode</span><span class="o">.</span><span class="n">AUTO_PARALLEL</span><span class="p">,</span> <span class="n">search_mode</span><span class="o">=</span><span class="s2">&quot;sharding_propagation&quot;</span><span class="p">)</span>
+<span class="n">init</span><span class="p">()</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="数据集加载">
+<h3>数据集加载<a class="headerlink" href="#数据集加载" title="永久链接至标题"></a></h3>
+<p>数据集加载方式与单机加载方式一致，代码如下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">mindspore.dataset</span> <span class="k">as</span> <span class="nn">ds</span>
+
+<span class="k">def</span> <span class="nf">create_dataset</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
+    <span class="n">dataset_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DATA_PATH&quot;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">MnistDataset</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">)</span>
+    <span class="n">image_transforms</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">Rescale</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">255.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="p">(</span><span class="mf">0.1307</span><span class="p">,),</span> <span class="n">std</span><span class="o">=</span><span class="p">(</span><span class="mf">0.3081</span><span class="p">,)),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">HWC2CHW</span><span class="p">()</span>
+    <span class="p">]</span>
+    <span class="n">label_transform</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">TypeCast</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">image_transforms</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">label_transform</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dataset</span>
+
+<span class="n">data_set</span> <span class="o">=</span> <span class="n">create_dataset</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="定义网络">
+<h3>定义网络<a class="headerlink" href="#定义网络" title="永久链接至标题"></a></h3>
+<p>网络的定义以FeedForward Network（<code class="docutils literal notranslate"><span class="pre">FFN</span></code>）为例，与单卡网络区别在于增加了<code class="docutils literal notranslate"><span class="pre">ops.MatMul()</span></code>算子的切分策略：</p>
+<blockquote>
+<div><p>目前Graph模式下仅支持对ops算子进行切分。</p>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.initializer</span> <span class="kn">import</span> <span class="n">initializer</span>
+
+<span class="k">class</span> <span class="nc">Dense</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">initializer</span><span class="p">(</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">out_channels</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+        <span class="c1"># matmul即为被切分的算子</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">MatMul</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Add</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="k">class</span> <span class="nc">FFN</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dense1</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dense2</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dense1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dense2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="n">net</span> <span class="o">=</span> <span class="n">FFN</span><span class="p">()</span>
+<span class="c1"># 配置dense1中的matmul算子切分策略为((2, 1), (1, 4))</span>
+<span class="n">net</span><span class="o">.</span><span class="n">dense1</span><span class="o">.</span><span class="n">matmul</span><span class="o">.</span><span class="n">shard</span><span class="p">(((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+</pre></div>
+</div>
+</section>
+<section id="训练网络">
+<h3>训练网络<a class="headerlink" href="#训练网络" title="永久链接至标题"></a></h3>
+<p>在这一步，我们需要定义损失函数、优化器以及训练过程，这部分与单卡写法一致：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+<span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">forward_fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">logits</span>
+
+<span class="n">grad_fn</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">forward_fn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">net</span><span class="o">.</span><span class="n">trainable_params</span><span class="p">(),</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="nd">@ms</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">):</span>
+    <span class="p">(</span><span class="n">loss_value</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+    <span class="n">optimizer</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">loss_value</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">data_set</span><span class="p">:</span>
+        <span class="n">loss_output</span> <span class="o">=</span> <span class="n">train_step</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;epoch: </span><span class="si">%s</span><span class="s2">, step: </span><span class="si">%s</span><span class="s2">, loss is </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">loss_output</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+</section>
+<section id="运行单机八卡脚本">
+<h3>运行单机八卡脚本<a class="headerlink" href="#运行单机八卡脚本" title="永久链接至标题"></a></h3>
+<p>接下来通过命令调用对应的脚本，以<code class="docutils literal notranslate"><span class="pre">mpirun</span></code>启动方式，8卡的分布式训练脚本为例，进行分布式训练：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash<span class="w"> </span>run.sh
+</pre></div>
+</div>
+<p>训练完后，日志文件保存到<code class="docutils literal notranslate"><span class="pre">log_output</span></code>目录下，通过在<code class="docutils literal notranslate"><span class="pre">train.py</span></code>中设置context: <code class="docutils literal notranslate"><span class="pre">save_graphs=2</span></code>，可以打印出编译过程中的IR图，其中部分文件目录结构如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>├─ log_output
+|   └─ 1
+|       ├─ rank.0
+|       |   └─ stdout
+|       ├─ rank.1
+|       |   └─ stdout
+|       ...
+├─ rank_0
+|   ├─ step_parallel_begin_xxxx.ir
+|   ├─ xx_validate_xxx.ir
+|   ...
+├─ rank_1
+|   ├─ step_parallel_begin_xxxx.ir
+|   ├─ xx_validate_xxx.ir
+|   ...
+...
+</pre></div>
+</div>
+<p>关于Loss部分结果保存在<code class="docutils literal notranslate"><span class="pre">log_output/1/rank.*/stdout</span></code>中，示例如下：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>epoch: 0, step: 0, loss is 2.3016691
+epoch: 0, step: 100, loss is 2.2160375
+epoch: 0, step: 200, loss is 1.7746857
+epoch: 0, step: 300, loss is 1.0550221
+epoch: 0, step: 400, loss is 0.763592
+epoch: 0, step: 500, loss is 0.5714973
+epoch: 0, step: 600, loss is 0.4949431
+epoch: 0, step: 700, loss is 0.4682496
+epoch: 0, step: 800, loss is 0.29194525
+epoch: 0, step: 900, loss is 0.43532845
+epoch: 0, step: 1000, loss is 0.46586612
+...
+</pre></div>
+</div>
+<p>在<code class="docutils literal notranslate"><span class="pre">step_parallel_begin_xxxx.ir</span></code>中，可以看到每个计算算子都被配置了切分策略：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>...
+  %4(logits) = MatMul(%2, %3) {instance name: matmul} primitive_attrs: {input_names: [x1, x2], out_strategy: None, transpose_x2: Bool(0), transpose_b: Bool(0), in_strategy: ((2, 1), (1, 4)), output_names: [output], transpose_a: Bool(0), transpose_x1: Bool(0)} {in_strategy: ((2, 1), (1, 4))}
+      : (&lt;Tensor[Float32], (256, 784)&gt;, &lt;Tensor[Float32], (784, 64)&gt;) -&gt; (&lt;Tensor[Float32], (256, 64)&gt;)
+      # Scope: (Default)
+  %5([CNode]1647) = Load($(@1_train_step.1349:para4_dense1.bias), %para16_u)
+      : (&lt;Ref[Tensor[Float32]], (64), ref_key=:dense1.bias&gt;, &lt;UMonad, NoShape&gt;) -&gt; (&lt;Tensor[Float32], (64)&gt;)
+      # Scope: (Default)
+  %6(logits) = Add(%4, %5) {instance name: add} primitive_attrs: {output_names: [output], input_names: [x, y]} {in_strategy: ((2, 4), (4))}
+      : (&lt;Tensor[Float32], (256, 64)&gt;, &lt;Tensor[Float32], (64)&gt;) -&gt; (&lt;Tensor[Float32], (256, 64)&gt;)
+      # Scope: (Default)
+  %7(logits) = ReLU(%6) {instance name: relu} primitive_attrs: {output_names: [output], input_names: [x]} {in_strategy: ((2, 4))}
+      : (&lt;Tensor[Float32], (256, 64)&gt;) -&gt; (&lt;Tensor[Float32], (256, 64)&gt;)
+      # Scope: (Default)
+  %8([CNode]1641) = Load($(@1_train_step.1349:para5_dense2.weight), %para16_u)
+      : (&lt;Ref[Tensor[Float32]], (64, 10), ref_key=:dense2.weight&gt;, &lt;UMonad, NoShape&gt;) -&gt; (&lt;Tensor[Float32], (64, 10)&gt;)
+      # Scope: (Default)
+  %9(logits) = MatMul(%7, %8) {instance name: matmul} primitive_attrs: {output_names: [output], transpose_a: Bool(0), input_names: [x1, x2], transpose_x2: Bool(0), transpose_x1: Bool(0), transpose_b: Bool(0)} {in_strategy: ((2, 4), (4, 1))}
+      : (&lt;Tensor[Float32], (256, 64)&gt;, &lt;Tensor[Float32], (64, 10)&gt;) -&gt; (&lt;Tensor[Float32], (256, 10)&gt;)
+      # Scope: (Default)
+...
+</pre></div>
+</div>
+<p>例如对于上面的第一个MatMul算子，输入的策略in_strategy已被配置为((2, 1), (1, 4))，Add算子的切分策略被配置为((2, 4), (4))。</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>(&lt;Tensor[Float32], (256, 784)&gt;, &lt;Tensor[Float32], (784, 64)&gt;) -&gt; (&lt;Tensor[Float32], (256, 64)&gt;)
+</pre></div>
+</div>
+<p>代表算子的原输入，对于第一个MatMul算子，第一、第二个输入的shape分别为(256, 784)、(784, 64)，输出的shape为(256, 64)。</p>
+<p>在<code class="docutils literal notranslate"><span class="pre">xx_validate_xxx.ir</span></code>中，可以看到各个算子的输入输出张量是已经被切分后的：</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>...
+  %3(equiv[CNode]4) = MatMul(%1, %2) {instance name: matmul} primitive_attrs: {input_names: [x1, x2], out_strategy: None, transpose_x2: Bool(0), transpose_b: Bool(0), in_strategy: ((2, 1), (1, 4)), output_names: [output], transpose_a: Bool(0), transpose_x1: Bool(0)} cnode_attrs: {related_comm_node_id: &quot;30707&quot;} cnode_primal_attrs: {unique_id: &quot;31021&quot;, related_fusion_key: &quot;all_reduce_2-511848487187618470_1&quot;, related_node_id: &quot;28192&quot;} {in_strategy: ((2, 1), (1, 4))}
+      : (&lt;Tensor[Float32], (128, 784)&gt;, &lt;Tensor[Float32], (784, 16)&gt;) -&gt; (&lt;Tensor[Float32], (128, 16)&gt;)
+      # Scope: (Default)
+      # In file train.py:40/        x = self.matmul(x, self.weight)/
+  %4(equiv[CNode]1647) = Load(%para4_dense1.bias, U) cnode_primal_attrs: {unique_id: &quot;31025&quot;}
+      : (&lt;Ref[Tensor[Float32]], (16), ref_key=:dense1.bias&gt;, &lt;UMonad, NoShape&gt;) -&gt; (&lt;Tensor[Float32], (16)&gt;)
+      # Scope: (Default)
+  %5(equiv[CNode]4) = Add(%3, %4) primitive_attrs: {output_names: [output], input_names: [x, y]} cnode_attrs: {related_comm_node_id: &quot;30709&quot;} cnode_primal_attrs: {unique_id: &quot;31020&quot;, related_fusion_key: &quot;all_reduce_2-511848487187618470_1&quot;, related_node_id: &quot;28190&quot;} {in_strategy: ((2, 4), (4))}
+      : (&lt;Tensor[Float32], (128, 16)&gt;, &lt;Tensor[Float32], (16)&gt;) -&gt; (&lt;Tensor[Float32], (128, 16)&gt;)
+      # Scope: (Default)
+      # In file train.py:41/        x = self.add(x, self.bias)/
+  %6(equiv[CNode]4) = ReLU(%5) {instance name: relu} primitive_attrs: {output_names: [output], input_names: [x]} cnode_primal_attrs: {unique_id: &quot;31008&quot;} {in_strategy: ((2, 4))}
+      : (&lt;Tensor[Float32], (128, 16)&gt;) -&gt; (&lt;Tensor[Float32], (128, 16)&gt;)
+      # Scope: (Default)
+      # In file train.py:58/        x = self.relu(x)/
+  %7(equiv[CNode]1641) = Load(%para5_dense2.weight, U) cnode_primal_attrs: {unique_id: &quot;31018&quot;}
+      : (&lt;Ref[Tensor[Float32]], (16, 10), ref_key=:dense2.weight&gt;, &lt;UMonad, NoShape&gt;) -&gt; (&lt;Tensor[Float32], (16, 10)&gt;)
+      # Scope: (Default)
+  %8(equiv[CNode]4) = MatMul(%6, %7) {instance name: matmul} primitive_attrs: {output_names: [output], transpose_a: Bool(0), input_names: [x1, x2], transpose_x2: Bool(0), transpose_x1: Bool(0), transpose_b: Bool(0)} cnode_attrs: {related_comm_node_id: &quot;30724&quot;} cnode_primal_attrs: {unique_id: &quot;31015&quot;, related_fusion_key: &quot;all_reduce_2-511848487187618470_1&quot;, related_node_id: &quot;28180&quot;} {in_strategy: ((2, 4), (4, 1))}
+      : (&lt;Tensor[Float32], (128, 16)&gt;, &lt;Tensor[Float32], (16, 10)&gt;) -&gt; (&lt;Tensor[Float32], (128, 10)&gt;)
+      # Scope: (Default)
+      # In file train.py:40/        x = self.matmul(x, self.weight)/
+...
+</pre></div>
+</div>
+<p>对于第一个MatMul算子，其输入根据策略((2, 1), (1, 4))切分后，第一、第二个输入的shape分别从原来的(256, 784)、(784, 64)切分为(128, 784)、(784, 16)，因此得到输出的shape为(128, 16)。</p>
+<p>其他启动方式如动态组网、<code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">table</span></code>的启动可参考<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/r2.3.0rc1/parallel/startup_method.html">启动方式</a>。</p>
+</section>
+<section id="配置算子切分策略的经验性原则">
+<h3>配置算子切分策略的经验性原则<a class="headerlink" href="#配置算子切分策略的经验性原则" title="永久链接至标题"></a></h3>
+<p>给定一个新模型，从用户的角度，关键问题是配置哪些算子的切分策略来获得较好的性能。由于策略传播的目标是最小化张量重排布的代价，而非最小化端到端的迭代时间，因此，为“关键算子”配置合适的切分策略是十分重要的。然而，并不存在明确的规定约束哪些算子是必须配置切分策略的。尽管如此，基于我们训练大模型的经验，确实有一些原则可以用来指导新用户配置并行策略。我们总结出3条经验性的原则供参考，详见<a class="reference external" href="https://www.mindspore.cn/tutorials/experts/zh-CN/r2.3.0rc1/parallel/split_technique.html">切分技巧</a>。</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="auto_parallel.html" class="btn btn-neutral float-left" title="自动并行" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+        <a href="sapp.html" class="btn btn-neutral float-right" title="双递归策略搜索算法" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; 版权所有 MindSpore.</p>
+  </div>
+
+  利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+</body>
+</html>
