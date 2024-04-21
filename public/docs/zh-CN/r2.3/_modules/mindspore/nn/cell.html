@@ -156,9 +156,10 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
-<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">MethodType</span>
 <span class="kn">import</span> <span class="nn">numpy</span>
-<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">args_type_check</span>
+
+<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">args_type_check</span><span class="p">,</span> <span class="n">check_hook_fn</span>
 <span class="kn">from</span> <span class="nn">mindspore.common._auto_dynamic</span> <span class="kn">import</span> <span class="n">is_auto_dynamic</span><span class="p">,</span> <span class="n">convert_inputs_to_dynamic</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">PARAMETER_NAME_DEFAULT</span>
@@ -2080,8 +2081,8 @@
 <span class="sd">            hook_fn (function): Python function. Forward pre hook function.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Handle, it is an instance of `mindspore.common.hook_handle.HookHandle` and corresponding to the `hook_fn` .</span>
-<span class="sd">            The handle can be used to remove the added `hook_fn` by calling `handle.remove()` .</span>
+<span class="sd">            A handle corresponding to the `hook_fn` . The handle can be used to remove the added `hook_fn` by calling</span>
+<span class="sd">            `handle.remove()` .</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: If the `hook_fn` is not a function of python.</span>
@@ -2116,17 +2117,8 @@
 <span class="sd">            (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]), Tensor(shape=[1], dtype=Float32,</span>
 <span class="sd">            value= [ 2.00000000e+00]))</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;register_forward_pre_hook&#39; function is only supported in pynative mode, you can use &quot;</span>
-                           <span class="sa">f</span><span class="s2">&quot;context.set_context to set pynative mode.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">check_hook_fn</span><span class="p">(</span><span class="s2">&quot;register_forward_pre_hook&quot;</span><span class="p">,</span> <span class="n">hook_fn</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">HookHandle</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">,</span> <span class="p">(</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;When using &#39;register_forward_pre_hook(hook_fn)&#39;, the type of &#39;hook_fn&#39; must be python &quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot;function, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">hook_fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_name</span> <span class="o">==</span> <span class="s2">&quot;staging_specialize&quot;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Decorating hook function </span><span class="si">{</span><span class="n">hook_fn</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> with &#39;@jit&#39; is not supported.&quot;</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">_enable_forward_pre_hook</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">set_hook_changed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_forward_pre_hook_key&#39;</span><span class="p">):</span>
@@ -2180,8 +2172,8 @@
 <span class="sd">            hook_fn (function): Python function. Forward hook function.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Handle, it is an instance of `mindspore.common.hook_handle.HookHandle` and corresponding to the `hook_fn` .</span>
-<span class="sd">            The handle can be used to remove the added `hook_fn` by calling `handle.remove()` .</span>
+<span class="sd">            A handle corresponding to the `hook_fn` . The handle can be used to remove the added `hook_fn` by calling</span>
+<span class="sd">            `handle.remove()` .</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: If the `hook_fn` is not a function of python.</span>
@@ -2218,17 +2210,8 @@
 <span class="sd">            (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]), Tensor(shape=[1], dtype=Float32,</span>
 <span class="sd">            value= [ 2.00000000e+00]))</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;register_forward_hook&#39; function is only supported in pynative mode, you can use &quot;</span>
-                           <span class="sa">f</span><span class="s2">&quot;context.set_context to set pynative mode.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">check_hook_fn</span><span class="p">(</span><span class="s2">&quot;register_forward_hook&quot;</span><span class="p">,</span> <span class="n">hook_fn</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">HookHandle</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">,</span> <span class="p">(</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;When using &#39;register_forward_hook(hook_fn)&#39;, the type of &#39;hook_fn&#39; must be python &quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot;function, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">hook_fn</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_name</span> <span class="o">==</span> <span class="s2">&quot;staging_specialize&quot;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Decorating hook function </span><span class="si">{</span><span class="n">hook_fn</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> with &#39;@jit&#39; is not supported.&quot;</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">_enable_forward_hook</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">set_hook_changed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_forward_hook_key&#39;</span><span class="p">):</span>
@@ -2280,8 +2263,8 @@
 <span class="sd">            hook_fn (function): Python function. Backward hook function.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Handle, it is an instance of `mindspore.common.hook_handle.HookHandle` and corresponding to the `hook_fn` .</span>
-<span class="sd">            The handle can be used to remove the added `hook_fn` by calling `handle.remove()` .</span>
+<span class="sd">            A handle corresponding to the `hook_fn` . The handle can be used to remove the added `hook_fn` by calling</span>
+<span class="sd">            `handle.remove()` .</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: If the `hook_fn` is not a function of python.</span>
@@ -2316,14 +2299,8 @@
 <span class="sd">            &gt;&gt;&gt; print(output)</span>
 <span class="sd">            (Tensor(shape=[1], dtype=Float32, value= [ 2.00000000e+00]),)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;register_backward_hook&#39; function is only supported in pynative mode, you can use &quot;</span>
-                           <span class="sa">f</span><span class="s2">&quot;context.set_context to set pynative mode.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">check_hook_fn</span><span class="p">(</span><span class="s2">&quot;register_backward_hook&quot;</span><span class="p">,</span> <span class="n">hook_fn</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">HookHandle</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">,</span> <span class="p">(</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">MethodType</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;When using &#39;register_backward_hook(hook_fn)&#39;, the type of &#39;hook_fn&#39; must be python &quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot;function, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cell_backward_hook</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_enable_backward_hook</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_cell_backward_hook</span> <span class="o">=</span> <span class="n">inner</span><span class="o">.</span><span class="n">CellBackwardHook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cls_name</span> <span class="o">+</span> <span class="s2">&quot;(&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span><span class="p">)</span>
