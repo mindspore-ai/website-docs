@@ -163,12 +163,13 @@
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
+<span class="kn">from</span> <span class="nn">mindspore.common.hook_handle</span> <span class="kn">import</span> <span class="n">_TensorHookHandle</span>
 
 <span class="kn">from</span> <span class="nn">mindspore.common._utils</span> <span class="kn">import</span> <span class="n">get_slice_num</span>
 <span class="kn">from</span> <span class="nn">mindspore.common._register_for_tensor</span> <span class="kn">import</span> <span class="n">tensor_operator_registry</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Tensor</span> <span class="k">as</span> <span class="n">Tensor_</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">validator</span>
-<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">check_is_number</span><span class="p">,</span> <span class="n">is_stub_tensor</span>
+<span class="kn">from</span> <span class="nn">mindspore._checkparam</span> <span class="kn">import</span> <span class="n">check_is_number</span><span class="p">,</span> <span class="n">is_stub_tensor</span><span class="p">,</span> <span class="n">check_hook_fn</span>
 <span class="kn">from</span> <span class="nn">mindspore._check_jit_forbidden_api</span> <span class="kn">import</span> <span class="n">jit_forbidden_register</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.symbol</span> <span class="kn">import</span> <span class="n">Symbol</span>
 
@@ -1361,6 +1362,54 @@
 <span class="sd">            0</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">Tensor_</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Tensor.register_hook"><a class="viewcode-back" href="../../../api_python/mindspore/Tensor/mindspore.Tensor.register_hook.html#mindspore.Tensor.register_hook">[文档]</a>    <span class="k">def</span> <span class="nf">register_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hook_fn</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Registers a backward hook for tensor.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            - The `register_backward_hook(hook_fn)` does not work in graph mode or functions decorated with &#39;jit&#39;.</span>
+<span class="sd">            - The &#39;hook_fn&#39; must be defined as the following code. `grad` is the gradient passed to the tensor,</span>
+<span class="sd">              which may be modified by returning a new output gradient.</span>
+<span class="sd">            - The &#39;hook_fn&#39; should have the following signature:</span>
+<span class="sd">              hook_fn(grad) -&gt; New output gradient, but can not return None or not set return value.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hook_fn (function): Python function. Tensor backward hook function.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A handle corresponding to the `hook_fn` . The handle can be used to remove the added `hook_fn` by calling</span>
+<span class="sd">            `handle.remove()` .</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: If the `hook_fn` is not a function of python.</span>
+
+<span class="sd">        Supported Platforms:</span>
+<span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore import Tensor</span>
+<span class="sd">            &gt;&gt;&gt; ms.set_context(mode=ms.PYNATIVE_MODE)</span>
+<span class="sd">            &gt;&gt;&gt; def hook_fn(grad):</span>
+<span class="sd">            ...     return grad * 2</span>
+<span class="sd">            ...</span>
+<span class="sd">            &gt;&gt;&gt; def hook_test(x, y):</span>
+<span class="sd">            ...     z = x * y</span>
+<span class="sd">            ...     z.register_hook(hook_fn)</span>
+<span class="sd">            ...     z = z * y</span>
+<span class="sd">            ...    return z</span>
+<span class="sd">            ...</span>
+<span class="sd">            &gt;&gt;&gt; ms_grad = ms.grad(hook_test, grad_position=(0,1))</span>
+<span class="sd">            &gt;&gt;&gt; output = ms_grad(Tensor(1, ms.float32), Tensor(2, ms.float32))</span>
+<span class="sd">            &gt;&gt;&gt; print(output)</span>
+<span class="sd">            (Tensor(shape=[], dtype=Float32, value=8), Tensor(shape=[], dtype=Float32, value=6))</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">check_hook_fn</span><span class="p">(</span><span class="s2">&quot;register_hook&quot;</span><span class="p">,</span> <span class="n">hook_fn</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">_TensorHookHandle</span><span class="p">()</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="n">_TensorHookHandle</span><span class="p">()</span>
+        <span class="n">handle</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">Tensor_</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hook_fn</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">handle</span></div>
 
 <div class="viewcode-block" id="Tensor.flush_from_cache"><a class="viewcode-back" href="../../../api_python/mindspore/Tensor/mindspore.Tensor.flush_from_cache.html#mindspore.Tensor.flush_from_cache">[文档]</a>    <span class="k">def</span> <span class="nf">flush_from_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
