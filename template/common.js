@@ -388,49 +388,49 @@ $(function () {
         <img class="logo-img" src="/pic/logo_black.png" alt="logo" />
         </a>
         ${
-          utils.getHeaderMenu &&
           utils.getHeaderMenu
-            .map((item) => {
-              const href = item.href
-                ? isEn
-                  ? item.href.en
-                  : item.href.zh
-                : '';
-              const name = isEn ? item.label.en : item.label.zh;
-              if (!item.children) {
-                if (pathname.includes(item.id) && item.id === 'docs') {
-                  item.active = 1;
-                }
-                return `
+            ? utils.getHeaderMenu
+                .map((item) => {
+                  const href = item.href
+                    ? isEn
+                      ? item.href.en
+                      : item.href.zh
+                    : '';
+                  const name = isEn ? item.label.en : item.label.zh;
+                  if (!item.children) {
+                    if (pathname.includes(item.id) && item.id === 'docs') {
+                      item.active = 1;
+                    }
+                    return `
                   <div class="header-nav-link"><a class="header-nav-link-line ${
                     item.active ? 'selected' : ''
                   }" href="${utils.filterXSS(href)}">${utils.filterXSS(
-                  name
-                )}</a></div>
+                      name
+                    )}</a></div>
                   `;
-              } else {
-                if (
-                  pathname.startsWith('/tutorials/') &&
-                  item.id === 'learning'
-                ) {
-                  item.active = 1;
-                }
-                let navLabel = '';
-                if (href) {
-                  navLabel = `<a class="header-nav-link-line ${
-                    item.active ? 'selected' : ''
-                  }" href="${utils.filterXSS(
-                    href
-                  )}" rel="noopener noreferrer" target="${
-                    item.jumOut ? '_blank' : '_self'
-                  }">${utils.filterXSS(name)}</a>`;
-                } else {
-                  navLabel = `<span class="header-nav-link-line ${
-                    item.active ? 'selected' : ''
-                  }">${utils.filterXSS(name)}</span>`;
-                }
+                  } else {
+                    if (
+                      pathname.startsWith('/tutorials/') &&
+                      item.id === 'learning'
+                    ) {
+                      item.active = 1;
+                    }
+                    let navLabel = '';
+                    if (href) {
+                      navLabel = `<a class="header-nav-link-line ${
+                        item.active ? 'selected' : ''
+                      }" href="${utils.filterXSS(
+                        href
+                      )}" rel="noopener noreferrer" target="${
+                        item.jumOut ? '_blank' : '_self'
+                      }">${utils.filterXSS(name)}</a>`;
+                    } else {
+                      navLabel = `<span class="header-nav-link-line ${
+                        item.active ? 'selected' : ''
+                      }">${utils.filterXSS(name)}</span>`;
+                    }
 
-                return `
+                    return `
                   <div class="header-nav-link">
                           <div class="nav-content">${navLabel}
                           ${
@@ -446,9 +446,10 @@ $(function () {
                               : ''
                           }</div> ${appHeaderUtils.getLinkTags(item.tags)}
                   </div>`;
-              }
-            })
-            .join('')
+                  }
+                })
+                .join('')
+            : ''
         }
         </div>
         <div class="header-nav navbar-tools" >
@@ -736,33 +737,35 @@ $(function () {
       // 用一个宽度来记录之前的宽度，当之前的宽度和现在的宽度，从手机切换到电脑或者从电脑切换到手机，才执行下面部分函数
       watchWinResize: () => {
         window.addEventListener('resize', () => {
-          const width = window.innerWidth;
-          const h5Head = document.getElementById('header-h5');
-          const h5footer = document.getElementById('footer-mo');
-          const pcfooter = document.getElementById('footer');
-          const navh5 = document.getElementById('nav-h5');
-          if (width < 1200) {
-            $('#mask').css('display', 'none');
-            $('.wy-nav-side').css({ left: '-90%', transition: '0s' });
-            if (h5Head === null) {
-              appHeaderMb.init();
-            }
-            utils.destroyDialog();
-          } else {
-            $('.header').css('display', 'block');
-            $('#mask').remove();
-            $('.wy-nav-side').css('left', '0');
+          try {
+            const width = window.innerWidth;
+            const h5Head = document.getElementById('header-h5');
+            const h5footer = document.getElementById('footer-mo');
+            const pcfooter = document.getElementById('footer');
+            const navh5 = document.getElementById('nav-h5');
+            if (width < 1200) {
+              $('#mask').css('display', 'none');
+              $('.wy-nav-side').css({ left: '-90%', transition: '0s' });
+              if (h5Head === null) {
+                appHeaderMb.init();
+              }
+              utils.destroyDialog();
+            } else {
+              $('.header').css('display', 'block');
+              $('#mask').remove();
+              $('.wy-nav-side').css('left', '0');
 
-            if (h5Head || h5footer || navh5) {
-              h5Head.remove();
-              h5footer.remove();
-              navh5.remove();
-            }
+              if (h5Head || h5footer || navh5) {
+                h5Head.remove();
+                h5footer.remove();
+                navh5.remove();
+              }
 
-            if (pcfooter === null) {
-              $('.wy-nav-content').append(appFooter.getFooterContent());
+              if (pcfooter === null) {
+                $('.wy-nav-content').append(appFooter.getFooterContent());
+              }
             }
-          }
+          } catch (error) {}
         });
       },
       // 复制粘贴功能
@@ -812,6 +815,7 @@ $(function () {
           oInput.style.display = 'none';
           setTimeout(() => {
             that.attr('data-tooltip', 'copy');
+            oInput.remove();
           }, 1000);
         });
       },
@@ -920,11 +924,13 @@ $(function () {
 
         // 进入页面调整到锚点,解决中文锚点问题，中文锚点需要转码
         function gotoId() {
-          const url = utils.filterXSS(window.location.toString()); // 进这个页面的url
-          const id = window.decodeURIComponent(url.split('#')[1]); // 中文id需要转码，英文id走catch error
-          if (id && document.getElementById(id) !== null) {
-            document.getElementById(id).scrollIntoView(true);
-          }
+          try {
+            const url = utils.filterXSS(window.location.toString()); // 进这个页面的url
+            const id = window.decodeURIComponent(url.split('#')[1]); // 中文id需要转码，英文id走catch error
+            if (id && document.getElementById(id) !== null) {
+              document.getElementById(id).scrollIntoView(true);
+            }
+          } catch (error) {}
         }
         gotoId();
 
@@ -1028,81 +1034,30 @@ $(function () {
         if (h2List.length > 0) {
           for (let i = 0; i < h2List.length; i++) {
             // 正则去除括号、保留内容
-            const id = docsAnchor.getReplaceStr(h2List[i].parentNode.id);
-            const h3 = document.getElementById(id).querySelectorAll('h3');
-            if (h3.length > 0) {
-              navLi2 = '';
-              navLi3 = '';
-              for (let i = 0; i < h3.length; i++) {
-                if (h3[i].parentNode.querySelectorAll('h4').length > 0) {
-                  navLi4 = '';
-                  const navLi4Array = h3[i].parentNode.querySelectorAll('h4');
-                  for (let k = 0; k < navLi4Array.length; k++) {
-                    navLi4 += docsAnchor.getNodeList(navLi4Array[k]);
-                  }
-                  navLi3 += docsAnchor.getNodeList(
-                    h3[i],
-                    true,
-                    false,
-                    navLi4,
-                    'navList4'
-                  );
-                } else {
-                  navLi3 += docsAnchor.getNodeList(h3[i]);
-                }
-              }
-              navLi2 = docsAnchor.getNodeList(
-                h2List[i],
-                true,
-                false,
-                '',
-                'navList3'
-              );
-            } else {
-              navLi3 = '';
-              navLi2 = '';
-              if (
-                h2List[i].parentNode.querySelectorAll(
-                  '.class>dt .descname>.pre,.function>dt .descname>.pre'
-                ).length > 0
-              ) {
-                const navLi3Array = h2List[i].parentNode.querySelectorAll(
-                  '.class>dt .descname>.pre,.function>dt .descname>.pre'
-                );
 
-                for (let j = 0; j < navLi3Array.length; j++) {
-                  if (
-                    navLi3Array[j].parentNode.parentNode.querySelectorAll(
-                      'dd .pre'
-                    ).length > 0
-                  ) {
+            try {
+              const id = docsAnchor.getReplaceStr(h2List[i].parentNode.id);
+              const h3 = document.getElementById(id).querySelectorAll('h3');
+
+              if (h3.length > 0) {
+                navLi2 = '';
+                navLi3 = '';
+                for (let i = 0; i < h3.length; i++) {
+                  if (h3[i].parentNode.querySelectorAll('h4').length > 0) {
                     navLi4 = '';
-                    const navLi4Array =
-                      navLi3Array[j].parentNode.parentNode.querySelectorAll(
-                        'dd .descname>.pre'
-                      );
+                    const navLi4Array = h3[i].parentNode.querySelectorAll('h4');
                     for (let k = 0; k < navLi4Array.length; k++) {
-                      navLi4 += docsAnchor.getNodeList(
-                        navLi4Array[k],
-                        false,
-                        true
-                      );
+                      navLi4 += docsAnchor.getNodeList(navLi4Array[k]);
                     }
                     navLi3 += docsAnchor.getNodeList(
-                      navLi3Array[j],
+                      h3[i],
                       true,
-                      true,
+                      false,
                       navLi4,
                       'navList4'
                     );
                   } else {
-                    navLi3 += docsAnchor.getNodeList(
-                      navLi3Array[j],
-                      true,
-                      true,
-                      '',
-                      'navList4'
-                    );
+                    navLi3 += docsAnchor.getNodeList(h3[i]);
                   }
                 }
                 navLi2 = docsAnchor.getNodeList(
@@ -1113,10 +1068,64 @@ $(function () {
                   'navList3'
                 );
               } else {
-                navLi2 = docsAnchor.getNodeList(h2List[i]);
-              }
-            }
+                navLi3 = '';
+                navLi2 = '';
+                if (
+                  h2List[i].parentNode.querySelectorAll(
+                    '.class>dt .descname>.pre,.function>dt .descname>.pre'
+                  ).length > 0
+                ) {
+                  const navLi3Array = h2List[i].parentNode.querySelectorAll(
+                    '.class>dt .descname>.pre,.function>dt .descname>.pre'
+                  );
 
+                  for (let j = 0; j < navLi3Array.length; j++) {
+                    if (
+                      navLi3Array[j].parentNode.parentNode.querySelectorAll(
+                        'dd .pre'
+                      ).length > 0
+                    ) {
+                      navLi4 = '';
+                      const navLi4Array =
+                        navLi3Array[j].parentNode.parentNode.querySelectorAll(
+                          'dd .descname>.pre'
+                        );
+                      for (let k = 0; k < navLi4Array.length; k++) {
+                        navLi4 += docsAnchor.getNodeList(
+                          navLi4Array[k],
+                          false,
+                          true
+                        );
+                      }
+                      navLi3 += docsAnchor.getNodeList(
+                        navLi3Array[j],
+                        true,
+                        true,
+                        navLi4,
+                        'navList4'
+                      );
+                    } else {
+                      navLi3 += docsAnchor.getNodeList(
+                        navLi3Array[j],
+                        true,
+                        true,
+                        '',
+                        'navList4'
+                      );
+                    }
+                  }
+                  navLi2 = docsAnchor.getNodeList(
+                    h2List[i],
+                    true,
+                    false,
+                    '',
+                    'navList3'
+                  );
+                } else {
+                  navLi2 = docsAnchor.getNodeList(h2List[i]);
+                }
+              }
+            } catch (error) {}
             $('.navList2').append(navLi2);
             $('.navList2>li:nth-of-type(' + (i + 1) + ') .navList3').append(
               navLi3
