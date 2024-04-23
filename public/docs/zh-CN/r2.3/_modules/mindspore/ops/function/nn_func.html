@@ -151,7 +151,7 @@
 
 <span class="sd">&quot;&quot;&quot;Defines nn operators with functional form.&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
-<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">pi</span><span class="p">,</span> <span class="n">log</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">pi</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">floor</span>
 
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
@@ -641,6 +641,75 @@
     <span class="n">input_x</span> <span class="o">=</span> <span class="n">avg_pool_op</span><span class="p">(</span><span class="n">input_x</span><span class="p">)</span>
     <span class="n">input_x</span> <span class="o">=</span> <span class="n">squeeze_op</span><span class="p">(</span><span class="n">input_x</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">input_x</span></div>
+
+
+<span class="k">def</span> <span class="nf">avg_pool2d_ext</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ceil_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">count_include_pad</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                   <span class="n">divisor_override</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Applies a 2D average pooling over an input Tensor which can be regarded as a composition of 2D input planes.</span>
+<span class="sd">        Typically the input is of shape :math:`(N, C, H_{in}, W_{in})`, outputs regional average in the</span>
+<span class="sd">        :math:`(H_{in}, W_{in})`-dimension. Given kernel size :math:`(k_{H}, k_{W})` and `stride` , the operation</span>
+<span class="sd">        is as follows.</span>
+
+<span class="sd">        .. math::</span>
+<span class="sd">            \text{output}(N_i, C_j, h, w) = \frac{1}{k_{H} * k_{W}} \sum_{m=0}^{k_{H}-1} \sum_{n=0}^{k_{W}-1}</span>
+<span class="sd">            \text{input}(N_i, C_j, stride[0] \times h + m, stride[1] \times w + n)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input (Tensor): Tensor of shape :math:`(N, C, H_{in}, W_{in})`.</span>
+<span class="sd">            kernel_size (Union[int, tuple[int], list[int]]): The size of kernel used to take the average value.</span>
+<span class="sd">                Can be a single number or a tuple (kH, kW).</span>
+<span class="sd">            stride (Union[int, tuple[int], list[int]]): The distance of kernel moving. Can be a single number or</span>
+<span class="sd">                a tuple (sH, sW). Default value is `kernel_size` .</span>
+<span class="sd">            padding (Union(int, tuple[int], list[int])): Implicit zero padding to be added on both sides.</span>
+<span class="sd">                Can be a single number or a tuple (padH, padW). Default: 0.</span>
+<span class="sd">            ceil_mode (bool): If True, apply ceil instead of floor to compute the output shape.</span>
+<span class="sd">                Default: ``False``.</span>
+<span class="sd">            count_include_pad (bool): If True, include the zero-padding in the averaging calculation.</span>
+<span class="sd">                Default: ``True`` .</span>
+<span class="sd">            divisor_override (int): If specified, it will be used as divisor in the averaging calculation,</span>
+<span class="sd">                otherwise `kernel_size` will be used. Default: ``None``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tensor, with shape :math:`(N, C, H_{out}, W_{out})`.</span>
+
+<span class="sd">        .. math::</span>
+
+<span class="sd">            H_{out} = \frac{H_{in} + 2 \times padding[0] - kernel_size[0]}{stride[0]} + 1</span>
+<span class="sd">            W_{out} = \frac{W_{in} + 2 \times padding[1] - kernel_size[1]}{stride[1]} + 1</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: If `input` is not a Tensor.</span>
+<span class="sd">            TypeError: If `kernel_size` or `stride` is neither int nor tuple.</span>
+<span class="sd">            TypeError: If `ceil_mode` or `count_include_pad` is not a bool.</span>
+<span class="sd">            TypeError: If `divisor_override` is not an int.</span>
+<span class="sd">            ValueError: If length of shape of `input` is not equal to `4` or `3`.</span>
+<span class="sd">            ValueError: If `kernel_size` or `stride` is less than 1.</span>
+<span class="sd">            ValueError: If `kernel_size` or `stride` is a tuple whose length is not equal to `2` or `1`.</span>
+<span class="sd">            ValueError: If `padding` is neither a int nor a tuple whose length is equal to `2` or `1`.</span>
+<span class="sd">            ValueError: If value of `padding` is less than `0`.</span>
+
+<span class="sd">        Supported Platforms:</span>
+<span class="sd">            ``Ascend``</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; import mindspore</span>
+<span class="sd">            &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore import Tensor, mint</span>
+<span class="sd">            &gt;&gt;&gt; x = Tensor(np.arange(1 * 3 * 3 * 4).reshape(1, 3, 3, 4), mindspore.float32)</span>
+<span class="sd">            &gt;&gt;&gt; output = mint.avg_pool2d(x, kernel_size=2, stride=1)</span>
+<span class="sd">            &gt;&gt;&gt; print(output)</span>
+<span class="sd">            [[[[ 2.5   3.5   4.5]</span>
+<span class="sd">            [ 6.5   7.5   8.5]]</span>
+<span class="sd">            [[14.5  15.5  16.5]</span>
+<span class="sd">            [18.5  19.5  20.5]]</span>
+<span class="sd">            [[26.5  27.5  28.5]</span>
+<span class="sd">            [30.5  31.5  32.5]]]]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">stride</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">stride</span> <span class="o">=</span> <span class="n">kernel_size</span>
+    <span class="k">return</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">auto_generate</span><span class="o">.</span><span class="n">AvgPool2D</span><span class="p">)()(</span><span class="nb">input</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span>
+                                                          <span class="n">ceil_mode</span><span class="p">,</span> <span class="n">count_include_pad</span><span class="p">,</span> <span class="n">divisor_override</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_check_avg_pool3d_padding</span><span class="p">(</span><span class="n">padding</span><span class="p">):</span>
@@ -2208,7 +2277,11 @@
 
 <span class="k">def</span> <span class="nf">_interploate_make_tuple</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
     <span class="n">s</span> <span class="o">=</span> <span class="n">tuple_to_tensor_</span><span class="p">((</span><span class="n">rank</span><span class="p">,),</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
-    <span class="n">v</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">scalar_to_tensor</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">scalar_to_tensor</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
     <span class="n">t</span> <span class="o">=</span> <span class="n">fillv2_</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
     <span class="n">out</span> <span class="o">=</span> <span class="n">tensor_to_tuple_</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">out</span>
@@ -2579,6 +2652,265 @@
         <span class="n">align_corners</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">return</span> <span class="n">resize_func</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">mode</span><span class="p">)(</span><span class="nb">input</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">interpolate_ext</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span>
+                    <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">,</span>
+                    <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">recompute_scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Samples the input Tensor to the given size or scale_factor by using one of the interpolate algorithms.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        - In &#39;linear&#39; mode, backpropagation does not support scenarios where `scale_factor` is not None</span>
+<span class="sd">          and `align_corners` is False.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        input (Tensor): Tensor to be resized.</span>
+<span class="sd">            Input tensor must be a 3-D, 4-D, or 5-D tensor with shape</span>
+<span class="sd">            :math:`(N, C, [optional D], [optional H], W)` , with data type of float.</span>
+<span class="sd">        size (Union[int, tuple[int], list[int]], optional): The target size.</span>
+<span class="sd">            If size is a tuple or list, its length should be the same as the number of dimensions in input</span>
+<span class="sd">            after removing the first two dimensions N, C.</span>
+<span class="sd">            One and only one of size and scale_factor can be set to None. Default: ``None`` .</span>
+<span class="sd">        scale_factor (Union[float, tuple[float], list[float]], optional): The scale factor of new size of the tensor.</span>
+<span class="sd">            If scale_factor is a tuple or list, its length should be the same as the number of dimensions in input</span>
+<span class="sd">            after removing the first two dimensions N, C.</span>
+<span class="sd">            One and only one of size and scale_factor can be set to None. Default: ``None`` .</span>
+<span class="sd">        mode (str): The sampling algorithm.</span>
+<span class="sd">            One of &#39;nearest&#39;, &#39;linear&#39; (3D only), &#39;bilinear&#39; (4D only), &#39;trilinear&#39; (5D only), &#39;bicubic&#39; (4D only),</span>
+<span class="sd">            &#39;area&#39;, &#39;nearest-exact&#39;(matches Scikit-Image and PIL nearest neighbours interpolation algorithms and fixes</span>
+<span class="sd">            knows issues with `nearest`, 3D and 4D). Default: ``&quot;nearest&quot;`` .</span>
+
+<span class="sd">        align_corners (bool): Whether to use corner alignment for coordinate mapping. Assuming a transformation is</span>
+<span class="sd">            applied to the input Tensor along the x-axis, the specific calculation formula is as follows:</span>
+
+<span class="sd">            .. code-block::</span>
+
+<span class="sd">                ori_i = new_length != 1 ? new_i * (ori_length - 1) / (new_length - 1) : 0   # &#39;align_corners&#39; = True</span>
+
+<span class="sd">                ori_i = new_length &gt; 1 ? (new_i + 0.5) * ori_length / new_length - 0.5 : 0  # &#39;align_corners&#39; = False</span>
+
+<span class="sd">            Among them, :math:`ori\_length` and :math:`new\_length` represent the length of the Tensor before and after</span>
+<span class="sd">            transformation along the x-axis respectively; :math:`new\_i` represents the coordinate of the i-th element</span>
+<span class="sd">            along the x-axis after transformation; :math:`ori\_i` represents</span>
+<span class="sd">            the corresponding coordinate of the original</span>
+<span class="sd">            data along the x-axis.</span>
+
+<span class="sd">            This is only valid for ``&#39;linear&#39;``, ``&#39;bilinear&#39;``, or ``&#39;bicubic&#39;`` modes. Default: ``False`` .</span>
+<span class="sd">        recompute_scale_factor (bool, optional): Recalculate `scale_factor`.</span>
+<span class="sd">            If True, the parameter `size` will be calculated using the value of the `scale_factor`,</span>
+<span class="sd">            and finally scaled using the value of `size`.</span>
+<span class="sd">            If False, the value of `size` or `scale_factor` will be used for direct interpolation. Default: ``None`` .</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        The &#39;nearest-exact&#39; mode is the same as the nearest-neighbor interpolation algorithm used in</span>
+<span class="sd">        scikit-image and PIL. The &#39;nearest&#39; mode produces the same results as the INTER_NEAREST interpolation</span>
+<span class="sd">        algorithm used in OpenCV.</span>
+
+<span class="sd">    Args Support List and Supported Platforms:</span>
+
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    | mode          | input.dim | align_corners | scale_factor | device         |</span>
+<span class="sd">    +===============+===========+===============+==============+================+</span>
+<span class="sd">    | nearest       | 3         | \-            | √            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    |               | 4         | \-            | √            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    |               | 5         | \-            | √            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    | linear        | 3         | √             | √            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    | bilinear      | 4         | √             | ×            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    | bicubic       | 4         | √             | ×            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    | area          | 3         | \-            | √            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    |               | 4         | \-            | √            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    |               | 5         | \-            | √            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    | nearest-exact | 3         | \-            | ×            | Ascend,CPU     |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    |               | 4         | \-            | ×            | Ascend,CPU     |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+<span class="sd">    | trilinear     | 5         | √             | √            | Ascend,GPU,CPU |</span>
+<span class="sd">    +---------------+-----------+---------------+--------------+----------------+</span>
+
+<span class="sd">    - `-` indicates that there is no such parameter.</span>
+<span class="sd">    - `×` indicates that this parameter is not currently supported.</span>
+<span class="sd">    - `√` indicates that this parameter is supported.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tensor, resized, whose dimensions and dtype are the same as `input`.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: `input` is not a Tensor.</span>
+<span class="sd">        ValueError: Both `size` and `scale_factor` are not empty.</span>
+<span class="sd">        ValueError: Both `size` and `scale_factor` are empty.</span>
+<span class="sd">        ValueError: When `size` is a tuple or list, its length is not equal to `input.ndim - 2`.</span>
+<span class="sd">        ValueError: When `scale_factor` is a tuple or list, its length is not equal to `input.ndim - 2`.</span>
+<span class="sd">        ValueError: `mode` is not in the list of supported modes.</span>
+<span class="sd">        ValueError: `input.ndim` is not in the list of supported dimensions for the corresponding mode.</span>
+<span class="sd">        ValueError: `size` is not empty, `recompute_scale_factor` is not empty.</span>
+<span class="sd">        ValueError: `scale_factor` is not in the corresponding list of supported values.</span>
+<span class="sd">        ValueError: `align_corners` is not in the corresponding list of supported values.</span>
+
+<span class="sd">    Supported Platforms:</span>
+<span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import Tensor, mint</span>
+<span class="sd">        &gt;&gt;&gt; input = Tensor([[[1, 2, 3], [4, 5, 6]]], mindspore.float32)</span>
+<span class="sd">        &gt;&gt;&gt; output = mint.interpolate(input, size=(6,), mode=&#39;nearest&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; print(output)</span>
+<span class="sd">            [[[1. 1. 2. 2. 3. 3.]</span>
+<span class="sd">              [4. 4. 5. 5. 6. 6.]]]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">run_nearest</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">x_rank</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">rank</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">x_rank</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">auto_generate</span><span class="o">.</span><span class="n">UpsampleNearest1D</span><span class="p">)()(</span>
+                <span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">x_rank</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">auto_generate</span><span class="o">.</span><span class="n">UpsampleNearest2D</span><span class="p">)()(</span>
+                <span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">UpsampleNearest3D</span><span class="p">)()(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="nf">run_linear</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span>
+            <span class="n">ops</span><span class="o">.</span><span class="n">auto_generate</span><span class="o">.</span><span class="n">UpsampleLinear1D</span><span class="p">)()(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">,</span> <span class="n">align_corners</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">run_bilinear</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span>
+            <span class="n">ops</span><span class="o">.</span><span class="n">auto_generate</span><span class="o">.</span><span class="n">UpsampleBilinear2D</span><span class="p">)()(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">,</span> <span class="n">align_corners</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">run_trilinear</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">resize</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">nn_ops</span><span class="o">.</span><span class="n">UpsampleTrilinear3D</span><span class="p">)(</span><span class="n">align_corners</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">resize</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">run_bicubic</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">resize</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">image_ops</span><span class="o">.</span><span class="n">ResizeBicubic</span><span class="p">)(</span>
+            <span class="n">align_corners</span><span class="o">=</span><span class="n">align_corners</span><span class="p">,</span> <span class="n">half_pixel_centers</span><span class="o">=</span><span class="ow">not</span> <span class="n">align_corners</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="nf">run_area</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">x_rank</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">rank</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">x_rank</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">adaptive_avg_pool1d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">x_rank</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">adaptive_avg_pool2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">size</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">adaptive_avg_pool3d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">size</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="nf">run_nearest_exact</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">x_rank</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">rank</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">x_rank</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">size</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span>
+            <span class="c1"># For impl of nearest 3D use 4D.</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">resize</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">ResizeNearestNeighborV2</span><span class="p">)(</span>
+                <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">half_pixel_centers</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">Squeeze</span><span class="p">)(</span><span class="o">-</span><span class="mi">1</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">x_rank</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">resize</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">ResizeNearestNeighborV2</span><span class="p">)(</span>
+                <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">half_pixel_centers</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+
+    <span class="n">resize_funcs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;nearest&quot;</span><span class="p">:</span> <span class="n">run_nearest</span><span class="p">,</span>
+        <span class="s2">&quot;linear&quot;</span><span class="p">:</span> <span class="n">run_linear</span><span class="p">,</span>
+        <span class="s2">&quot;bilinear&quot;</span><span class="p">:</span> <span class="n">run_bilinear</span><span class="p">,</span>
+        <span class="s2">&quot;bicubic&quot;</span><span class="p">:</span> <span class="n">run_bicubic</span><span class="p">,</span>
+        <span class="s2">&quot;trilinear&quot;</span><span class="p">:</span> <span class="n">run_trilinear</span><span class="p">,</span>
+        <span class="s2">&quot;area&quot;</span><span class="p">:</span> <span class="n">run_area</span><span class="p">,</span>
+        <span class="s2">&quot;nearest-exact&quot;</span><span class="p">:</span> <span class="n">run_nearest_exact</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="c1"># mode check</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">resize_funcs</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;For &#39;interpolate&#39;, &#39;mode&#39; must be in &#39;</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">resize_funcs</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;, but got </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;nearest&quot;</span><span class="p">,</span> <span class="s2">&quot;area&quot;</span><span class="p">,</span> <span class="s2">&quot;nearest-exact&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">align_corners</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;align_corners option can only be set with the &quot;</span>
+                             <span class="s2">&quot;interpolating modes: linear | bilinear | bicubic | trilinear&quot;</span>
+                             <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">align_corners</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">align_corners</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># check for size and scale_factor</span>
+    <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">scale_factor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;For &#39;interpolate&#39;, &#39;size&#39; and &#39;scale_factor&#39; cannot be set simultaneously&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">size</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">rank</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">rank</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span>
+            <span class="k">if</span> <span class="n">F</span><span class="o">.</span><span class="n">isconstant</span><span class="p">(</span><span class="n">size</span><span class="p">)</span> <span class="ow">and</span> <span class="n">F</span><span class="o">.</span><span class="n">isconstant</span><span class="p">(</span><span class="n">rank</span><span class="p">):</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">size</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rank</span><span class="p">)])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="n">_interploate_make_tuple</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">scale_factor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scale_factor</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="n">scale_factor</span> <span class="o">=</span> <span class="n">scale_factor</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">rank</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">rank</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span>
+            <span class="k">if</span> <span class="n">F</span><span class="o">.</span><span class="n">isconstant</span><span class="p">(</span><span class="n">scale_factor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">F</span><span class="o">.</span><span class="n">isconstant</span><span class="p">(</span><span class="n">rank</span><span class="p">):</span>
+                <span class="n">scale_factor</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">scale_factor</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rank</span><span class="p">)])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">scale_factor</span> <span class="o">=</span> <span class="n">_interploate_make_tuple</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;For &#39;interpolate&#39;, &#39;size&#39; and &#39;scale_factor&#39; cannot be both empty&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># &quot;area&quot; mode always requires an explicit size rather than scale factor.</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;area&quot;</span> <span class="ow">and</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">recompute_scale_factor</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="c1"># recompute_scale_factor</span>
+    <span class="k">if</span> <span class="n">recompute_scale_factor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">recompute_scale_factor</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;For &#39;interpolate&#39;, it is incorrect to set &#39;recompute_scale_factor&#39; to True&quot;</span>
+                <span class="s2">&quot; after specifying an explicit &#39;size&#39;.&quot;</span><span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">F</span><span class="o">.</span><span class="n">isconstant</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="ow">and</span> <span class="n">F</span><span class="o">.</span><span class="n">isconstant</span><span class="p">(</span><span class="n">scale_factor</span><span class="p">):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">floor</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">scale_factor</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span>
+                          <span class="nb">range</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">scale_factor</span><span class="p">))])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">_interpolate_scale_factor_convert_size</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">)</span>
+        <span class="n">scale_factor</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># scale_factor</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;bilinear&quot;</span><span class="p">,</span> <span class="s2">&quot;bicubic&quot;</span><span class="p">,</span> <span class="s2">&quot;nearest-exact&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">scale_factor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;scale_factor option can only be set with the &quot;</span>
+                             <span class="s2">&quot;interpolating modes: nearest | linear | area | trilinear&quot;</span>
+                             <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">resize_funcs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">mode</span><span class="p">)(</span><span class="nb">input</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">align_corners</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="upsample"><a class="viewcode-back" href="../../../../api_python/ops/mindspore.ops.upsample.html#mindspore.ops.upsample">[文档]</a><span class="k">def</span> <span class="nf">upsample</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">recompute_scale_factor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
