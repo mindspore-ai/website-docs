@@ -1714,17 +1714,17 @@
 <span class="sd">            \mul value \\</span>
 <span class="sd">        \end{array}</span>
 
-<span class="sd">    B -- Batch size</span>
-<span class="sd">    S1 -- Sequence length of query.</span>
-<span class="sd">    S2 -- Sequence length of key and value.</span>
-<span class="sd">    N1 -- Num heads of query. Max value 256.</span>
+<span class="sd">    B -- Batch size. Value range 1 to 2k.</span>
+<span class="sd">    S1 -- Sequence length of query. Value range 1 to 512k.</span>
+<span class="sd">    S2 -- Sequence length of key and value. Value range 1 to 512k.</span>
+<span class="sd">    N1 -- Num heads of query. Value range 1 to 256.</span>
 <span class="sd">    N2 -- Num heads of key and value, and N2 must be a factor of N1.</span>
 <span class="sd">    D -- Head size. The value ranges is a multiple of 16, with the max value of 512.</span>
 <span class="sd">    H1 -- Hidden size of query, which equals to N1 * D.</span>
 <span class="sd">    H2 -- Hidden size of key and value, which equals to N2 * D.</span>
 
 <span class="sd">    .. warning::</span>
-<span class="sd">        This is an experimental API that is subject to change or deletion.</span>
+<span class="sd">        This is an experimental API that is subject to change or deletion. Only support on Atlas training series.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        query (Tensor[float16, bfloat16]): The query tensor. Input tensor of shape :math:`(B, S1, H1)`,</span>
@@ -1732,35 +1732,75 @@
 <span class="sd">        key (Tensor[float16, bfloat16]): The key tensor. Input tensor of shape :math:`(B, S2, H2)`,</span>
 <span class="sd">            `(B, N2, S2, D)`, `(S2, B, H2)`, `(B, S2, N2, D)` or `(T2, N2, D)`.</span>
 <span class="sd">        value (Tensor[float16, bfloat16]): The value tensor. Input tensor of shape :math:`(B, S2, H2)`,</span>
-<span class="sd">            `(B, N2, S2, D)`, `(S2, B, H2)`, `(B, S2, N2, D)` or `(T2, N2, D)`.</span>
-<span class="sd">        head_num (int): The head num of query.</span>
+<span class="sd">            `(B, N2, S2, D)`, `(S2, B, H2)`, `(B, S2, N2, D)` or `(T2, N2, D)`. The key and value have the same shape.</span>
+<span class="sd">        head_num (int): The head num of query, equal to N1.</span>
 <span class="sd">        real_shift (Union[Tensor[float16, bfloat16], None]): Also known as pse. The position embedding code. If S</span>
 <span class="sd">            is greater than 1024 and the mask of the lower triangle is used, enter only the inverse 1024 lines of</span>
 <span class="sd">            the lower triangle for memory optimization. Input tensor of shape :math: `(B, N1, S1, S2)`,</span>
 <span class="sd">            `(1, N1, S1, S2)`, `(B, N1, 1024, S2)`, `(1, N1, 1024, S2)`.</span>
+
+<span class="sd">            - ALiBi scenario: real_shift must meet the ALiBi rule, and sparse_mode is 2 or 3 for the lower triangle.</span>
+<span class="sd">              In this scenario, real_shift is `(B, N1, 1024, S2)`, `(1, N1, 1024, S2)`.</span>
+<span class="sd">            - Non-ALiBi scenario: real_shift is `(B, N1, S1, S2)`, `(1, N1, S1, S2)`.</span>
+
 <span class="sd">            The shape of `real_shift` should be `(B, N1, 1024, S2)` and `(1, N1, 1024, S2)` when input_layout is</span>
 <span class="sd">            `TND`.</span>
 <span class="sd">        drop_mask (Union[Tensor[uint8], None]): The dropout mask tensor. Input tensor of shape :math:</span>
-<span class="sd">            `(B, N1, S1, S2 // 8) or None`.</span>
+<span class="sd">            `(B, N1, S1, S2 // 8) or None`. S2 is a multiple of 8 when not None.</span>
 <span class="sd">        padding_mask (None): Reserved parameter. Not implemented yet.</span>
 <span class="sd">        attn_mask (Union[Tensor[uint8], Tensor[bool], None]): The attention mask tensor. For each element, 0</span>
 <span class="sd">            indicates retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`,</span>
-<span class="sd">            `(B, 1, S1, S2)`, `(S1, S2)` or (2048, 2048).</span>
+<span class="sd">            `(B, 1, S1, S2)`, `(S1, S2)` or `(2048, 2048)`. In compression scenario, sparse_mode is 2, 3, or 4,</span>
+<span class="sd">            attn_mask must be `(2048, 2048)`. When sparse_mode is 5, attn_mask must be &#39;(B, N1, S1, S2)`,</span>
+<span class="sd">            `(B, 1, S1, S2)`.</span>
 <span class="sd">        prefix (Union[List[int64], Tuple[int64] None]): N value of each Batch in the prefix sparse calculation</span>
-<span class="sd">            scenario. Input tensor of shape :math:`(B,)`. Not none only when sparse_mode is 5.</span>
+<span class="sd">            scenario. Input tensor of shape :math:`(B,)`. B max value 32. Not none only when sparse_mode is 5.</span>
+<span class="sd">            If S1 &gt; S2, N ranges from 0 to S2. If S1 &lt;= S2, N ranges from S2 - S1 to S2.</span>
 <span class="sd">        actual_seq_qlen (Union[List[int64], Tuple[int64], None]): Size of query corresponding to each batch, array</span>
 <span class="sd">            with increasing values and the last value equal to T1.</span>
 <span class="sd">        actual_seq_kvlen (Union[List[int64], Tuple[int64], None]): Size of key and value corresponding to each batch,</span>
 <span class="sd">            array with increasing values and the last value equal to T2.</span>
-<span class="sd">        keep_prob (float): The keep probability of dropout. Default: 1.0.</span>
-<span class="sd">        scale_value (float): The scale factor of score. Default: 1.0.</span>
+<span class="sd">        keep_prob (float): The keep probability of dropout. Value range is (0.0, 1.0]. Default: 1.0.</span>
+<span class="sd">        scale_value (float): The scale factor of score. Generally, the value is 1.0 / (D ** 0.5). Default: 1.0.</span>
 <span class="sd">        pre_tokens (int): Parameter for sparse computation, represents how many tokens are counted forward.</span>
 <span class="sd">            When sparse_mode is set to 1, 2, 3, or 5, this parameter does not take effect. Default: 2147483647.</span>
 <span class="sd">        next_tokens (int): Parameter for sparse computation, represents how many tokens are counted backward.</span>
 <span class="sd">            When sparse_mode is set to 1, 2, 3, or 5, this parameter does not take effect. Default: 2147483647.</span>
+<span class="sd">            The value of pre_tokens corresponds to S1, and the value of next_tokens corresponds to S2. They define the</span>
+<span class="sd">            valid area on the attn_mask matrix. It must ensure that the band is not empty.</span>
+<span class="sd">            The following values are not allowed:</span>
+
+<span class="sd">            - pre_tokens &lt; 0 and next_tokens &lt; 0.</span>
+<span class="sd">            - (pre_tokens &lt; 0 and next_tokens &gt;= 0) and (next_tokens &lt; abs(pre_tokens) or abs(pre_tokens) &gt;= S2).</span>
+<span class="sd">            - (pre_tokens &gt;= 0 and next_tokens &lt; 0) and (abs(next_tokens) &gt; pre_tokens or abs(next_tokens) &gt;= S1).</span>
+
 <span class="sd">        inner_precise (int): The parameter is reserved and not implemented yet. Default: 0.</span>
 <span class="sd">        input_layout (str): Specifies the layout of input `query`, key and value. The value can be &quot;BSH&quot;, &quot;BNSD&quot;,</span>
 <span class="sd">            &quot;SBH&quot;, &quot;BSND&quot; or &quot;TND&quot;. &quot;TND&quot; is an experimental format. Default: &quot;BSH&quot;.</span>
+<span class="sd">            When input_layout is &quot;TND&quot;, the following restrictions must be met.</span>
+<span class="sd">            There are two lists that represent the length of the input sequence: list_seq_q and list_seq_k. Each</span>
+<span class="sd">            value in the list indicates the length of the sequence in the batch. For example, list_seq_q = [4, 2, 6],</span>
+<span class="sd">            list_seq_k = [10, 3, 9]. The element of list indicate S. T1 is sum(list_seq_q) = 12, T2 is</span>
+<span class="sd">            sum(list_seq_k) = 22.</span>
+<span class="sd">            max_seqlen_q = max(list_seq_q), max_seqlen_k = max(list_seq_k).</span>
+<span class="sd">            qk_pointer = sum(list_seq_q * list_seq_k), which is the sum of the element multiplication.</span>
+
+<span class="sd">            - The lengths of two lists are the same, and size of list is batch. batch is less than or equal to 1024.</span>
+<span class="sd">            - When input_layout is &quot;TND&quot;, actual_seq_qlen and actual_seq_kvlen must be not none.</span>
+<span class="sd">              Otherwise, they are none.</span>
+<span class="sd">            - The actual_seq_qlen and actual_seq_kvlen are the cumulative sum of sequence of key/value, so they must</span>
+<span class="sd">              be non-decreasing.</span>
+<span class="sd">            - If real_shift is not none, list_seq_q and list_seq_k must be same. The maximum value of list_seq_q and</span>
+<span class="sd">              list_seq_k is greater than 1024. Real_shift should be `(B, N1, 1024, S2)` and `(1, N1, 1024, S2)`, and</span>
+<span class="sd">              S2 is equal to max_seqlen_k.</span>
+<span class="sd">            - Attn mask must be a lower trianglar matrix, so sparse_mode should be 2 or 3. The shape of attn_mask</span>
+<span class="sd">              should be `(2048, 2048)`.</span>
+<span class="sd">            - The shape of drop_mask is (qk_pointer * N1 // 8,).</span>
+<span class="sd">            - Prefix is none.</span>
+<span class="sd">            - Next_tokens is 0, and pre_tokens is not less than max_seqlen_q.</span>
+<span class="sd">            - When sparse_mode is 3, S1 of each batch should be less than or equal to S2.</span>
+<span class="sd">            - 0 should not exist in list_seq_k.</span>
+
 <span class="sd">        sparse_mode (int): Indicates sparse mode. Default 0.</span>
 
 <span class="sd">            - 0: Indicates the defaultMask mode. If attn_mask is not passed, the mask operation is not performed,</span>
@@ -1773,10 +1813,10 @@
 <span class="sd">            - 3: Representing the rightDownCausal model corresponds to the lower triangle scene divided by the lower</span>
 <span class="sd">              right vertex, and the optimized attn_mask matrix (2048*2048) is required.</span>
 <span class="sd">            - 4: Represents the band scenario, that is, the part between counting preTokens and nextTokens, and the</span>
-<span class="sd">              optimized attn_mask matrix (2048*2048) is required..</span>
+<span class="sd">              optimized attn_mask matrix (2048*2048) is required.</span>
 <span class="sd">            - 5: Represents the prefix scenario, that is, on the basis of rightDownCasual, a matrix with length S1 and</span>
 <span class="sd">              width N is added to the left side. The value of N is obtained by the new input prefix, and the N value</span>
-<span class="sd">              of each Batch axis is different.</span>
+<span class="sd">              of each Batch axis is different, not implemented yet.</span>
 <span class="sd">            - 6: Represents the global scenario, not implemented yet.</span>
 <span class="sd">            - 7: Represents the dilated scenario, not implemented yet.</span>
 <span class="sd">            - 8: Represents the block_local scenario, not implemented yet.</span>
