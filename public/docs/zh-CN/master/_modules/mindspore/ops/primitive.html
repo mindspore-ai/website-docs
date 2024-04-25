@@ -53,11 +53,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.train.html">mindspore.train</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.communication.html">mindspore.communication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.hal.html">mindspore.hal</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.multiprocessing.html">mindspore.multiprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
@@ -132,7 +134,7 @@
            <div itemprop="articleBody">
              
   <h1>mindspore.ops.primitive 源代码</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright 2020-2021 Huawei Technologies Co., Ltd</span>
+<span></span><span class="c1"># Copyright 2020-2024 Huawei Technologies Co., Ltd</span>
 <span class="c1">#</span>
 <span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
@@ -151,15 +153,16 @@
 <span class="kn">import</span> <span class="nn">functools</span>
 <span class="kn">import</span> <span class="nn">inspect</span>
 <span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_wrap_func</span>
 <span class="kn">from</span> <span class="nn">mindspore.log</span> <span class="kn">import</span> <span class="n">_LogActionOnce</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span><span class="p">,</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">,</span> <span class="n">_is_in_data_parallel_mode</span><span class="p">,</span> <span class="n">_is_in_hybrid_parallel_mode</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._ps_context</span> <span class="kn">import</span> <span class="n">_is_ps_mode</span><span class="p">,</span> <span class="n">_is_role_sched</span>
-<span class="kn">from</span> <span class="nn">mindspore.common.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">mindspore.parallel.shard</span> <span class="kn">import</span> <span class="n">Layout</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_pynative_executor</span>
 <span class="kn">from</span> <span class="nn">mindspore.common._stub_tensor</span> <span class="kn">import</span> <span class="n">_convert_stub</span>
-<span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Primitive_</span><span class="p">,</span> <span class="n">prim_type</span><span class="p">,</span> <span class="n">typing</span>
+<span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Primitive_</span><span class="p">,</span> <span class="n">PrimitiveFunction_</span><span class="p">,</span> <span class="n">prim_type</span><span class="p">,</span> <span class="n">typing</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">_checkparam</span> <span class="k">as</span> <span class="n">Validator</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">signature</span> <span class="k">as</span> <span class="n">sig</span>
 
@@ -218,6 +221,24 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">add_attr</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
+    <span class="k">def</span> <span class="nf">_set_prim_arg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set primitive initialization arguments.</span>
+
+<span class="sd">        Different from add_prim_attr, it is used internally to store Primitive</span>
+<span class="sd">        initialization arguments in Python.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">_set_prim_arg_with_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">arg_handler</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set primitive initialization arguments and with arg_handler.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">value</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">arg_handler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_prim_arg</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
 <div class="viewcode-block" id="Primitive.set_device"><a class="viewcode-back" href="../../../api_python/ops/mindspore.ops.Primitive.html#mindspore.Primitive.set_device">[文档]</a>    <span class="k">def</span> <span class="nf">set_device</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device_target</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set primitive been executed device.</span>
@@ -272,6 +293,63 @@
             <span class="n">cloned</span><span class="o">.</span><span class="n">set_prim_instance_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instance_name</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">cloned</span>
 
+    <span class="k">def</span> <span class="nf">_check_shard_strategy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">strategy</span><span class="p">,</span> <span class="n">log_info</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check shard strategy is validate or not&quot;&quot;&quot;</span>
+        <span class="n">is_layout</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">strategy</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">log_info</span><span class="si">}</span><span class="s1"> must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">strategy</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">in_ele</span> <span class="ow">in</span> <span class="n">strategy</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="n">Layout</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The element of strategy must be tuple/Layout type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_ele</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">in_value</span> <span class="ow">in</span> <span class="n">in_ele</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_value</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The </span><span class="si">{</span><span class="n">log_info</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">strategy</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> is not valid,&#39;</span>
+                                        <span class="sa">f</span><span class="s1">&#39; the value of strategy must be int type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_value</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">is_layout</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">is_layout</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_layout</span><span class="p">:</span>
+            <span class="n">np_is_layout</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">is_layout</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np_is_layout</span> <span class="o">==</span> <span class="n">np_is_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">log_info</span><span class="si">}</span><span class="s1"> item must be all tuple type or all Layout type.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">is_layout</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract_layout_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layout</span><span class="p">,</span> <span class="n">log_info</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract parallel layout value&quot;&quot;&quot;</span>
+        <span class="n">layout_value</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">log_info</span><span class="si">}</span><span class="s1"> must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">layout_value</span> <span class="o">=</span> <span class="p">()</span>
+            <span class="k">for</span> <span class="n">in_ele</span> <span class="ow">in</span> <span class="n">layout</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="n">Layout</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The </span><span class="si">{</span><span class="n">log_info</span><span class="si">}</span><span class="s2"> item should be a object of class Layout.&quot;</span><span class="p">)</span>
+                <span class="n">layout_value</span> <span class="o">+=</span> <span class="p">(</span><span class="n">in_ele</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),)</span>
+        <span class="k">return</span> <span class="n">layout_value</span>
+
+    <span class="k">def</span> <span class="nf">_check_shard_strategy_in_out_match</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_strategy</span><span class="p">,</span> <span class="n">out_strategy</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check shard in_strategy and out_strategy&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">in_strategy</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">out_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The out_strategy of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> is </span><span class="si">{</span><span class="n">out_strategy</span><span class="si">}</span><span class="s1">, need to set in_strategy,&#39;</span>
+                             <span class="sa">f</span><span class="s1">&#39; but got none&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">():</span>
+            <span class="n">mode</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;parallel_mode&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">in_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The in_strategy/in_layout of the operator in your network &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;will not take effect in </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> mode. &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;This means the the shard function called in the network is ignored. </span><span class="se">\n</span><span class="s2">&quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;If you want to enable it, please use semi auto or auto parallel mode by &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;context.set_auto_parallel_context(parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;or context.set_auto_parallel_context(parallel_mode=ParallelMode.AUTO_PARALLEL)&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">out_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The out_strategy/out_layout of the operator in your network &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;will not take effect in </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> mode.&quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot; This means the the shard function called in the network is ignored. </span><span class="se">\n</span><span class="s2">&quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;If you want to enable it, please use semi auto or auto parallel mode by &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;context.set_auto_parallel_context(parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL &quot;</span>
+                               <span class="sa">f</span><span class="s2">&quot;or context.set_auto_parallel_context(parallel_mode=ParallelMode.AUTO_PARALLEL)&quot;</span><span class="p">)</span>
+
 <div class="viewcode-block" id="Primitive.del_prim_attr"><a class="viewcode-back" href="../../../api_python/ops/mindspore.ops.Primitive.html#mindspore.Primitive.del_prim_attr">[文档]</a>    <span class="k">def</span> <span class="nf">del_prim_attr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Delete primitive attribute.</span>
@@ -284,7 +362,7 @@
 <span class="sd">            &gt;&gt;&gt; a = a.add_prim_attr(&quot;attr&quot;,1)</span>
 <span class="sd">            &gt;&gt;&gt; a = a.del_prim_attr(&quot;attr&quot;)</span>
 <span class="sd">            &gt;&gt;&gt; print(a.attrs)</span>
-<span class="sd">            {&#39;input_names&#39;: [&#39;x&#39;, &#39;y&#39;], &#39;output_names&#39; : [&#39;output&#39;]}</span>
+<span class="sd">            {}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="p">:</span>
             <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
@@ -329,50 +407,52 @@
 <span class="sd">            &gt;&gt;&gt; add = ops.Add()</span>
 <span class="sd">            &gt;&gt;&gt; print(add.shard(((1, 1), (1, 1))))</span>
 <span class="sd">            Prim[Add]&lt;in_strategy=((1, 1), (1, 1)), out_strategy=None&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # using layout</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore import Layout</span>
+<span class="sd">            &gt;&gt;&gt; layout = Layout((2, 2, 2), (&quot;dp&quot;, &quot;sp&quot;, &quot;mp&quot;))</span>
+<span class="sd">            &gt;&gt;&gt; layout_tuple = (layout(&quot;dp&quot;, &quot;sp&quot;), layout(&quot;sp&quot;, &quot;mp&quot;))</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore import ops</span>
+<span class="sd">            &gt;&gt;&gt; matmul = ops.MatMul()</span>
+<span class="sd">            &gt;&gt;&gt; print(matmul.shard(layout_tuple))</span>
+<span class="sd">            Prim[MatMul]&lt;in_layout=({&#39;device_matrix&#39;: (2, 2, 2), &#39;tensor_map&#39;: (2, 1)},</span>
+<span class="sd">            {&#39;device_matrix&#39;: (2, 2, 2), &#39;tensor_map&#39;: (1, 0)})&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # using layout with None</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore import Layout</span>
+<span class="sd">            &gt;&gt;&gt; layout = Layout((2, 2, 2), (&quot;dp&quot;, &quot;sp&quot;, &quot;mp&quot;))</span>
+<span class="sd">            &gt;&gt;&gt; layout_tuple = (layout(&quot;dp&quot;, &quot;sp&quot;), layout(&quot;sp&quot;, &quot;None&quot;)) # &quot;None&quot; means the axis would not be split</span>
+<span class="sd">            &gt;&gt;&gt; from mindspore import ops</span>
+<span class="sd">            &gt;&gt;&gt; matmul = ops.MatMul()</span>
+<span class="sd">            &gt;&gt;&gt; print(matmul.shard(layout_tuple))</span>
+<span class="sd">            Prim[MatMul]&lt;in_layout=({&#39;device_matrix&#39;: (2, 2, 2), &#39;tensor_map&#39;: (2, 1)},</span>
+<span class="sd">            {&#39;device_matrix&#39;: (2, 2, 2), &#39;tensor_map&#39;: (1, -1)})&gt;</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">mode</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;parallel_mode&quot;</span><span class="p">)</span>
+        <span class="n">in_is_layout</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">out_is_layout</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">in_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_strategy</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;in_strategy must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_strategy</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">in_ele</span> <span class="ow">in</span> <span class="n">in_strategy</span><span class="p">:</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The element of strategy must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_ele</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">in_value</span> <span class="ow">in</span> <span class="n">in_ele</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_value</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The in_strategy: </span><span class="si">{</span><span class="n">in_strategy</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> is not valid,&#39;</span>
-                                        <span class="sa">f</span><span class="s1">&#39; the value of strategy must be int type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_value</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">in_is_layout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_shard_strategy</span><span class="p">(</span><span class="n">in_strategy</span><span class="p">,</span> <span class="s2">&quot;in_strategy&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">out_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out_strategy</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;out strategy must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">out_strategy</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">out_ele</span> <span class="ow">in</span> <span class="n">out_strategy</span><span class="p">:</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out_ele</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The element of strategy must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">out_ele</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">out_value</span> <span class="ow">in</span> <span class="n">out_ele</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out_value</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The in_strategy: </span><span class="si">{</span><span class="n">out_strategy</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> is not valid,&#39;</span>
-                                        <span class="sa">f</span><span class="s1">&#39; the value of strategy must be int type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">out_value</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">out_is_layout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_shard_strategy</span><span class="p">(</span><span class="n">out_strategy</span><span class="p">,</span> <span class="s2">&quot;out_strategy&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_shard_strategy_in_out_match</span><span class="p">(</span><span class="n">in_strategy</span><span class="p">,</span> <span class="n">out_strategy</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">in_is_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">out_is_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">in_is_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">out_is_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The in_strategy type must equal to the out_strategy type, &#39;</span>
+                             <span class="sa">f</span><span class="s1">&#39;one using tuple(tuple) and the other using tuple(Layout) is not allowed.&#39;</span><span class="p">)</span>
+        <span class="n">in_layout_value</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">out_layout_value</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">in_is_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">in_is_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">in_layout_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_layout_value</span><span class="p">(</span><span class="n">in_strategy</span><span class="p">,</span> <span class="s2">&quot;in_strategy&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">out_is_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">out_is_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">out_layout_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_layout_value</span><span class="p">(</span><span class="n">out_strategy</span><span class="p">,</span> <span class="s2">&quot;out_strategy&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">in_strategy</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">out_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The out_strategy of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> is </span><span class="si">{</span><span class="n">out_strategy</span><span class="si">}</span><span class="s1">, need to set in_strategy,&#39;</span>
-                             <span class="sa">f</span><span class="s1">&#39; but got none&#39;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">in_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The in_strategy of the operator in your network will not take effect in </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> mode. &quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot;This means the the shard function called in the network is ignored. </span><span class="se">\n</span><span class="s2">&quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot;If you want to enable it, please use semi auto or auto parallel mode by &quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot;context.set_auto_parallel_context(parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL &quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot;or context.set_auto_parallel_context(parallel_mode=ParallelMode.AUTO_PARALLEL)&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">out_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The out_strategy of the operator in your network will not take effect in </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> mode.&quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot; This means the the shard function called in the network is ignored. </span><span class="se">\n</span><span class="s2">&quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot;If you want to enable it, please use semi auto or auto parallel mode by &quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot;context.set_auto_parallel_context(parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL &quot;</span>
-                               <span class="sa">f</span><span class="s2">&quot;or context.set_auto_parallel_context(parallel_mode=ParallelMode.AUTO_PARALLEL)&quot;</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;in_strategy&quot;</span><span class="p">,</span> <span class="n">in_strategy</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;out_strategy&quot;</span><span class="p">,</span> <span class="n">out_strategy</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">in_is_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">in_is_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;in_strategy&quot;</span><span class="p">,</span> <span class="n">in_strategy</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">out_is_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">out_is_layout</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;out_strategy&quot;</span><span class="p">,</span> <span class="n">out_strategy</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">in_layout_value</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;in_layout&quot;</span><span class="p">,</span> <span class="n">in_layout_value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">out_layout_value</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;out_layout&quot;</span><span class="p">,</span> <span class="n">out_layout_value</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
 <div class="viewcode-block" id="Primitive.set_prim_instance_name"><a class="viewcode-back" href="../../../api_python/ops/mindspore.ops.Primitive.html#mindspore.Primitive.set_prim_instance_name">[文档]</a>    <span class="k">def</span> <span class="nf">set_prim_instance_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_name</span><span class="p">):</span>
@@ -603,6 +683,9 @@
 <span class="sd">    If __check__() is not defined, check_shape() and check_dtype() can be defined to describe the check logic of</span>
 <span class="sd">    the shape and type. Method infer_value() can also be defined (such as PrimitiveWithInfer) for constant propagation.</span>
 
+<span class="sd">    More on how to customize a Op, please refer to `Custom Operators</span>
+<span class="sd">    &lt;https://www.mindspore.cn/tutorials/experts/en/master/operation/op_custom.html&gt;`_.</span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        name (str): Name of the current Primitive.</span>
 
@@ -694,6 +777,9 @@
 <span class="sd">    to be called. If __infer__() is not defined, infer_shape() and infer_dtype() can be defined to describe the infer</span>
 <span class="sd">    logic of the shape and type. The infer_value() is used for constant propagation.</span>
 
+<span class="sd">    More on how to customize a Op, please refer to `Custom Operators</span>
+<span class="sd">    &lt;https://www.mindspore.cn/tutorials/experts/en/master/operation/op_custom.html&gt;`_.</span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        name (str): Name of the current Primitive.</span>
 
@@ -780,43 +866,6 @@
             <span class="c1"># fn may return None</span>
             <span class="n">out</span><span class="p">[</span><span class="n">track</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">track</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">args</span><span class="p">))</span>
 
-        <span class="c1"># output does not contain dynamic shape, no need to calculate min/max shape</span>
-
-        <span class="k">def</span> <span class="nf">has_dynamic_shape</span><span class="p">(</span><span class="n">shp</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">shp</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                <span class="k">return</span> <span class="n">shp</span> <span class="o">&lt;</span> <span class="mi">0</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">shp</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
-                <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">has_dynamic_shape</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">shp</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">False</span>
-
-        <span class="c1"># calculate min/max value for output</span>
-        <span class="k">def</span> <span class="nf">get_specified_value</span><span class="p">(</span><span class="n">elems</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
-            <span class="n">has_specified_value</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="n">ret_vals</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">elems</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">elem</span><span class="p">:</span>
-                    <span class="n">has_specified_value</span> <span class="o">=</span> <span class="kc">True</span>
-                    <span class="n">ret_vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">elem</span><span class="p">[</span><span class="n">attr</span><span class="p">])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">ret_vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">elem</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
-            <span class="k">return</span> <span class="n">has_specified_value</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">ret_vals</span><span class="p">)</span>
-
-        <span class="n">has_min_value</span><span class="p">,</span> <span class="n">min_values</span> <span class="o">=</span> <span class="n">get_specified_value</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="s1">&#39;min_value&#39;</span><span class="p">)</span>
-        <span class="n">has_max_value</span><span class="p">,</span> <span class="n">max_values</span> <span class="o">=</span> <span class="n">get_specified_value</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="s1">&#39;max_value&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">has_min_value</span> <span class="ow">and</span> <span class="n">has_max_value</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_infer_min_value&#39;</span><span class="p">):</span>
-                <span class="n">fn_infer_min_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_infer_min_value&#39;</span><span class="p">)</span>
-                <span class="n">out</span><span class="p">[</span><span class="s1">&#39;min_value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn_infer_min_value</span><span class="p">(</span><span class="o">*</span><span class="n">min_values</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_infer_max_value&#39;</span><span class="p">):</span>
-                <span class="n">fn_infer_max_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_infer_max_value&#39;</span><span class="p">)</span>
-                <span class="n">out</span><span class="p">[</span><span class="s1">&#39;max_value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn_infer_max_value</span><span class="p">(</span><span class="o">*</span><span class="n">max_values</span><span class="p">)</span>
-        <span class="n">has_shape_value</span><span class="p">,</span> <span class="n">shape_values</span> <span class="o">=</span> <span class="n">get_specified_value</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="s1">&#39;shape_value&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">has_shape_value</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_infer_shape_value&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">in</span> <span class="n">shape_values</span><span class="p">:</span>
-            <span class="n">fn_infer_shape_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_infer_shape_value&#39;</span><span class="p">)</span>
-            <span class="n">out</span><span class="p">[</span><span class="s1">&#39;shape_value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn_infer_shape_value</span><span class="p">(</span><span class="o">*</span><span class="n">shape_values</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_dynamic_shape</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;shape&#39;</span><span class="p">]):</span>
-            <span class="k">return</span> <span class="n">out</span>
-
         <span class="k">return</span> <span class="n">out</span></div>
 
 
@@ -855,7 +904,7 @@
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">PrimitiveWithCheck</span><span class="p">):</span>
             <span class="n">PrimitiveWithCheck</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_name</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">Primitive</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+            <span class="n">Primitive</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_name</span><span class="p">)</span>
         <span class="n">bound_args</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">bound_args</span><span class="o">.</span><span class="n">apply_defaults</span><span class="p">()</span>
         <span class="n">arguments</span> <span class="o">=</span> <span class="n">bound_args</span><span class="o">.</span><span class="n">arguments</span>
@@ -864,6 +913,57 @@
         <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">arguments</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="n">arguments</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_attrs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="n">fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="n">deco</span><span class="o">.</span><span class="n">decorated_func</span> <span class="o">=</span> <span class="n">fn</span>
+    <span class="k">return</span> <span class="n">deco</span>
+
+
+<span class="k">def</span> <span class="nf">prim_arg_register</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Primitive attributes register.</span>
+
+<span class="sd">    Register the decorator of the built-in operator primitive &#39;__init__&#39;.</span>
+<span class="sd">    The function will add all the parameters of &#39;__init__&#39; as operator attributes ,</span>
+<span class="sd">    and init primitive name.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        fn (function): __init__ function of primitive.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        function, original function.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore.ops import prim_arg_register, PrimitiveWithCheck</span>
+<span class="sd">        &gt;&gt;&gt; class MatMul(PrimitiveWithCheck):</span>
+<span class="sd">        ...     @prim_arg_register</span>
+<span class="sd">        ...     def __init__(self, transpose_a=False, transpose_b=False):</span>
+<span class="sd">        ...         self.init_prim_io_names(inputs=[&#39;x1&#39;, &#39;x2&#39;], outputs=[&#39;output&#39;])</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; # init a Primitive obj</span>
+<span class="sd">        &gt;&gt;&gt; matmul = MatMul()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">deco</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">class_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="s2">&quot;substitute_name&quot;</span><span class="p">):</span>
+            <span class="n">class_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">substitute_name</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">PrimitiveWithInfer</span><span class="p">):</span>
+            <span class="n">PrimitiveWithInfer</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_name</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">PrimitiveWithCheck</span><span class="p">):</span>
+            <span class="n">PrimitiveWithCheck</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">Primitive</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="n">bound_args</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">bound_args</span><span class="o">.</span><span class="n">apply_defaults</span><span class="p">()</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">bound_args</span><span class="o">.</span><span class="n">arguments</span>
+        <span class="k">del</span> <span class="n">arguments</span><span class="p">[</span><span class="s1">&#39;self&#39;</span><span class="p">]</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_attrs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">arguments</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">arguments</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_prim_arg</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">init_attrs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
         <span class="n">fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -929,17 +1029,17 @@
 <span class="sd">        &gt;&gt;&gt; (21428, )</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">deco</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decorator for CompileOp.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decorator for ProxyOp.&quot;&quot;&quot;</span>
 
-        <span class="k">class</span> <span class="nc">CompileOp</span><span class="p">(</span><span class="n">PrimitiveWithInfer</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">ProxyOp</span><span class="p">(</span><span class="n">PrimitiveWithInfer</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            CompileOp is a temporary operator used to execute the constexpr function.</span>
+<span class="sd">            ProxyOp is a temporary operator used to execute the constexpr function.</span>
 <span class="sd">            &quot;&quot;&quot;</span>
 
             <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
                 <span class="n">op_name</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">name</span> <span class="k">else</span> <span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span>
-                <span class="nb">super</span><span class="p">(</span><span class="n">CompileOp</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">op_name</span><span class="p">)</span>
+                <span class="nb">super</span><span class="p">(</span><span class="n">ProxyOp</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">op_name</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">set_const_prim</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">fn</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s1">&#39;constexpr_prim&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
@@ -949,22 +1049,23 @@
             <span class="k">def</span> <span class="nf">__infer__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
                 <span class="n">value_args</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">_check_contains_variable</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;dtype&quot;</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span> <span class="ow">and</span> <span class="n">check</span><span class="p">:</span>
+                    <span class="n">item_value</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">_check_contains_variable</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;dtype&quot;</span><span class="p">],</span> <span class="n">item_value</span><span class="p">)</span> <span class="ow">and</span> <span class="n">check</span><span class="p">:</span>
                         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;The </span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2"> is a constexpr function.&quot;</span> \
                                                               <span class="s2">&quot; The input arguments must be all constant value.&quot;</span><span class="p">)</span>
-                    <span class="n">value_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span>
+                    <span class="n">value_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item_value</span><span class="p">)</span>
                 <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;shape&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">value_args</span><span class="p">)}</span>
 
             <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
                 <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">get_instance</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">CompileOp</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">CompileOp</span>
+            <span class="k">return</span> <span class="n">ProxyOp</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">ProxyOp</span>
 
     <span class="k">if</span> <span class="n">fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">deco</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">deco</span></div>
+        <span class="k">return</span> <span class="n">decorator</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">decorator</span></div>
 
 
 <span class="k">def</span> <span class="nf">_primexpr</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">get_instance</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reuse_result</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -1041,9 +1142,6 @@
 <span class="k">def</span> <span class="nf">_run_op</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">op_name</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Single op execution function supported by ge in PyNative mode.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">_RunOpHook</span><span class="o">.</span><span class="n">current</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)</span> <span class="ow">and</span> <span class="n">arg</span><span class="o">.</span><span class="n">has_init</span><span class="p">:</span>
-                <span class="n">arg</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
         <span class="n">stub</span> <span class="o">=</span> <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">run_op_async</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">op_name</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">_convert_stub</span><span class="p">(</span><span class="n">stub</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">_RunOpHook</span><span class="o">.</span><span class="n">current</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
@@ -1065,6 +1163,10 @@
 
 <span class="k">def</span> <span class="nf">_get_primitivec</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">_PrimitiveC</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_create_primitive_function_obj</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">PrimitiveFunction_</span><span class="p">()</span>
 </pre></div>
 
            </div>

@@ -117,6 +117,7 @@
 
 <span class="kn">from</span> <span class="nn">mindspore_lite._checkparam</span> <span class="kn">import</span> <span class="n">check_isinstance</span><span class="p">,</span> <span class="n">check_list_of_element</span>
 <span class="kn">from</span> <span class="nn">mindspore_lite.lib</span> <span class="kn">import</span> <span class="n">_c_lite_wrapper</span>
+<span class="kn">from</span> <span class="nn">mindspore_lite._check_ascend</span> <span class="kn">import</span> <span class="n">AscendEnvChecker</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Context&#39;</span><span class="p">]</span>
 
@@ -149,8 +150,8 @@
 <span class="sd">            .. code-block::</span>
 
 <span class="sd">                [execution_plan]</span>
-<span class="sd">                [op_name1]=data_Type: float16 (The operator named op_name1 sets the data type as Float16)</span>
-<span class="sd">                [op_name2]=data_Type: float32 (The operator named op_name2 sets the data type as Float32)</span>
+<span class="sd">                [op_name1]=data_Type: float16 (The operator named op_name1 sets the data type as float16)</span>
+<span class="sd">                [op_name2]=data_Type: float32 (The operator named op_name2 sets the data type as float32)</span>
 
 <span class="sd">          - Usage 2: When GPU inference, set the configuration of TensorRT. The content and description of the</span>
 <span class="sd">            configuration file are as follows:</span>
@@ -364,6 +365,9 @@
         <span class="n">need_cpu_backup</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="n">target</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">ele</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ascend&quot;</span><span class="p">:</span>
+                <span class="n">ascend_checker</span> <span class="o">=</span> <span class="n">AscendEnvChecker</span><span class="p">()</span>
+                <span class="n">ascend_checker</span><span class="o">.</span><span class="n">check_env</span><span class="p">()</span>
+
                 <span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="o">.</span><span class="n">append_device_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ascend</span><span class="p">)</span>
                 <span class="n">need_cpu_backup</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="k">elif</span> <span class="n">ele</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;gpu&quot;</span><span class="p">:</span>
@@ -373,7 +377,36 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="o">.</span><span class="n">append_device_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">need_cpu_backup</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="o">.</span><span class="n">append_device_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_target</span> <span class="o">=</span> <span class="n">target</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target</span> <span class="o">=</span> <span class="n">target</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">group_info_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get or set communication group info file for distributed inference.</span>
+
+<span class="sd">        In the pipeline parallel scenario, different stage device nodes are in different communication groups. When</span>
+<span class="sd">        exporting the model, set the `group_ckpt_save_file` parameter in interface</span>
+<span class="sd">        [mindspore.set_auto_parallel_context](https://www.mindspore.cn/docs/zh-CN/r2.3/api_python/mindspore/mindspore.set_auto_parallel_context.html)</span>
+<span class="sd">        to export the group file information. In addition, in non pipeline parallel scenarios, if there</span>
+<span class="sd">        are communication operators involving local communication groups, the group file information also needs to be</span>
+<span class="sd">        exported through the &#39;group_ckpt_save_file&#39; parameter.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; # export communication group information file when export mindir</span>
+<span class="sd">            &gt;&gt;&gt; import mindspore</span>
+<span class="sd">            &gt;&gt;&gt; mindspore.set_auto_parallel_context(group_ckpt_save_file=f&quot;{export_dir}/group_config_{rank_id}.pb&quot;)</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # use communication group information file when load mindir</span>
+<span class="sd">            &gt;&gt;&gt; import mindspore_lite as mslite</span>
+<span class="sd">            &gt;&gt;&gt; context = mslite.Context()</span>
+<span class="sd">            &gt;&gt;&gt; context.group_info_file = f&quot;{export_dir}/group_config_{rank_id}.pb&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="o">.</span><span class="n">group_info_file</span>
+
+    <span class="nd">@group_info_file</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">group_info_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group_info_file</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set communication group information for distributed inference.&quot;&quot;&quot;</span>
+        <span class="n">check_isinstance</span><span class="p">(</span><span class="s2">&quot;group_info_file&quot;</span><span class="p">,</span> <span class="n">group_info_file</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="o">.</span><span class="n">group_info_file</span> <span class="o">=</span> <span class="n">group_info_file</span></div>
 
 
 <span class="k">class</span> <span class="nc">_InnerContext</span><span class="p">:</span>
@@ -441,6 +474,17 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Append one user-defined target device info to the context.&quot;&quot;&quot;</span>
         <span class="n">check_isinstance</span><span class="p">(</span><span class="s2">&quot;target&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">_Target</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_inner_context</span><span class="o">.</span><span class="n">append_device_info</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">_device_info</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">group_info_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get communication group info file for distributed inference.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inner_context</span><span class="o">.</span><span class="n">get_group_info_file</span><span class="p">()</span>
+
+    <span class="nd">@group_info_file</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">group_info_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group_info_file</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set communication group info file for distributed inference.&quot;&quot;&quot;</span>
+        <span class="n">check_isinstance</span><span class="p">(</span><span class="s2">&quot;group_info_file&quot;</span><span class="p">,</span> <span class="n">group_info_file</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inner_context</span><span class="o">.</span><span class="n">set_group_info_file</span><span class="p">(</span><span class="n">group_info_file</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">_Target</span><span class="p">:</span>
@@ -920,8 +964,8 @@
 <span class="sd">                  .. code-block::</span>
 
 <span class="sd">                      [execution_plan]</span>
-<span class="sd">                      [op_name1]=data_Type: float16 (The operator named op_name1 sets the data type as Float16)</span>
-<span class="sd">                      [op_name2]=data_Type: float32 (The operator named op_name2 sets the data type as Float32)</span>
+<span class="sd">                      [op_name1]=data_Type: float16 (The operator named op_name1 sets the data type as float16)</span>
+<span class="sd">                      [op_name2]=data_Type: float32 (The operator named op_name2 sets the data type as float32)</span>
 
 <span class="sd">                - Usage 2: When GPU inference, set the configuration of TensorRT. The content and description of the</span>
 <span class="sd">                  configuration file are as follows:</span>

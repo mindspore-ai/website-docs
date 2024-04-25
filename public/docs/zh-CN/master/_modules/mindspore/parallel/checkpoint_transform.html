@@ -53,11 +53,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.train.html">mindspore.train</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.communication.html">mindspore.communication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.hal.html">mindspore.hal</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.multiprocessing.html">mindspore.multiprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
@@ -132,7 +134,7 @@
            <div itemprop="articleBody">
              
   <h1>mindspore.parallel.checkpoint_transform 源代码</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright 2022 Huawei Technologies Co., Ltd</span>
+<span></span><span class="c1"># Copyright 2023 Huawei Technologies Co., Ltd</span>
 <span class="c1">#</span>
 <span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
@@ -155,14 +157,16 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore.common</span> <span class="kn">import</span> <span class="n">dtype</span> <span class="k">as</span> <span class="n">mstype</span>
+<span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_is_in_auto_parallel_mode</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._parallel_serialization</span> <span class="kn">import</span> <span class="n">_rank_list_for_transform_parallel_checkpoint</span><span class="p">,</span> \
     <span class="n">_transform_parallel_checkpoint</span><span class="p">,</span> <span class="n">_get_device_num_from_strategy</span><span class="p">,</span> <span class="n">_make_dir</span><span class="p">,</span> \
     <span class="n">_extract_layout_map</span><span class="p">,</span> <span class="n">_extract_src_dst_layout_map</span><span class="p">,</span> <span class="n">_parameter_not_in_local_stage</span><span class="p">,</span> <span class="n">_extract_pipeline_stage_num</span><span class="p">,</span> \
-    <span class="n">_merge_protobuf_strategy</span><span class="p">,</span> <span class="n">_merge_json_strategy</span>
+    <span class="n">_merge_protobuf_strategy</span><span class="p">,</span> <span class="n">_merge_json_strategy</span><span class="p">,</span> <span class="n">_extract_src_dst_layout_map_by_src</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;merge_pipeline_strategys&quot;</span><span class="p">,</span> <span class="s2">&quot;rank_list_for_transform&quot;</span><span class="p">,</span> <span class="s2">&quot;transform_checkpoint_by_rank&quot;</span><span class="p">,</span>
-           <span class="s2">&quot;transform_checkpoints&quot;</span><span class="p">]</span>
+           <span class="s2">&quot;transform_checkpoints&quot;</span><span class="p">,</span> <span class="s2">&quot;sync_pipeline_shared_parameters&quot;</span><span class="p">,</span> <span class="s2">&quot;load_segmented_checkpoints&quot;</span><span class="p">]</span>
 
 
 <div class="viewcode-block" id="merge_pipeline_strategys"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.merge_pipeline_strategys.html#mindspore.merge_pipeline_strategys">[文档]</a><span class="k">def</span> <span class="nf">merge_pipeline_strategys</span><span class="p">(</span><span class="n">src_strategy_dirs</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">):</span>
@@ -176,14 +180,14 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        src_strategy_dirs (str): The directory of strategy files including all pipeline stage which is saved by</span>
-<span class="sd">                                 &#39;mindspore.set_auto_parallel_context(strategy_ckpt_save_file)&#39;</span>
+<span class="sd">                                 &#39;mindspore.set_auto_parallel_context(strategy_ckpt_save_file)&#39;.</span>
 <span class="sd">        dst_strategy_file (str): The file merged strategy to save.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        NotADirectoryError: `src_strategy_dirs` is not a directory.</span>
 
 <span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; import mindspore ms</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
 <span class="sd">        &gt;&gt;&gt; # src_strategy_dir/stra0.ckpt, src_strategy_dir/stra1.ckpt ... src_strategy_dir/stra127.ckpt</span>
 <span class="sd">        &gt;&gt;&gt; ms.merge_pipeline_strategys(&quot;./src_strategy_dir&quot;, &quot;./dst_strategy.ckpt&quot;)</span>
 
@@ -207,28 +211,29 @@
 
 <div class="viewcode-block" id="rank_list_for_transform"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.rank_list_for_transform.html#mindspore.rank_list_for_transform">[文档]</a><span class="k">def</span> <span class="nf">rank_list_for_transform</span><span class="p">(</span><span class="n">rank_id</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    List of original distributed checkpoint rank index for obtaining the target checkpoint of a rank_id</span>
-<span class="sd">    during the distributed checkpoint conversion. For more details about converting distributed Checkpoint,</span>
-<span class="sd">    please refer to `Model Transformation &lt;https://www.mindspore.cn/tutorials/experts/en/master/parallel/model_transformation.html&gt;`_.</span>
+<span class="sd">    List of original distributed checkpoint rank index for obtaining the target checkpoint of a rank_id during the</span>
+<span class="sd">    distributed checkpoint conversion. For more details about converting distributed Checkpoint, please refer to</span>
+<span class="sd">    `Model Transformation &lt;https://www.mindspore.cn/tutorials/experts/en/master/parallel/model_transformation.html&gt;`_.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        rank_id (int): The rank of which distributed checkpoint needs to be obtained after conversion.</span>
 <span class="sd">        src_strategy_file (str): Name of source sharding strategy file which saved by</span>
 <span class="sd">                                 `mindspore.set_auto_parallel_context(strategy_ckpt_save_file)`.</span>
-<span class="sd">                                 when the &#39;src_strategy_file&#39; is None, it means that the source sharding strategy is</span>
-<span class="sd">                                 without any sharing for each parameter. Default:None.</span>
+<span class="sd">                                 when the `src_strategy_file` is ``None``, it means that the source sharding strategy is</span>
+<span class="sd">                                 without any sharing for each parameter. Default: ``None``.</span>
 <span class="sd">        dst_strategy_file (str): Name of destination sharding strategy file which saved by</span>
 <span class="sd">                                 `mindspore.set_auto_parallel_context(strategy_ckpt_save_file)`.</span>
-<span class="sd">                                 when the &#39;dst_strategy_file&#39; is None, it means that the destination sharding strategy</span>
-<span class="sd">                                 is without any sharing for each parameter. Default:None.</span>
+<span class="sd">                                 when the `dst_strategy_file` is ``None``,</span>
+<span class="sd">                                 it means that the destination sharding strategy</span>
+<span class="sd">                                 is without any sharing for each parameter. Default: ``None``.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        List, the rank list required for converting the distributed checkpoint of rank_id.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        ValueError: `src_strategy_file` or dst_strategy_file is incorrect.</span>
-<span class="sd">        TypeError: `src_strategy_file` or dst_strategy_file is not a string.</span>
-<span class="sd">        TypeError: `rank_id` is not a int.</span>
+<span class="sd">        ValueError: `src_strategy_file` or `dst_strategy_file` is incorrect.</span>
+<span class="sd">        TypeError: `src_strategy_file` or `dst_strategy_file` is not a string.</span>
+<span class="sd">        TypeError: `rank_id` is not an int.</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
@@ -280,12 +285,13 @@
 <span class="sd">        save_checkpoint_file_name (str): The file name to save the converted checkpoint.</span>
 <span class="sd">        src_strategy_file (str): Name of source sharding strategy file which saved by</span>
 <span class="sd">                                 &#39;mindspore.set_auto_parallel_context(strategy_ckpt_save_file)&#39;.</span>
-<span class="sd">                                 when the &#39;src_strategy_file&#39; is None, it means that the source sharding strategy is</span>
-<span class="sd">                                 without any sharing for each parameter. Default:None.</span>
+<span class="sd">                                 when the `src_strategy_file` is None, it means that the source sharding strategy is</span>
+<span class="sd">                                 without any sharing for each parameter. Default: ``None``.</span>
 <span class="sd">        dst_strategy_file (str): Name of destination sharding strategy file which saved by</span>
 <span class="sd">                                 &#39;mindspore.set_auto_parallel_context(strategy_ckpt_save_file)&#39;.</span>
-<span class="sd">                                 when the &#39;dst_strategy_file&#39; is None, it means that the destination sharding strategy</span>
-<span class="sd">                                 is without any sharing for each parameter. Default:None.</span>
+<span class="sd">                                 when the `dst_strategy_file` is ``None``,</span>
+<span class="sd">                                 it means that the destination sharding strategy</span>
+<span class="sd">                                 is without any sharing for each parameter. Default: ``None``.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: `src_strategy_file` or `dst_strategy_file` is incorrect.</span>
@@ -293,7 +299,7 @@
 <span class="sd">        ValueError: `save_checkpoint_file_name` is not end with &quot;.ckpt&quot;.</span>
 <span class="sd">        TypeError: `checkpoint_files_map` is not a dict.</span>
 <span class="sd">        TypeError: `src_strategy_file` or `dst_strategy_file` is not a string.</span>
-<span class="sd">        TypeError: `rank_id` is not a int.</span>
+<span class="sd">        TypeError: `rank_id` is not an int.</span>
 <span class="sd">        TypeError: `save_checkpoint_file_name` is not a string.</span>
 
 <span class="sd">    Examples:</span>
@@ -326,6 +332,7 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Checkpoint file </span><span class="si">{}</span><span class="s2"> in rank </span><span class="si">{}</span><span class="s2"> not exits: &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">local_file</span><span class="p">,</span> <span class="n">rank</span><span class="p">))</span>
     <span class="n">param_total_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
     <span class="n">param_attr_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">param_type_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
     <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span> <span class="o">=</span> <span class="n">_extract_src_dst_layout_map</span><span class="p">(</span><span class="n">rank_id</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span>
     <span class="c1"># src rank =&gt; local rank inside pipeline stage</span>
     <span class="n">src_stage_device_num</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">src_strategy_list</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">src_strategy_list</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">src_strategy_list</span> \
@@ -342,12 +349,147 @@
                     <span class="ow">and</span> <span class="n">_parameter_not_in_local_stage</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">origin_dst_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">):</span>
                 <span class="k">continue</span>
             <span class="n">src_rank</span> <span class="o">=</span> <span class="n">rank</span> <span class="o">%</span> <span class="n">src_stage_device_num</span>
+            <span class="n">param_type_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">bfloat16</span><span class="p">:</span>
+                <span class="n">param</span><span class="o">.</span><span class="n">set_dtype</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
             <span class="n">param_total_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
             <span class="n">param_attr_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">layerwise_parallel</span><span class="p">)</span>
     <span class="n">local_rank_id</span> <span class="o">=</span> <span class="n">rank_id</span> <span class="o">%</span> <span class="n">dst_stage_device_num</span>
     <span class="n">transform_param_list</span> <span class="o">=</span> <span class="n">_transform_parallel_checkpoint</span><span class="p">(</span><span class="n">local_rank_id</span><span class="p">,</span> <span class="n">param_total_dict</span><span class="p">,</span>
-                                                          <span class="n">param_attr_dict</span><span class="p">,</span> <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">)</span>
+                                                          <span class="n">param_attr_dict</span><span class="p">,</span> <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">,</span>
+                                                          <span class="n">param_type_dict</span><span class="p">)</span>
     <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">transform_param_list</span><span class="p">,</span> <span class="n">save_checkpoint_file_name</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_transform_checkpoint_by_stage</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="n">ckpt_prefix</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="p">,</span>
+                                   <span class="n">dst_strategy_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Transform checkpoint for stage in src_strategy_file&quot;&quot;&quot;</span>
+    <span class="n">param_total_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">param_attr_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">param_type_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">,</span> <span class="n">stage_id</span> <span class="o">=</span> <span class="n">_extract_src_dst_layout_map_by_src</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">,</span> \
+                                                                                             <span class="n">dst_strategy_file</span><span class="p">)</span>
+    <span class="n">src_stage_device_num</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">src_strategy_list</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">src_strategy_list</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">src_strategy_list</span> \
+                                                                                                   <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="n">dst_stage_device_num</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">dst_strategy_list</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">dst_strategy_list</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">dst_strategy_list</span> \
+                                                                                                   <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="n">origin_dst_strategy_list</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
+    <span class="n">origin_src_strategy_list</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
+    <span class="n">checkpoint_files_map</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">src_rank_id_start</span> <span class="o">=</span> <span class="n">stage_id</span> <span class="o">*</span> <span class="n">src_stage_device_num</span>
+    <span class="k">for</span> <span class="n">local_rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">src_stage_device_num</span><span class="p">):</span>
+        <span class="n">rank_id</span> <span class="o">=</span> <span class="n">src_rank_id_start</span> <span class="o">+</span> <span class="n">local_rank</span>
+        <span class="n">checkpoint_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rank_id</span><span class="p">),</span> <span class="s2">&quot;*.ckpt&quot;</span><span class="p">)</span>
+        <span class="n">rank_ckpts</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">checkpoint_file_name</span><span class="p">)</span>
+        <span class="n">rank_ckpts</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">checkpoint_file</span> <span class="ow">in</span> <span class="n">rank_ckpts</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">checkpoint_file</span><span class="p">):</span>
+                <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a checkpoint file.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">checkpoint_file</span><span class="p">))</span>
+                <span class="k">continue</span>
+            <span class="n">checkpoint_files_map</span><span class="p">[</span><span class="n">rank_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">checkpoint_file</span>
+    <span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="n">local_file</span> <span class="ow">in</span> <span class="n">checkpoint_files_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">local_file</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Checkpoint file </span><span class="si">{}</span><span class="s2"> in rank </span><span class="si">{}</span><span class="s2"> not exits: &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">local_file</span><span class="p">,</span> <span class="n">rank</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">checkpoint_files_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">ckpt_dict</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">ckpt_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># cut the parameter not in the pipeline stage.</span>
+            <span class="k">if</span> <span class="n">_parameter_not_in_local_stage</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">origin_src_strategy_list</span><span class="p">,</span> <span class="n">src_strategy_list</span><span class="p">)</span> \
+                    <span class="ow">and</span> <span class="n">_parameter_not_in_local_stage</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">origin_dst_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">src_rank</span> <span class="o">=</span> <span class="n">rank</span> <span class="o">%</span> <span class="n">src_stage_device_num</span>
+            <span class="n">param_type_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">bfloat16</span><span class="p">:</span>
+                <span class="n">param</span><span class="o">.</span><span class="n">set_dtype</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">param_total_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+            <span class="n">param_attr_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">layerwise_parallel</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">local_rank_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dst_stage_device_num</span><span class="p">):</span>
+        <span class="n">transform_param_list</span> <span class="o">=</span> <span class="n">_transform_parallel_checkpoint</span><span class="p">(</span><span class="n">local_rank_id</span><span class="p">,</span> <span class="n">param_total_dict</span><span class="p">,</span>
+                                                              <span class="n">param_attr_dict</span><span class="p">,</span> <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">,</span>
+                                                              <span class="n">param_type_dict</span><span class="p">)</span>
+        <span class="n">save_checkpoint_file</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">_part</span><span class="si">{}</span><span class="s2">.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ckpt_prefix</span><span class="p">,</span> <span class="n">local_rank_id</span><span class="p">,</span> <span class="n">stage_id</span><span class="p">)</span>
+        <span class="n">save_checkpoint_file_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">local_rank_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">):</span>
+            <span class="n">_make_dir</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">,</span> <span class="s2">&quot;path&quot;</span><span class="p">)</span>
+        <span class="n">save_checkpoint_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">,</span> <span class="n">save_checkpoint_file</span><span class="p">)</span>
+        <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">transform_param_list</span><span class="p">,</span> <span class="n">save_checkpoint_file_name</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_transform_checkpoints</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="n">ckpt_prefix</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">dst_strategy_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Transform checkpoints for all stages in src_strategy_file&quot;&quot;&quot;</span>
+    <span class="n">checkpoints_rank_dir_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_[0-9]*&quot;</span><span class="p">)</span>
+    <span class="n">all_checkpoint_files_map</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">checkpoint_dir</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">checkpoints_rank_dir_list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">):</span>
+            <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a directory.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">))</span>
+            <span class="k">continue</span>
+        <span class="n">rank_id_str</span> <span class="o">=</span> <span class="n">checkpoint_dir</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;rank_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">rank_id_str</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a expected directory, the directory should end with rank_0/rank_1.....&quot;</span><span class="o">.</span>
+                           <span class="nb">format</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">))</span>
+            <span class="k">continue</span>
+        <span class="n">rank_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rank_id_str</span><span class="p">)</span>
+        <span class="n">checkpoint_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">,</span> <span class="s2">&quot;*.ckpt&quot;</span><span class="p">)</span>
+        <span class="n">rank_ckpts</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">checkpoint_file_name</span><span class="p">)</span>
+        <span class="n">rank_ckpts</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">checkpoint_file</span> <span class="ow">in</span> <span class="n">rank_ckpts</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">checkpoint_file</span><span class="p">):</span>
+                <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a checkpoint file.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">checkpoint_file</span><span class="p">))</span>
+                <span class="k">continue</span>
+            <span class="n">all_checkpoint_files_map</span><span class="p">[</span><span class="n">rank_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">checkpoint_file</span>
+
+    <span class="n">needed_rank_list_map</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">dst_stage_device_num</span> <span class="o">=</span> <span class="n">_get_device_num_from_strategy</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
+    <span class="n">src_stage_device_num</span> <span class="o">=</span> <span class="n">_get_device_num_from_strategy</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
+    <span class="n">dst_stage_num</span> <span class="o">=</span> <span class="n">_extract_pipeline_stage_num</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
+    <span class="n">dst_device_num</span> <span class="o">=</span> <span class="n">dst_stage_device_num</span> <span class="o">*</span> <span class="n">dst_stage_num</span>
+    <span class="n">origin_src_strategy_list</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
+    <span class="n">origin_dst_strategy_list</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dst_device_num</span><span class="p">):</span>
+        <span class="n">needed_rank_list</span> <span class="o">=</span> <span class="n">rank_list_for_transform</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">needed_rank</span> <span class="ow">in</span> <span class="n">needed_rank_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">needed_rank</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_checkpoint_files_map</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The checkpoint file of rank</span><span class="si">{}</span><span class="s2"> is needed for converting rank</span><span class="si">{}</span><span class="s2">&#39;s checkpoint, &quot;</span>
+                                 <span class="s2">&quot;but it is missing.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">needed_rank</span><span class="p">,</span> <span class="n">rank</span><span class="p">))</span>
+        <span class="n">needed_rank_list_key</span> <span class="o">=</span> <span class="s2">&quot;-&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">needed_rank_list</span><span class="p">])</span>
+        <span class="n">needed_rank_list_map</span><span class="p">[</span><span class="n">needed_rank_list_key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rank</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">needed_rank_list_key</span><span class="p">,</span> <span class="n">transform_rank_list</span> <span class="ow">in</span> <span class="n">needed_rank_list_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">param_total_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+        <span class="n">param_attr_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+        <span class="n">param_type_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+        <span class="n">needed_rank_list</span> <span class="o">=</span> <span class="n">needed_rank_list_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">needed_rank</span> <span class="ow">in</span> <span class="n">needed_rank_list</span><span class="p">:</span>
+            <span class="n">ckpt_dict</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">all_checkpoint_files_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">needed_rank</span><span class="p">)))</span>
+            <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">ckpt_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">src_rank</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">needed_rank</span><span class="p">)</span> <span class="o">%</span> <span class="n">src_stage_device_num</span>
+                <span class="n">param_type_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">mstype</span><span class="o">.</span><span class="n">bfloat16</span><span class="p">:</span>
+                    <span class="n">param</span><span class="o">.</span><span class="n">set_dtype</span><span class="p">(</span><span class="n">mstype</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+                <span class="n">param_total_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+                <span class="n">param_attr_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">layerwise_parallel</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">transform_rank</span> <span class="ow">in</span> <span class="n">transform_rank_list</span><span class="p">:</span>
+            <span class="n">param_total_dict_copy</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">param_total_dict</span><span class="p">)</span>
+            <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span> <span class="o">=</span> <span class="n">_extract_src_dst_layout_map</span><span class="p">(</span><span class="n">transform_rank</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="p">,</span>
+                                                                               <span class="n">dst_strategy_file</span><span class="p">)</span>
+            <span class="c1"># cut the parameter not in the pipeline stage.</span>
+            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">param_total_dict_copy</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">_parameter_not_in_local_stage</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">origin_src_strategy_list</span><span class="p">,</span> <span class="n">src_strategy_list</span><span class="p">)</span> \
+                        <span class="ow">and</span> <span class="n">_parameter_not_in_local_stage</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">origin_dst_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">):</span>
+                    <span class="n">param_total_dict_copy</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+
+            <span class="n">local_rank_id</span> <span class="o">=</span> <span class="n">transform_rank</span> <span class="o">%</span> <span class="n">dst_stage_device_num</span>
+            <span class="n">transform_param_list</span> <span class="o">=</span> <span class="n">_transform_parallel_checkpoint</span><span class="p">(</span><span class="n">local_rank_id</span><span class="p">,</span> <span class="n">param_total_dict_copy</span><span class="p">,</span>
+                                                                  <span class="n">param_attr_dict</span><span class="p">,</span> <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">,</span>
+                                                                  <span class="n">param_type_dict</span><span class="p">)</span>
+            <span class="n">save_checkpoint_file</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ckpt_prefix</span><span class="p">,</span> <span class="n">transform_rank</span><span class="p">)</span>
+            <span class="n">save_checkpoint_file_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">transform_rank</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">):</span>
+                <span class="n">_make_dir</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">,</span> <span class="s2">&quot;path&quot;</span><span class="p">)</span>
+            <span class="n">save_checkpoint_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">,</span> <span class="n">save_checkpoint_file</span><span class="p">)</span>
+            <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">transform_param_list</span><span class="p">,</span> <span class="n">save_checkpoint_file_name</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">param_total_dict_copy</span>
+        <span class="k">del</span> <span class="n">param_total_dict</span>
 
 
 <div class="viewcode-block" id="transform_checkpoints"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.transform_checkpoints.html#mindspore.transform_checkpoints">[文档]</a><span class="k">def</span> <span class="nf">transform_checkpoints</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="n">ckpt_prefix</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -392,73 +534,220 @@
     <span class="n">_make_dir</span><span class="p">(</span><span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;path&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ckpt_prefix</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;The ckpt_prefix should be a str.&quot;</span><span class="p">)</span>
-    <span class="n">checkpoints_rank_dir_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_[0-9]*&quot;</span><span class="p">)</span>
-    <span class="n">all_checkpoint_files_map</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">checkpoint_dir</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">checkpoints_rank_dir_list</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">):</span>
-            <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a directory.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">))</span>
-            <span class="k">continue</span>
-        <span class="n">rank_id_str</span> <span class="o">=</span> <span class="n">checkpoint_dir</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;rank_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">rank_id_str</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
-            <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a expected directory, the directory should end with rank_0/rank_1.....&quot;</span><span class="o">.</span>
-                           <span class="nb">format</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">))</span>
-            <span class="k">continue</span>
-        <span class="n">rank_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rank_id_str</span><span class="p">)</span>
-        <span class="n">checkpoint_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">,</span> <span class="s2">&quot;*.ckpt&quot;</span><span class="p">)</span>
-        <span class="n">rank_ckpts</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">checkpoint_file_name</span><span class="p">)</span>
-        <span class="n">rank_ckpts</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">checkpoint_file</span> <span class="ow">in</span> <span class="n">rank_ckpts</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">checkpoint_file</span><span class="p">):</span>
-                <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a checkpoint file.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">checkpoint_file</span><span class="p">))</span>
-                <span class="k">continue</span>
-            <span class="n">all_checkpoint_files_map</span><span class="p">[</span><span class="n">rank_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">checkpoint_file</span>
+    <span class="k">if</span> <span class="n">src_strategy_file</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The director of src_strategy_file: </span><span class="si">{}</span><span class="s2"> is not exists.&quot;</span><span class="o">.</span>
+                         <span class="nb">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="n">dst_strategy_file</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The director of dst_strategy_file: </span><span class="si">{}</span><span class="s2"> is not exists.&quot;</span><span class="o">.</span>
+                         <span class="nb">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)))</span>
+    <span class="n">src_layout_map</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
+    <span class="n">dst_layout_map</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
+    <span class="n">pipeline_stage_num</span> <span class="o">=</span> <span class="n">_extract_pipeline_stage_num</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">src_layout_map</span><span class="p">:</span>
+        <span class="n">src_param_keys</span> <span class="o">=</span> <span class="p">{</span><span class="n">param_name</span> <span class="k">for</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">src_layout_map</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">param_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;accu_grads&quot;</span><span class="p">)}</span>
+    <span class="k">if</span> <span class="n">dst_layout_map</span><span class="p">:</span>
+        <span class="n">dst_param_keys</span> <span class="o">=</span> <span class="p">{</span><span class="n">param_name</span> <span class="k">for</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">dst_layout_map</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">param_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;accu_grads&quot;</span><span class="p">)}</span>
+    <span class="k">if</span> <span class="n">src_layout_map</span> <span class="ow">and</span> <span class="n">dst_layout_map</span> <span class="ow">and</span> <span class="n">pipeline_stage_num</span> <span class="o">==</span> <span class="mi">1</span> \
+        <span class="ow">and</span> <span class="n">src_param_keys</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">dst_param_keys</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">src_param_keys</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">dst_param_keys</span><span class="p">):</span>
+        <span class="n">dst_stage_num</span> <span class="o">=</span> <span class="n">_extract_pipeline_stage_num</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dst_stage_num</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;When using unmerged src strategy, dst strategy doesn&#39;t </span><span class="se">\</span>
+<span class="s2">                                       support strategy with pipeline parallel.&quot;</span><span class="p">)</span>
+        <span class="n">_transform_checkpoint_by_stage</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="n">ckpt_prefix</span><span class="p">,</span>
+                                       <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_transform_checkpoints</span><span class="p">(</span><span class="n">src_checkpoints_dir</span><span class="p">,</span> <span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="n">ckpt_prefix</span><span class="p">,</span>
+                               <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span></div>
 
-    <span class="n">needed_rank_list_map</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
-    <span class="n">dst_stage_device_num</span> <span class="o">=</span> <span class="n">_get_device_num_from_strategy</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
-    <span class="n">src_stage_device_num</span> <span class="o">=</span> <span class="n">_get_device_num_from_strategy</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
-    <span class="n">dst_stage_num</span> <span class="o">=</span> <span class="n">_extract_pipeline_stage_num</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
-    <span class="n">dst_device_num</span> <span class="o">=</span> <span class="n">dst_stage_device_num</span> <span class="o">*</span> <span class="n">dst_stage_num</span>
-    <span class="n">origin_src_strategy_list</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">src_strategy_file</span><span class="p">)</span>
-    <span class="n">origin_dst_strategy_list</span> <span class="o">=</span> <span class="n">_extract_layout_map</span><span class="p">(</span><span class="n">dst_strategy_file</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dst_device_num</span><span class="p">):</span>
-        <span class="n">needed_rank_list</span> <span class="o">=</span> <span class="n">rank_list_for_transform</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="p">,</span> <span class="n">dst_strategy_file</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">needed_rank</span> <span class="ow">in</span> <span class="n">needed_rank_list</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">needed_rank</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_checkpoint_files_map</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The checkpoint file of rank</span><span class="si">{}</span><span class="s2"> is needed for converting rank</span><span class="si">{}</span><span class="s2">&#39;s checkpoint, &quot;</span>
-                                 <span class="s2">&quot;but it is missing.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">needed_rank</span><span class="p">,</span> <span class="n">rank</span><span class="p">))</span>
-        <span class="n">needed_rank_list_key</span> <span class="o">=</span> <span class="s2">&quot;-&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">needed_rank_list</span><span class="p">])</span>
-        <span class="n">needed_rank_list_map</span><span class="p">[</span><span class="n">needed_rank_list_key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rank</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">needed_rank_list_key</span><span class="p">,</span> <span class="n">transform_rank_list</span> <span class="ow">in</span> <span class="n">needed_rank_list_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="n">param_total_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
-        <span class="n">param_attr_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
-        <span class="n">needed_rank_list</span> <span class="o">=</span> <span class="n">needed_rank_list_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">needed_rank</span> <span class="ow">in</span> <span class="n">needed_rank_list</span><span class="p">:</span>
-            <span class="n">ckpt_dict</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">all_checkpoint_files_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">needed_rank</span><span class="p">)))</span>
-            <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">ckpt_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">src_rank</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">needed_rank</span><span class="p">)</span> <span class="o">%</span> <span class="n">src_stage_device_num</span>
-                <span class="n">param_total_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
-                <span class="n">param_attr_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">src_rank</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">layerwise_parallel</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">transform_rank</span> <span class="ow">in</span> <span class="n">transform_rank_list</span><span class="p">:</span>
-            <span class="n">param_total_dict_copy</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">param_total_dict</span><span class="p">)</span>
-            <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span> <span class="o">=</span> <span class="n">_extract_src_dst_layout_map</span><span class="p">(</span><span class="n">transform_rank</span><span class="p">,</span> <span class="n">src_strategy_file</span><span class="p">,</span>
-                                                                               <span class="n">dst_strategy_file</span><span class="p">)</span>
-            <span class="c1"># cut the parameter not in the pipeline stage.</span>
-            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">param_total_dict_copy</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
-                <span class="k">if</span> <span class="n">_parameter_not_in_local_stage</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">origin_src_strategy_list</span><span class="p">,</span> <span class="n">src_strategy_list</span><span class="p">)</span> \
-                        <span class="ow">and</span> <span class="n">_parameter_not_in_local_stage</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">origin_dst_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">):</span>
-                    <span class="n">param_total_dict_copy</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
 
-            <span class="n">local_rank_id</span> <span class="o">=</span> <span class="n">transform_rank</span> <span class="o">%</span> <span class="n">dst_stage_device_num</span>
-            <span class="n">transform_param_list</span> <span class="o">=</span> <span class="n">_transform_parallel_checkpoint</span><span class="p">(</span><span class="n">local_rank_id</span><span class="p">,</span> <span class="n">param_total_dict_copy</span><span class="p">,</span>
-                                                                  <span class="n">param_attr_dict</span><span class="p">,</span> <span class="n">src_strategy_list</span><span class="p">,</span> <span class="n">dst_strategy_list</span><span class="p">)</span>
-            <span class="n">save_checkpoint_file</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">.ckpt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ckpt_prefix</span><span class="p">,</span> <span class="n">transform_rank</span><span class="p">)</span>
-            <span class="n">save_checkpoint_file_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dst_checkpoints_dir</span><span class="p">,</span> <span class="s2">&quot;rank_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">transform_rank</span><span class="p">))</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">):</span>
-                <span class="n">_make_dir</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">,</span> <span class="s2">&quot;path&quot;</span><span class="p">)</span>
-            <span class="n">save_checkpoint_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">save_checkpoint_file_dir</span><span class="p">,</span> <span class="n">save_checkpoint_file</span><span class="p">)</span>
-            <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">transform_param_list</span><span class="p">,</span> <span class="n">save_checkpoint_file_name</span><span class="p">)</span>
-            <span class="k">del</span> <span class="n">param_total_dict_copy</span>
-        <span class="k">del</span> <span class="n">param_total_dict</span></div>
+<span class="k">def</span> <span class="nf">_sync_params</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span> <span class="n">layout</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;synchronize single parameter&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;The layout dict does not contain the pipeline_shared_param info </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="n">pipeline_shared</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pipeline_shared</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">is_send</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span>
+    <span class="n">peer_rank</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span>
+    <span class="n">sr_tag</span> <span class="o">=</span> <span class="n">layout</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span>
+
+    <span class="k">class</span> <span class="nc">SharedParameterSyncCell</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;synchronize cell&quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span> <span class="n">is_send</span><span class="p">,</span> <span class="n">peer_rank</span><span class="p">,</span> <span class="n">sr_tag</span><span class="p">):</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">param</span> <span class="o">=</span> <span class="n">param</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_send</span> <span class="o">=</span> <span class="n">is_send</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ret</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
+
+            <span class="kn">from</span> <span class="nn">mindspore.ops.operations._inner_ops</span> <span class="kn">import</span> <span class="n">Send</span><span class="p">,</span> <span class="n">Receive</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_send</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">send</span> <span class="o">=</span> <span class="n">Send</span><span class="p">(</span><span class="n">sr_tag</span><span class="o">=</span><span class="n">sr_tag</span><span class="p">,</span> <span class="n">dest_rank</span><span class="o">=</span><span class="n">peer_rank</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">receive</span> <span class="o">=</span> <span class="n">Receive</span><span class="p">(</span><span class="n">sr_tag</span><span class="o">=</span><span class="n">sr_tag</span><span class="p">,</span> <span class="n">src_rank</span><span class="o">=</span><span class="n">peer_rank</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_send</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">param</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">ms</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ret</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ret</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ms</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ret</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">param</span><span class="p">)</span>
+
+    <span class="n">sync_net</span> <span class="o">=</span> <span class="n">SharedParameterSyncCell</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">is_send</span><span class="p">,</span> <span class="n">peer_rank</span><span class="p">,</span> <span class="n">sr_tag</span><span class="p">)</span>
+    <span class="n">sync_net</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="sync_pipeline_shared_parameters"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.sync_pipeline_shared_parameters.html#mindspore.sync_pipeline_shared_parameters">[文档]</a><span class="k">def</span> <span class="nf">sync_pipeline_shared_parameters</span><span class="p">(</span><span class="n">net</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;synchronize pipeline parallel stage shared parameters.</span>
+<span class="sd">    Parameters may be shared between different stages. For example, `embedding table` is</span>
+<span class="sd">    shared by `WordEmbedding` layer and `LMHead` layer, which are usually split into different stages. It is necessary</span>
+<span class="sd">    to perform synchronization after `embedding table` changes.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The network should be compiled before synchronize pipeline parallel stage shared parameters.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        net (nn.Cell): the inference network.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">        &gt;&gt;&gt; import mindspore as ms</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import nn, ops, Parameter, Tensor</span>
+<span class="sd">        &gt;&gt;&gt; class VocabEmbedding(nn.Cell):</span>
+<span class="sd">        ...     def __init__(self, vocab_size, embedding_size):</span>
+<span class="sd">        ...         super().__init__()</span>
+<span class="sd">        ...         self.embedding_table = Parameter(Tensor(np.ones([vocab_size, embedding_size]), ms.float32),</span>
+<span class="sd">        ...                                          name=&#39;embedding&#39;)</span>
+<span class="sd">        ...         self.gather = ops.Gather()</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     def construct(self, x):</span>
+<span class="sd">        ...         output = self.gather(self.embedding_table, x, 0)</span>
+<span class="sd">        ...         output = output.squeeze(1)</span>
+<span class="sd">        ...         return output, self.embedding_table.value()</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; class LMHead(nn.Cell):</span>
+<span class="sd">        ...     def __init__(self):</span>
+<span class="sd">        ...         super().__init__()</span>
+<span class="sd">        ...         self.matmul = ops.MatMul(transpose_b=True)</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     def construct(self, state, embed):</span>
+<span class="sd">        ...         return self.matmul(state, embed)</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; class Network(nn.Cell):</span>
+<span class="sd">        ...     @lazy_inline</span>
+<span class="sd">        ...     def __init__(self):</span>
+<span class="sd">        ...         super().__init__()</span>
+<span class="sd">        ...         self.word_embedding = VocabEmbedding(vocab_size=4, embedding_size=4)</span>
+<span class="sd">        ...         self.head = LMHead()</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     def construct(self, x):</span>
+<span class="sd">        ...         x, embed = self.word_embedding(x)</span>
+<span class="sd">        ...         x = self.head(x, embed)</span>
+<span class="sd">        ...         return x</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; net = Network()</span>
+<span class="sd">        &gt;&gt;&gt; net.word_embedding.pipeline_stage = 0</span>
+<span class="sd">        &gt;&gt;&gt; net.head.pipeline_stage = 1</span>
+<span class="sd">        &gt;&gt;&gt; x = Tensor(np.ones((8, 4))</span>
+<span class="sd">        &gt;&gt;&gt; net.compile()</span>
+<span class="sd">        &gt;&gt;&gt; ms.sync_pipeline_shared_parameters(net)</span>
+<span class="sd">        &gt;&gt;&gt; print(net.word_embedding.embedding_table.asnumpy())</span>
+<span class="sd">        &gt;&gt;&gt; [[1. 1. 1. 1.]</span>
+<span class="sd">             [1. 1. 1. 1.]</span>
+<span class="sd">             [1. 1. 1. 1.]</span>
+<span class="sd">             [1. 1. 1. 1.]]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+        <span class="n">ms</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Failed to synchronize pipeline shared parameters.&quot;</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;For &#39;sync_pipeline_shared_parameters&#39;, the argument &#39;net&#39; should be a Cell, &quot;</span>
+               <span class="s2">&quot;but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">net</span><span class="p">)))</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="n">layout_dict</span> <span class="o">=</span> <span class="n">net</span><span class="o">.</span><span class="n">parameter_layout_dict</span>
+    <span class="k">if</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">layout_dict</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">mindspore.common.api</span> <span class="kn">import</span> <span class="n">_get_parameter_layout</span>
+        <span class="n">layout_dict</span> <span class="o">=</span> <span class="n">_get_parameter_layout</span><span class="p">()</span>
+
+    <span class="c1"># switch to standalone mode</span>
+    <span class="n">parallel_mode</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;parallel_mode&quot;</span><span class="p">)</span>
+    <span class="n">full_batch</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;full_batch&quot;</span><span class="p">)</span>
+    <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="s2">&quot;stand_alone&quot;</span><span class="p">,</span> <span class="n">full_batch</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># synchronize shared parameter</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">net</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">layout_dict</span><span class="p">:</span>
+            <span class="n">_sync_params</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span> <span class="n">layout_dict</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+
+    <span class="c1"># restore parallel context</span>
+    <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">set_auto_parallel_context</span><span class="p">(</span><span class="n">parallel_mode</span><span class="o">=</span><span class="n">parallel_mode</span><span class="p">,</span> <span class="n">full_batch</span><span class="o">=</span><span class="n">full_batch</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="load_segmented_checkpoints"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.load_segmented_checkpoints.html#mindspore.load_segmented_checkpoints">[文档]</a><span class="k">def</span> <span class="nf">load_segmented_checkpoints</span><span class="p">(</span><span class="n">ckpt_file_dir</span><span class="p">,</span> <span class="n">net</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">strict_load</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">filter_prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                               <span class="n">dec_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dec_mode</span><span class="o">=</span><span class="s2">&quot;AES-GCM&quot;</span><span class="p">,</span> <span class="n">specify_prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">choice_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load checkpoint info from a specified file. If the specified ckpt_file_dir path contains multiple</span>
+<span class="sd">    checkpoint files, all checkpoint files will be loaded one by one and the combined dictionary will be return.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        - `specify_prefix` and `filter_prefix` do not affect each other.</span>
+<span class="sd">        - If none of the parameters are loaded from checkpoint file, it will throw ValueError.</span>
+<span class="sd">        - `specify_prefix` and `filter_prefix` are in the process of being deprecated,</span>
+<span class="sd">          `choice_func` is recommended instead.</span>
+<span class="sd">          And using either of those two args will override `choice_func` at the same time.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ckpt_file_dir (str): Checkpoint file directory.</span>
+<span class="sd">        net (Cell): The network where the parameters will be loaded. Default: ``None`` .</span>
+<span class="sd">        strict_load (bool): Whether to strict load the parameter into net. If ``False`` , it will load parameter</span>
+<span class="sd">                            into net when parameter name&#39;s suffix in checkpoint file is the same as the</span>
+<span class="sd">                            parameter in the network. When the types are inconsistent perform type conversion</span>
+<span class="sd">                            on the parameters of the same type, such as float32 to float16. Default: ``False`` .</span>
+<span class="sd">        filter_prefix (Union[str, list[str], tuple[str]]): Deprecated(see `choice_func`). Parameters starting with the</span>
+<span class="sd">            filter_prefix will not be loaded. Default: ``None`` .</span>
+<span class="sd">        dec_key (Union[None, bytes]): Byte type key used for decryption. If the value is ``None`` , the decryption</span>
+<span class="sd">                                      is not required. Default: ``None`` .</span>
+<span class="sd">        dec_mode (str): This parameter is valid only when dec_key is not set to ``None`` . Specifies the decryption</span>
+<span class="sd">                        mode, currently supports ``&quot;AES-GCM&quot;`` and ``&quot;AES-CBC&quot;`` and ``&quot;SM4-CBC&quot;`` .</span>
+<span class="sd">                        Default: ``&quot;AES-GCM&quot;`` .</span>
+<span class="sd">        specify_prefix (Union[str, list[str], tuple[str]]): Deprecated(see `choice_func`). Parameters starting with the</span>
+<span class="sd">            specify_prefix will be loaded. Default: ``None`` .</span>
+<span class="sd">        choice_func (Union[None, function]) : Input value of the function is a Parameter name of type string,</span>
+<span class="sd">            and the return value is a bool. If returns ``True`` , the Parameter</span>
+<span class="sd">            that matches the custom condition will be loaded. If returns ``False`` , the Parameter that</span>
+<span class="sd">            matches the custom condition will be removed. Default: ``None`` .</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dict, key is parameter name, value is a Parameter or string. When the `append_dict` parameter of</span>
+<span class="sd">        :func:`mindspore.save_checkpoint` and the `append_info` parameter of :class:`mindspore.train.CheckpointConfig`</span>
+<span class="sd">        are used to save the checkpoint, `append_dict` and `append_info` are dict types, and their value are string,</span>
+<span class="sd">        then the return value obtained by loading checkpoint is string, and in other cases the return value is</span>
+<span class="sd">        Parameter.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: Input ckpt_file_dir is not a string.</span>
+<span class="sd">        ValueError: Checkpoint file directory doesn&#39;t exist. Or it&#39;s not a directory</span>
+<span class="sd">        ValueError: Checkpoint file&#39;s format is incorrect.</span>
+<span class="sd">        ValueError: Parameter&#39;s dict is None after load checkpoint file.</span>
+<span class="sd">        TypeError: The type of `specify_prefix` or `filter_prefix` is incorrect.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ckpt_file_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;The ckpt_file_dir should be a str.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">ckpt_file_dir</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The dst_strategy_file: </span><span class="si">{}</span><span class="s2"> doesn&#39;t exist. Or it&#39;s not a directory&quot;</span><span class="o">.</span>
+                         <span class="nb">format</span><span class="p">(</span><span class="n">ckpt_file_dir</span><span class="p">))</span>
+    <span class="n">checkpoint_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ckpt_file_dir</span><span class="p">,</span> <span class="s2">&quot;*.ckpt&quot;</span><span class="p">)</span>
+    <span class="n">rank_ckpts</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">checkpoint_file_name</span><span class="p">)</span>
+    <span class="n">parameter_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">checkpoint_file</span> <span class="ow">in</span> <span class="n">rank_ckpts</span><span class="p">:</span>
+        <span class="n">parameter_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">checkpoint_file</span><span class="p">,</span> <span class="n">net</span><span class="p">,</span> <span class="n">strict_load</span><span class="p">,</span> <span class="n">filter_prefix</span><span class="p">,</span> <span class="n">dec_key</span><span class="p">,</span>
+                                                 <span class="n">dec_mode</span><span class="p">,</span> <span class="n">specify_prefix</span><span class="p">,</span> <span class="n">choice_func</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">parameter_dict</span></div>
 </pre></div>
 
            </div>

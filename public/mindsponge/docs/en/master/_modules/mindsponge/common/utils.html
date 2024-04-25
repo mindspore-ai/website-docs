@@ -53,6 +53,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../sponge.optimizer.html">sponge.optimizer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../sponge.potential.html">sponge.potential</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../sponge.system.html">sponge.system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../sponge.metrics.html">sponge.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../sponge.partition.html">sponge.partition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../constant.html">Constants</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">RELEASE NOTES</span></p>
@@ -104,7 +106,8 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">Bio</span> <span class="kn">import</span> <span class="n">Align</span>
 <span class="kn">from</span> <span class="nn">Bio.Align</span> <span class="kn">import</span> <span class="n">substitution_matrices</span>
-<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span>
+<span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">ops</span><span class="p">,</span> <span class="n">Tensor</span>
 <span class="kn">import</span> <span class="nn">mindspore.numpy</span> <span class="k">as</span> <span class="nn">mnp</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
@@ -122,6 +125,153 @@
 <span class="k">else</span><span class="p">:</span>
     <span class="n">cus_lazy_inline</span> <span class="o">=</span> <span class="n">null_decorator</span>
 
+<span class="n">STACK_NAME</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.query_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.query_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.feat_2d_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.feat_2d_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.feat_2d_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.attn_mod.linear_q_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.attn_mod.linear_k_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.attn_mod.linear_v_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.attn_mod.linear_output_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.attn_mod.o_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.attn_mod.linear_gating_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_row_attention_with_pair_bias.attn_mod.gating_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_transition.input_layer_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_transition.input_layer_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_transition.transition1_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_transition.transition1_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_transition.transition2_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.msa_transition.transition2_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.query_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.query_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.attn_mod.linear_q_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.attn_mod.linear_k_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.attn_mod.linear_v_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.attn_mod.linear_output_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.attn_mod.o_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.attn_mod.linear_gating_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;msa_act.attn_mod.attn_mod.gating_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.outer_product_mean.layer_norm_input_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.outer_product_mean.layer_norm_input_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.outer_product_mean.left_projection_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.outer_product_mean.left_projection_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.outer_product_mean.right_projection_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.outer_product_mean.right_projection_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.outer_product_mean.linear_output_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.outer_product_mean.o_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.query_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.query_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.feat_2d_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.attn_mod.linear_q_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.attn_mod.linear_k_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.attn_mod.linear_v_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.attn_mod.linear_output_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.attn_mod.o_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.attn_mod.linear_gating_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_starting_node.attn_mod.gating_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.query_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.query_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.feat_2d_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.attn_mod.linear_q_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.attn_mod.linear_k_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.attn_mod.linear_v_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.attn_mod.linear_output_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.attn_mod.o_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.attn_mod.linear_gating_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_attention_ending_node.attn_mod.gating_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.pair_transition.input_layer_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.pair_transition.input_layer_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.pair_transition.transition1_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.pair_transition.transition1_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.pair_transition.transition2_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.pair_transition.transition2_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.layer_norm_input_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.layer_norm_input_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.left_projection_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.left_projection_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.right_projection_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.right_projection_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.left_gate_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.left_gate_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.right_gate_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.right_gate_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.center_layer_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.center_layer_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.output_projection_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.output_projection_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.gating_linear_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_outgoing.gating_linear_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.layer_norm_input_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.layer_norm_input_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.left_projection_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.left_projection_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.right_projection_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.right_projection_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.left_gate_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.left_gate_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.right_gate_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.right_gate_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.center_layer_norm_gammas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.center_layer_norm_betas&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.output_projection_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.output_projection_biases&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.gating_linear_weights&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pair_act.triangle_multiplication_incoming.gating_linear_biases&#39;</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">get_predict_checkpoint</span><span class="p">(</span><span class="n">train_ckpt</span><span class="p">,</span> <span class="n">msa_layers</span><span class="p">,</span> <span class="n">predict_ckpt</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;convert megafold checkpoint: from training checkpoint to predict checkpoint.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        train_ckpt(str): Path of the training checkpoint.</span>
+<span class="sd">        msa_layers(int): Number of Msa stack layers.</span>
+<span class="sd">        predict_ckpt(str): Save path of the predict checkpoint.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">train_ckpt</span><span class="p">)</span>
+    <span class="n">resave_parameters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;msa_stack.&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">STACK_NAME</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">resave_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">key</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">value</span><span class="p">})</span>
+
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">STACK_NAME</span><span class="p">:</span>
+        <span class="n">predict_value</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">msa_layers</span><span class="p">):</span>
+            <span class="n">predict_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;msa_stack.</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="n">name</span>
+            <span class="n">predict_value_part</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="n">predict_name</span><span class="p">]</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
+            <span class="n">predict_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">predict_value_part</span><span class="p">)</span>
+        <span class="n">predict_value</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">predict_value</span><span class="p">))</span>
+        <span class="n">resave_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;msa_stack.&quot;</span> <span class="o">+</span> <span class="n">name</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">predict_value</span><span class="p">})</span>
+    <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">resave_parameters</span><span class="p">,</span> <span class="n">predict_ckpt</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">get_train_checkpoint</span><span class="p">(</span><span class="n">train_ckpt</span><span class="p">,</span> <span class="n">msa_layers</span><span class="p">,</span> <span class="n">predict_ckpt</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;convert megafold checkpoint: from predict checkpoint to training checkpoint.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        train_ckpt(str): Save path of the training checkpoint.</span>
+<span class="sd">        msa_layers(int): Number of Msa stack layers.</span>
+<span class="sd">        predict_ckpt(str): Path of the training checkpoint.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">predict_name_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">STACK_NAME</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">msa_layers</span><span class="p">):</span>
+            <span class="n">predict_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;msa_stack.</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="n">name</span>
+            <span class="n">predict_name_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">predict_name</span><span class="p">)</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">predict_ckpt</span><span class="p">)</span>
+    <span class="n">resave_parameters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">predict_name_list</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">resave_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">key</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">value</span><span class="p">})</span>
+
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">STACK_NAME</span><span class="p">:</span>
+        <span class="n">save_value</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;msa_stack.&quot;</span> <span class="o">+</span> <span class="n">name</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">msa_layers</span><span class="p">):</span>
+            <span class="n">train_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;msa_stack.</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="n">name</span>
+            <span class="n">train_value</span> <span class="o">=</span> <span class="n">save_value</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">resave_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">train_name</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">train_value</span><span class="p">})</span>
+    <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">resave_parameters</span><span class="p">,</span> <span class="n">train_ckpt</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">_memory_reduce</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">batched_inputs</span><span class="p">,</span> <span class="n">nonbatched_inputs</span><span class="p">,</span> <span class="n">slice_num</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;memory reduce function&quot;&quot;&quot;</span>

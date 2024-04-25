@@ -53,11 +53,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.train.html">mindspore.train</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.communication.html">mindspore.communication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.hal.html">mindspore.hal</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.multiprocessing.html">mindspore.multiprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
@@ -132,7 +134,7 @@
            <div itemprop="articleBody">
              
   <h1>mindspore.common.mutable 源代码</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright 2022 Huawei Technologies Co., Ltd</span>
+<span></span><span class="c1"># Copyright 2022-2024 Huawei Technologies Co., Ltd</span>
 <span class="c1">#</span>
 <span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
@@ -151,6 +153,9 @@
 
 <span class="kn">from</span> <span class="nn">mindspore.common.tensor</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Tensor</span> <span class="k">as</span> <span class="n">Tensor_</span>
+<span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
+
+<span class="n">_check_elements_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 
 
 <span class="k">class</span> <span class="nc">_Int</span><span class="p">(</span><span class="nb">int</span><span class="p">):</span>
@@ -173,19 +178,70 @@
     <span class="k">pass</span>
 
 
-<span class="k">def</span> <span class="nf">_check_element_type</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if all the elements are Tensor.&quot;&quot;&quot;</span>
+<span class="c1"># pylint: disable=super-init-not-called</span>
+<span class="k">class</span> <span class="nc">_Bool</span><span class="p">(</span><span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Define a _Bool class that inherits from int, because base class &#39;bool&#39; is a marked final.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">__class__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">bool</span>
+
+    <span class="k">def</span> <span class="fm">__and__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">&amp;</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="fm">__rand__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">&amp;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">def</span> <span class="fm">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">|</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="fm">__ror__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">def</span> <span class="fm">__xor__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">^</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="fm">__rxor__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">^</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__ms_mutable_bool__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+
+<span class="k">def</span> <span class="nf">_check_element_type_recursion</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if all the elements are valid or self reference.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">_check_elements_set</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="n">_check_elements_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
         <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_element_type</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_element_type_recursion</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
                 <span class="k">return</span> <span class="kc">False</span>
+            <span class="n">_check_elements_set</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
         <span class="k">return</span> <span class="kc">True</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_element_type</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_element_type_recursion</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
                 <span class="k">return</span> <span class="kc">False</span>
+            <span class="n">_check_elements_set</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
         <span class="k">return</span> <span class="kc">True</span>
-    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor_</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor_</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_check_element_type</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if all the elements are valid.&quot;&quot;&quot;</span>
+    <span class="n">flag</span> <span class="o">=</span> <span class="n">_check_element_type_recursion</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">_check_elements_set</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">flag</span>
 
 
 <div class="viewcode-block" id="mutable"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.mutable.html#mindspore.mutable">[文档]</a><span class="k">def</span> <span class="nf">mutable</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="n">dynamic_len</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -210,7 +266,7 @@
 <span class="sd">    the length of the tuple or list is different for each run, it does not need to be re-compiled.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        input_data (Union[Tensor, tuple, list, dict]): The input data to be made mutable. If</span>
+<span class="sd">        input_data (Union[Tensor, scalar, tuple, list, dict]): The input data to be made mutable. If</span>
 <span class="sd">            &#39;input_data&#39; is list/tuple/dict, the type of each element should also in the valid types.</span>
 <span class="sd">        dynamic_len (bool): Whether to set the whole sequence to be dynamic length. In graph compilation, if</span>
 <span class="sd">            `dynamic_len` is ``True`` , the `input_data` must be list or tuple and the elements of `input_data` must</span>
@@ -227,10 +283,10 @@
 <span class="sd">        The origin input data which has been set mutable.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        TypeError: If `input_data` is not one of Tensor, tuple, list, dict or their nested structure.</span>
+<span class="sd">        TypeError: If `input_data` is not one of Tensor, scalar, tuple, list, dict or their nested structure.</span>
 <span class="sd">        TypeError: If `dynamic_len` is ``True`` and `input_data` is not tuple or list.</span>
 <span class="sd">        ValueError: If `dynamic_len` is ``True`` , `input_data` is tuple or list but the elements within `input_data`</span>
-<span class="sd">        do not have the same shape and type.</span>
+<span class="sd">            do not have the same type.</span>
 
 <span class="sd">    Supported Platforms:</span>
 <span class="sd">        ``Ascend`` ``GPU`` ``CPU``</span>
@@ -273,16 +329,21 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_element_type</span><span class="p">(</span><span class="n">input_data</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;For &#39;mutable&#39;, the &#39;input_data&#39; should be one of (int, float, bool, Tensor, tuple, list, dict) &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;or their nested structures, but got </span><span class="si">{</span><span class="n">input_data</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="sa">f</span><span class="s2">&quot;For &#39;mutable&#39;, the &#39;input_data&#39; should be one of (bool, int, float, Tensor, tuple, list, dict) &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;or their nested structures with no self-reference, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">input_data</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dynamic_len</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;mutable&#39;, the second input should be bool, but got: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">dynamic_len</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;For mutable, when the variable_len is True, the first input should be list or tuple,&quot;</span>
-            <span class="sa">f</span><span class="s2">&quot; but got </span><span class="si">{</span><span class="n">input_data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="sa">f</span><span class="s2">&quot;For &#39;mutable&#39;, when the variable_len is True, the first input should be list or tuple, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;but got: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="n">ret</span> <span class="o">=</span> <span class="n">input_data</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">_Bool</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
         <span class="n">ret</span> <span class="o">=</span> <span class="n">_Int</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
         <span class="n">ret</span> <span class="o">=</span> <span class="n">_Float</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span>
@@ -293,14 +354,19 @@
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="n">ret</span> <span class="o">=</span> <span class="n">_Dict</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;For &#39;mutable&#39;, the Tensor in &#39;input_data&#39; must not be constant. </span><span class="se">\</span>
+<span class="s2">                     We will add set_const_arg=False statement automatically.&quot;</span><span class="p">)</span>
         <span class="n">ret</span><span class="o">.</span><span class="n">set_const_arg</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="n">Tensor_</span><span class="p">):</span>
         <span class="n">ret</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="n">internal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;For &#39;mutable&#39;, the Tensor_ in &#39;input_data&#39; must not be constant. </span><span class="se">\</span>
+<span class="s2">                     We will add set_const_arg=False statement automatically.&quot;</span><span class="p">)</span>
         <span class="n">ret</span><span class="o">.</span><span class="n">set_const_arg</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="nb">setattr</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="s2">&quot;__ms_mutable__&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
     <span class="nb">setattr</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="s2">&quot;__ms_dynamic_len__&quot;</span><span class="p">,</span> <span class="n">dynamic_len</span><span class="p">)</span>
     <span class="nb">setattr</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="s2">&quot;__ms_origin_object__&quot;</span><span class="p">,</span> <span class="n">input_data</span><span class="p">)</span>
+    <span class="n">_check_elements_set</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">ret</span></div>
 </pre></div>
 

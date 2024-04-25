@@ -53,11 +53,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.train.html">mindspore.train</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.communication.html">mindspore.communication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.hal.html">mindspore.hal</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.multiprocessing.html">mindspore.multiprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
@@ -174,7 +176,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.common.sparse_tensor</span> <span class="kn">import</span> <span class="n">RowTensor</span> <span class="k">as</span> <span class="n">PythonRowTensor</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">GraphExecutor_</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">CSRTensor</span><span class="p">,</span> <span class="n">RowTensor</span><span class="p">,</span> <span class="n">COOTensor</span><span class="p">,</span> \
     <span class="n">PyNativeExecutor_</span><span class="p">,</span> <span class="n">verify_inputs_signature</span><span class="p">,</span> <span class="n">init_exec_dataset</span><span class="p">,</span> <span class="n">_set_dataset_mode_config</span><span class="p">,</span> <span class="n">init_pipeline</span><span class="p">,</span> \
-    <span class="n">_ms_memory_recycle</span><span class="p">,</span> <span class="n">_bind_device_ctx</span>
+    <span class="n">_ms_memory_recycle</span><span class="p">,</span> <span class="n">_bind_device_ctx</span><span class="p">,</span> <span class="n">jit_mode_pi_enable</span><span class="p">,</span> <span class="n">jit_mode_pi_compile</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._ps_context</span> <span class="kn">import</span> <span class="n">_is_role_sched</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_check_full_batch</span><span class="p">,</span> <span class="n">_get_parameter_broadcast</span><span class="p">,</span> <span class="n">_is_pynative_parallel</span><span class="p">,</span> \
     <span class="n">_is_in_auto_parallel_mode</span>
@@ -185,6 +187,7 @@
 <span class="kn">from</span> <span class="nn">mindspore.common._register_for_adapter</span> <span class="kn">import</span> <span class="n">ms_adapter_registry</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.auto_dynamic_shape</span> <span class="kn">import</span> <span class="n">get_auto_dynamic_shape_args</span><span class="p">,</span> <span class="n">update_auto_dynamic_shape_phase</span><span class="p">,</span> \
     <span class="n">get_auto_dynamic_shape_args_with_check_input_signature</span><span class="p">,</span> <span class="n">update_auto_dynamic_shape_phase_with_check_input_signature</span>
+
 
 <span class="c1"># Store ms_function class compiled pipeline cache.</span>
 <span class="n">ms_compile_cache</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
@@ -197,6 +200,14 @@
 <span class="n">_PYNATIVE_PARALLEL_FUNC_NAME</span> <span class="o">=</span> <span class="s2">&quot;after_shard&quot;</span>
 
 
+<span class="k">def</span> <span class="nf">_ms_adapter_tensor_as_parameter_output</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check whether the data is an output from a parameter which is a ms_adapter tensor.</span>
+<span class="sd">       Pylint: disable=unidiomatic-typecheck.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">ms_adapter_registry</span><span class="o">.</span><span class="n">is_registered</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ms_adapter_registry</span><span class="o">.</span><span class="n">tensor</span><span class="p">)</span> \
+           <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;__ms_parameter_output__&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;__ms_parameter_output__&quot;</span><span class="p">)</span>
+
+
 <span class="k">def</span> <span class="nf">_convert_python_data</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Convert C++ data to python.</span>
@@ -207,8 +218,10 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        data, a data convert C++ to python</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">data</span><span class="o">.</span><span class="n">adapter_flag</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">PythonTensor</span><span class="p">))</span> <span class="ow">and</span> <span class="n">data</span><span class="o">.</span><span class="n">adapter_flag</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">ms_adapter_registry</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">_ms_adapter_tensor_as_parameter_output</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">tensor</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">PythonTensor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">PythonTensor</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">internal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">CSRTensor</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">PythonCSRTensor</span><span class="p">):</span>
@@ -217,7 +230,7 @@
         <span class="k">return</span> <span class="n">PythonCOOTensor</span><span class="p">(</span><span class="n">coo_tensor</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">RowTensor</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">PythonRowTensor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">PythonRowTensor</span><span class="p">(</span><span class="n">row_tensor</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
         <span class="c1"># Handle namedtuple since its type is tuple.</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;_fields&quot;</span><span class="p">):</span>
             <span class="n">type_name</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
@@ -225,12 +238,12 @@
             <span class="n">fields</span> <span class="o">=</span> <span class="n">data_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">namedtuple</span><span class="p">(</span><span class="n">type_name</span><span class="p">,</span> <span class="n">fields</span><span class="p">)(</span><span class="o">**</span><span class="n">_convert_python_data</span><span class="p">(</span><span class="n">data_dict</span><span class="p">))</span>
         <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_convert_python_data</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">data</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">is</span> <span class="nb">list</span><span class="p">:</span>
         <span class="c1"># Keep list object not change for inplace operation.</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
             <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">_convert_python_data</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">data</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
         <span class="c1"># Keep the dict object not change.</span>
         <span class="n">keys</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
@@ -394,7 +407,7 @@
     <span class="k">return</span> <span class="n">layout</span>
 
 
-<span class="k">def</span> <span class="nf">_handle_arg</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_handle_arg</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">compile_arg</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle arg for runtime .If need handle the arg, return True&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">PythonTensor</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">arg</span><span class="o">.</span><span class="n">has_init</span><span class="p">:</span>
@@ -403,7 +416,7 @@
             <span class="k">return</span> <span class="n">arg</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="p">(</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">CSRTensor</span><span class="p">,</span> <span class="n">COOTensor</span><span class="p">)):</span>
         <span class="k">return</span> <span class="n">arg</span>
-    <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="s2">&quot;__ms_mutable__&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="s2">&quot;__ms_mutable__&quot;</span><span class="p">):</span>
+    <span class="k">elif</span> <span class="n">compile_arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">compile_arg</span><span class="p">,</span> <span class="s2">&quot;__ms_mutable__&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">compile_arg</span><span class="p">,</span> <span class="s2">&quot;__ms_mutable__&quot;</span><span class="p">):</span>
         <span class="c1"># mutable([]) will be eliminated by FuncGraphSpecializer, and empty list is not supported by backend.</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">arg</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
@@ -416,16 +429,53 @@
     <span class="k">return</span> <span class="kc">None</span>
 
 
-<span class="k">def</span> <span class="nf">_get_args_for_run</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_handle_arg_predict</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">compile_arg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle arg for runtime .If need handle the arg, return True&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">compile_arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">compile_arg</span><span class="p">,</span> <span class="s2">&quot;__ms_mutable__&quot;</span><span class="p">)</span> <span class="ow">and</span> \
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">compile_arg</span><span class="p">,</span> <span class="s2">&quot;__ms_mutable__&quot;</span><span class="p">):</span>
+            <span class="c1"># mutable([]) will be eliminated by FuncGraphSpecializer, and empty list is not supported by backend.</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">arg</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="n">arg</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;enable_tuple_broaden&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">obj</span><span class="o">.</span><span class="n">enable_tuple_broaden</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> \
+                <span class="n">_check_all_tensor</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">arg</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">arg</span>
+
+
+<span class="k">def</span> <span class="nf">_get_args_for_run</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the actual input args and kwargs for runtime.&quot;&quot;&quot;</span>
     <span class="n">new_args</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
-        <span class="n">new_arg</span> <span class="o">=</span> <span class="n">_handle_arg</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">arg</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">compile_arg</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">):</span>
+        <span class="n">new_arg</span> <span class="o">=</span> <span class="n">_handle_arg</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">compile_arg</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">new_arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">new_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_arg</span><span class="p">)</span>
 
     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="n">new_value</span> <span class="o">=</span> <span class="n">_handle_arg</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="n">new_value</span> <span class="o">=</span> <span class="n">_handle_arg</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">new_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">new_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_value</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">new_args</span>
+
+<span class="k">def</span> <span class="nf">_get_args_for_run_predict</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the actual input args and kwargs for runtime.&quot;&quot;&quot;</span>
+    <span class="n">new_args</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">compile_arg</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">):</span>
+        <span class="n">new_arg</span> <span class="o">=</span> <span class="n">_handle_arg_predict</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">compile_arg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">new_arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">new_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_arg</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">new_value</span> <span class="o">=</span> <span class="n">_handle_arg_predict</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">new_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">new_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_value</span><span class="p">)</span>
 
@@ -463,6 +513,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span> <span class="o">=</span> <span class="n">GraphExecutor_</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_create_time</span> <span class="o">=</span> <span class="n">ms_create_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_compile_args</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">jit_config_dict</span> <span class="o">=</span> <span class="n">jit_config</span><span class="o">.</span><span class="n">jit_config_dict</span> <span class="k">if</span> <span class="n">jit_config</span> <span class="k">else</span> <span class="kc">None</span>
 
 
@@ -510,6 +561,7 @@
 
         <span class="c1"># Restore the mutable attr for every arg.</span>
         <span class="n">compile_args</span> <span class="o">=</span> <span class="n">_restore_mutable_attr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">compile_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_compile_args</span> <span class="o">=</span> <span class="n">compile_args</span>
         <span class="n">generate_name</span><span class="p">,</span> <span class="n">echo_function_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_generate_name</span><span class="p">()</span>
         <span class="c1"># The full Function name</span>
         <span class="n">full_function_name</span> <span class="o">=</span> <span class="n">generate_name</span>
@@ -548,6 +600,9 @@
         <span class="n">update_auto_dynamic_shape_phase_with_check_input_signature</span><span class="p">(</span><span class="n">compile_args</span><span class="p">,</span> <span class="n">key_id</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">ms_compile_cache</span><span class="p">:</span>
+            <span class="c1"># Release resource should be released when CompileInner won&#39;t be executed, such as cur_convert_input_</span>
+            <span class="c1"># generated in generate_arguments_key.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">clear_compile_arguments_resource</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">phase</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_recompile</span><span class="p">(</span><span class="n">full_function_name</span><span class="p">,</span> <span class="n">create_time</span><span class="p">,</span> <span class="n">echo_function_name</span><span class="p">)</span>
@@ -665,6 +720,7 @@
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">compile_args</span><span class="p">):</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">PythonTensor</span><span class="p">):</span>
                     <span class="n">Validator</span><span class="o">.</span><span class="n">check_dynamic_shape</span><span class="p">(</span><span class="n">compile_args</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">args_list</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">i</span><span class="p">)</span>
+            <span class="n">Validator</span><span class="o">.</span><span class="n">check_symbolic_shape</span><span class="p">(</span><span class="n">compile_args</span><span class="p">,</span> <span class="n">args_list</span><span class="p">)</span>
 
         <span class="c1"># Case: If dynamic shape tensors have been assigned to `input_signature`, they are preferred as compile args.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -676,6 +732,7 @@
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">PythonTensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_shape_unknown</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
                     <span class="n">Validator</span><span class="o">.</span><span class="n">check_dynamic_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">args_list</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">i</span><span class="p">)</span>
                     <span class="n">dyn_shape</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">Validator</span><span class="o">.</span><span class="n">check_symbolic_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">,</span> <span class="n">args_list</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">dyn_shape</span><span class="p">:</span>
                 <span class="c1"># Checkout whether the `sens` has been added to args_list.</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_signature</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">args_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
@@ -704,7 +761,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            new_inputs, new input args, which are required for running.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">_get_args_for_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args_list</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_get_args_for_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args_list</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compile_args</span><span class="p">)</span>
 
 
 <span class="c1"># The attributes used to identify a given object.</span>
@@ -732,18 +789,19 @@
     <span class="k">return</span> <span class="n">_get_obj_id</span><span class="p">(</span><span class="n">hash_input</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="jit"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.jit.html#mindspore.jit">[文档]</a><span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">input_signature</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hash_args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jit_config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compile_once</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="jit"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.jit.html#mindspore.jit">[文档]</a><span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;PSJit&quot;</span><span class="p">,</span> <span class="n">input_signature</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hash_args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jit_config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compile_once</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create a callable MindSpore graph from a Python function.</span>
 
 <span class="sd">    This allows the MindSpore runtime to apply optimizations based on graph.</span>
 
-<span class="sd">    Note:</span>
-<span class="sd">        If `input_signature` is specified, each input of `fn` must be a Tensor. And the input arguments for `fn`</span>
-<span class="sd">        will not accept `**kwargs`.</span>
-
 <span class="sd">    Args:</span>
 <span class="sd">        fn (Function): The Python function that will be run as a graph. Default: ``None`` .</span>
+<span class="sd">        mode (str): The type of jit used, the value of mode should be ``PIJit`` or ``PSJit``. Default: ``PSJit`` .</span>
+
+<span class="sd">            - `PSJit &lt;https://www.mindspore.cn/docs/en/master/note/static_graph_syntax_support.html&gt;`_ : MindSpore GRAPH_MODE.</span>
+<span class="sd">            - `PIJit &lt;https://www.mindspore.cn/docs/en/master/design/dynamic_graph_and_static_graph.html&gt;`_ : MindSpore PYNATIVE_MODE.</span>
+
 <span class="sd">        input_signature (Tensor): The Tensor which describes the input arguments. The shape and dtype of the Tensor</span>
 <span class="sd">            will be supplied to this function. If input_signature is specified, each input to `fn` must be a `Tensor`.</span>
 <span class="sd">            And the input parameters of `fn` cannot accept `**kwargs`. The shape and dtype of actual inputs should</span>
@@ -754,8 +812,12 @@
 <span class="sd">        jit_config (JitConfig): Jit config for compile. Default: ``None`` .</span>
 <span class="sd">        compile_once(bool): ``True``: The function would be compiled once when it was created many times.</span>
 <span class="sd">            But it may be wrong if the free variables were changed. ``False`` : It would be recompiled when</span>
-<span class="sd">            it was created again</span>
+<span class="sd">            it was created again.</span>
 <span class="sd">            Default: ``False`` .</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        If `input_signature` is specified, each input of `fn` must be a Tensor. And the input arguments for `fn`</span>
+<span class="sd">        will not accept `**kwargs`.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Function, if `fn` is not None, returns a callable function that will execute the compiled function; If `fn` is</span>
@@ -856,9 +918,43 @@
 
         <span class="k">return</span> <span class="n">staging_specialize</span>
 
+    <span class="k">def</span> <span class="nf">pi_wrap_mindspore</span><span class="p">(</span><span class="n">decorated</span><span class="p">):</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">decorated</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">construct</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">construct</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">MethodType</span><span class="p">):</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="vm">__func__</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">FunctionType</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;only support function and mindspore.nn.Cell instance&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">decorated</span>
+
+        <span class="c1"># generator, coroutine, awaitable and a function that return them is unsupported</span>
+        <span class="n">UNSUPPORTED_CODE_TYPE</span> <span class="o">=</span> <span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">CO_GENERATOR</span> <span class="o">|</span> <span class="n">inspect</span><span class="o">.</span><span class="n">CO_COROUTINE</span> <span class="o">|</span>
+                                 <span class="n">inspect</span><span class="o">.</span><span class="n">CO_ASYNC_GENERATOR</span> <span class="o">|</span> <span class="n">inspect</span><span class="o">.</span><span class="n">CO_ITERABLE_COROUTINE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">func</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_flags</span> <span class="o">&amp;</span> <span class="n">UNSUPPORTED_CODE_TYPE</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">decorated</span>
+
+        <span class="n">config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">jit_config</span><span class="p">,</span> <span class="n">JitConfig</span><span class="p">):</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">jit_config</span><span class="o">.</span><span class="n">jit_config_dict</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">jit_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">jit_config</span><span class="p">)</span>
+        <span class="n">jit_mode_pi_enable</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">jit_mode_pi_compile</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;add fn </span><span class="si">{}</span><span class="s1"> to compile failed &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">decorated</span>
+
+    <span class="n">wrap_func</span> <span class="o">=</span> <span class="n">wrap_mindspore</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;PIJit&quot;</span><span class="p">:</span>
+        <span class="n">wrap_func</span> <span class="o">=</span> <span class="n">pi_wrap_mindspore</span>
+
     <span class="k">if</span> <span class="n">fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">wrap_mindspore</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">wrap_mindspore</span></div>
+        <span class="k">return</span> <span class="n">wrap_func</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wrap_func</span></div>
 
 
 <div class="viewcode-block" id="ms_function"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.ms_function.html#mindspore.ms_function">[文档]</a><span class="k">def</span> <span class="nf">ms_function</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">input_signature</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hash_args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jit_config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -868,15 +964,14 @@
 <span class="sd">    This allows the MindSpore runtime to apply optimizations based on graph.</span>
 
 <span class="sd">    Note:</span>
-<span class="sd">        `ms_function` will be deprecated and removed in a future version. Please use `jit` instead.</span>
-<span class="sd">        If `input_signature` is specified, each input of `fn` must be a Tensor. And the input arguments for `fn`</span>
-<span class="sd">        will not accept `**kwargs`.</span>
+<span class="sd">        - `ms_function` will be deprecated and removed in a future version. Please use :func:`mindspore.jit` instead.</span>
+<span class="sd">        - If `input_signature` is specified, each input of `fn` must be a Tensor. And the input arguments for `fn`</span>
+<span class="sd">          will not accept `**kwargs`.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        fn (Function): The Python function that will be run as a graph. Default: ``None`` .</span>
 <span class="sd">        input_signature (Tensor): The Tensor which describes the input arguments. The shape and dtype of the Tensor</span>
-<span class="sd">            will be supplied to this function. If input_signature is specified, each input to `fn` must be a `Tensor`.</span>
-<span class="sd">            And the input parameters of `fn` cannot accept `**kwargs`. The shape and dtype of actual inputs should</span>
+<span class="sd">            will be supplied to this function. The shape and dtype of actual inputs of `fn` should</span>
 <span class="sd">            keep the same as input_signature. Otherwise, TypeError will be raised. Default: ``None`` .</span>
 <span class="sd">        hash_args (Union[Object, List or Tuple of Objects]): The local free variables used inside `fn`,</span>
 <span class="sd">            like functions or objects of class defined outside `fn`. Calling `fn` again with change of `hash_args`</span>
@@ -1045,7 +1140,7 @@
 <span class="sd">    This allows MindSpore to identify user-defined classes and thus obtain their attributes and methods.</span>
 
 <span class="sd">    Note:</span>
-<span class="sd">        `ms_class` will be deprecated and removed in a future version. Please use `jit_class` instead.</span>
+<span class="sd">        `ms_class` will be deprecated and removed in a future version. Please use :func:`mindspore.jit_class` instead.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        cls (Class): User-defined class.</span>
@@ -1173,6 +1268,8 @@
             <span class="n">ms_adapter_registry</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;convert_object_map&quot;</span><span class="p">:</span>
             <span class="n">ms_adapter_registry</span><span class="o">.</span><span class="n">register_convert_map</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;convert_adapter_tensor_map&quot;</span><span class="p">:</span>
+            <span class="n">ms_adapter_registry</span><span class="o">.</span><span class="n">register_convert_adapter_tensor_map</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported key in adapter config: </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
@@ -1196,7 +1293,7 @@
     <span class="n">_broadcast_net</span><span class="o">.</span><span class="n">phase</span> <span class="o">=</span> <span class="n">broadcast_phase</span>
     <span class="n">broadcasted_params</span> <span class="o">=</span> <span class="n">_broadcast_net</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">broadcast_params_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">broadcasted_params</span><span class="p">):</span>
-        <span class="n">broadcast_params_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+        <span class="n">broadcast_params_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">param_name</span><span class="p">)</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_get_auto_split_param_names</span><span class="p">(</span><span class="n">parameter_layout_dict</span><span class="p">):</span>
@@ -1271,16 +1368,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span> <span class="o">=</span> <span class="n">PyNativeExecutor_</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span><span class="o">.</span><span class="n">set_py_exe_path</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span><span class="o">.</span><span class="n">set_kernel_build_server_dir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">kernel_build_server</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_top_cell</span> <span class="o">=</span> <span class="kc">None</span>
-
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        PyNative executor run grad graph.</span>
-
-<span class="sd">        Return:</span>
-<span class="sd">            The return object after running grad graph.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span><span class="p">()</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">parameter_broadcast</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">phase</span><span class="p">):</span>
@@ -1382,7 +1469,7 @@
 <span class="sd">        Return:</span>
 <span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span><span class="o">.</span><span class="n">grad_net</span><span class="p">(</span><span class="n">grad</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">grad</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">grad_position</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
 
     <span class="k">def</span> <span class="nf">clear_res</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1515,15 +1602,6 @@
 <span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span><span class="o">.</span><span class="n">set_hook_changed</span><span class="p">(</span><span class="n">cell</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">get_top_cell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the top cell object.</span>
-
-<span class="sd">        Return:</span>
-<span class="sd">            The top cell object.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_top_cell</span>
 
     <span class="k">def</span> <span class="nf">constant_folding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1658,15 +1736,20 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;enable_tuple_broaden&quot;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">enable_tuple_broaden</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Convert the network.&quot;</span><span class="p">,</span> <span class="n">do_convert</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Convert the network: </span><span class="si">{</span><span class="n">do_convert</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">set_enable_tuple_broaden</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
         <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">generate_arguments_key</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_tuple_broaden</span><span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">arguments_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">raw_phase</span> <span class="o">=</span> <span class="n">phase</span>
         <span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">create_time</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">obj</span><span class="o">.</span><span class="n">arguments_key</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">phase_cache</span><span class="p">[</span><span class="n">raw_phase</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase</span>
         <span class="n">update_auto_dynamic_shape_phase</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">key_id</span><span class="p">,</span> <span class="n">phase</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">compile_cache</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_compiled</span><span class="p">(</span><span class="n">phase</span><span class="p">):</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%r</span><span class="s2"> graph has existed.&quot;</span><span class="p">,</span> <span class="n">phase</span><span class="p">)</span>
+            <span class="c1"># Release resource should be released when CompileInner won&#39;t be executed, such as cur_convert_input_</span>
+            <span class="c1"># generated in generate_arguments_key.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_graph_executor</span><span class="o">.</span><span class="n">clear_compile_arguments_resource</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">phase</span><span class="p">,</span> <span class="kc">False</span>
 
         <span class="n">obj</span><span class="o">.</span><span class="n">check_names</span><span class="p">()</span>

@@ -53,11 +53,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.train.html">mindspore.train</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.communication.html">mindspore.communication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.hal.html">mindspore.hal</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.multiprocessing.html">mindspore.multiprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
@@ -132,7 +134,7 @@
            <div itemprop="articleBody">
              
   <h1>mindspore.parallel.shard 源代码</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright 2022 Huawei Technologies Co., Ltd</span>
+<span></span><span class="c1"># Copyright 2023 Huawei Technologies Co., Ltd</span>
 <span class="c1">#</span>
 <span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
@@ -148,9 +150,106 @@
 <span class="c1"># ============================================================================</span>
 <span class="sd">&quot;&quot;&quot;pynative shard&quot;&quot;&quot;</span>
 
+<span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">log</span> <span class="k">as</span> <span class="n">logger</span>
 <span class="kn">from</span> <span class="nn">mindspore._c_expression</span> <span class="kn">import</span> <span class="n">Shard_</span>
+
+
+<div class="viewcode-block" id="Layout"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.Layout.html#mindspore.Layout">[文档]</a><span class="k">class</span> <span class="nc">Layout</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parallel layout describes the detailed sharding information.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        - It is valid only in semi auto parallel or auto parallel mode.</span>
+<span class="sd">        - The multiplication result of the `device_matrix` must be equal to the device count in a pipeline stage.</span>
+<span class="sd">        - When the layout function is invoked to constructs a sharding strategy, each alias name is only allowed to be</span>
+<span class="sd">          used once to shard a tensor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        device_matrix (tuple): Describe the shape of devices arrangement, its element type is int.</span>
+<span class="sd">        alias_name (tuple): The alias name for each axis of device_matrix, its length shoits element type is string.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: `device_matrix` is not a tuple type.</span>
+<span class="sd">        TypeError: `alias_name` is not a tuple type.</span>
+<span class="sd">        ValueError: `device_matrix` length is not equal to `alias_name` length.</span>
+<span class="sd">        TypeError: The element of `device_matrix` is not int type.</span>
+<span class="sd">        TypeError: The element of `alias_name` is not a str type.</span>
+<span class="sd">        ValueError: The element of `alias_name` is an empty str.</span>
+<span class="sd">        ValueError: The element of `alias_name` is &quot;None&quot;.</span>
+<span class="sd">        ValueError: `alias_name` contains repeated element.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; from mindspore import Layout</span>
+<span class="sd">        &gt;&gt;&gt; layout = Layout((2, 2, 2), (&quot;dp&quot;, &quot;sp&quot;, &quot;mp&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; layout0 = layout(&quot;dp&quot;, &quot;mp&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(layout0.to_dict())</span>
+<span class="sd">        {&quot;device_matrix&quot;: (2, 2, 2), &quot;tensor_map&quot;: (2, 0)}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device_matrix</span><span class="p">,</span> <span class="n">alias_name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">device_matrix</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;device_matrix must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">device_matrix</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">alias_name</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;alias_name must be tuple type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">alias_name</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">device_matrix</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">alias_name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;device_matrix length should be equal to alias_name length&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">in_ele</span> <span class="ow">in</span> <span class="n">device_matrix</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The element of device_matrix must be int type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_ele</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">in_ele</span> <span class="ow">in</span> <span class="n">alias_name</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_ele</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The element of alias_name must be str type, but got:</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_ele</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">in_ele</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The element of alias_name can not be empty.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">in_ele</span> <span class="o">==</span> <span class="s2">&quot;None&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The element of alias_name can not set &#39;None&#39;, because &#39;None&#39; means no sharding.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">alias_name</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">alias_name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Each element of alias_name </span><span class="si">{</span><span class="n">alias_name</span><span class="si">}</span><span class="s1"> should be different&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_device_shape</span> <span class="o">=</span> <span class="n">device_matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span> <span class="o">=</span> <span class="n">alias_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">tensor_map</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="n">writed_map</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="n">tensor_map</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ele</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="n">ele_map</span> <span class="o">=</span> <span class="p">()</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">ele</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">item</span> <span class="o">==</span> <span class="s2">&quot;None&quot;</span><span class="p">:</span>
+                        <span class="n">ele_map</span> <span class="o">+=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">item</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The axis </span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s1"> is not found in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">writed_map</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The axis </span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s1"> has been set more than one in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">ele_map</span> <span class="o">+=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">item</span><span class="p">),)</span>
+                    <span class="n">writed_map</span> <span class="o">+=</span> <span class="p">(</span><span class="n">item</span><span class="p">,)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">+=</span> <span class="p">(</span><span class="n">ele_map</span><span class="p">,)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">ele</span> <span class="o">==</span> <span class="s2">&quot;None&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">+=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">ele</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The axis </span><span class="si">{</span><span class="n">ele</span><span class="si">}</span><span class="s1"> is not found in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ele</span> <span class="ow">in</span> <span class="n">writed_map</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The axis </span><span class="si">{</span><span class="n">ele</span><span class="si">}</span><span class="s1"> has been set more than one in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="o">+=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">ele</span><span class="p">),)</span>
+            <span class="n">writed_map</span> <span class="o">+=</span> <span class="p">(</span><span class="n">ele</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Layout.to_dict"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.Layout.html#mindspore.Layout.to_dict">[文档]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Transform layout to a dictionary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_shape</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The device_shape of layout is None&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The tensor_map of layout is None&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;device_matrix&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device_shape</span><span class="p">,</span> <span class="s2">&quot;tensor_map&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_map</span><span class="p">}</span></div></div>
+
 
 
 <span class="k">class</span> <span class="nc">Shard</span><span class="p">(</span><span class="n">Shard_</span><span class="p">):</span>
@@ -170,13 +269,17 @@
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">in_strategy</span><span class="p">,</span> <span class="n">out_strategy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parameter_plan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;Ascend&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span> <span class="ow">or</span> \
                 <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;parallel_mode&quot;</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;auto_parallel&quot;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cell shard only supports auto parallel under PyNative mode.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Cell shard only supports auto parallel under PyNative mode.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Ascend&quot;</span><span class="p">,</span> <span class="s2">&quot;GPU&quot;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;Shard&#39; now only supports &#39;Ascend&#39; and &#39;GPU&#39;&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;Shard&#39; now only supports &#39;Ascend&#39; and &#39;GPU&#39;&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">get_auto_parallel_context</span><span class="p">(</span><span class="s2">&quot;search_mode&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;sharding_propagation&quot;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;search_mode&#39; must be &#39;sharding_propagation&#39; for &#39;Shard&#39;&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;search_mode&#39; must be &#39;sharding_propagation&#39; for &#39;Shard&#39;&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_strategy</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;Shard&#39;, the &#39;in_strategy&#39; should be a tuple, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_strategy</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;For &#39;Shard&#39;, the &#39;in_strategy&#39; should be a tuple, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">in_strategy</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out_strategy</span><span class="p">,</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;For &#39;Shard&#39;, the &#39;out_strategy&#39; should be None or tuple, &quot;</span>
                             <span class="sa">f</span><span class="s2">&quot;but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">out_strategy</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -251,7 +354,8 @@
             <span class="k">return</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter_plan</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;If parameter_plan is set, type of fn must be mindspore.nn.Cell, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;If parameter_plan is set, type of fn must be mindspore.nn.Cell, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">parameter_plan</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
                 <span class="n">v</span> <span class="o">=</span> <span class="n">parameter_plan</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
@@ -265,10 +369,12 @@
             <span class="n">param_strategy</span> <span class="o">=</span> <span class="n">parameter_plan</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
             <span class="n">param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_parameter_by_name</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">fn</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">param</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">param_name</span><span class="si">}</span><span class="s2"> is not exist, ignored its setting.&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">param_name</span><span class="si">}</span><span class="s2"> is not exist, ignored its setting.&quot;</span><span class="p">)</span>
                 <span class="k">continue</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">_check_layout_is_valid</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">param_strategy</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_layout_is_valid</span><span class="p">(</span>
+                <span class="n">param_name</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">param_strategy</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">param_info</span><span class="o">.</span><span class="n">param_strategy</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The layout of parameter &#39;</span><span class="si">{</span><span class="n">param_name</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
                                <span class="sa">f</span><span class="s2">&quot;has been set to </span><span class="si">{</span><span class="n">param</span><span class="o">.</span><span class="n">param_info</span><span class="o">.</span><span class="n">param_strategy</span><span class="si">}</span><span class="s2">, &quot;</span>
@@ -277,7 +383,7 @@
 
     <span class="k">def</span> <span class="nf">_is_attrs_has_been_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">in_strategy</span><span class="p">,</span> <span class="n">out_strategy</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">shard_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">==</span> <span class="n">fn</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_strategy</span> <span class="o">==</span> <span class="n">in_strategy</span> <span class="ow">and</span> \
-               <span class="bp">self</span><span class="o">.</span><span class="n">out_strategy</span> <span class="o">==</span> <span class="n">out_strategy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">==</span> <span class="n">device</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">==</span> <span class="n">level</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">out_strategy</span> <span class="o">==</span> <span class="n">out_strategy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">==</span> <span class="n">device</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">==</span> <span class="n">level</span>
 
 
 <div class="viewcode-block" id="shard"><a class="viewcode-back" href="../../../api_python/mindspore/mindspore.shard.html#mindspore.shard">[文档]</a><span class="k">def</span> <span class="nf">shard</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">in_strategy</span><span class="p">,</span> <span class="n">out_strategy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parameter_plan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;Ascend&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
@@ -350,8 +456,8 @@
 <span class="sd">        ...                           device_num=2)</span>
 <span class="sd">        &gt;&gt;&gt; def test_shard(x, y):</span>
 <span class="sd">        ...     return x + y</span>
-<span class="sd">        &gt;&gt;&gt; x = Tensor(np.ones(shape=(32, 10)))</span>
-<span class="sd">        &gt;&gt;&gt; y = Tensor(np.ones(shape=(32, 10)))</span>
+<span class="sd">        &gt;&gt;&gt; x = Tensor(np.ones(shape=(32, 10)), dtype=ms.float32)</span>
+<span class="sd">        &gt;&gt;&gt; y = Tensor(np.ones(shape=(32, 10)), dtype=ms.float32)</span>
 <span class="sd">        &gt;&gt;&gt; output = ms.shard(test_shard, in_strategy=((2, 1), (2, 1)))(x, y)</span>
 <span class="sd">        &gt;&gt;&gt; print(output.shape)</span>
 <span class="sd">        (32, 10)</span>

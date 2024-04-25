@@ -116,13 +116,14 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
-<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">mindspore_lite._checkparam</span> <span class="kn">import</span> <span class="n">check_isinstance</span>
 <span class="kn">from</span> <span class="nn">mindspore_lite.context</span> <span class="kn">import</span> <span class="n">Context</span>
 <span class="kn">from</span> <span class="nn">mindspore_lite.lib</span> <span class="kn">import</span> <span class="n">_c_lite_wrapper</span>
 <span class="kn">from</span> <span class="nn">mindspore_lite.tensor</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">mindspore_lite.base_model</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+<span class="kn">from</span> <span class="nn">mindspore_lite._parse_update_weights_name</span> <span class="kn">import</span> <span class="n">_parse_update_weight_config_name</span><span class="p">,</span> <span class="n">_rename_variable_weight</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ModelType&#39;</span><span class="p">,</span> <span class="s1">&#39;Model&#39;</span><span class="p">,</span> <span class="s1">&#39;ModelParallelRunner&#39;</span><span class="p">,</span> <span class="s1">&#39;ModelGroup&#39;</span><span class="p">]</span>
 
@@ -177,7 +178,7 @@
 <span class="k">def</span> <span class="nf">set_env</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;set env for Ascend custom opp&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">warpper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">current_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
         <span class="n">mslite_ascend_ascendc_custom_kernel_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">current_path</span><span class="p">,</span>
                                                                 <span class="s2">&quot;custom_kernels&quot;</span><span class="p">,</span>
@@ -206,7 +207,7 @@
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;mslite ascendc custom kernel path not found&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">warpper</span>
+    <span class="k">return</span> <span class="n">wrapper</span>
 
 
 <div class="viewcode-block" id="Model"><a class="viewcode-back" href="../../mindspore_lite/mindspore_lite.Model.html#mindspore_lite.Model">[docs]</a><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
@@ -251,8 +252,8 @@
 <span class="sd">                  .. code-block::</span>
 
 <span class="sd">                      [execution_plan]</span>
-<span class="sd">                      [op_name1]=data_Type: float16 (The operator named op_name1 sets the data type as Float16)</span>
-<span class="sd">                      [op_name2]=data_Type: float32 (The operator named op_name2 sets the data type as Float32)</span>
+<span class="sd">                      [op_name1]=data_Type: float16 (The operator named op_name1 sets the data type as float16)</span>
+<span class="sd">                      [op_name2]=data_Type: float32 (The operator named op_name2 sets the data type as float32)</span>
 
 <span class="sd">                - Usage 2: When GPU inference, set the configuration of TensorRT. The content and description of the</span>
 <span class="sd">                  configuration file are as follows:</span>
@@ -331,6 +332,12 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">ret</span><span class="o">.</span><span class="n">IsOk</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;load configuration failed! Error is </span><span class="si">{</span><span class="n">ret</span><span class="o">.</span><span class="n">ToString</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">update_names</span> <span class="o">=</span> <span class="n">_parse_update_weight_config_name</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">update_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">config_dict</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">config_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;ascend_context&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;variable_weights_list&quot;</span><span class="p">:</span> <span class="n">update_names</span><span class="p">}}</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">config_dict</span><span class="p">[</span><span class="s1">&#39;ascend_context&#39;</span><span class="p">][</span><span class="s2">&quot;variable_weights_list&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">update_names</span>
 
         <span class="k">if</span> <span class="n">config_dict</span><span class="p">:</span>
             <span class="n">check_isinstance</span><span class="p">(</span><span class="s2">&quot;config_dict&quot;</span><span class="p">,</span> <span class="n">config_dict</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
@@ -377,6 +384,28 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># pylint: disable=useless-super-delegation</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Model.update_weights"><a class="viewcode-back" href="../../mindspore_lite/mindspore_lite.Model.html#mindspore_lite.Model.update_weights">[docs]</a>    <span class="k">def</span> <span class="nf">update_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">weights</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update constant weight of the model node.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            weights (list[list[Tensor]]): A list that includes all update weight Tensors.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            RuntimeError: `weights` is not a list(list).</span>
+<span class="sd">            RuntimeError: `weights` is a list, but the elements are not Tensor.</span>
+<span class="sd">            RuntimeError: update weight failed.</span>
+
+<span class="sd">        Tutorial Examples:</span>
+<span class="sd">            - `Dynamic Weight Update</span>
+<span class="sd">              &lt;https://www.mindspore.cn/lite/docs/en/r2.3/use/cloud_infer/runtime_python.html#dynamic-weight-update&gt;`_</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="n">weight</span><span class="p">:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">_rename_variable_weight</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">tensor</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">update_weights</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Model.predict"><a class="viewcode-back" href="../../mindspore_lite/mindspore_lite.Model.html#mindspore_lite.Model.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -462,7 +491,7 @@
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;inputs size is wrong.&quot;</span><span class="p">)</span>
         <span class="n">inputs_tensor</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">in_tensor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_tensor</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
                 <span class="n">model_input_tensors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_data_from_numpy</span><span class="p">(</span><span class="n">in_tensor</span><span class="p">)</span>
                 <span class="n">inputs_tensor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model_input_tensors</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
             <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
@@ -830,7 +859,8 @@
 <span class="sd">           TypeError: `models` is a list or tuple, but the elements are not all str or Model.</span>
 <span class="sd">           RuntimeError: Failed to add model grouping information.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">check_isinstance</span><span class="p">(</span><span class="s2">&quot;models&quot;</span><span class="p">,</span> <span class="n">models</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">models</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;models must be list/tuple, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">models</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">models</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;models cannot be empty&quot;</span><span class="p">)</span>
         <span class="n">model0</span> <span class="o">=</span> <span class="n">models</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>

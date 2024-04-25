@@ -53,11 +53,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.train.html">mindspore.train</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.communication.html">mindspore.communication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.hal.html">mindspore.hal</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.multiprocessing.html">mindspore.multiprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
@@ -173,13 +175,18 @@
 
 
 <span class="nd">@constexpr</span>
-<span class="k">def</span> <span class="nf">_ascend_910A_target</span><span class="p">():</span>
+<span class="k">def</span> <span class="nf">_ascend_target</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;device_target&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Ascend&quot;</span>
+
+
+<span class="nd">@constexpr</span>
+<span class="k">def</span> <span class="nf">_ascend_910a_target</span><span class="p">():</span>
     <span class="k">return</span> <span class="n">MSContext</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">get_ascend_soc_version</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ascend910&quot;</span>
 
 
 <span class="nd">@constexpr</span>
-<span class="k">def</span> <span class="nf">_ascend_910B_target</span><span class="p">():</span>
-    <span class="k">return</span> <span class="n">MSContext</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">get_ascend_soc_version</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ascend910b&quot;</span>
+<span class="k">def</span> <span class="nf">_ascend_910bc_target</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">MSContext</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span><span class="o">.</span><span class="n">get_ascend_soc_version</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ascend910b&quot;</span><span class="p">,</span> <span class="s2">&quot;ascend910c&quot;</span><span class="p">]</span>
 
 
 <span class="nd">@constexpr</span>
@@ -215,16 +222,17 @@
 <span class="nd">@jit</span>
 <span class="k">def</span> <span class="nf">_all_finite</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">check_overflow_mode</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;all finite check&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">_ascend_910A_target</span><span class="p">())</span> <span class="ow">or</span> \
-       <span class="p">(</span><span class="n">_ascend_910B_target</span><span class="p">()</span> <span class="ow">and</span> <span class="n">check_overflow_mode</span> <span class="o">!=</span> <span class="s2">&quot;INFNAN_MODE&quot;</span><span class="p">):</span>
-        <span class="n">status</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
-        <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
-        <span class="n">get_status</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NPUGetFloatStatusV2</span><span class="p">)()(</span><span class="n">status</span><span class="p">)</span>
-        <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">get_status</span><span class="p">)</span>
-        <span class="n">clear_status</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NPUClearFloatStatusV2</span><span class="p">)()(</span><span class="n">status</span><span class="p">)</span>
-        <span class="n">get_status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">get_status</span><span class="p">,</span> <span class="n">clear_status</span><span class="p">)</span>
-        <span class="n">status_finite</span> <span class="o">=</span> <span class="n">get_status</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">status_finite</span>
+    <span class="k">if</span> <span class="n">_ascend_target</span><span class="p">():</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">_ascend_910a_target</span><span class="p">())</span> <span class="ow">or</span> \
+           <span class="p">(</span><span class="n">_ascend_910bc_target</span><span class="p">()</span> <span class="ow">and</span> <span class="n">check_overflow_mode</span> <span class="o">==</span> <span class="s2">&quot;SATURATION_MODE&quot;</span><span class="p">):</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">Tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+            <span class="n">get_status</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NPUGetFloatStatusV2</span><span class="p">)()(</span><span class="n">status</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">get_status</span><span class="p">)</span>
+            <span class="n">clear_status</span> <span class="o">=</span> <span class="n">_get_cache_prim</span><span class="p">(</span><span class="n">NPUClearFloatStatusV2</span><span class="p">)()(</span><span class="n">status</span><span class="p">)</span>
+            <span class="n">get_status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">depend</span><span class="p">(</span><span class="n">get_status</span><span class="p">,</span> <span class="n">clear_status</span><span class="p">)</span>
+            <span class="n">status_finite</span> <span class="o">=</span> <span class="n">get_status</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">mstype</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">status_finite</span>
 
     <span class="n">outputs</span> <span class="o">=</span> <span class="n">_hypermap</span><span class="p">(</span><span class="n">_partial</span><span class="p">(</span><span class="n">_overflow</span><span class="p">),</span> <span class="n">inputs</span><span class="p">)</span>
     <span class="n">flag_sum</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">addn</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(())</span>

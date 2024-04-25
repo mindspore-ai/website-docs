@@ -53,11 +53,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.train.html">mindspore.train</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.communication.html">mindspore.communication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.common.initializer.html">mindspore.common.initializer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.hal.html">mindspore.hal</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.html">mindspore.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.dataset.transforms.html">mindspore.dataset.transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.mindrecord.html">mindspore.mindrecord</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.nn.probability.html">mindspore.nn.probability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.rewrite.html">mindspore.rewrite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.multiprocessing.html">mindspore.multiprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.boost.html">mindspore.boost</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.numpy.html">mindspore.numpy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_python/mindspore.scipy.html">mindspore.scipy</a></li>
@@ -161,7 +163,8 @@
 <span class="kn">from</span> <span class="nn">mindspore</span> <span class="kn">import</span> <span class="n">context</span><span class="p">,</span> <span class="n">nn</span>
 <span class="kn">from</span> <span class="nn">mindspore.train._utils</span> <span class="kn">import</span> <span class="n">_exec_datagraph</span><span class="p">,</span> <span class="n">_get_types_and_shapes</span><span class="p">,</span> <span class="n">_construct_tensor_list</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._utils</span> <span class="kn">import</span> <span class="n">_get_device_num</span><span class="p">,</span> <span class="n">_get_global_rank</span><span class="p">,</span> <span class="n">_need_to_full</span><span class="p">,</span> \
-    <span class="n">_to_full_shapes</span><span class="p">,</span> <span class="n">_get_pipeline_stages</span>
+    <span class="n">_to_full_shapes</span><span class="p">,</span> <span class="n">_get_pipeline_stages</span><span class="p">,</span> <span class="n">_change_symbols_for_parallel</span><span class="p">,</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">,</span> \
+    <span class="n">_origin_shapes</span><span class="p">,</span> <span class="n">_dynamic_shape_for_dataset</span>
 <span class="kn">from</span> <span class="nn">mindspore.parallel._ps_context</span> <span class="kn">import</span> <span class="n">_is_role_sched</span>
 <span class="kn">from</span> <span class="nn">mindspore.ops</span> <span class="kn">import</span> <span class="n">operations</span> <span class="k">as</span> <span class="n">P</span>
 <span class="kn">from</span> <span class="nn">mindspore.common.auto_dynamic_shape</span> <span class="kn">import</span> <span class="n">_auto_dynamic_shape</span>
@@ -186,6 +189,7 @@
     <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">dataset_iter</span><span class="p">,</span> <span class="s2">&quot;sink_size&quot;</span><span class="p">)</span> <span class="ow">and</span> \
        <span class="n">dataset_iter</span><span class="o">.</span><span class="n">sink_size</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> \
        <span class="n">dataset</span><span class="o">.</span><span class="n">get_dataset_size</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> \
+       <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="s2">&quot;__no_send__&quot;</span><span class="p">)</span> <span class="ow">and</span> \
        <span class="nb">hasattr</span><span class="p">(</span><span class="n">dataset_iter</span><span class="p">,</span> <span class="s2">&quot;sink_count&quot;</span><span class="p">)</span> <span class="ow">and</span> \
        <span class="n">dataset_iter</span><span class="o">.</span><span class="n">sink_count</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">True</span>
@@ -228,6 +232,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">add_flags</span><span class="p">(</span><span class="o">**</span><span class="n">flags</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_next</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">GetNext</span><span class="p">(</span>
             <span class="n">dataset_types</span><span class="p">,</span> <span class="n">dataset_shapes</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">),</span> <span class="n">queue_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">network</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">symbol_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">inp</span><span class="p">,</span> <span class="s2">&quot;symbolic_shape&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">inp</span> <span class="ow">in</span> <span class="n">network</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">()]</span>
+            <span class="n">symbol_inputs</span> <span class="o">=</span> <span class="n">_change_symbols_for_parallel</span><span class="p">(</span><span class="n">dataset_shapes</span><span class="p">,</span> <span class="n">symbol_inputs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">((</span><span class="n">s</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">symbol_inputs</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_next</span><span class="o">.</span><span class="n">add_prim_attr</span><span class="p">(</span><span class="s2">&quot;symbols&quot;</span><span class="p">,</span> <span class="n">symbol_inputs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="n">network</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_get_attr_from_cell</span><span class="p">(</span><span class="n">network</span><span class="p">)</span>
 
@@ -262,7 +271,15 @@
         <span class="k">return</span> <span class="n">_generate_dataset_sink_mode_net</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">new_shapes</span><span class="p">,</span> <span class="n">dataset_types</span><span class="p">,</span> <span class="n">queue_name</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">network</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">()</span> <span class="ow">and</span> <span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">network</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">():</span>
-        <span class="n">_check_inputs</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">(),</span> <span class="n">dataset_shapes</span><span class="p">,</span> <span class="n">dataset_types</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_is_in_auto_parallel_mode</span><span class="p">():</span>
+            <span class="c1"># here, the dataset shapes has been processed by full_shape(), so need to resume it to original shape</span>
+            <span class="c1"># the _check_inputs() will change static origin_shape to dynamic shape</span>
+            <span class="c1"># after _check_inputs(), convert dataset_shapes to dynamic shape</span>
+            <span class="n">origin_shape</span> <span class="o">=</span> <span class="n">_origin_shapes</span><span class="p">(</span><span class="n">dataset_shapes</span><span class="p">)</span>
+            <span class="n">_check_inputs</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">(),</span> <span class="n">origin_shape</span><span class="p">,</span> <span class="n">dataset_types</span><span class="p">)</span>
+            <span class="n">dataset_shapes</span> <span class="o">=</span> <span class="n">_dynamic_shape_for_dataset</span><span class="p">(</span><span class="n">dataset_shapes</span><span class="p">,</span> <span class="n">origin_shape</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_check_inputs</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">get_inputs</span><span class="p">(),</span> <span class="n">dataset_shapes</span><span class="p">,</span> <span class="n">dataset_types</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">context</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">context</span><span class="o">.</span><span class="n">PYNATIVE_MODE</span><span class="p">:</span>
         <span class="n">dataset_shapes</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([(</span><span class="o">-</span><span class="mi">2</span><span class="p">,)]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataset_shapes</span><span class="p">))</span>
     <span class="n">network</span> <span class="o">=</span> <span class="n">_generate_dataset_sink_mode_net</span><span class="p">(</span>
@@ -415,7 +432,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        dataset (Dataset): The dataset iterator. The dataset can be generated by dataset generator API in</span>
-<span class="sd">                           :class:`mindspore.dataset`, such as :class:`mindspore.dataset.ImageFolderDataset`.</span>
+<span class="sd">                           `mindspore.dataset` module, such as :class:`mindspore.dataset.ImageFolderDataset`.</span>
 <span class="sd">        dataset_sink_mode (bool): If the value is True, GetNext is employed to fetch the data at device through the</span>
 <span class="sd">                                  dataset pipeline, otherwise fetch the data at host by iterating through the dataset.</span>
 <span class="sd">                                  Default: ``True``.</span>
@@ -578,6 +595,11 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter</span><span class="o">.</span><span class="n">get_data_info</span><span class="p">()</span>
 
     <span class="c1"># pylint: disable=missing-docstring</span>
+    <span class="k">def</span> <span class="nf">get_mbuf_queue_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># In sink mode, it returns the element numbers inside mbuf channel.</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter</span><span class="o">.</span><span class="n">get_mbuf_queue_size</span><span class="p">()</span>
+
+    <span class="c1"># pylint: disable=missing-docstring</span>
     <span class="k">def</span> <span class="nf">get_send_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_context</span><span class="p">):</span>
         <span class="c1"># In sink mode, it returns the send information of dataset at this moment.</span>
         <span class="c1"># Send information includes number of send batches, time summary of fetching data on host</span>
@@ -659,6 +681,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">release</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">__transfer_dataset__</span><span class="o">.</span><span class="n">release</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">continue_send</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">__transfer_dataset__</span><span class="o">.</span><span class="n">continue_send</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_data_info</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">__transfer_dataset__</span><span class="o">.</span><span class="n">get_data_info</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_mbuf_queue_size</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">__transfer_dataset__</span><span class="o">.</span><span class="n">get_mbuf_queue_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_send_info</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">__transfer_dataset__</span><span class="o">.</span><span class="n">get_send_info</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">__transfer_dataset__</span><span class="p">,</span> <span class="s2">&quot;_reset&quot;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_reset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">__transfer_dataset__</span><span class="o">.</span><span class="n">_reset</span>  <span class="c1"># pylint: disable=protected-access</span>
