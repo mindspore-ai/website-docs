@@ -8,10 +8,14 @@ rm -rf website-docs
 mv /root/clone/website-docs .
 rm -rf website-log
 mv /root/clone/website-log .
-
-rm -rf ./website-docs/public/install/${VERSION}
-mkdir -p ./website-docs/public/install/${VERSION}
-cp -r ./docs/install/* ./website-docs/public/install/${VERSION}/
+if [ ${VERSION} == "r2.3.q1" ];then
+    WEBSITE_DOCS_DIR="r2.3.0rc1"
+else
+    WEBSITE_DOCS_DIR=${VERSION}
+fi
+rm -rf ./website-docs/public/install/${WEBSITE_DOCS_DIR}
+mkdir -p ./website-docs/public/install/${WEBSITE_DOCS_DIR}
+cp -r ./docs/install/* ./website-docs/public/install/${WEBSITE_DOCS_DIR}/
 if [ ${VERSION} == "master" ];then
     cp -r ./docs/resource/release/release_list_* ./website-docs/public/more/
 fi
